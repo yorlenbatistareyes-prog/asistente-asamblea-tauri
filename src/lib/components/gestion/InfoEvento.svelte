@@ -6,17 +6,20 @@
   import Underline from '@tiptap/extension-underline';
   import TextAlign from '@tiptap/extension-text-align';
   import { 
-    Save, Calendar, MapPin, Bookmark, Clock, Info, Monitor, 
-    AlignLeft, Bold, Italic, Underline as UnderIcon, List, ListOrdered, 
-    AlignCenter, AlignRight, Eraser 
+    Save, Calendar, MapPin, Bookmark, Clock, Info, 
+    AlignLeft, Bold, Italic, Underline as UnderIcon, List, 
+    AlignCenter, Eraser, Building, Users, Plus, X 
   } from 'lucide-svelte';
 
   // --- VARIABLES DE EVENTO ---
   let asambleaId: number | null = null;
   let tema = "";
   let fecha = "";
-  let idLocal = ""; // Importante: String vacío por defecto para el <select>
+  
+  // --- LÓGICA DE SALONES (NUEVO) ---
   let locales: any[] = [];
+  let idLocal: number | null = null; // El ID seleccionado
+  let localDetalle: any = null;      // Objeto con los datos del salón (para mostrar info)
 
   // --- VARIABLES DE ENSAYOS ---
   let ensayoLugar = "";
@@ -25,26 +28,28 @@
   let jwStreamStudio = false;
   let instruccionesEsp = ""; 
 
+  // --- MODAL CREAR SALÓN RÁPIDO ---
+  let mostrarModalSalon = false;
+  let nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
+
   // --- CONFIGURACIÓN TIPTAP ---
   let elementRecorridos: HTMLElement;
   let elementNotas: HTMLElement;
   let editorRecorridos: Editor;
   let editorNotas: Editor;
-
   let htmlRecorridos = "";
   let htmlNotas = "";
 
-  // Función auxiliar para ejecutar comandos sin errores de tipo
   const ejecutar = (editor: Editor, cb: (chain: any) => any) => {
     if (editor) cb(editor.chain().focus()).run();
   };
 
   onMount(async () => {
     try {
-      // 1. Cargar la lista de locales (necesario para el desplegable)
-      locales = await invoke('obtener_locales') as any[];
+      // 1. Cargar lista global de salones
+      await cargarLocales();
 
-      // 2. Obtener la asamblea activa (la recién creada o la última visitada)
+      // 2. Cargar datos de la asamblea
       const asamblea = await invoke('obtener_asamblea_activa') as any;
       
       if (asamblea) {
@@ -52,27 +57,35 @@
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
         
-        // --- CORRECCIÓN CLAVE PARA NUEVA ASAMBLEA ---
-        // Si es nueva, local_id viene como null. Lo convertimos a "" para que el select muestre "Seleccionar..."
-        // Si ya tiene local, lo convertimos a string para que el binding funcione.
-        idLocal = (asamblea.local_id !== null && asamblea.local_id !== undefined) 
-                  ? asamblea.local_id.toString() 
-                  : "";
+        // Vinculamos el ID. La variable reactiva ($:) actualizará la tarjeta visual.
+        idLocal = asamblea.local_id || null;
 
         ensayoLugar = asamblea.ensayo_lugar || "";
         ensayoFecha = asamblea.ensayo_fecha || "";
         ensayoHora = asamblea.ensayo_hora || "";
         instruccionesEsp = asamblea.instrucciones_esp || "";
-        
-        // Conversión de entero SQLite (1/0) a booleano JS (true/false)
         jwStreamStudio = asamblea.jw_stream_studio === 1;
-
-        // Aseguramos que los editores reciban al menos un string vacío, nunca null
         htmlRecorridos = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
       }
 
-      // 3. Inicializar Editores (Solo después de cargar los datos)
+      initEditors();
+
+    } catch (error) { console.error(error); }
+  });
+
+  async function cargarLocales() {
+      locales = await invoke('obtener_locales') as any[];
+  }
+
+  // --- REACTIVIDAD: Actualizar tarjeta visual al cambiar selección ---
+  $: if (idLocal && locales.length > 0) {
+      localDetalle = locales.find(l => l.id === idLocal);
+  } else {
+      localDetalle = null;
+  }
+
+  function initEditors() {
       editorRecorridos = new Editor({
         element: elementRecorridos,
         extensions: [StarterKit, Underline, TextAlign.configure({ types: ['heading', 'paragraph'] })],
@@ -86,43 +99,48 @@
         content: htmlNotas,
         onUpdate: ({ editor }) => { htmlNotas = editor.getHTML(); }
       });
-
-    } catch (error) {
-      console.error("Error al cargar InfoEvento:", error);
-      alert("Ocurrió un error al cargar los datos de la asamblea.");
-    }
-  });
+  }
 
   onDestroy(() => {
     editorRecorridos?.destroy();
     editorNotas?.destroy();
   });
 
+  // --- CREAR SALÓN RÁPIDO (Backend) ---
+  async function guardarNuevoSalon() {
+      if(!nuevoSalon.nombre) return alert("Falta el nombre");
+      try {
+          await invoke('crear_local', { ...nuevoSalon });
+          await cargarLocales(); // Recargar lista
+          
+          // Auto-seleccionar el nuevo (buscándolo por nombre)
+          const recienCreado = locales.find(l => l.nombre === nuevoSalon.nombre);
+          if (recienCreado) idLocal = recienCreado.id;
+          
+          nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
+          mostrarModalSalon = false;
+      } catch(e) { alert(e); }
+  }
+
   async function guardar() {
     try {
       await invoke('guardar_info_evento', {
         id: asambleaId,
-        tema, 
-        fecha,
-        // Si idLocal es "", enviamos null a la base de datos
-        localId: idLocal ? parseInt(idLocal) : null, 
-        ensayoLugar, 
-        ensayoFecha, 
-        ensayoHora,
+        tema, fecha,
+        localId: idLocal, // Guardamos el ID del salón vinculado
+        ensayoLugar, ensayoFecha, ensayoHora,
         ensayoNotas: htmlNotas,
         recorridosInfo: htmlRecorridos,
         instruccionesEsp,
         esJwStream: jwStreamStudio
       });
       alert("✅ Configuración guardada correctamente");
-    } catch (e) { 
-      console.error(e);
-      alert("❌ Error al guardar: " + e); 
-    }
+    } catch (e) { alert("❌ Error al guardar: " + e); }
   }
 </script>
 
 <div class="contenedor">
+  
   <div class="card-config">
     <div class="header-card">
       <h3><Bookmark size={18}/> Información del Evento</h3>
@@ -130,15 +148,35 @@
     </div>
     
     <div class="formulario grid-2">
-      <div class="campo full"><label>Tema</label><input type="text" bind:value={tema} /></div>
+      <div class="campo full"><label>Tema</label><input type="text" bind:value={tema} class="input-big"/></div>
       <div class="campo"><label><Calendar size={14}/> Fecha</label><input type="text" bind:value={fecha} /></div>
+      
       <div class="campo">
-        <label><MapPin size={14}/> Lugar</label>
-        <select bind:value={idLocal}>
-          {#each locales as l}<option value={l.id}>{l.nombre}</option>{/each}
-        </select>
+        <label><MapPin size={14}/> Salón de Asambleas</label>
+        <div class="selector-salon">
+            <select bind:value={idLocal}>
+                <option value={null}>-- Seleccionar Salón --</option>
+                {#each locales as l}<option value={l.id}>{l.nombre}</option>{/each}
+            </select>
+            <button class="btn-plus" on:click={() => mostrarModalSalon = true} title="Crear Nuevo Salón"><Plus size={16}/></button>
+        </div>
       </div>
     </div>
+
+    {#if localDetalle}
+        <div class="salon-info-card">
+            <div class="icon-building"><Building size={24}/></div>
+            <div class="info-text">
+                <span class="l-nombre">{localDetalle.nombre}</span>
+                <span class="l-dir">{localDetalle.direccion || 'Sin dirección registrada'}</span>
+            </div>
+            <div class="info-cap">
+                <Users size={16}/>
+                <span>{localDetalle.capacidad || 0}</span>
+                <small>asientos</small>
+            </div>
+        </div>
+    {/if}
   </div>
 
   <div class="card-config mt-20">
@@ -162,8 +200,8 @@
     </div>
 
     <div class="grid-3 mt-20">
-      <div class="campo"><label>Lugar Ensayo</label><input type="text" bind:value={ensayoLugar} /></div>
-      <div class="campo"><label>Fecha</label><input type="date" bind:value={ensayoFecha} /></div>
+      <div class="campo"><label>Lugar Ensayo (Si es distinto)</label><input type="text" bind:value={ensayoLugar} placeholder="Ej: Mismo Salón" /></div>
+      <div class="campo"><label>Fecha Ensayo</label><input type="date" bind:value={ensayoFecha} /></div>
       <div class="campo"><label>Hora</label><input type="time" bind:value={ensayoHora} /></div>
     </div>
 
@@ -189,8 +227,22 @@
   </div>
 </div>
 
+{#if mostrarModalSalon}
+    <div class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header"><h3>Nuevo Salón</h3><button on:click={() => mostrarModalSalon = false}><X size={18}/></button></div>
+            <div class="modal-body">
+                <label>Nombre</label><input type="text" bind:value={nuevoSalon.nombre} placeholder="Ej: Salón Cotorro"/>
+                <label>Dirección</label><input type="text" bind:value={nuevoSalon.direccion} placeholder="Calle..."/>
+                <label>Capacidad</label><input type="number" bind:value={nuevoSalon.capacidad}/>
+                <button class="btn-create" on:click={guardarNuevoSalon}>Crear y Asignar</button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
-  .contenedor { display: flex; flex-direction: column; gap: 20px; }
+  .contenedor { display: flex; flex-direction: column; gap: 20px; padding-bottom: 40px; }
   .card-config { background: white; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
   .header-card, .header-ensayo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -199,7 +251,33 @@
   .mt-20 { margin-top: 20px; }
   
   label { display: flex; gap: 8px; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; }
-  input, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box; }
+  input, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 14px; }
+  .input-big { font-size: 16px; font-weight: 600; color: #1e293b; }
+
+  /* SELECTOR CON BOTÓN + */
+  .selector-salon { display: flex; gap: 8px; }
+  .btn-plus { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; width: 42px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
+  .btn-plus:hover { background: #e2e8f0; color: #2563eb; }
+
+  /* TARJETA DE DETALLE DEL SALÓN */
+  .salon-info-card { 
+      margin-top: 20px; 
+      background: #f8fafc; 
+      border: 1px solid #e2e8f0; 
+      border-radius: 10px; 
+      padding: 15px; 
+      display: flex; 
+      align-items: center; 
+      gap: 15px;
+  }
+  
+  .icon-building { background: white; padding: 10px; border-radius: 8px; color: #2563eb; border: 1px solid #e2e8f0; }
+  .info-text { flex: 1; display: flex; flex-direction: column; }
+  .l-nombre { font-weight: 700; color: #1e293b; font-size: 15px; }
+  .l-dir { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .info-cap { display: flex; flex-direction: column; align-items: center; background: white; padding: 5px 15px; border-radius: 8px; border: 1px solid #e2e8f0; color: #0f172a; }
+  .info-cap span { font-weight: 800; font-size: 16px; }
+  .info-cap small { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
 
   /* TIPTAP STYLES */
   .tiptap-frame { border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
@@ -211,4 +289,11 @@
 
   .stream-check { display: flex; align-items: center; gap: 10px; margin-top: 20px; padding: 15px; background: #eff6ff; border-radius: 8px; cursor: pointer; border: 1px solid #bfdbfe; }
   .btn-save { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; gap: 8px; font-weight: 600; margin-left: auto;}
+
+  /* MODAL */
+  .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+  .modal { background: white; width: 350px; padding: 20px; border-radius: 12px; }
+  .modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; } .modal-header h3 { margin: 0; } .modal-header button { border: none; background: none; cursor: pointer; }
+  .modal-body { display: flex; flex-direction: column; gap: 10px; }
+  .btn-create { background: #0078d4; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: 600; }
 </style>

@@ -25,15 +25,16 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // LOCALES
+            // LOCALES (SALONES)
             commands::locales::crear_local,
             commands::locales::obtener_locales,
+            commands::locales::eliminar_local, // <--- NUEVO COMANDO REGISTRADO
             
-            // CONGREGACIONES (¡AQUÍ AGREGAMOS LOS NUEVOS COMANDOS!)
+            // CONGREGACIONES
             commands::congregaciones::crear_congregacion,
             commands::congregaciones::obtener_congregaciones,
-            commands::congregaciones::eliminar_congregacion, // <--- NUEVO
-            commands::congregaciones::limpiar_congregaciones, // <--- NUEVO
+            commands::congregaciones::eliminar_congregacion,
+            commands::congregaciones::limpiar_congregaciones,
             
             // PERSONAS
             commands::personas::crear_persona,
@@ -46,11 +47,10 @@ pub fn run() {
             commands::asambleas::guardar_info_evento,
             commands::asambleas::guardar_comite,
             commands::asambleas::obtener_asamblea_activa,
-            // Nuevos comandos añadidos para el Dashboard:
-            commands::asambleas::crear_asamblea,     // <--- NUEVO
-            commands::asambleas::obtener_asambleas,  // <--- NUEVO
-            commands::asambleas::eliminar_asamblea,  // <--- NUEVO
-
+            commands::asambleas::crear_asamblea,    
+            commands::asambleas::obtener_asambleas, 
+            commands::asambleas::eliminar_asamblea, 
+            
             // IMPORTAR
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,
@@ -71,9 +71,9 @@ pub fn run() {
             commands::oficina::guardar_asignacion_especial,
             commands::oficina::eliminar_asignacion_especial,
 
-           // CORRESPONDENCIA (Ahora con la ruta correcta)
-            commands::correspondencia::obtener_plantilla, // <--- CAMBIADO
-            commands::correspondencia::guardar_plantilla, // <--- CAMBIADO
+            // CORRESPONDENCIA
+            commands::correspondencia::obtener_plantilla, 
+            commands::correspondencia::guardar_plantilla, 
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

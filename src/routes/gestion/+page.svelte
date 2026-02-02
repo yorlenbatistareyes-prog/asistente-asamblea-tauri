@@ -1,18 +1,14 @@
 <script lang="ts">
-  import { Users, Home, MapPin, Briefcase, FileText, ArrowLeft } from 'lucide-svelte';
+  // Eliminado 'MapPin' de la lista de iconos porque ya no se usa
+  import { Users, Home, Briefcase, FileText, ArrowLeft, Bookmark } from 'lucide-svelte';
   
   // Importamos tus componentes
-  import Locales from '$lib/components/gestion/Locales.svelte';
+  // Eliminado: import Locales from '$lib/components/gestion/Locales.svelte';
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
   import Personas from '$lib/components/gestion/Personas.svelte';
   import Comite from '$lib/components/gestion/Comite.svelte';
-  // AÑADE ESTA:
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
-  import { 
-    // ... otros iconos ...
-    Bookmark // Asegúrate de importar este icono si lo vas a usar
-  } from 'lucide-svelte';
 
   // Controla qué sección vemos
   let seccionActiva = 'inicio';
@@ -33,10 +29,6 @@
     <nav class="menu">
       <button class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')}>
         <Home size={20} /> Inicio / Resumen
-      </button>
-
-      <button class:activo={seccionActiva === 'locales'} on:click={() => cambiarSeccion('locales')}>
-        <MapPin size={20} /> Salón de Asamblea
       </button>
 
       <button 
@@ -74,18 +66,16 @@
   <main class="contenido">
     
     <header>
-  <h2>
-    {#if seccionActiva === 'inicio'} Resumen General {/if}
-    {#if seccionActiva === 'locales'} Gestión de Salones {/if}
-    
-    {#if seccionActiva === 'info_evento'} Información del Evento {/if} 
-    
-    {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
-    {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
-    {#if seccionActiva === 'comite'} Comité de Asamblea {/if}
-    {#if seccionActiva === 'programa'} Programa {/if}
-  </h2>
-</header>
+      <h2>
+        {#if seccionActiva === 'inicio'} Resumen General {/if}
+        {#if seccionActiva === 'info_evento'} Información del Evento {/if} 
+        
+        {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
+        {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
+        {#if seccionActiva === 'comite'} Comité de Asamblea {/if}
+        {#if seccionActiva === 'programa'} Programa {/if}
+      </h2>
+    </header>
 
     <div class="area-trabajo">
       
@@ -100,10 +90,6 @@
         <InfoEvento />
       {/if}
 
-      {#if seccionActiva === 'locales'}
-        <Locales />
-      {/if}
-      
       {#if seccionActiva === 'congregaciones'}
         <Congregaciones />
       {/if}
