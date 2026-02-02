@@ -90,3 +90,62 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<Asamblea>, Strin
     
     Ok(lista.into_iter().next())
 }
+
+// --- NUEVAS FUNCIONES PARA EL TABLERO (AGREGADAS) ---
+
+#[tauri::command]
+pub fn crear_asamblea(app: AppHandle, tema: String, fecha: String, lugar: String) -> Result<i64, String> {
+    let conn = conectar_db(&app);
+
+    // Insertamos la nueva asamblea inicializando TODOS los campos necesarios.
+    // - local_id: NULL (se elegirá después)
+    // - jw_stream_studio: 0 (falso por defecto)
+    // - Resto de campos de texto: '' (vacíos para evitar errores de null en Svelte)
+    conn.execute(
+        "INSERT INTO asambleas (
+            tema, fecha, ensayo_lugar, 
+            local_id, jw_stream_studio, 
+            ensayo_notas, recorridos_info,
+            ensayo_fecha, ensayo_hora, instrucciones_esp
+        ) VALUES (?1, ?2, ?3, NULL, 0, '', '', '', '', '')",
+        params![tema, fecha, lugar],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(conn.last_insert_rowid())
+}
+
+#[command]
+pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
+    let conn = conectar_db(&app);
+
+    // Obtenemos una lista ligera para mostrar en el tablero
+    let mut stmt = conn.prepare("SELECT id, tema, fecha, ensayo_lugar FROM asambleas ORDER BY id DESC")
+        .map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(serde_json::json!({
+            "id": row.get::<_, i64>(0)?,
+            "tema": row.get::<_, String>(1)?,
+            "fecha": row.get::<_, String>(2)?,
+            "lugar": row.get::<_, String>(3).unwrap_or_default(),
+        }))
+    }).map_err(|e| e.to_string())?;
+
+    let mut asambleas = Vec::new();
+    for row in rows {
+        asambleas.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(asambleas)
+}
+
+#[command]
+pub fn eliminar_asamblea(app: AppHandle, id: i64) -> Result<(), String> {
+    let conn = conectar_db(&app);
+
+    // Borramos la asamblea especificada
+    conn.execute("DELETE FROM asambleas WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+

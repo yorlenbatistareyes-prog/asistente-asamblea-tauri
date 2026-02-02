@@ -32,8 +32,33 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     // 4. PROGRAMA
     conn.execute("CREATE TABLE IF NOT EXISTS programa (id INTEGER PRIMARY KEY AUTOINCREMENT, dia TEXT NOT NULL, sesion TEXT NOT NULL, hora_inicio TEXT, tema TEXT NOT NULL, tipo TEXT DEFAULT 'Discurso', duracion INTEGER, orador_id INTEGER, es_video BOOLEAN DEFAULT 0, estado TEXT DEFAULT 'Pendiente', esta_presente BOOLEAN DEFAULT 0, FOREIGN KEY(orador_id) REFERENCES personas(id))", [])?;
 
-    // 5. ASAMBLEAS
-    conn.execute("CREATE TABLE IF NOT EXISTS asambleas (id INTEGER PRIMARY KEY AUTOINCREMENT, tema TEXT NOT NULL, fecha TEXT NOT NULL, local_id INTEGER, presidente_id INTEGER, ensayo_lugar TEXT, ensayo_fecha TEXT, ensayo_hora TEXT, recorridos_info TEXT, instrucciones_esp TEXT, ensayo_notas TEXT, jw_stream_studio INTEGER DEFAULT 0, FOREIGN KEY(local_id) REFERENCES locales(id), FOREIGN KEY(presidente_id) REFERENCES personas(id))", [])?;
+    // 5. ASAMBLEAS (Definición completa para instalaciones nuevas)
+    conn.execute("CREATE TABLE IF NOT EXISTS asambleas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        tema TEXT NOT NULL, 
+        fecha TEXT NOT NULL, 
+        local_id INTEGER, 
+        presidente_id INTEGER, 
+        ensayo_lugar TEXT, 
+        ensayo_fecha TEXT, 
+        ensayo_hora TEXT, 
+        recorridos_info TEXT, 
+        instrucciones_esp TEXT, 
+        ensayo_notas TEXT, 
+        jw_stream_studio INTEGER DEFAULT 0, 
+        FOREIGN KEY(local_id) REFERENCES locales(id), 
+        FOREIGN KEY(presidente_id) REFERENCES personas(id)
+    )", [])?;
+
+    // --- MIGRACIÓN (IMPORTANTE): Agrega columnas si faltan en bases de datos viejas ---
+    // El "let _ =" ignora el error si la columna ya existe. Esto es seguro.
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_lugar TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_fecha TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_hora TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN recorridos_info TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN instrucciones_esp TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_notas TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN jw_stream_studio INTEGER DEFAULT 0", []);
 
     // 6. ASIGNACIONES ESPECIALES
     conn.execute("CREATE TABLE IF NOT EXISTS asignaciones_especiales (id INTEGER PRIMARY KEY AUTOINCREMENT, dia TEXT NOT NULL, tipo_asignacion TEXT NOT NULL, persona_id INTEGER NOT NULL, FOREIGN KEY(persona_id) REFERENCES personas(id))", [])?;

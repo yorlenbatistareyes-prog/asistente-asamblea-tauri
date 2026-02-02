@@ -15,7 +15,7 @@
   let asambleaId: number | null = null;
   let tema = "";
   let fecha = "";
-  let idLocal = "";
+  let idLocal = ""; // Importante: String vacío por defecto para el <select>
   let locales: any[] = [];
 
   // --- VARIABLES DE ENSAYOS ---
@@ -23,7 +23,7 @@
   let ensayoFecha = "";
   let ensayoHora = "";
   let jwStreamStudio = false;
-  let instruccionesEsp = ""; // Este se queda como texto simple o puedes clonar el editor
+  let instruccionesEsp = ""; 
 
   // --- CONFIGURACIÓN TIPTAP ---
   let elementRecorridos: HTMLElement;
@@ -40,37 +40,57 @@
   };
 
   onMount(async () => {
-    locales = await invoke('obtener_locales') as any[];
-    const asamblea = await invoke('obtener_asamblea_activa') as any;
-    
-    if (asamblea) {
-      asambleaId = asamblea.id;
-      tema = asamblea.tema;
-      fecha = asamblea.fecha;
-      idLocal = asamblea.local_id?.toString() || "";
-      ensayoLugar = asamblea.ensayo_lugar || "";
-      ensayoFecha = asamblea.ensayo_fecha || "";
-      ensayoHora = asamblea.ensayo_hora || "";
-      instruccionesEsp = asamblea.instrucciones_esp || "";
-      jwStreamStudio = asamblea.jw_stream_studio === 1;
-      htmlRecorridos = asamblea.recorridos_info || "";
-      htmlNotas = asamblea.ensayo_notas || "";
+    try {
+      // 1. Cargar la lista de locales (necesario para el desplegable)
+      locales = await invoke('obtener_locales') as any[];
+
+      // 2. Obtener la asamblea activa (la recién creada o la última visitada)
+      const asamblea = await invoke('obtener_asamblea_activa') as any;
+      
+      if (asamblea) {
+        asambleaId = asamblea.id;
+        tema = asamblea.tema || "";
+        fecha = asamblea.fecha || "";
+        
+        // --- CORRECCIÓN CLAVE PARA NUEVA ASAMBLEA ---
+        // Si es nueva, local_id viene como null. Lo convertimos a "" para que el select muestre "Seleccionar..."
+        // Si ya tiene local, lo convertimos a string para que el binding funcione.
+        idLocal = (asamblea.local_id !== null && asamblea.local_id !== undefined) 
+                  ? asamblea.local_id.toString() 
+                  : "";
+
+        ensayoLugar = asamblea.ensayo_lugar || "";
+        ensayoFecha = asamblea.ensayo_fecha || "";
+        ensayoHora = asamblea.ensayo_hora || "";
+        instruccionesEsp = asamblea.instrucciones_esp || "";
+        
+        // Conversión de entero SQLite (1/0) a booleano JS (true/false)
+        jwStreamStudio = asamblea.jw_stream_studio === 1;
+
+        // Aseguramos que los editores reciban al menos un string vacío, nunca null
+        htmlRecorridos = asamblea.recorridos_info || "";
+        htmlNotas = asamblea.ensayo_notas || "";
+      }
+
+      // 3. Inicializar Editores (Solo después de cargar los datos)
+      editorRecorridos = new Editor({
+        element: elementRecorridos,
+        extensions: [StarterKit, Underline, TextAlign.configure({ types: ['heading', 'paragraph'] })],
+        content: htmlRecorridos, 
+        onUpdate: ({ editor }) => { htmlRecorridos = editor.getHTML(); }
+      });
+
+      editorNotas = new Editor({
+        element: elementNotas,
+        extensions: [StarterKit, Underline, TextAlign.configure({ types: ['heading', 'paragraph'] })],
+        content: htmlNotas,
+        onUpdate: ({ editor }) => { htmlNotas = editor.getHTML(); }
+      });
+
+    } catch (error) {
+      console.error("Error al cargar InfoEvento:", error);
+      alert("Ocurrió un error al cargar los datos de la asamblea.");
     }
-
-    // Inicializar Editores
-    editorRecorridos = new Editor({
-      element: elementRecorridos,
-      extensions: [StarterKit, Underline, TextAlign.configure({ types: ['heading', 'paragraph'] })],
-      content: htmlRecorridos,
-      onUpdate: ({ editor }) => { htmlRecorridos = editor.getHTML(); }
-    });
-
-    editorNotas = new Editor({
-      element: elementNotas,
-      extensions: [StarterKit, Underline, TextAlign.configure({ types: ['heading', 'paragraph'] })],
-      content: htmlNotas,
-      onUpdate: ({ editor }) => { htmlNotas = editor.getHTML(); }
-    });
   });
 
   onDestroy(() => {
@@ -82,16 +102,23 @@
     try {
       await invoke('guardar_info_evento', {
         id: asambleaId,
-        tema, fecha,
-        localId: idLocal ? parseInt(idLocal) : null,
-        ensayoLugar, ensayoFecha, ensayoHora,
+        tema, 
+        fecha,
+        // Si idLocal es "", enviamos null a la base de datos
+        localId: idLocal ? parseInt(idLocal) : null, 
+        ensayoLugar, 
+        ensayoFecha, 
+        ensayoHora,
+        ensayoNotas: htmlNotas,
         recorridosInfo: htmlRecorridos,
         instruccionesEsp,
-        ensayoNotas: htmlNotas,
         esJwStream: jwStreamStudio
       });
       alert("✅ Configuración guardada correctamente");
-    } catch (e) { alert("❌ Error: " + e); }
+    } catch (e) { 
+      console.error(e);
+      alert("❌ Error al guardar: " + e); 
+    }
   }
 </script>
 

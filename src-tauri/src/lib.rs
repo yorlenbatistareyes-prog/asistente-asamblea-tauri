@@ -9,6 +9,7 @@ pub mod commands {
     pub mod importar;
     pub mod programa;
     pub mod oficina; 
+    pub mod correspondencia;
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -45,7 +46,11 @@ pub fn run() {
             commands::asambleas::guardar_info_evento,
             commands::asambleas::guardar_comite,
             commands::asambleas::obtener_asamblea_activa,
-            
+            // Nuevos comandos añadidos para el Dashboard:
+            commands::asambleas::crear_asamblea,     // <--- NUEVO
+            commands::asambleas::obtener_asambleas,  // <--- NUEVO
+            commands::asambleas::eliminar_asamblea,  // <--- NUEVO
+
             // IMPORTAR
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,
@@ -65,6 +70,10 @@ pub fn run() {
             commands::oficina::obtener_asignaciones_especiales,
             commands::oficina::guardar_asignacion_especial,
             commands::oficina::eliminar_asignacion_especial,
+
+           // CORRESPONDENCIA (Ahora con la ruta correcta)
+            commands::correspondencia::obtener_plantilla, // <--- CAMBIADO
+            commands::correspondencia::guardar_plantilla, // <--- CAMBIADO
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
