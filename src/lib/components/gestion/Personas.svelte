@@ -5,6 +5,8 @@
   import { open } from '@tauri-apps/plugin-dialog';
 
   // --- VARIABLES ---
+  let asambleaId = 0; // <--- ID DE LA ASAMBLEA ACTUAL
+
   let nombre = "";
   let telefono = "";
   let email = "";
@@ -17,17 +19,25 @@
   let terminoBusqueda = "";
 
   onMount(() => { 
-    cargarDatos(); 
+    // 1. RECUPERAR ID
+    const datosGuardados = localStorage.getItem('asambleaActiva');
+    if (datosGuardados) {
+        asambleaId = JSON.parse(datosGuardados).id;
+        cargarDatos(); 
+    } else {
+        alert("⚠️ No hay asamblea seleccionada.");
+    }
   });
 
   async function cargarDatos() {
     try {
-      personas = await invoke('obtener_personas');
-      congregaciones = await invoke('obtener_congregaciones');
-      // Por defecto seleccionamos la primera congregación si existe
-      if (congregaciones.length > 0 && idCongregacion === null) {
-         // idCongregacion = congregaciones[0].id; // Opcional
-      }
+      // 2. ENVIAR ID AL CARGAR
+      // Pedimos las personas DE ESTA ASAMBLEA
+      personas = await invoke('obtener_personas', { asambleaId });
+      
+      // Pedimos las congregaciones DE ESTA ASAMBLEA (para el select)
+      congregaciones = await invoke('obtener_congregaciones', { asambleaId });
+      
     } catch (e) { console.error(e); }
   }
 
@@ -44,20 +54,22 @@
   // --- GUARDAR MANUALMENTE ---
   async function guardar() {
     if (!nombre) return alert("Escribe el nombre completo");
-    // Si idCongregacion es null, pasamos 0 o manejamos la lógica
     const idCong = idCongregacion ? idCongregacion : 0; 
     
     try {
+      // 3. ENVIAR ID AL CREAR
       await invoke('crear_persona', { 
+        asambleaId, // <--- Importante
         nombreCompleto: nombre, 
-        genero: "Hombre", // Por defecto
+        genero: "Hombre", 
         privilegios: privilegio,
         idCongregacion: idCong, 
         telefono, 
         email 
       });
+      
       // Limpiar form
-      nombre = ""; telefono = ""; email = ""; privilegio = "";
+      nombre = ""; telefono = ""; email = ""; privilegio = ""; idCongregacion = null;
       cargarDatos();
     } catch (e) { alert("Error: " + e); }
   }
@@ -67,7 +79,11 @@
     try {
       const archivo = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
       if (archivo) {
-        const mensaje = await invoke('importar_personas_csv', { rutaArchivo: archivo });
+        // 4. ENVIAR ID AL IMPORTAR
+        const mensaje = await invoke('importar_personas_csv', { 
+            asambleaId, 
+            rutaArchivo: archivo 
+        });
         alert(mensaje);
         cargarDatos(); 
       }
@@ -75,6 +91,7 @@
   }
 
   // --- ELIMINAR UNO ---
+  // (Eliminar por ID único no requiere cambios)
   async function eliminar(id: number, nombreP: string) {
     if(!confirm(`¿Eliminar a ${nombreP}?`)) return;
     try {
@@ -85,9 +102,10 @@
 
   // --- ELIMINAR TODOS ---
   async function limpiarTodo() {
-    if(!confirm("⚠️ ¿ESTÁS SEGURO?\n\nSe borrará TODA la lista de personas.\nLos discursos asignados quedarán vacíos.")) return;
+    if(!confirm("⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán las personas de ESTA asamblea.\nLos discursos asignados quedarán vacíos.")) return;
     try {
-        await invoke('limpiar_personas');
+        // 5. ENVIAR ID AL LIMPIAR
+        await invoke('limpiar_personas', { asambleaId });
         cargarDatos();
     } catch(e) { alert(e); }
   }
@@ -127,7 +145,6 @@
           <MapPin size={14} class="ico"/>
           <select bind:value={idCongregacion}>
               <option value={0}>-- Sin Asignación / Superintendente --</option>
-          
               {#each congregaciones as cong}
                   <option value={cong.id}>{cong.nombre}</option>
               {/each}
@@ -160,7 +177,7 @@
 
   <div class="lista">
     <div class="header-lista">
-        <h4>Personas Registradas ({listaFiltrada.length})</h4>
+        <h4>Personas Registradas (Asamblea #{asambleaId}) - Total: {listaFiltrada.length}</h4>
     </div>
     
     <div class="tabla-header">
@@ -187,7 +204,7 @@
           </div>
         </div>
       {:else}
-        <div class="vacio">No hay personas registradas.</div>
+        <div class="vacio">No hay personas registradas en esta asamblea.</div>
       {/each}
     </div>
   </div>

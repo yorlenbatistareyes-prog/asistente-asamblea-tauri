@@ -10,10 +10,11 @@ fn conectar_db(app: &AppHandle) -> Connection {
 #[command]
 pub fn crear_persona(
     app: AppHandle,
+    asamblea_id: i32, // <--- NUEVO: Vincula la persona a esta asamblea
     nombre_completo: String,
     genero: String,
     privilegios: String,
-    id_congregacion: i32, // Viene como 0 si no tiene congregación
+    id_congregacion: i32, 
     telefono: String,
     email: String,
 ) -> Result<String, String> {
@@ -23,8 +24,8 @@ pub fn crear_persona(
     let id_cong_final = if id_congregacion == 0 { None } else { Some(id_congregacion) };
 
     match conn.execute(
-        "INSERT INTO personas (nombre_completo, genero, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![nombre_completo, genero, privilegios, id_cong_final, telefono, email],
+        "INSERT INTO personas (asamblea_id, nombre_completo, genero, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![asamblea_id, nombre_completo, genero, privilegios, id_cong_final, telefono, email],
     ) {
         Ok(_) => Ok("Persona creada exitosamente".to_string()),
         Err(e) => Err(format!("Error al crear persona: {}", e)),
@@ -32,18 +33,19 @@ pub fn crear_persona(
 }
 
 #[command]
-pub fn obtener_personas(app: AppHandle) -> Result<Vec<Persona>, String> {
+pub fn obtener_personas(app: AppHandle, asamblea_id: i32) -> Result<Vec<Persona>, String> {
     let conn = conectar_db(&app);
     
-    // El LEFT JOIN asegura que traiga a la persona aunque no tenga congregación
+    // FILTRAMOS POR ASAMBLEA (WHERE p.asamblea_id = ?1)
     let mut stmt = conn.prepare(
         "SELECT p.id, p.nombre_completo, p.genero, p.privilegios, p.id_congregacion, p.telefono, p.email, c.nombre 
          FROM personas p 
          LEFT JOIN congregaciones c ON p.id_congregacion = c.id
+         WHERE p.asamblea_id = ?1
          ORDER BY p.nombre_completo ASC"
     ).map_err(|e| e.to_string())?;
 
-    let personas_iter = stmt.query_map([], |row| {
+    let personas_iter = stmt.query_map(params![asamblea_id], |row| {
         Ok(Persona {
             id: row.get(0)?,
             nombre_completo: row.get(1)?,
@@ -79,6 +81,7 @@ pub fn actualizar_persona(
     // TRUCO: Si es 0, lo convertimos en None (NULL en SQL)
     let id_cong_final = if id_congregacion == 0 { None } else { Some(id_congregacion) };
 
+    // Actualizar no necesita asamblea_id porque el ID de persona es único
     match conn.execute(
         "UPDATE personas SET nombre_completo = ?1, genero = ?2, privilegios = ?3, id_congregacion = ?4, telefono = ?5, email = ?6 WHERE id = ?7",
         params![nombre_completo, genero, privilegios, id_cong_final, telefono, email, id],
@@ -95,6 +98,7 @@ pub fn eliminar_persona(app: AppHandle, id: i32) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
+    // Desvinculamos solo a esta persona específica
     tx.execute("UPDATE programa SET orador_id = NULL WHERE orador_id = ?1", params![id])
         .map_err(|e| format!("Error desvinculando programa: {}", e))?;
 
@@ -112,22 +116,32 @@ pub fn eliminar_persona(app: AppHandle, id: i32) -> Result<String, String> {
 }
 
 #[command]
-pub fn limpiar_personas(app: AppHandle) -> Result<String, String> {
+pub fn limpiar_personas(app: AppHandle, asamblea_id: i32) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    tx.execute("UPDATE programa SET orador_id = NULL", [])
-        .map_err(|e| format!("Error desvinculando programa: {}", e))?;
+    // 1. Desvincular del programa SOLO a las personas de esta asamblea
+    tx.execute(
+        "UPDATE programa SET orador_id = NULL WHERE orador_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)",
+        params![asamblea_id]
+    ).map_err(|e| format!("Error desvinculando programa: {}", e))?;
 
-    tx.execute("UPDATE asambleas SET presidente_id = NULL", [])
-        .map_err(|e| format!("Error desvinculando asambleas: {}", e))?;
+    // 2. Desvincular presidencia SOLO de esta asamblea
+    tx.execute(
+        "UPDATE asambleas SET presidente_id = NULL WHERE presidente_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)",
+        params![asamblea_id]
+    ).map_err(|e| format!("Error desvinculando asambleas: {}", e))?;
 
-    tx.execute("DELETE FROM asignaciones_especiales", [])
-        .map_err(|e| format!("Error limpiando asignaciones especiales: {}", e))?;
+    // 3. Borrar asignaciones especiales SOLO de esta asamblea
+    tx.execute(
+        "DELETE FROM asignaciones_especiales WHERE persona_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)",
+        params![asamblea_id]
+    ).map_err(|e| format!("Error limpiando asignaciones especiales: {}", e))?;
 
-    tx.execute("DELETE FROM personas", [])
+    // 4. Borrar personas SOLO de esta asamblea
+    tx.execute("DELETE FROM personas WHERE asamblea_id = ?1", params![asamblea_id])
         .map_err(|e| format!("Error limpiando lista: {}", e))?;
 
     tx.commit().map_err(|e| e.to_string())?;
-    Ok("Lista vaciada".to_string())
+    Ok("Lista de personas vaciada para esta asamblea".to_string())
 }

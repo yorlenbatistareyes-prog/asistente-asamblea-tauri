@@ -10,10 +10,10 @@
   } from 'lucide-svelte';
 
   // --- ESTADO ---
+  let asambleaId = 0; // <--- LA LLAVE MAESTRA
   let diaSeleccionado = 'Viernes';
   let partes: any[] = []; 
   
-  // CORRECCIÓN 1: Tipado de oficina para evitar error de "elemento implícito any"
   let oficina: { [key: string]: any } = {
       personal: [] as any[],
       presidente_manana: null as any, oracion_apertura: null as any, bosquejos_manana: null as any, plataforma_manana: null as any,
@@ -33,12 +33,29 @@
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
 
+  onMount(() => {
+    // 1. RECUPERAR ID AL INICIAR
+    const datosGuardados = localStorage.getItem('asambleaActiva');
+    if (datosGuardados) {
+        asambleaId = JSON.parse(datosGuardados).id;
+        cargarDatos();
+        cargarHermanos();
+    } else {
+        alert("⚠️ No hay asamblea seleccionada.");
+    }
+  });
+
   async function cargarDatos() {
-    try { partes = await invoke('obtener_programa_dia', { dia: diaSeleccionado }) as any[]; } catch (e) { console.error(e); }
+    if (!asambleaId) return;
     try { 
-      // CORRECCIÓN 2: Casting as any[] para evitar error de "unknown"
-      const datos = await invoke('obtener_asignaciones_especiales', { dia: diaSeleccionado }) as any[]; 
-      organizarOficina(datos); 
+        // 2. PEDIR PROGRAMA DE ESTA ASAMBLEA
+        partes = await invoke('obtener_programa_dia', { asambleaId, dia: diaSeleccionado }) as any[]; 
+    } catch (e) { console.error(e); }
+    
+    try { 
+        // 3. PEDIR OFICINA DE ESTA ASAMBLEA
+        const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: diaSeleccionado }) as any[]; 
+        organizarOficina(datos); 
     } catch (e) { console.error(e); }
   }
 
@@ -52,13 +69,14 @@
   }
 
   async function cargarHermanos() { 
-    listaHermanos = await invoke('obtener_personas') as any[]; 
+    if (!asambleaId) return;
+    // 4. PEDIR HERMANOS DE ESTA ASAMBLEA (Para autocompletar)
+    listaHermanos = await invoke('obtener_personas', { asambleaId }) as any[]; 
   }
 
-  $: if (diaSeleccionado) cargarDatos();
-  onMount(() => { cargarDatos(); cargarHermanos(); });
+  $: if (diaSeleccionado && asambleaId) cargarDatos();
 
-  // --- LÓGICA PARA QUITAR ASIGNACIÓN DE OFICINA ---
+  // --- LÓGICA OFICINA ---
   async function eliminarAsignacionOficina(idAsignacion: number) {
       if (!confirm("¿Deseas quitar a este hermano de la asignación?")) return;
       try {
@@ -75,7 +93,7 @@
       } catch (e) { console.error(e); }
   }
 
-  // --- RESTO DE LÓGICA ---
+  // --- MODALS ---
   function abrirModalPrograma(parte: any) { parteEditando = parte; rolOficinaEditando = null; terminoBusqueda = ""; mostrarModalAsignar = true; }
   function abrirModalOficina(rol: string) { rolOficinaEditando = rol; parteEditando = null; terminoBusqueda = ""; mostrarModalAsignar = true; }
   function cerrarModales() { mostrarModalAsignar = false; mostrarModalCrear = false; parteEditando = null; rolOficinaEditando = null; }
@@ -83,8 +101,19 @@
   async function asignarOrador(oradorId: number | null, esVideo: boolean) {
     if (oradorId === null && !esVideo) return;
     try {
-        if (parteEditando) await invoke('asignar_parte', { idParte: parteEditando.id, oradorId, esVideo });
-        else if (rolOficinaEditando && oradorId) await invoke('guardar_asignacion_especial', { dia: diaSeleccionado, tipoAsignacion: rolOficinaEditando, personaId: oradorId });
+        if (parteEditando) {
+            // Asignar parte usa ID único, no necesita asambleaId
+            await invoke('asignar_parte', { idParte: parteEditando.id, oradorId, esVideo });
+        }
+        else if (rolOficinaEditando && oradorId) {
+            // 5. GUARDAR ASIGNACIÓN ESPECIAL EN ESTA ASAMBLEA
+            await invoke('guardar_asignacion_especial', { 
+                asambleaId, 
+                dia: diaSeleccionado, 
+                tipoAsignacion: rolOficinaEditando, 
+                personaId: oradorId 
+            });
+        }
         cerrarModales(); cargarDatos();
     } catch (e) { alert(e); }
   }
@@ -92,16 +121,50 @@
   async function guardarNuevaParte() {
     if(!nuevaParte.hora || !nuevaParte.tema) return alert("Falta datos");
     try {
-      await invoke('crear_parte', { dia: diaSeleccionado, sesion: nuevaParte.sesion, hora: nuevaParte.hora, tema: nuevaParte.tema, tipo: nuevaParte.tipo, duracion: Number(nuevaParte.duracion), nombreOrador: nuevaParte.nombre_orador || null, congregacion: nuevaParte.congregacion || null, email: nuevaParte.email || null, telefono: nuevaParte.telefono || null });
+      // 6. CREAR PARTE EN ESTA ASAMBLEA
+      await invoke('crear_parte', { 
+        asambleaId,
+        dia: diaSeleccionado, 
+        sesion: nuevaParte.sesion, 
+        hora: nuevaParte.hora, 
+        tema: nuevaParte.tema, 
+        tipo: nuevaParte.tipo, 
+        duracion: Number(nuevaParte.duracion), 
+        nombreOrador: nuevaParte.nombre_orador || null, 
+        congregacion: nuevaParte.congregacion || null, 
+        email: nuevaParte.email || null, 
+        telefono: nuevaParte.telefono || null 
+      });
       mostrarModalCrear = false; nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '' };
       cargarDatos();
+      // Recargamos hermanos por si se creó uno nuevo al vuelo
+      cargarHermanos(); 
     } catch (e) { alert(e); }
   }
 
   async function quitarPersonal(id: number) { if(confirm("¿Quitar?")) { await invoke('eliminar_asignacion_especial', { id }); cargarDatos(); } }
-  async function limpiarTodo() { if(confirm("¿Borrar todo?")) { await invoke('limpiar_programa'); cargarDatos(); } }
+  
+  async function limpiarTodo() { 
+      if(confirm("¿Borrar todo el programa de ESTE DÍA?")) { 
+          // 7. LIMPIAR PROGRAMA DE ESTA ASAMBLEA
+          await invoke('limpiar_programa', { asambleaId }); 
+          cargarDatos(); 
+      } 
+  }
+  
   async function eliminarParte(id: number) { if(confirm("¿Eliminar?")) { await invoke('eliminar_parte', { id }); cargarDatos(); } }
-  async function importarPrograma() { try { const f = await open({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); if(f) { await invoke('importar_programa_jw', { rutaArchivo: f }); cargarDatos(); } } catch(e) { alert(e); } }
+  
+  async function importarPrograma() { 
+      try { 
+          const f = await open({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
+          if(f) { 
+              // 8. IMPORTAR PROGRAMA EN ESTA ASAMBLEA
+              await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); 
+              cargarDatos(); 
+              cargarHermanos(); // Importante: recargar lista de hermanos
+          } 
+      } catch(e) { alert(e); } 
+  }
 
   function filtrarOradores() { const t = nuevaParte.nombre_orador.toLowerCase(); if(t.length<2){sugerenciasOradores=[];mostrarSugerencias=false;return;} sugerenciasOradores = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t)); mostrarSugerencias = sugerenciasOradores.length > 0; }
   function selectSugerencia(h: any) { nuevaParte.nombre_orador = h.nombre_completo; nuevaParte.congregacion = h.nombre_congregacion || ''; nuevaParte.telefono = h.telefono || ''; nuevaParte.email = h.email || ''; mostrarSugerencias = false; }
@@ -182,13 +245,13 @@
     <div class="header-sesion">
       <h2>Programa - {diaSeleccionado}</h2>
       <div class="acciones-header">
-        <button class="btn-icon" on:click={importarPrograma}><FileUp size={16}/></button>
-        <button class="btn-icon danger" on:click={limpiarTodo}><Trash2 size={16}/></button>
+        <button class="btn-icon" on:click={importarPrograma} title="Importar CSV"><FileUp size={16}/></button>
+        <button class="btn-icon danger" on:click={limpiarTodo} title="Limpiar Programa"><Trash2 size={16}/></button>
         <button class="btn-primary" on:click={() => mostrarModalCrear = true}><Plus size={16}/> Agregar</button>
       </div>
     </div>
     <div class="lista-partes">
-      {#if partes.length === 0}<div class="empty-state"><p>Programa vacío</p></div>{/if}
+      {#if partes.length === 0}<div class="empty-state"><p>Programa vacío para este día.</p></div>{/if}
       
       {#each partes as parte}
         <div class="card-parte">

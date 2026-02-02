@@ -7,8 +7,10 @@
   } from 'lucide-svelte';
 
   // --- ESTADO ---
+  let asambleaId = 0; // <--- ID DE LA ASAMBLEA ACTUAL
+  
   let hermanos: any[] = [];
-  let congregaciones: any[] = []; // <--- NUEVO: Lista de congregaciones
+  let congregaciones: any[] = []; 
   
   let c: any = {
     presi: 0, coord: 0, coord_a: 0, 
@@ -24,21 +26,29 @@
   // --- VARIABLES PARA CREACIÓN RÁPIDA ---
   let modoCreacionRapida = false;
   let nuevoNombre = "";
-  let nuevoTelefono = "";      // <--- NUEVO
-  let nuevoEmail = "";         // <--- NUEVO
-  let nuevaCongregacionId = 0; // <--- NUEVO
+  let nuevoTelefono = "";      
+  let nuevoEmail = "";        
+  let nuevaCongregacionId = 0; 
 
   onMount(async () => {
-    await recargarTodo();
+    // 1. RECUPERAR ID
+    const datosGuardados = localStorage.getItem('asambleaActiva');
+    if (datosGuardados) {
+        asambleaId = JSON.parse(datosGuardados).id;
+        await recargarTodo();
+    } else {
+        alert("⚠️ No hay asamblea seleccionada.");
+    }
   });
 
   async function recargarTodo() {
+    if (!asambleaId) return;
     try {
-      // Agregamos "as [any[], any[], any]" al final para solucionar el error de asignación
+      // 2. PEDIR DATOS FILTRADOS POR ASAMBLEA
       const [h, congs, asamblea] = await Promise.all([
-        invoke('obtener_personas'),
-        invoke('obtener_congregaciones'),
-        invoke('obtener_asamblea_activa')
+        invoke('obtener_personas', { asambleaId }),
+        invoke('obtener_congregaciones', { asambleaId }),
+        invoke('obtener_asamblea_activa') // Este trae la última activa, que coincide con la nuestra
       ]) as [any[], any[], any]; 
 
       hermanos = h || [];
@@ -90,22 +100,24 @@
 
   function quitar(rol: string) { c[rol] = 0; }
 
-  // --- FUNCIÓN MEJORADA: CREAR CON DETALLES ---
+  // --- CREAR CON DETALLES EN LA ASAMBLEA ACTUAL ---
   async function crearYSeleccionar() {
     if (!nuevoNombre.trim()) return alert("Escribe un nombre");
     
     try {
+      // 3. ENVIAR ID AL CREAR
       await invoke('crear_persona', { 
+        asambleaId, // <--- Importante
         nombreCompleto: nuevoNombre, 
         genero: "Hombre", 
-        privilegios: "Superintendente", // Asumimos rol alto
-        idCongregacion: nuevaCongregacionId, // Ahora enviamos la congregación seleccionada
-        telefono: nuevoTelefono, // Enviamos teléfono
-        email: nuevoEmail        // Enviamos email
+        privilegios: "Superintendente", 
+        idCongregacion: nuevaCongregacionId, 
+        telefono: nuevoTelefono, 
+        email: nuevoEmail        
       });
 
-      // Recargamos solo la lista de personas para obtener el ID nuevo
-      hermanos = await invoke('obtener_personas') || [];
+      // Recargamos la lista de esta asamblea
+      hermanos = await invoke('obtener_personas', { asambleaId }) || [];
       
       const creado = hermanos.find(h => h.nombre_completo === nuevoNombre);
       
@@ -122,6 +134,7 @@
   async function guardar() {
     try {
       const n = (val: number) => val === 0 ? null : val;
+      // Guardar comité usa IDs directos, no necesita asambleaId extra
       await invoke('guardar_comite', { 
         presidenteId: n(c.presi),
         coordinadorId: n(c.coord), coordinadorAuxId: n(c.coord_a),
@@ -138,7 +151,7 @@
 
 <div class="panel-comite">
   <div class="header">
-    <h3><ShieldCheck class="text-blue"/> Estructura Organizativa</h3>
+    <h3><ShieldCheck class="text-blue"/> Estructura Organizativa (Asamblea #{asambleaId})</h3>
     <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
   </div>
 
@@ -387,7 +400,7 @@
     <div class="modal-body">
       {#if modoCreacionRapida}
         <div class="form-rapido">
-            <h4 class="form-title">Nuevo Registro</h4>
+            <h4 class="form-title">Nuevo Registro (En Asamblea #{asambleaId})</h4>
             
             <div class="campo">
                 <label>Nombre Completo</label>

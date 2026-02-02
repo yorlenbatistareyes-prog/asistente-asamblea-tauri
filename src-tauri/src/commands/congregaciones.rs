@@ -10,14 +10,15 @@ fn conectar_db(app: &AppHandle) -> Connection {
 #[command]
 pub fn crear_congregacion(
     app: AppHandle,
+    asamblea_id: i32, // <--- NUEVO: Para saber de qué asamblea es
     nombre: String,
     circuito: String,
     numero: String,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
     match conn.execute(
-        "INSERT INTO congregaciones (nombre, circuito, numero_congregacion) VALUES (?1, ?2, ?3)",
-        params![nombre, circuito, numero],
+        "INSERT INTO congregaciones (asamblea_id, nombre, circuito, numero_congregacion) VALUES (?1, ?2, ?3, ?4)",
+        params![asamblea_id, nombre, circuito, numero],
     ) {
         Ok(_) => Ok("Congregación guardada".to_string()),
         Err(e) => Err(format!("Error: {}", e)),
@@ -25,12 +26,14 @@ pub fn crear_congregacion(
 }
 
 #[command]
-pub fn obtener_congregaciones(app: AppHandle) -> Result<Vec<Congregacion>, String> {
+pub fn obtener_congregaciones(app: AppHandle, asamblea_id: i32) -> Result<Vec<Congregacion>, String> {
     let conn = conectar_db(&app);
-    let mut stmt = conn.prepare("SELECT id, nombre, circuito, numero_congregacion FROM congregaciones ORDER BY nombre ASC")
+    
+    // FILTRAMOS POR ASAMBLEA (WHERE asamblea_id = ?1)
+    let mut stmt = conn.prepare("SELECT id, nombre, circuito, numero_congregacion FROM congregaciones WHERE asamblea_id = ?1 ORDER BY nombre ASC")
         .map_err(|e| e.to_string())?;
 
-    let iter = stmt.query_map([], |row| {
+    let iter = stmt.query_map(params![asamblea_id], |row| {
         Ok(Congregacion {
             id: row.get(0)?,
             nombre: row.get(1)?,
@@ -51,7 +54,7 @@ pub fn eliminar_congregacion(app: AppHandle, id: i32) -> Result<String, String> 
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    // 1. Desvincular personas
+    // 1. Desvincular personas (se mantiene igual, borra por ID único de congregación)
     tx.execute("UPDATE personas SET id_congregacion = NULL WHERE id_congregacion = ?1", params![id])
         .map_err(|e| format!("Error al desvincular: {}", e))?;
 
@@ -64,16 +67,21 @@ pub fn eliminar_congregacion(app: AppHandle, id: i32) -> Result<String, String> 
 }
 
 #[command]
-pub fn limpiar_congregaciones(app: AppHandle) -> Result<String, String> {
+pub fn limpiar_congregaciones(app: AppHandle, asamblea_id: i32) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    tx.execute("UPDATE personas SET id_congregacion = NULL", [])
-        .map_err(|e| format!("Error al desvincular: {}", e))?;
+    // 1. Desvincular personas SOLO de las congregaciones de ESTA asamblea
+    // (Buscamos las congregaciones de esta asamblea y les quitamos la gente)
+    tx.execute(
+        "UPDATE personas SET id_congregacion = NULL WHERE id_congregacion IN (SELECT id FROM congregaciones WHERE asamblea_id = ?1)",
+        params![asamblea_id]
+    ).map_err(|e| format!("Error al desvincular: {}", e))?;
 
-    tx.execute("DELETE FROM congregaciones", [])
+    // 2. Borrar congregaciones SOLO de esta asamblea
+    tx.execute("DELETE FROM congregaciones WHERE asamblea_id = ?1", params![asamblea_id])
         .map_err(|e| format!("Error al limpiar: {}", e))?;
 
     tx.commit().map_err(|e| e.to_string())?;
-    Ok("Todas las congregaciones eliminadas".to_string())
+    Ok("Todas las congregaciones de esta asamblea han sido eliminadas".to_string())
 }
