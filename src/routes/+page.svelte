@@ -11,6 +11,9 @@
   // --- ESTADO ---
   let vistaActual = 'inicio';
   
+  // Variable para saber qué sección de correspondencia abrir directamente
+  let seccionCorrespondencia = 'oradores'; 
+  
   // Listas de datos
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = []; 
@@ -112,7 +115,13 @@
     goto('/gestion');
   }
 
-  const irACorrespondencia = () => vistaActual = 'correspondencia';
+  // --- LÓGICA CORREGIDA PARA NAVEGACIÓN A CORRESPONDENCIA ---
+  // Ahora recibe el tipo de sección a la que queremos ir
+  function irACorrespondencia(tipo: string) {
+    seccionCorrespondencia = tipo;
+    vistaActual = 'correspondencia';
+  }
+
   const volverAlInicio = () => vistaActual = 'inicio';
 </script>
 
@@ -176,18 +185,22 @@
           <Mail size={18} /> <span>PLANTILLAS GLOBALES</span>
         </div>
         <div class="grid-cartas">
-          <button class="card-action" on:click={irACorrespondencia}>
+          
+          <button class="card-action" on:click={() => irACorrespondencia('oradores')}>
             <div class="card-icon oradores"><Mic size={22} /></div>
             <div class="card-text"><h3>Cartas a Oradores</h3><p>Editar plantilla global</p></div><ChevronRight size={16} />
           </button>
-          <button class="card-action" on:click={irACorrespondencia}>
+          
+          <button class="card-action" on:click={() => irACorrespondencia('presidentes')}>
             <div class="card-icon presidentes"><UserCheck size={22} /></div>
             <div class="card-text"><h3>Cartas a Presidentes</h3><p>Editar plantilla global</p></div><ChevronRight size={16} />
           </button>
-          <button class="card-action" on:click={irACorrespondencia}>
+          
+          <button class="card-action" on:click={() => irACorrespondencia('oraciones')}>
             <div class="card-icon oraciones"><MessageSquare size={22} /></div>
             <div class="card-text"><h3>Cartas de Oración</h3><p>Editar plantilla global</p></div><ChevronRight size={16} />
           </button>
+
         </div>
       </section>
     </div>
@@ -259,7 +272,10 @@
     {/if}
 
   {:else if vistaActual === 'correspondencia'}
-    <Correspondencia on:close={volverAlInicio} />
+    <Correspondencia 
+      seccionInicial={seccionCorrespondencia} 
+      on:close={volverAlInicio} 
+    />
   {/if}
 </div>
 
