@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { Users, Home, Briefcase, FileText, ArrowLeft, Bookmark } from 'lucide-svelte';
+  import { Users, Home, Briefcase, FileText, ArrowLeft, Bookmark, Mail } from 'lucide-svelte';
   
-  // --- AQUI IMPORTAMOS EL NUEVO DASHBOARD ---
+  // --- COMPONENTES EXISTENTES ---
   import Resumen from '$lib/components/gestion/Resumen.svelte';
-
-  // Importamos tus otros componentes
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
   import Personas from '$lib/components/gestion/Personas.svelte';
   import Comite from '$lib/components/gestion/Comite.svelte';
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
+
+  // --- NUEVO COMPONENTE EDITOR ---
+  import Editor from '$lib/components/gestion/Editor.svelte';
 
   // Controla qué sección vemos
   let seccionActiva = 'inicio';
@@ -55,6 +56,10 @@
       <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')}>
         <Briefcase size={20} /> Programa y Oradores
       </button>
+
+      <button class:activo={seccionActiva === 'cartas'} on:click={() => cambiarSeccion('cartas')}>
+        <Mail size={20} /> Editor de Cartas
+      </button>
     </nav>
 
     <div class="footer-sidebar">
@@ -75,7 +80,7 @@
         {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
         {#if seccionActiva === 'comite'} Comité de Asamblea {/if}
         {#if seccionActiva === 'programa'} Programa {/if}
-      </h2>
+        {#if seccionActiva === 'cartas'} Redacción de Cartas {/if} </h2>
     </header>
 
     <div class="area-trabajo">
@@ -102,6 +107,12 @@
 
       {#if seccionActiva === 'programa'}
         <Programa />
+      {/if}
+
+      {#if seccionActiva === 'cartas'}
+        <div class="editor-container">
+            <Editor />
+        </div>
       {/if}
       </div>
 
@@ -131,4 +142,10 @@
   header { background: white; padding: 20px 30px; border-bottom: 1px solid #e5e7eb; }
   header h2 { margin: 0; font-size: 1.2rem; color: #1f2937; }
   .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
+
+  /* Estilo extra para centrar un poco el editor si es muy ancho */
+  .editor-container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
 </style>
