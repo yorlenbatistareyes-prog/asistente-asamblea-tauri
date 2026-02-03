@@ -1,9 +1,10 @@
 <script lang="ts">
-  // Eliminado 'MapPin' de la lista de iconos porque ya no se usa
   import { Users, Home, Briefcase, FileText, ArrowLeft, Bookmark } from 'lucide-svelte';
   
-  // Importamos tus componentes
-  // Eliminado: import Locales from '$lib/components/gestion/Locales.svelte';
+  // --- AQUI IMPORTAMOS EL NUEVO DASHBOARD ---
+  import Resumen from '$lib/components/gestion/Resumen.svelte';
+
+  // Importamos tus otros componentes
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
   import Personas from '$lib/components/gestion/Personas.svelte';
   import Comite from '$lib/components/gestion/Comite.svelte';
@@ -80,10 +81,7 @@
     <div class="area-trabajo">
       
       {#if seccionActiva === 'inicio'}
-        <div class="placeholder">
-          <h3>Bienvenido</h3>
-          <p>Selecciona una opción del menú de la izquierda.</p>
-        </div>
+        <Resumen />
       {/if}
       
       {#if seccionActiva === 'info_evento'}
@@ -133,6 +131,4 @@
   header { background: white; padding: 20px 30px; border-bottom: 1px solid #e5e7eb; }
   header h2 { margin: 0; font-size: 1.2rem; color: #1f2937; }
   .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
-  
-  .placeholder { border: 2px dashed #cbd5e1; border-radius: 10px; padding: 40px; text-align: center; color: #64748b; }
 </style>

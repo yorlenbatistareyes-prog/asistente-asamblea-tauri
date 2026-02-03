@@ -16,10 +16,10 @@
   let tema = "";
   let fecha = "";
   
-  // --- LÓGICA DE SALONES (NUEVO) ---
+  // --- LÓGICA DE SALONES ---
   let locales: any[] = [];
-  let idLocal: number | null = null; // El ID seleccionado
-  let localDetalle: any = null;      // Objeto con los datos del salón (para mostrar info)
+  let idLocal: number | null = null; 
+  let localDetalle: any = null;      
 
   // --- VARIABLES DE ENSAYOS ---
   let ensayoLugar = "";
@@ -28,11 +28,11 @@
   let jwStreamStudio = false;
   let instruccionesEsp = ""; 
 
-  // --- MODAL CREAR SALÓN RÁPIDO ---
+  // --- MODAL CREAR SALÓN ---
   let mostrarModalSalon = false;
   let nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
 
-  // --- CONFIGURACIÓN TIPTAP ---
+  // --- TIPTAP ---
   let elementRecorridos: HTMLElement;
   let elementNotas: HTMLElement;
   let editorRecorridos: Editor;
@@ -46,20 +46,14 @@
 
   onMount(async () => {
     try {
-      // 1. Cargar lista global de salones
       await cargarLocales();
-
-      // 2. Cargar datos de la asamblea
       const asamblea = await invoke('obtener_asamblea_activa') as any;
       
       if (asamblea) {
         asambleaId = asamblea.id;
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
-        
-        // Vinculamos el ID. La variable reactiva ($:) actualizará la tarjeta visual.
         idLocal = asamblea.local_id || null;
-
         ensayoLugar = asamblea.ensayo_lugar || "";
         ensayoFecha = asamblea.ensayo_fecha || "";
         ensayoHora = asamblea.ensayo_hora || "";
@@ -68,9 +62,7 @@
         htmlRecorridos = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
       }
-
       initEditors();
-
     } catch (error) { console.error(error); }
   });
 
@@ -78,11 +70,16 @@
       locales = await invoke('obtener_locales') as any[];
   }
 
-  // --- REACTIVIDAD: Actualizar tarjeta visual al cambiar selección ---
+  // --- REACTIVIDAD ---
   $: if (idLocal && locales.length > 0) {
       localDetalle = locales.find(l => l.id === idLocal);
   } else {
       localDetalle = null;
+  }
+
+  // --- FUNCIÓN PARA QUITAR EL SALÓN ---
+  function quitarSeleccion() {
+    idLocal = null; 
   }
 
   function initEditors() {
@@ -106,17 +103,13 @@
     editorNotas?.destroy();
   });
 
-  // --- CREAR SALÓN RÁPIDO (Backend) ---
   async function guardarNuevoSalon() {
       if(!nuevoSalon.nombre) return alert("Falta el nombre");
       try {
           await invoke('crear_local', { ...nuevoSalon });
-          await cargarLocales(); // Recargar lista
-          
-          // Auto-seleccionar el nuevo (buscándolo por nombre)
+          await cargarLocales();
           const recienCreado = locales.find(l => l.nombre === nuevoSalon.nombre);
           if (recienCreado) idLocal = recienCreado.id;
-          
           nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
           mostrarModalSalon = false;
       } catch(e) { alert(e); }
@@ -125,14 +118,9 @@
   async function guardar() {
     try {
       await invoke('guardar_info_evento', {
-        id: asambleaId,
-        tema, fecha,
-        localId: idLocal, // Guardamos el ID del salón vinculado
-        ensayoLugar, ensayoFecha, ensayoHora,
-        ensayoNotas: htmlNotas,
-        recorridosInfo: htmlRecorridos,
-        instruccionesEsp,
-        esJwStream: jwStreamStudio
+        id: asambleaId, tema, fecha, localId: idLocal,
+        ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
+        recorridosInfo: htmlRecorridos, instruccionesEsp, esJwStream: jwStreamStudio
       });
       alert("✅ Configuración guardada correctamente");
     } catch (e) { alert("❌ Error al guardar: " + e); }
@@ -153,6 +141,7 @@
       
       <div class="campo">
         <label><MapPin size={14}/> Salón de Asambleas</label>
+        
         <div class="selector-salon">
             <select bind:value={idLocal}>
                 <option value={null}>-- Seleccionar Salón --</option>
@@ -165,11 +154,17 @@
 
     {#if localDetalle}
         <div class="salon-info-card">
+            
+            <button class="btn-close-card" on:click={quitarSeleccion} title="Quitar este salón">
+                <X size={16} />
+            </button>
+
             <div class="icon-building"><Building size={24}/></div>
             <div class="info-text">
                 <span class="l-nombre">{localDetalle.nombre}</span>
                 <span class="l-dir">{localDetalle.direccion || 'Sin dirección registrada'}</span>
             </div>
+            
             <div class="info-cap">
                 <Users size={16}/>
                 <span>{localDetalle.capacidad || 0}</span>
@@ -254,14 +249,14 @@
   input, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 14px; }
   .input-big { font-size: 16px; font-weight: 600; color: #1e293b; }
 
-  /* SELECTOR CON BOTÓN + */
   .selector-salon { display: flex; gap: 8px; }
   .btn-plus { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; width: 42px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
   .btn-plus:hover { background: #e2e8f0; color: #2563eb; }
 
-  /* TARJETA DE DETALLE DEL SALÓN */
+  /* --- TARJETA --- */
   .salon-info-card { 
-      margin-top: 20px; 
+      position: relative; 
+      margin-top: 25px; /* Un poco más de margen arriba para el botón flotante */
       background: #f8fafc; 
       border: 1px solid #e2e8f0; 
       border-radius: 10px; 
@@ -271,15 +266,54 @@
       gap: 15px;
   }
   
+  /* --- BOTÓN DE CERRAR CORREGIDO --- */
+  .btn-close-card {
+      position: absolute;
+      /* Lo sacamos un poco de la tarjeta con valores negativos */
+      top: -12px;
+      right: -12px;
+      z-index: 100; /* Asegura que esté encima de todo */
+      
+      background: #ef4444; /* Rojo sólido para que se vea bien */
+      color: white;       
+      border: 2px solid white; /* Borde blanco para separarlo visualmente */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+  }
+  .btn-close-card:hover {
+      background: #dc2626;
+      transform: scale(1.1);
+  }
+
   .icon-building { background: white; padding: 10px; border-radius: 8px; color: #2563eb; border: 1px solid #e2e8f0; }
   .info-text { flex: 1; display: flex; flex-direction: column; }
   .l-nombre { font-weight: 700; color: #1e293b; font-size: 15px; }
   .l-dir { font-size: 13px; color: #64748b; margin-top: 2px; }
-  .info-cap { display: flex; flex-direction: column; align-items: center; background: white; padding: 5px 15px; border-radius: 8px; border: 1px solid #e2e8f0; color: #0f172a; }
+  
+  /* RECUADRO DE CAPACIDAD */
+  .info-cap { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      background: white; 
+      padding: 5px 15px; 
+      border-radius: 8px; 
+      border: 1px solid #e2e8f0; 
+      color: #0f172a; 
+      /* Añadido margen derecho por seguridad, aunque el botón ya está fuera */
+      margin-right: 5px;
+  }
   .info-cap span { font-weight: 800; font-size: 16px; }
   .info-cap small { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
 
-  /* TIPTAP STYLES */
   .tiptap-frame { border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; }
   .toolbar { background: #f8fafc; padding: 6px; border-bottom: 1px solid #e2e8f0; display: flex; gap: 4px; }
   .toolbar button { background: white; border: 1px solid #e2e8f0; padding: 6px; border-radius: 4px; cursor: pointer; color: #475569; }
@@ -290,7 +324,6 @@
   .stream-check { display: flex; align-items: center; gap: 10px; margin-top: 20px; padding: 15px; background: #eff6ff; border-radius: 8px; cursor: pointer; border: 1px solid #bfdbfe; }
   .btn-save { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; gap: 8px; font-weight: 600; margin-left: auto;}
 
-  /* MODAL */
   .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
   .modal { background: white; width: 350px; padding: 20px; border-radius: 12px; }
   .modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; } .modal-header h3 { margin: 0; } .modal-header button { border: none; background: none; cursor: pointer; }
