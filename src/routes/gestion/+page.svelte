@@ -1,16 +1,23 @@
 <script lang="ts">
-  import { Users, Home, Briefcase, FileText, ArrowLeft, Bookmark, Mail } from 'lucide-svelte';
+  // --- IMPORTAMOS LOS NUEVOS ICONOS AQUÍ ---
+  import { 
+    Users, 
+    Home, 
+    ArrowLeft, 
+    Bookmark, 
+    Mail,
+    BookUser,  // Para Registro de Personas (Libro de usuarios)
+    UserCog,   // Para Comité y Admin (Gestión/Administración)
+    Mic2       // Para Programa y Oradores (Micrófono)
+  } from 'lucide-svelte';
   
-  // --- COMPONENTES EXISTENTES ---
+  // --- COMPONENTES ---
   import Resumen from '$lib/components/gestion/Resumen.svelte';
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
   import Personas from '$lib/components/gestion/Personas.svelte';
   import Comite from '$lib/components/gestion/Comite.svelte';
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
-
-  // --- NUEVO COMPONENTE EDITOR ---
-  import Editor from '$lib/components/gestion/Editor.svelte';
 
   // Controla qué sección vemos
   let seccionActiva = 'inicio';
@@ -46,20 +53,17 @@
       </button>
 
       <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')}>
-        <FileText size={20} /> Registro de Personas
+        <BookUser size={20} /> Registro de Personas
       </button>
 
       <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')}>
-        <Briefcase size={20} /> Comité y Admin.
+        <UserCog size={20} /> Comité y Admin.
       </button>
 
       <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')}>
-        <Briefcase size={20} /> Programa y Oradores
+        <Mic2 size={20} /> Programa y Oradores
       </button>
 
-      <button class:activo={seccionActiva === 'cartas'} on:click={() => cambiarSeccion('cartas')}>
-        <Mail size={20} /> Editor de Cartas
-      </button>
     </nav>
 
     <div class="footer-sidebar">
@@ -80,7 +84,7 @@
         {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
         {#if seccionActiva === 'comite'} Comité de Asamblea {/if}
         {#if seccionActiva === 'programa'} Programa {/if}
-        {#if seccionActiva === 'cartas'} Redacción de Cartas {/if} </h2>
+      </h2>
     </header>
 
     <div class="area-trabajo">
@@ -109,12 +113,7 @@
         <Programa />
       {/if}
 
-      {#if seccionActiva === 'cartas'}
-        <div class="editor-container">
-            <Editor />
-        </div>
-      {/if}
-      </div>
+    </div>
 
   </main>
 </div>
@@ -130,22 +129,17 @@
   .subtitulo { margin: 0; font-size: 12px; color: #9ca3af; }
 
   .menu { flex: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
-  .menu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; cursor: pointer; color: #4b5563; border-radius: 8px; font-size: 14px; font-weight: 500; }
+  .menu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; cursor: pointer; color: #4b5563; border-radius: 8px; font-size: 14px; font-weight: 500; transition: background 0.2s; }
   .menu button:hover { background-color: #f3f4f6; }
-  .menu button.activo { background-color: #eff6ff; color: #0078d4; }
+  .menu button.activo { background-color: #eff6ff; color: #0078d4; font-weight: 600; }
 
   .footer-sidebar { padding: 20px; border-top: 1px solid #f3f4f6; }
-  .btn-salir { text-decoration: none; color: #64748b; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .btn-salir { text-decoration: none; color: #64748b; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: color 0.2s; }
+  .btn-salir:hover { color: #1e293b; }
 
   /* Contenido */
   .contenido { flex: 1; display: flex; flex-direction: column; }
   header { background: white; padding: 20px 30px; border-bottom: 1px solid #e5e7eb; }
   header h2 { margin: 0; font-size: 1.2rem; color: #1f2937; }
   .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
-
-  /* Estilo extra para centrar un poco el editor si es muy ancho */
-  .editor-container {
-    max-width: 900px;
-    margin: 0 auto;
-  }
 </style>
