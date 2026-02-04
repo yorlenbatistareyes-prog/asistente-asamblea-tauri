@@ -124,7 +124,7 @@
   function actualizarVistaOficina(objeto: any) {
       if (mostrarModalGestionOficina && objeto) {
           if (objeto.es_personal) {
-              const idx = oficina.personal.findIndex(p => p.id === objeto.id);
+              const idx = oficina.personal.findIndex((p: any) => p.id === objeto.id);
               if (idx >= 0) oficina.personal[idx] = { ...objeto };
           } else if (objeto.rol_key) {
               oficina[objeto.rol_key] = { ...objeto };
