@@ -14,14 +14,16 @@ pub fn crear_local(
     app: AppHandle,
     nombre: String,
     direccion: String,
+    ciudad: String,      // <--- NUEVO ARGUMENTO
+    estado: String,      // <--- NUEVO ARGUMENTO
     capacidad: i32,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
-    // Usamos params! para mayor seguridad y consistencia
+    // Actualizamos la consulta SQL para incluir ciudad y estado
     match conn.execute(
-        "INSERT INTO locales (nombre, direccion, capacidad) VALUES (?1, ?2, ?3)",
-        params![nombre, direccion, capacidad],
+        "INSERT INTO locales (nombre, direccion, ciudad, estado, capacidad) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![nombre, direccion, ciudad, estado, capacidad],
     ) {
         Ok(_) => Ok("Local guardado correctamente".to_string()),
         Err(e) => Err(format!("Error al guardar: {}", e)),
@@ -33,9 +35,9 @@ pub fn crear_local(
 pub fn obtener_locales(app: AppHandle) -> Result<Vec<Local>, String> {
     let conn = conectar_db(&app);
 
-    // Ordenamos por NOMBRE para que el desplegable sea fácil de usar
+    // Actualizamos el SELECT para traer ciudad y estado
     let mut stmt = conn
-        .prepare("SELECT id, nombre, direccion, capacidad FROM locales ORDER BY nombre ASC")
+        .prepare("SELECT id, nombre, direccion, ciudad, estado, capacidad FROM locales ORDER BY nombre ASC")
         .map_err(|e| e.to_string())?;
 
     let locales_iter = stmt
@@ -44,7 +46,9 @@ pub fn obtener_locales(app: AppHandle) -> Result<Vec<Local>, String> {
                 id: row.get(0)?,
                 nombre: row.get(1)?,
                 direccion: row.get(2).ok(),
-                capacidad: row.get(3).ok(),
+                ciudad: row.get(3).ok(),     // <--- RECUPERAMOS CIUDAD
+                estado: row.get(4).ok(),     // <--- RECUPERAMOS ESTADO
+                capacidad: row.get(5).ok(),  // (Se desplaza el índice de capacidad)
             })
         })
         .map_err(|e| e.to_string())?;
@@ -59,14 +63,12 @@ pub fn obtener_locales(app: AppHandle) -> Result<Vec<Local>, String> {
     Ok(locales)
 }
 
-// COMANDO 3: Eliminar un local (NUEVO)
+// COMANDO 3: Eliminar un local
 #[command]
 pub fn eliminar_local(app: AppHandle, id: i32) -> Result<String, String> {
     let conn = conectar_db(&app);
     
-    // Paso opcional de seguridad:
-    // Si borras un salón, desvinculamos las asambleas que lo usaban (poniendo local_id en NULL)
-    // para que no den error al intentar cargar datos que ya no existen.
+    // Si borras un salón, desvinculamos las asambleas que lo usaban
     conn.execute("UPDATE asambleas SET local_id = NULL WHERE local_id = ?1", params![id]).ok();
 
     match conn.execute("DELETE FROM locales WHERE id = ?1", params![id]) {

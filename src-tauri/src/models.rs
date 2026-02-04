@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct Local { 
     pub id: i32, 
     pub nombre: String, 
-    pub direccion: Option<String>, 
+    pub direccion: Option<String>,
+    pub ciudad: Option<String>,     
+    pub estado: Option<String>, 
     pub capacidad: Option<i32> 
 }
 
