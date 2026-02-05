@@ -309,6 +309,9 @@
                     <div class="line-height-wrapper" title="Interlineado">
                         <ArrowUpDown size={14} class="icon-lh"/>
                         <select class="line-height-select" on:change={cambiarInterlineado}>
+                            <option value="0.5">0.5</option>
+                            <option value="0.75">0.75</option>
+                            <option value="0.9">0.9</option>
                             <option value="1.0">1.0</option>
                             <option value="1.15">1.15</option>
                             <option value="1.5">1.5</option>
