@@ -21,10 +21,10 @@
     AlignLeft, Bold, Italic, Underline as UnderIcon, List, 
     AlignCenter, AlignRight, AlignJustify, Eraser, Building, Users, Plus, X, 
     MonitorPlay, FileText, Palette, Link as LinkIcon, ListTodo,
-    ListOrdered, Undo, Redo, Minus, IndentDecrease, IndentIncrease
+    ListOrdered, Minus, IndentDecrease, IndentIncrease
   } from 'lucide-svelte';
 
-  // --- EXTENSIONES PERSONALIZADAS (Igual que en Correspondencia) ---
+  // --- EXTENSIONES PERSONALIZADAS (Para Tamaño y Altura de Línea) ---
   const FontSize = Extension.create({
     name: 'fontSize',
     addOptions() { return { types: ['textStyle'] }; },
@@ -86,10 +86,10 @@
   // --- LÓGICA DE SALONES ---
   let locales: any[] = [];
   let idLocal: number | null = null; 
-  let localDetalle: any = null;      
+  let localDetalle: any = null;       
 
   // --- VARIABLES DE ENSAYOS ---
-  let ensayoLugar = "";
+  let ensayoLugar = ""; // Independiente
   let ensayoFecha = "";
   let ensayoHora = "";
   let jwStreamStudio = false;
@@ -136,16 +136,16 @@
   function cambiarTamano(editor: Editor, event: Event) {
     const target = event.target as HTMLSelectElement;
     if (target.value) {
-        // @ts-ignore
-        editor.chain().focus().setFontSize(target.value).run();
+      // @ts-ignore
+      editor.chain().focus().setFontSize(target.value).run();
     }
   }
 
   function cambiarInterlineado(editor: Editor, event: Event) {
     const target = event.target as HTMLSelectElement;
     if (target.value) {
-        // @ts-ignore
-        editor.chain().focus().setLineHeight(target.value).run();
+      // @ts-ignore
+      editor.chain().focus().setLineHeight(target.value).run();
     }
   }
 
@@ -162,38 +162,53 @@
   // --- CICLO DE VIDA ---
   onMount(async () => {
     try {
-      await cargarLocales();
+      // 1. Cargar lista de locales
+      locales = await invoke('obtener_locales') as any[];
+      
+      // 2. Obtener datos de la asamblea activa
       const asamblea = await invoke('obtener_asamblea_activa') as any;
       
       if (asamblea) {
         asambleaId = asamblea.id;
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
-        idLocal = asamblea.local_id || null;
-        ensayoLugar = asamblea.ensayo_lugar || "";
+        
+        // 3. RECUPERACIÓN SALÓN PRINCIPAL (Lógica estricta)
+        if (asamblea.local_id) {
+            idLocal = asamblea.local_id;
+            localDetalle = locales.find(l => l.id == idLocal);
+        } else {
+            idLocal = null;
+            localDetalle = null;
+        }
+
+        // 4. DATOS DE ENSAYO (Carga directa sin autocompletar)
+        ensayoLugar = asamblea.ensayo_lugar || ""; 
         ensayoFecha = asamblea.ensayo_fecha || "";
         ensayoHora = asamblea.ensayo_hora || "";
         instruccionesEsp = asamblea.instrucciones_esp || "";
-        jwStreamStudio = asamblea.jw_stream_studio === 1;
+        jwStreamStudio = asamblea.jw_stream_studio === true || asamblea.jw_stream_studio === 1;
+        
+        // 5. HTML Contenido
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
       }
+      
       initEditors();
     } catch (error) { console.error(error); }
   });
 
-  async function cargarLocales() {
-      locales = await invoke('obtener_locales') as any[];
-  }
-
+  // REACTIVIDAD
   $: if (idLocal && locales.length > 0) {
-      localDetalle = locales.find(l => l.id === idLocal);
-  } else {
+      const encontrado = locales.find(l => l.id == idLocal);
+      if (encontrado) localDetalle = encontrado;
+  } else if (!idLocal) {
       localDetalle = null;
   }
 
   function quitarSeleccion() {
     idLocal = null; 
+    localDetalle = null;
   }
 
   function initEditors() {
@@ -231,9 +246,13 @@
       if(!nuevoSalon.nombre) return alert("Falta el nombre");
       try {
           await invoke('crear_local', { ...nuevoSalon });
-          await cargarLocales();
+          locales = await invoke('obtener_locales') as any[];
+          
           const recienCreado = locales.find(l => l.nombre === nuevoSalon.nombre);
-          if (recienCreado) idLocal = recienCreado.id;
+          if (recienCreado) {
+              idLocal = recienCreado.id;
+              localDetalle = recienCreado;
+          }
           nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
           mostrarModalSalon = false;
       } catch(e) { alert(e); }
@@ -265,29 +284,27 @@
       
       <div class="campo">
         <label><MapPin size={14}/> Salón de Asambleas</label>
-        <div class="selector-salon">
-            <select bind:value={idLocal}>
-                <option value={null}>-- Seleccionar Salón --</option>
-                {#each locales as l}<option value={l.id}>{l.nombre}</option>{/each}
-            </select>
-            <button class="btn-plus" on:click={() => mostrarModalSalon = true} data-tooltip="Nuevo Salón"><Plus size={16}/></button>
-        </div>
+        {#if localDetalle}
+             <div class="salon-info-card">
+                <button class="btn-close-card" on:click={quitarSeleccion} title="Cambiar Salón"><X size={16} /></button>
+                <div class="icon-building"><Building size={24}/></div>
+                <div class="info-text">
+                    <span class="l-nombre">{localDetalle.nombre}</span>
+                    <span class="l-dir">{localDetalle.direccion || 'Sin dirección registrada'}</span>
+                </div>
+                <div class="info-cap"><Users size={16}/><span>{localDetalle.capacidad || 0}</span><small>asientos</small></div>
+            </div>
+        {:else}
+            <div class="selector-salon">
+                <select bind:value={idLocal}>
+                    <option value={null}>-- Seleccionar Salón --</option>
+                    {#each locales as l}<option value={l.id}>{l.nombre}</option>{/each}
+                </select>
+                <button class="btn-plus" on:click={() => mostrarModalSalon = true} data-tooltip="Nuevo Salón"><Plus size={16}/></button>
+            </div>
+        {/if}
       </div>
     </div>
-
-    {#if localDetalle}
-        <div class="salon-info-card">
-            <button class="btn-close-card" on:click={quitarSeleccion} title="Quitar este salón"><X size={16} /></button>
-            <div class="icon-building"><Building size={24}/></div>
-            <div class="info-text">
-                <span class="l-nombre">{localDetalle.nombre}</span>
-                <span class="l-dir">{localDetalle.direccion || 'Sin dirección registrada'}</span>
-            </div>
-            <div class="info-cap">
-                <Users size={16}/><span>{localDetalle.capacidad || 0}</span><small>asientos</small>
-            </div>
-        </div>
-    {/if}
 
     <div class="seccion-titulo mt-30">
         <Clock size={18} color="#059669"/> 
@@ -297,16 +314,15 @@
     <div class="grid-3 mb-15">
       <div class="campo">
         <label>Lugar de Ensayo</label>
-        <input type="text" bind:value={ensayoLugar} placeholder="Ej: Mismo Salón" />
+        <select bind:value={ensayoLugar}>
+            <option value="">-- Seleccionar Lugar --</option>
+            {#each locales as l}
+                <option value={l.nombre}>{l.nombre}</option>
+            {/each}
+        </select>
       </div>
-      <div class="campo">
-        <label>Fecha de Ensayo</label>
-        <input type="date" bind:value={ensayoFecha} />
-      </div>
-      <div class="campo">
-        <label>Hora</label>
-        <input type="time" bind:value={ensayoHora} />
-      </div>
+      <div class="campo"><label>Fecha de Ensayo</label><input type="date" bind:value={ensayoFecha} /></div>
+      <div class="campo"><label>Hora</label><input type="time" bind:value={ensayoHora} /></div>
     </div>
 
     <div class="editor-block">
@@ -501,7 +517,7 @@
   .btn-plus:hover { background: #dbeafe; }
 
   /* TARJETA SALON */
-  .salon-info-card { position: relative; margin-top: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; align-items: center; gap: 15px; }
+  .salon-info-card { position: relative; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; display: flex; align-items: center; gap: 15px; }
   .btn-close-card { position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border: 2px solid white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
   .icon-building { background: white; padding: 10px; border-radius: 8px; color: #2563eb; border: 1px solid #e2e8f0; }
   .info-text { flex: 1; display: flex; flex-direction: column; }

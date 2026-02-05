@@ -9,8 +9,8 @@ pub struct Local {
     pub id: i32, 
     pub nombre: String, 
     pub direccion: Option<String>,
-    pub ciudad: Option<String>,     
-    pub estado: Option<String>, 
+    pub ciudad: Option<String>,     // Correcto: ya estaba en tu código
+    pub estado: Option<String>,     // Correcto: ya estaba en tu código
     pub capacidad: Option<i32> 
 }
 
@@ -32,8 +32,7 @@ pub struct Persona {
     pub telefono: Option<String>, 
     pub email: Option<String>,
     
-    // Este campo es opcional. Lo usamos cuando traemos la lista con el nombre de la congregación.
-    // En las inserciones simples, puede ser None.
+    // Campos opcionales para UI (Joins)
     pub nombre_congregacion: Option<String>, 
 }
 
@@ -44,7 +43,17 @@ pub struct Asamblea {
     pub fecha: String,
     pub local_id: Option<i32>,
     pub presidente_id: Option<i32>,
-    // Campos opcionales para la UI
+    
+    // --- CAMPOS NUEVOS AGREGADOS (Necesarios para Información Evento) ---
+    pub ensayo_lugar: String,
+    pub ensayo_fecha: String,
+    pub ensayo_hora: String,
+    pub ensayo_notas: String,
+    pub recorridos_info: String,
+    pub instrucciones_esp: String,
+    pub jw_stream_studio: bool,
+
+    // Campos opcionales para UI (Joins)
     pub nombre_local: Option<String>,
 }
 
