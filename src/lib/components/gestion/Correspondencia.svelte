@@ -2,7 +2,7 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   
-  // --- TIPTAP CORE & EXTENSIONES ---
+  // --- TIPTAP ---
   import { Editor, Extension } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import Underline from '@tiptap/extension-underline';
@@ -14,8 +14,6 @@
   import Link from '@tiptap/extension-link';
   import Placeholder from '@tiptap/extension-placeholder';
   import FontFamily from '@tiptap/extension-font-family';
-  
-  // --- EXTENSIONES (Checklist) ---
   import TaskList from '@tiptap/extension-task-list';
   import TaskItem from '@tiptap/extension-task-item';
 
@@ -26,13 +24,27 @@
     AlignLeft, AlignCenter, AlignRight, AlignJustify,
     Palette, List, ListOrdered, Undo, Redo, Eraser, 
     Link as LinkIcon, Minus, 
-    ListTodo, IndentDecrease, IndentIncrease
+    IndentDecrease, IndentIncrease, 
+    Plus, ZoomIn, ZoomOut, ChevronDown, Clipboard,
+    Type, Scissors, Copy, Trash2, ArrowUpDown
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
   export let seccionInicial = 'oradores';
 
-  // --- EXTENSIÓN PERSONALIZADA: TAMAÑO DE FUENTE ---
+  // --- ESTADO ---
+  let zoomLevel = 100;
+  let tipoActivo = seccionInicial;
+  let element: HTMLElement;
+  let editor: Editor;       
+  let contenidoCargado = "";
+
+  // Variables UI
+  let currentFont = 'Arial';
+  let currentSize = '11';
+  let currentColor = '#000000';
+
+  // --- EXTENSIONES ---
   const FontSize = Extension.create({
     name: 'fontSize',
     addOptions() { return { types: ['textStyle'] }; },
@@ -59,7 +71,6 @@
     },
   });
 
-  // --- EXTENSIÓN CORREGIDA: INTERLINEADO ---
   const LineHeight = Extension.create({
     name: 'lineHeight',
     addOptions() { return { types: ['paragraph', 'heading'] }; },
@@ -80,7 +91,6 @@
     },
     addCommands() {
       return {
-        // CORRECCIÓN AQUÍ: Añadimos (type: string) para solucionar el error ts(7006)
         setLineHeight: (lineHeight: string) => ({ commands }) => {
            return this.options.types.every((type: string) => commands.updateAttributes(type, { lineHeight }));
         },
@@ -88,25 +98,14 @@
     },
   });
 
-  // --- VARIABLES ---
-  let tipoActivo = seccionInicial;
-  let element: HTMLElement;
-  let editor: Editor;       
-  let cargando = false;
-  let contenidoCargado = "";
-
-  // --- CARGAR DATOS ---
+  // --- CARGA ---
   async function cargarPlantilla() {
-    cargando = true;
     try {
       const respuesta = await invoke('obtener_plantilla', { id: tipoActivo }) as string;
-      contenidoCargado = respuesta || `<p>Escriba aquí el modelo de carta para <strong>${tipoActivo.toUpperCase()}</strong>...</p>`;
+      contenidoCargado = respuesta || `<p>Estimado hermano:</p><p>Nos complace informarle...</p>`;
       if (editor) editor.commands.setContent(contenidoCargado);
     } catch (e) {
-      console.error("Error cargando:", e);
-      if(editor) editor.commands.setContent("<p style='color:red'>Error al conectar con la base de datos.</p>");
-    } finally {
-      cargando = false;
+      if(editor) editor.commands.setContent("<p style='color:red'>Error de conexión.</p>");
     }
   }
 
@@ -118,397 +117,578 @@
         StarterKit, Underline, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, LineHeight,
         Link.configure({ openOnClick: false }),
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
-        Placeholder.configure({ placeholder: 'Escriba el contenido de la carta...' }),
+        Placeholder.configure({ placeholder: '' }),
         TaskList,
         TaskItem.configure({ nested: true }),
       ],
       content: '', 
-      onTransaction: () => { editor = editor; },
+      onTransaction: () => { 
+        editor = editor; 
+        updateToolbar();
+      },
+      onSelectionUpdate: () => { updateToolbar(); }
     });
     cargarPlantilla();
   });
 
+  function updateToolbar() {
+    if (!editor) return;
+    const textStyle = editor.getAttributes('textStyle');
+    currentFont = textStyle.fontFamily || 'Arial';
+    currentSize = textStyle.fontSize || '11';
+    currentColor = textStyle.color || '#000000';
+  }
+
   onDestroy(() => { if (editor) editor.destroy(); });
 
-  // --- GUARDAR ---
   async function actualizar() {
     if (!editor) return;
     try {
       const htmlFinal = editor.getHTML();
       await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
-      alert(`✅ Plantilla de ${tipoActivo.toUpperCase()} guardada correctamente.`);
+      alert(`✅ Guardado correctamente.`);
     } catch (e) {
-      alert("Error al guardar: " + e);
+      alert("Error: " + e);
     }
   }
 
-  // --- FUNCIONES AUXILIARES ---
-  function cambiarFuente(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    if (target.value) editor.chain().focus().setFontFamily(target.value).run();
+  // --- ACCIONES ---
+  function cambiarFuente(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    editor.chain().focus().setFontFamily(val).run();
   }
-
-  function cambiarTamano(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const val = target.value;
-    if (val) {
-      // @ts-ignore
-      editor.chain().focus().setFontSize(val).run();
-    }
+  function cambiarTamano(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    editor.chain().focus().setFontSize(val).run();
   }
-
-  function cambiarInterlineado(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const val = target.value;
-    if (val && editor) {
-       // @ts-ignore
-       editor.chain().focus().setLineHeight(val).run();
-    }
+  function cambiarInterlineado(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    editor.chain().focus().setLineHeight(val).run();
   }
-
-  function cambiarColor(event: Event) {
-    const target = event.target as HTMLInputElement;
-    editor.chain().focus().setColor(target.value).run();
+  function cambiarColor(e: Event) {
+    const val = (e.target as HTMLInputElement).value;
+    editor.chain().focus().setColor(val).run();
+    currentColor = val;
   }
-  
-  function addMarker(event: Event) {
-    const target = event.target as HTMLSelectElement;
+  function addMarker(e: Event) {
+    const target = e.target as HTMLSelectElement;
     if (target.value && editor) {
       editor.chain().focus().insertContent(`{{${target.value}}}`).run();
       target.value = ""; 
     }
   }
-  
   function setLink() {
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL:', previousUrl);
-    if (url === null) return;
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    const url = window.prompt('URL:');
+    if (url) editor.chain().focus().setLink({ href: url }).run();
   }
-
-  function indentar() {
-    if (editor.isActive('taskList')) {
-        editor.chain().focus().sinkListItem('taskItem').run();
-    } else {
-        editor.chain().focus().sinkListItem('listItem').run();
-    }
-  }
-
-  function desindentar() {
-    if (editor.isActive('taskList')) {
-        editor.chain().focus().liftListItem('taskItem').run();
-    } else {
-        editor.chain().focus().liftListItem('listItem').run();
-    }
-  }
+  
+  // --- ZOOM ---
+  function zoomIn() { if (zoomLevel < 300) zoomLevel += 10; }
+  function zoomOut() { if (zoomLevel > 50) zoomLevel -= 10; }
+  
 </script>
 
-<div class="layout">
+<div class="word-layout">
   
   <aside class="sidebar">
-    <button class="btn-volver" on:click={() => dispatch('close')}>
-      <ArrowLeft size={18} /> Volver
-    </button>
-    <div class="menu-info">
-      <div class="label-menu">EDITANDO:</div>
-      <div class="icon-box">
-        {#if tipoActivo === 'oradores'} <Mic size={32} /> {/if}
-        {#if tipoActivo === 'presidentes'} <UserCheck size={32} /> {/if}
-        {#if tipoActivo === 'oraciones'} <MessageSquare size={32} /> {/if}
-      </div>
-      <span class="titulo-seccion">{tipoActivo.toUpperCase()}</span>
+    <div class="sidebar-top">
+        <button class="back-btn" on:click={() => dispatch('close')} title="Salir del Editor">
+            <ArrowLeft size={24} />
+        </button>
+        <span class="back-label">Volver</span>
+    </div>
+    
+    <div class="sidebar-content">
+        <div class="icon-indicator">
+            {#if tipoActivo === 'oradores'} <Mic size={32} /> {/if}
+            {#if tipoActivo === 'presidentes'} <UserCheck size={32} /> {/if}
+            {#if tipoActivo === 'oraciones'} <MessageSquare size={32} /> {/if}
+        </div>
+        <div class="doc-type-label">{tipoActivo.toUpperCase()}</div>
     </div>
   </aside>
 
   <main>
-    <header>
-      <div class="titulo-header">
-        <FileText size={20}/>
-        <h2>Editor de Cartas</h2>
+    
+    <div class="app-header">
+      <div class="left-section">
+          <FileText size={24} class="header-icon"/>
+          <div class="doc-info">
+              <span class="doc-title">PLANTILLA: {tipoActivo.toUpperCase()}</span>
+              <span class="doc-status">Guardado en este PC</span>
+          </div>
       </div>
-      <button class="btn-save" on:click={actualizar} data-tooltip="Guardar en Base de Datos">
-        <Save size={16} /> Guardar Cambios
-      </button>
-    </header>
+      <div class="right-section">
+          <button class="save-btn" on:click={actualizar}>
+              <Save size={18} /> <span>Guardar Cambios</span>
+          </button>
+      </div>
+    </div>
 
-    <div class="info-texto">
-      <h3>
-        {#if tipoActivo === 'oradores'} Carta de Asignación para Discursantes {/if}
-        {#if tipoActivo === 'presidentes'} Carta de Asignación para Presidentes {/if}
-        {#if tipoActivo === 'oraciones'} Carta de Asignación para Oraciones {/if}
-      </h3>
-      <p>Modifique el modelo base a continuación. Las etiquetas emergentes le indicarán la función de cada botón.</p>
+    <div class="ribbon">
+      {#if editor}
+        <div class="ribbon-group">
+            <div class="group-row">
+                <button class="ribbon-btn large" disabled title="Pegar (Ctrl+V)">
+                    <Clipboard size={24} />
+                    <span>Pegar</span>
+                </button>
+                <div class="group-col small-gap">
+                    <button class="ribbon-btn list-item" disabled title="Cortar (Ctrl+X)">
+                        <Scissors size={14} /> <span>Cortar</span>
+                    </button>
+                    <button class="ribbon-btn list-item" disabled title="Copiar (Ctrl+C)">
+                        <Copy size={14} /> <span>Copiar</span>
+                    </button>
+                </div>
+            </div>
+            <div class="group-label">Portapapeles</div>
+        </div>
+        <div class="separator"></div>
+
+        <div class="ribbon-group">
+            <div class="group-col full-h">
+                <div class="controls-row">
+                    <select class="font-select" on:change={cambiarFuente} bind:value={currentFont} title="Fuente">
+                        <option value="Arial">Arial</option>
+                        <option value="Calibri">Calibri</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Georgia">Georgia</option>
+                    </select>
+                    <select class="size-select" on:change={cambiarTamano} bind:value={currentSize} title="Tamaño de Fuente">
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="14">14</option>
+                        <option value="16">16</option>
+                        <option value="18">18</option>
+                        <option value="20">20</option>
+                        <option value="24">24</option>
+                        <option value="30">30</option>
+                    </select>
+                    <div class="divider-v"></div>
+                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().unsetAllMarks().run()} title="Borrar Formato (Limpiar estilo)"><Eraser size={16}/></button>
+                </div>
+                <div class="controls-row spacing">
+                    <button class="ribbon-btn small" class:active={editor.isActive('bold')} on:click={() => editor.chain().focus().toggleBold().run()} title="Negrita (Ctrl+B)"><Bold size={16}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive('italic')} on:click={() => editor.chain().focus().toggleItalic().run()} title="Cursiva (Ctrl+I)"><Italic size={16}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive('underline')} on:click={() => editor.chain().focus().toggleUnderline().run()} title="Subrayado (Ctrl+U)"><UnderlineIcon size={16}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive('strike')} on:click={() => editor.chain().focus().toggleStrike().run()} title="Tachado"><Strikethrough size={16}/></button>
+                    <div class="divider-v"></div>
+                    <div class="color-picker-btn" title="Color de Fuente">
+                        <Type size={16} color={currentColor}/>
+                        <div class="color-bar" style="background-color: {currentColor}"></div>
+                        <input type="color" on:input={cambiarColor} value={currentColor} title="Cambiar color">
+                    </div>
+                </div>
+            </div>
+            <div class="group-label">Fuente</div>
+        </div>
+        <div class="separator"></div>
+
+        <div class="ribbon-group">
+            <div class="group-col full-h">
+                <div class="controls-row">
+                    <button class="ribbon-btn small" class:active={editor.isActive('bulletList')} on:click={() => editor.chain().focus().toggleBulletList().run()} title="Viñetas"><List size={18}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive('orderedList')} on:click={() => editor.chain().focus().toggleOrderedList().run()} title="Numeración"><ListOrdered size={18}/></button>
+                    <div class="divider-v"></div>
+                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().liftListItem('listItem').run()} title="Disminuir Sangría"><IndentDecrease size={18}/></button>
+                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().sinkListItem('listItem').run()} title="Aumentar Sangría"><IndentIncrease size={18}/></button>
+                </div>
+                <div class="controls-row spacing">
+                    <button class="ribbon-btn small" class:active={editor.isActive({ textAlign: 'left' })} on:click={() => editor.chain().focus().setTextAlign('left').run()} title="Alinear Izquierda"><AlignLeft size={18}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive({ textAlign: 'center' })} on:click={() => editor.chain().focus().setTextAlign('center').run()} title="Centrar"><AlignCenter size={18}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive({ textAlign: 'right' })} on:click={() => editor.chain().focus().setTextAlign('right').run()} title="Alinear Derecha"><AlignRight size={18}/></button>
+                    <button class="ribbon-btn small" class:active={editor.isActive({ textAlign: 'justify' })} on:click={() => editor.chain().focus().setTextAlign('justify').run()} title="Justificar"><AlignJustify size={18}/></button>
+                    <div class="divider-v"></div>
+                    
+                    <div class="line-height-wrapper" title="Interlineado">
+                        <ArrowUpDown size={14} class="icon-lh"/>
+                        <select class="line-height-select" on:change={cambiarInterlineado}>
+                            <option value="1.0">1.0</option>
+                            <option value="1.15">1.15</option>
+                            <option value="1.5">1.5</option>
+                            <option value="2.0">2.0</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="group-label">Párrafo</div>
+        </div>
+        <div class="separator"></div>
+
+        <div class="ribbon-group">
+            <div class="group-row centered">
+               <button class="ribbon-btn large" on:click={setLink} class:active={editor.isActive('link')} title="Insertar Vínculo">
+                   <LinkIcon size={22}/>
+                   <span>Vínculo</span>
+               </button>
+               <button class="ribbon-btn large" on:click={() => editor.chain().focus().setHorizontalRule().run()} title="Insertar Línea Horizontal">
+                   <Minus size={22}/>
+                   <span>Línea</span>
+               </button>
+            </div>
+            <div class="group-label">Insertar</div>
+        </div>
+        <div class="separator"></div>
+
+        <div class="ribbon-group">
+             <div class="group-row centered">
+                <button class="ribbon-btn large" on:click={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Deshacer (Ctrl+Z)">
+                    <Undo size={22}/>
+                    <span>Deshacer</span>
+                </button>
+                <button class="ribbon-btn large" on:click={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Rehacer (Ctrl+Y)">
+                    <Redo size={22}/>
+                    <span>Rehacer</span>
+                </button>
+             </div>
+             <div class="group-label">Edición</div>
+        </div>
+
+        <div class="ribbon-group ml-auto grow-right">
+            <div class="group-row centered">
+               <div class="insert-marker-container">
+                   <label>Marcadores de Posición:</label>
+                   <select on:change={addMarker} title="Insertar variable">
+                       <option value="" disabled selected>Seleccionar campo...</option>
+                       <optgroup label="General y Fecha">
+                           <option value="FechaActualMediana">Fecha Actual Mediana</option>
+                           <option value="FechaActualCompleta">Fecha Actual Completa</option>
+                       </optgroup>
+                       <optgroup label="Datos de la Persona">
+                           <option value="SaludoSexo">Saludo (Estimado/a)</option>
+                           <option value="Nombre">Nombre</option>
+                           <option value="SegundoNombre">Segundo Nombre</option>
+                           <option value="Apellido">Apellido</option>
+                           <option value="Apodo">Apodo</option>
+                           <option value="Sufijo">Sufijo</option>
+                       </optgroup>
+                       <optgroup label="Asignación y Programa">
+                           <option value="Tema">Tema</option>
+                           <option value="Hora">Hora</option>
+                           <option value="Duracion">Duración</option>
+                           <option value="NumeroBosquejo">Número Bosquejo</option>
+                           <option value="TipoAsignacion">Tipo Asignación</option>
+                           <option value="InstruccionesDemostraciones">Instr. Demos</option>
+                           <option value="EnlaceBosquejo">Enlace Bosquejo</option>
+                       </optgroup>
+                       <optgroup label="Evento y Circuito">
+                           <option value="DesignacionCircuito">Designación Circuito</option>
+                           <option value="SeccionCircuito">Sección Circuito</option>
+                           <option value="TipoEvento">Tipo Evento</option>
+                           <option value="TemaEvento">Tema Evento</option>
+                           <option value="FechaAsamblea">Fecha Asamblea</option>
+                       </optgroup>
+                       <optgroup label="Ubicación y Lugar">
+                           <option value="NombreLugar">Nombre Lugar</option>
+                           <option value="Direccion">Dirección</option>
+                           <option value="Ciudad">Ciudad</option>
+                           <option value="EstadoProvincia">Estado</option>
+                           <option value="CodigoPostal">C.P.</option>
+                           <option value="TelefonoPrincipal">Teléfono</option>
+                           <option value="UbicacionGeografica">GPS</option>
+                           <option value="InfoRecorrido">Recorrido</option>
+                       </optgroup>
+                       <optgroup label="Ensayos">
+                           <option value="EnvolturaEnsayo">Bloque Ensayo</option>
+                           <option value="InfoCompletaEnsayos">Info Completa</option>
+                           <option value="LugarEnsayos">Lugar</option>
+                           <option value="FechaHoraEnsayo">Fecha/Hora</option>
+                           <option value="NotasEnsayos">Notas Ensayo</option>
+                       </optgroup>
+                       <optgroup label="Otros">
+                           <option value="Notas">Notas</option>
+                           <option value="InstruccionesEspeciales">Instrucciones</option>
+                       </optgroup>
+                   </select>
+               </div>
+            </div>
+            <div class="group-label">Correspondencia</div>
+        </div>
+      {/if}
     </div>
 
     <div class="workspace">
-      <div class="editor-container">
-        
-        {#if editor}
-          <div class="toolbar">
-              <div class="group">
-                  <button on:click={() => editor.chain().focus().setTextAlign('left').run()} class:active={editor.isActive({ textAlign: 'left' })} data-tooltip="Alinear Izquierda">
-                    <AlignLeft size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().setTextAlign('center').run()} class:active={editor.isActive({ textAlign: 'center' })} data-tooltip="Centrar">
-                    <AlignCenter size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().setTextAlign('right').run()} class:active={editor.isActive({ textAlign: 'right' })} data-tooltip="Alinear Derecha">
-                    <AlignRight size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().setTextAlign('justify').run()} class:active={editor.isActive({ textAlign: 'justify' })} data-tooltip="Justificar">
-                    <AlignJustify size={16}/>
-                  </button>
-              </div>
-              <div class="separator"></div>
-
-              <div class="group inputs">
-                  <select class="native-select font-family" on:change={cambiarFuente} title="Fuente">
-                      <option value="" selected>Fuente</option>
-                      <option value="serif">Serif</option>
-                      <option value="monospace">Monospace</option>
-                      <option value="cursive">Cursive</option>
-                  </select>
-                  <select class="native-select font-size" on:change={cambiarTamano} title="Tamaño de Letra">
-                      <option value="" disabled selected>Tamaño</option>
-                      <option value="8">8</option>
-                      <option value="10">10</option>
-                      <option value="12">12</option>
-                      <option value="14">14</option>
-                      <option value="16">16</option>
-                      <option value="18">18</option>
-                      <option value="20">20</option>
-                      <option value="24">24</option>
-                      <option value="30">30</option>
-                      <option value="36">36</option>
-                  </select>
-              </div>
-              <div class="separator"></div>
-
-              <div class="group">
-                  <button on:click={() => editor.chain().focus().toggleBold().run()} class:active={editor.isActive('bold')} data-tooltip="Negrita (Ctrl+B)">
-                    <Bold size={16} strokeWidth={2.5}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().toggleItalic().run()} class:active={editor.isActive('italic')} data-tooltip="Cursiva (Ctrl+I)">
-                    <Italic size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().toggleUnderline().run()} class:active={editor.isActive('underline')} data-tooltip="Subrayado (Ctrl+U)">
-                    <UnderlineIcon size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().toggleStrike().run()} class:active={editor.isActive('strike')} data-tooltip="Tachado">
-                    <Strikethrough size={16}/>
-                  </button>
-              </div>
-              <div class="separator"></div>
-
-              <div class="group">
-                <button on:click={() => editor.chain().focus().setHorizontalRule().run()} data-tooltip="Línea Horizontal">
-                    <Minus size={16} />
-                </button>
-                <button on:click={setLink} class:active={editor.isActive('link')} data-tooltip="Insertar Enlace">
-                    <LinkIcon size={16} />
-                </button>
-                <div class="color-wrapper" data-tooltip="Color del Texto">
-                    <input type="color" on:input={cambiarColor} value={editor.getAttributes('textStyle').color || '#000000'} />
-                    <Palette size={16} />
+        <div class="scroll-container">
+            <div class="paper-container" style="zoom: {zoomLevel}%;">
+                <div class="paper-sheet">
+                    <div class="editor-content" bind:this={element}></div>
                 </div>
-                <button on:click={() => editor.chain().focus().unsetAllMarks().run()} data-tooltip="Borrar Formato">
-                    <Eraser size={16} />
-                </button>
-               </div>
-               <div class="separator"></div>
-
-              <div class="group">
-                  <select class="native-select line-height" on:change={cambiarInterlineado} title="Interlineado">
-                     <option value="" disabled selected>↕</option>
-                     <option value="1.0">1.0</option>
-                     <option value="1.15">1.15</option>
-                     <option value="1.5">1.5</option>
-                     <option value="2.0">2.0</option>
-                     <option value="2.5">2.5</option>
-                     <option value="3.0">3.0</option>
-                  </select>
-
-                  <button on:click={() => editor.chain().focus().toggleBulletList().run()} class:active={editor.isActive('bulletList')} data-tooltip="Lista Puntos">
-                    <List size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().toggleOrderedList().run()} class:active={editor.isActive('orderedList')} data-tooltip="Lista Números">
-                    <ListOrdered size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().toggleTaskList().run()} class:active={editor.isActive('taskList')} data-tooltip="Lista de Tareas">
-                    <ListTodo size={16}/>
-                  </button>
-                  
-                  <button on:click={desindentar} data-tooltip="Disminuir Sangría" disabled={!(editor.can().liftListItem('listItem') || editor.can().liftListItem('taskItem'))}>
-                    <IndentDecrease size={16}/>
-                  </button>
-                  <button on:click={indentar} data-tooltip="Aumentar Sangría" disabled={!(editor.can().sinkListItem('listItem') || editor.can().sinkListItem('taskItem'))}>
-                    <IndentIncrease size={16}/>
-                  </button>
-              </div>
-              <div class="separator"></div>
-
-              <div class="group">
-                <button on:click={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} data-tooltip="Deshacer">
-                    <Undo size={16}/>
-                  </button>
-                  <button on:click={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} data-tooltip="Rehacer">
-                    <Redo size={16}/>
-                  </button>
-              </div>
-
-              <div class="group ml-auto">
-                  <select on:change={addMarker} class="marker-select" title="Insertar variable automática">
-                      <option value="" disabled selected>+ Insertar Dato Automático</option>
-                      <optgroup label="General y Fecha">
-                        <option value="FechaActualMediana">Fecha Actual Mediana (3 feb 2026)</option>
-                        <option value="FechaActualCompleta">Fecha Actual Completa (3 de febrero...)</option>
-                      </optgroup>
-                      <optgroup label="Datos de la Persona">
-                        <option value="SaludoSexo">Saludo según sexo</option>
-                        <option value="Nombre">Nombre</option>
-                        <option value="SegundoNombre">Segundo nombre</option>
-                        <option value="Apellido">Apellido</option>
-                        <option value="Apodo">Apodo</option>
-                        <option value="Sufijo">Sufijo</option>
-                      </optgroup>
-                      <optgroup label="Asignación y Programa">
-                        <option value="Tema">Tema</option>
-                        <option value="Hora">Hora</option>
-                        <option value="Duracion">Duración</option>
-                        <option value="NumeroBosquejo">Número de Bosquejo</option>
-                        <option value="TipoAsignacion">Tipo de asignación</option>
-                        <option value="InstruccionesDemostraciones">Instrucciones (Demos/Entrevistas)</option>
-                        <option value="EnlaceBosquejo">Enlace(s) del Bosquejo</option>
-                      </optgroup>
-                      <optgroup label="Evento y Circuito">
-                        <option value="DesignacionCircuito">Designación del Circuito</option>
-                        <option value="SeccionCircuito">Sección del circuito</option>
-                        <option value="TipoEvento">Tipo de Evento</option>
-                        <option value="TemaEvento">Tema del Evento</option>
-                        <option value="FechaAsamblea">Fecha de Asamblea</option>
-                      </optgroup>
-                      <optgroup label="Ubicación y Lugar">
-                        <option value="NombreLugar">Nombre del lugar</option>
-                        <option value="Direccion">Dirección</option>
-                        <option value="Ciudad">Ciudad</option>
-                        <option value="EstadoProvincia">Estado o Provincia</option>
-                        <option value="CodigoPostal">Código postal</option>
-                        <option value="TelefonoPrincipal">Núm. de Teléfono Principal</option>
-                        <option value="UbicacionGeografica">Ubicación Geográfica del Lugar</option>
-                        <option value="InfoRecorrido">Información del Recorrido</option>
-                      </optgroup>
-                      <optgroup label="Ensayos">
-                        <option value="EnvolturaEnsayo">Envoltura condicional de ensayo</option>
-                        <option value="InfoCompletaEnsayos">Información completa de los ensayos</option>
-                        <option value="NotasEnsayos">Notas para los ensayos</option>
-                        <option value="LugarEnsayos">Lugar de los ensayos</option>
-                        <option value="FechaHoraEnsayo">Fecha y hora del ensayo</option>
-                        <option value="FechaEnsayos">Fecha de ensayos</option>
-                        <option value="HoraEnsayos">Hora de ensayos</option>
-                      </optgroup>
-                      <optgroup label="Otros">
-                        <option value="Notas">Notas</option>
-                        <option value="InstruccionesEspeciales">Instrucciones Especiales</option>
-                      </optgroup>
-                  </select>
-              </div>
-          </div>
-        {/if}
-
-        <div class="editor-content" bind:this={element}></div>
-      
-      </div>
+            </div>
+        </div>
     </div>
+
+    <div class="status-bar">
+        <div class="status-left">Página 1 de 1</div>
+        <div class="status-right">
+            <button on:click={() => zoomLevel = Math.max(10, zoomLevel - 10)}><Minus size={12}/></button>
+            <div class="zoom-slider-container">
+               <input type="range" min="10" max="250" bind:value={zoomLevel} class="zoom-slider">
+            </div>
+            <button on:click={() => zoomLevel = Math.min(250, zoomLevel + 10)}><Plus size={12}/></button>
+            <span class="zoom-text">{zoomLevel}%</span>
+        </div>
+    </div>
+
   </main>
 </div>
 
 <style>
-  /* LAYOUT */
-  .layout { display: grid; grid-template-columns: 240px 1fr; height: 100vh; background: #f3f4f6; font-family: 'Segoe UI', sans-serif; }
+  /* --- LAYOUT GLOBAL --- */
+  .word-layout {
+      display: flex;
+      flex-direction: row; 
+      height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f3f3f3;
+      overflow: hidden;
+  }
+
+  /* --- 1. SIDEBAR IZQUIERDA --- */
+  .sidebar {
+      width: 70px;
+      background: #e1e1e1; 
+      border-right: 1px solid #c0c0c0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 15px;
+      z-index: 100;
+      flex-shrink: 0;
+  }
+
+  .sidebar-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 30px;
+      cursor: pointer;
+  }
   
-  /* SIDEBAR */
-  .sidebar { background: white; padding: 20px; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; align-items: center; }
-  .btn-volver { align-self: flex-start; background: white; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; color: #64748b; margin-bottom: 40px; transition: all 0.2s; }
-  .btn-volver:hover { background: #f1f5f9; color: black; }
+  .back-btn {
+      background: white;
+      border: 1px solid #ccc;
+      color: #333;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 5px;
+      transition: all 0.2s;
+  }
+  .back-btn:hover { background: #2b579a; color: white; border-color: #2b579a; }
+  .back-label { font-size: 10px; font-weight: 700; color: #555; }
+
+  .sidebar-content {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .icon-indicator {
+      width: 45px; height: 45px;
+      background: #2b579a;
+      color: white;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  }
+  .doc-type-label {
+      font-size: 10px; font-weight: 700; color: #333;
+      text-align: center; writing-mode: vertical-rl; transform: rotate(180deg);
+      letter-spacing: 1px; margin-top: 10px;
+  }
+
+  /* --- MAIN CONTENT --- */
+  main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+  }
+
+  /* HEADER AZUL */
+  .app-header {
+      background: #2b579a; /* Azul Word */
+      color: white;
+      height: 52px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      flex-shrink: 0;
+  }
+  .left-section { display: flex; align-items: center; gap: 12px; }
+  .header-icon { opacity: 0.9; }
   
-  .menu-info { text-align: center; }
-  .label-menu { font-size: 10px; font-weight: 800; color: #94a3b8; letter-spacing: 1px; margin-bottom: 15px; }
-  .icon-box { width: 70px; height: 70px; background: #eff6ff; color: #2563eb; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-  .titulo-seccion { font-weight: 800; color: #334155; font-size: 14px; letter-spacing: 1px; }
+  .doc-info { display: flex; flex-direction: column; justify-content: center; }
+  .doc-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: white; text-transform: uppercase; }
+  .doc-status { font-size: 11px; opacity: 0.8; font-weight: 400; }
 
-  /* MAIN */
-  main { display: flex; flex-direction: column; height: 100%; }
+  .save-btn {
+      background: white; color: #2b579a; border: none; font-weight: 700; font-size: 13px;
+      padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .save-btn:hover { background: #f0f0f0; }
+
+  /* --- 2. RIBBON (CINTA) --- */
+  .ribbon {
+      background: #f3f3f3;
+      height: 100px;
+      border-bottom: 1px solid #d1d1d1;
+      display: flex;
+      padding: 5px 10px;
+      gap: 5px;
+      flex-shrink: 0;
+      user-select: none;
+      overflow-x: auto;
+  }
   
-  header { background: #1e293b; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
-  .titulo-header { display: flex; align-items: center; gap: 10px; }
-  h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .ribbon-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+      height: 100%;
+  }
+  .ribbon-group.grow-right { flex-grow: 1; align-items: flex-end; padding-right: 20px; }
+  .ribbon-group.ml-auto { margin-left: auto; }
+
+  .group-row { display: flex; align-items: center; gap: 4px; height: 100%; padding-bottom: 16px; }
+  .group-row.centered { justify-content: center; }
   
-  .btn-save { background: #2563eb; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; font-weight: 600; transition: background 0.2s; }
-  .btn-save:hover { background: #1d4ed8; }
+  .group-col { display: flex; flex-direction: column; gap: 2px; justify-content: center; }
+  .group-col.small-gap { gap: 2px; }
+  .group-col.full-h { height: 100%; justify-content: flex-start; padding-top: 4px; gap: 4px; padding-bottom: 16px; }
+  
+  .controls-row { display: flex; gap: 2px; align-items: center; }
+  .controls-row.spacing { gap: 4px; }
 
-  .info-texto { background: white; padding: 20px 40px; border-bottom: 1px solid #e2e8f0; }
-  .info-texto h3 { margin: 0 0 5px 0; font-size: 20px; color: #1e293b; font-weight: 700; }
-  .info-texto p { margin: 0; font-size: 14px; color: #64748b; }
+  .group-label {
+      font-size: 11px; color: #666; margin-top: -20px; text-align: center; width: 100%; pointer-events: none;
+  }
 
-  .workspace { flex: 1; padding: 30px; overflow-y: auto; display: flex; justify-content: center; }
+  .separator { width: 1px; background: #d1d1d1; height: 75%; align-self: center; margin: 0 4px; }
+  .divider-v { width: 1px; height: 18px; background: #ccc; margin: 0 6px; }
 
-  /* EDITOR CONTAINER */
-  .editor-container { width: 100%; max-width: 950px; background: white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; overflow: visible; height: fit-content; min-height: 600px; }
+  /* BOTONES RIBBON */
+  .ribbon-btn {
+      border: 1px solid transparent; background: transparent; cursor: pointer; color: #333;
+      border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.1s;
+  }
+  .ribbon-btn:hover { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
+  .ribbon-btn.active { background: #cce8ff; border-color: #99d1ff; color: #005a9e; }
+  .ribbon-btn:disabled { opacity: 0.5; cursor: default; }
 
-  /* TOOLBAR */
-  .toolbar { display: flex; align-items: center; background: #f8fafc; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; gap: 6px; flex-wrap: wrap; position: sticky; top: 0; z-index: 50; }
-  .group { display: flex; align-items: center; gap: 2px; }
-  .separator { width: 1px; height: 24px; background: #cbd5e1; margin: 0 6px; }
-  .ml-auto { margin-left: auto; }
+  /* FIX CRÍTICO: Desactivar eventos de ratón en iconos y texto dentro de botones para que el tooltip (title) del botón siempre funcione */
+  .ribbon-btn > :global(svg), 
+  .ribbon-btn > span {
+      pointer-events: none;
+  }
 
-  .toolbar button { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 4px; color: #475569; cursor: pointer; transition: all 0.2s; position: relative; }
-  .toolbar button:hover { background-color: #e2e8f0; color: #0f172a; }
-  .toolbar button.active { background-color: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-  .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ribbon-btn.large { flex-direction: column; width: 55px; height: 65px; font-size: 11px; gap: 4px; }
+  .ribbon-btn.small { width: 28px; height: 28px; }
+  
+  /* ESTILO LISTA PARA CORTAR/COPIAR */
+  .ribbon-btn.list-item {
+      width: 75px; height: 22px; 
+      justify-content: flex-start; 
+      gap: 6px; 
+      font-size: 11px; 
+      padding-left: 4px;
+  }
 
   /* INPUTS */
-  .native-select { height: 30px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 4px; font-size: 13px; color: #334155; outline: none; cursor: pointer; background: white; }
-  .font-family { width: 100px; } .font-size { width: 60px; } .line-height { width: 45px; }
+  select { font-family: 'Segoe UI', sans-serif; border: 1px solid transparent; background: transparent; font-size: 12px; height: 22px; outline: none; cursor: pointer; }
+  select:hover { border-color: #ccc; background: white; }
   
-  .marker-select { height: 30px; border: 1px solid #bfdbfe; background: #eff6ff; color: #2563eb; font-weight: 600; border-radius: 4px; padding: 0 10px; outline: none; cursor: pointer; font-size: 13px; min-width: 200px; max-width: 250px; }
+  .font-select { width: 120px; border: 1px solid #ccc; background: white; height: 24px; padding-left: 4px; }
+  .size-select { width: 45px; border: 1px solid #ccc; background: white; height: 24px; margin-left: 2px; text-align: center; }
   
-  .color-wrapper { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; }
-  .color-wrapper:hover { background-color: #e2e8f0; }
-  .color-wrapper input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .line-height-wrapper { display: flex; align-items: center; border: 1px solid transparent; padding-left: 2px; border-radius: 3px; }
+  .line-height-wrapper:hover { border-color: #ccc; background: #e1e1e1; }
+  .icon-lh { margin-right: 0px; color: #475569; }
+  .line-height-select { width: 35px; border: none; background: transparent; }
 
-  .editor-content { flex: 1; padding: 40px 50px; outline: none; font-size: 16px; line-height: 1.6; color: #1e293b; min-height: 500px; cursor: text; }
-
-  /* TOOLTIPS CSS */
-  [data-tooltip]:hover::after {
-    content: attr(data-tooltip);
-    position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
-    background-color: #1e293b; color: white; padding: 5px 8px; border-radius: 4px;
-    font-size: 11px; white-space: nowrap; z-index: 1000; pointer-events: none;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-weight: 500;
+  .color-picker-btn {
+      position: relative; width: 28px; height: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 3px; cursor: pointer;
   }
-  
-  [data-tooltip]:hover::before {
-    content: ''; position: absolute; bottom: 95%; left: 50%; transform: translateX(-50%);
-    border-width: 5px; border-style: solid; border-color: #1e293b transparent transparent transparent;
-    pointer-events: none;
+  .color-picker-btn:hover { background: #dbeafe; border-color: #bfdbfe; }
+  .color-bar { width: 18px; height: 4px; margin-top: 1px; }
+  .color-picker-btn input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+  /* CAJA DE MARCADORES (EXTREMO DERECHO) */
+  .insert-marker-container { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .insert-marker-container label { font-size: 11px; color: #2b579a; font-weight: 700; margin-left: 2px; }
+  .insert-marker-container select { 
+      height: 30px; border: 1px solid #2b579a; background: white; width: 190px; padding-left: 8px; border-radius: 4px; font-weight: 600; color: #333;
   }
 
-  /* ESTILOS TIPTAP */
-  :global(.ProseMirror) { outline: none; min-height: 100%; }
-  :global(.ProseMirror p) { margin-bottom: 0.8em; }
-  :global(.ProseMirror blockquote) { border-left: 3px solid #cbd5e1; padding-left: 1rem; color: #64748b; font-style: italic; }
-  :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5rem; }
-  :global(.ProseMirror a) { color: #2563eb; text-decoration: underline; cursor: pointer; }
-  :global(.ProseMirror hr) { border: none; border-top: 2px solid #cbd5e1; margin: 2rem 0; }
-  :global(.ProseMirror p.is-editor-empty:first-child::before) { color: #94a3b8; content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-  /* ESTILOS CHECKLIST */
-  :global(ul[data-type="taskList"]) { list-style: none; padding: 0; }
-  :global(ul[data-type="taskList"] li) { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-  :global(ul[data-type="taskList"] li > label) { display: flex; align-items: center; user-select: none; margin-right: 4px; }
-  :global(ul[data-type="taskList"] li > div) { flex: 1; }
-  :global(ul[data-type="taskList"] input[type="checkbox"]) { width: 16px; height: 16px; cursor: pointer; }
+  /* --- 3. WORKSPACE (MESA GRIS) --- */
+  .workspace {
+      flex: 1;
+      background: #5f6368; /* Gris oscuro Word */
+      position: relative;
+      overflow: hidden; /* El contenedor externo NO hace scroll */
+  }
+
+  .scroll-container {
+      width: 100%;
+      height: 100%;
+      overflow: auto; /* ESTE SI HACE SCROLL */
+      display: flex;
+      justify-content: center; /* Centrar horizontalmente */
+      padding: 40px;
+  }
+
+  /* PAPER CONTAINER CON ZOOM */
+  .paper-container {
+      /* La propiedad ZOOM hace la magia */
+      display: flex;
+      justify-content: center;
+  }
+
+  .paper-sheet {
+      width: 816px; /* Ancho Carta estándar */
+      min-height: 1056px; /* Alto Carta estándar */
+      background: white;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      cursor: text;
+      margin-bottom: 50px;
+  }
+
+  .editor-content {
+      padding: 96px; /* 1 pulgada margen */
+      outline: none;
+      font-size: 16px; 
+      line-height: 1.5;
+      color: black;
+      min-height: 100%;
+  }
+
+  /* --- 4. BARRA DE ESTADO --- */
+  .status-bar {
+      height: 24px;
+      background: #f3f3f3;
+      border-top: 1px solid #d1d1d1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 15px;
+      font-size: 11px;
+      color: #555;
+      flex-shrink: 0;
+  }
+  .status-right { display: flex; align-items: center; gap: 10px; }
+  .status-right button { background: none; border: none; cursor: pointer; color: #555; display: flex; align-items: center; }
+  .status-right button:hover { color: #000; }
+  .zoom-slider-container { display: flex; align-items: center; width: 100px; }
+  .zoom-slider { width: 100%; cursor: pointer; }
+  .zoom-text { width: 35px; text-align: center; }
+
+  /* TIPTAP */
+  :global(.ProseMirror) { min-height: 100%; outline: none; }
+  :global(.ProseMirror p) { margin-bottom: 0em; margin-top: 0; }
+  :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5em; }
 </style>
