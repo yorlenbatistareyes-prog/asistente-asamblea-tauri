@@ -132,18 +132,18 @@
     <h3><Plus size={18}/> Nuevo Registro</h3>
     <div class="grid">
       <div class="campo">
-        <label>Nombre Completo</label>
+        <label for="nombre_input">Nombre Completo</label>
         <div class="icon-input">
             <User size={14} class="ico"/>
-            <input type="text" bind:value={nombre} placeholder="Nombre y Apellidos" />
+            <input id="nombre_input" type="text" bind:value={nombre} placeholder="Nombre y Apellidos" />
         </div>
       </div>
 
       <div class="campo">
-        <label>Congregación</label>
+        <label for="cong_select">Congregación</label>
        <div class="icon-input">
           <MapPin size={14} class="ico"/>
-          <select bind:value={idCongregacion}>
+          <select id="cong_select" bind:value={idCongregacion}>
               <option value={0}>-- Sin Asignación / Superintendente --</option>
               {#each congregaciones as cong}
                   <option value={cong.id}>{cong.nombre}</option>
@@ -153,8 +153,8 @@
       </div>
 
       <div class="campo">
-        <label>Privilegio</label>
-        <select bind:value={privilegio}>
+        <label for="priv_select">Privilegio</label>
+        <select id="priv_select" bind:value={privilegio}>
             <option value="">Publicador</option>
             <option value="Anciano">Anciano</option>
             <option value="Siervo Ministerial">Siervo Ministerial</option>
@@ -163,17 +163,17 @@
       </div>
 
       <div class="campo">
-        <label>Teléfono</label>
+        <label for="tel_input">Teléfono</label>
         <div class="icon-input">
             <Phone size={14} class="ico"/>
-            <input type="text" bind:value={telefono} placeholder="+53..." />
+            <input id="tel_input" type="text" bind:value={telefono} placeholder="+53..." />
         </div>
       </div>
       <div class="campo">
-        <label>Email (jwpub.org)</label>
+        <label for="email_input">Email (jwpub.org)</label>
         <div class="icon-input">
             <Mail size={14} class="ico"/>
-            <input type="email" bind:value={email} placeholder="correo@jwpub.org" />
+            <input id="email_input" type="email" bind:value={email} placeholder="correo@jwpub.org" />
         </div>
       </div>
     </div>

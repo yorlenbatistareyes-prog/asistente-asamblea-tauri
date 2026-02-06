@@ -297,7 +297,7 @@
             <h4 class="titulo-seccion">PERSONAL</h4>
             <div class="lista-personal">
                 {#each oficina.personal as p}
-                    <div class="item-personal clickable" on:click={() => clickEnPersonal(p)}>
+                    <div class="item-personal clickable" role="button" tabindex="0" on:click={() => clickEnPersonal(p)} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
                         <div class="info-personal">
                             <span class="nombre-p">{p.nombre_completo}</span>
                             <div class="indicadores-mini">
@@ -318,10 +318,10 @@
         
         <div class="seccion-oficina">
             <h4 class="titulo-seccion">MAÑANA</h4>
-            {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item}
+            {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item, idx}
                 <div class="campo-dark">
-                    <label>{item.label}</label>
-                    <button class="btn-select-dark" class:ocupado={oficina[item.key]} on:click={() => clickEnOficina(item.key, oficina[item.key])}>
+                    <label for="btn_manana_{idx}">{item.label}</label>
+                    <button id="btn_manana_{idx}" class="btn-select-dark" class:ocupado={oficina[item.key]} on:click={() => clickEnOficina(item.key, oficina[item.key])}>
                         <div class="btn-content-left">
                             <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
                             {#if oficina[item.key]}
@@ -340,10 +340,10 @@
 
         <div class="seccion-oficina mt-4">
             <h4 class="titulo-seccion">TARDE</h4>
-            {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item}
+            {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item, idx}
                 <div class="campo-dark">
-                    <label>{item.label}</label>
-                    <button class="btn-select-dark" class:ocupado={oficina[item.key]} on:click={() => clickEnOficina(item.key, oficina[item.key])}>
+                    <label for="btn_tarde_{idx}">{item.label}</label>
+                    <button id="btn_tarde_{idx}" class="btn-select-dark" class:ocupado={oficina[item.key]} on:click={() => clickEnOficina(item.key, oficina[item.key])}>
                         <div class="btn-content-left">
                             <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
                             {#if oficina[item.key]}
@@ -381,7 +381,7 @@
       
       {#each partes as parte}
         <div class="tarjeta-acordeon" class:expanded={parte._expanded}>
-            <div class="header-parte" on:click={() => toggleExpandir(parte.id)}>
+            <div class="header-parte" role="button" tabindex="0" on:click={() => toggleExpandir(parte.id)} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
                 <div class="col-tiempo">
                     <span class="hora">{parte.hora_inicio}</span>
                     <span class="duracion">({parte.duracion}m)</span>
@@ -460,7 +460,7 @@
 </div>
 
 {#if mostrarModalGestionOficina && asignacionOficinaActual}
-  <div class="modal-backdrop" on:click|self={cerrarModales}>
+  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={cerrarModales} on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal modal-gestion">
       <div class="modal-header header-gestion">
           <div class="titulo-gestion"><h3>Gestión de Asignación</h3><span class="subtitulo-rol">{asignacionOficinaActual.tipo_asignacion?.replace('_', ' ').toUpperCase() || 'PERSONAL'}</span></div>
@@ -520,30 +520,30 @@
 {/if}
 
 {#if mostrarModalCrear}
-  <div class="modal-backdrop" on:click|self={cerrarModales}>
+  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={cerrarModales} on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header"><h3>Nueva Parte</h3><button class="btn-close" on:click={cerrarModales}><X size={18}/></button></div>
       <div class="modal-body form-body">
         <h4 class="form-title">Detalles</h4>
         <div class="fila">
-             <div class="campo"><label>Sesión</label><select bind:value={nuevaParte.sesion}><option>Mañana</option><option>Tarde</option></select></div>
-            <div class="campo"><label>Hora</label><input type="time" bind:value={nuevaParte.hora} /></div>
-            <div class="campo"><label>Min</label><input type="number" bind:value={nuevaParte.duracion} /></div>
+             <div class="campo"><label for="sesion_select">Sesión</label><select id="sesion_select" bind:value={nuevaParte.sesion}><option>Mañana</option><option>Tarde</option></select></div>
+            <div class="campo"><label for="hora_input">Hora</label><input id="hora_input" type="time" bind:value={nuevaParte.hora} /></div>
+            <div class="campo"><label for="duracion_input">Min</label><input id="duracion_input" type="number" bind:value={nuevaParte.duracion} /></div>
         </div>
-        <div class="campo"><label>Tipo</label><select bind:value={nuevaParte.tipo}><option>Cántico</option><option>Discurso</option><option>Simposio</option><option>Video</option></select></div>
-        <div class="campo"><label>Tema</label><input type="text" placeholder="Tema..." bind:value={nuevaParte.tema} /></div>
+        <div class="campo"><label for="tipo_select">Tipo</label><select id="tipo_select" bind:value={nuevaParte.tipo}><option>Cántico</option><option>Discurso</option><option>Simposio</option><option>Video</option></select></div>
+        <div class="campo"><label for="tema_input">Tema</label><input id="tema_input" type="text" placeholder="Tema..." bind:value={nuevaParte.tema} /></div>
         {#if nuevaParte.tipo !== 'Video'}
             <div class="separator-line"></div>
             <h4 class="form-title">Asignación Rápida</h4>
             <div class="campo autocomplete-container">
-                <label>Orador</label><div class="input-icon"><Mic size={14}/><input type="text" placeholder="Nombre..." bind:value={nuevaParte.nombre_orador} on:input={filtrarOradores} on:blur={() => setTimeout(()=>mostrarSugerencias=false, 200)}/></div>
+                <label for="orador_input">Orador</label><div class="input-icon"><Mic size={14}/><input id="orador_input" type="text" placeholder="Nombre..." bind:value={nuevaParte.nombre_orador} on:input={filtrarOradores} on:blur={() => setTimeout(()=>mostrarSugerencias=false, 200)}/></div>
                 {#if mostrarSugerencias}
                     <div class="sugerencias-lista">{#each sugerenciasOradores as s}<button class="sugerencia-item" on:click={() => selectSugerencia(s)}>{s.nombre_completo}</button>{/each}</div>
                 {/if}
             </div>
             {#if nuevaParte.nombre_orador.length > 0}
-                <div class="campo"><label>Congregación</label><div class="input-icon"><MapPin size={14}/><input type="text" placeholder="Cong..." bind:value={nuevaParte.congregacion} /></div></div>
-                <div class="fila"><div class="campo"><label>Tel</label><div class="input-icon"><Phone size={14}/><input type="text" bind:value={nuevaParte.telefono} /></div></div><div class="campo"><label>Email</label><div class="input-icon"><Mail size={14}/><input type="text" bind:value={nuevaParte.email} /></div></div></div>
+                <div class="campo"><label for="cong_input">Congregación</label><div class="input-icon"><MapPin size={14}/><input id="cong_input" type="text" placeholder="Cong..." bind:value={nuevaParte.congregacion} /></div></div>
+                <div class="fila"><div class="campo"><label for="tel_input_modal">Tel</label><div class="input-icon"><Phone size={14}/><input id="tel_input_modal" type="text" bind:value={nuevaParte.telefono} /></div></div><div class="campo"><label for="email_input_modal">Email</label><div class="input-icon"><Mail size={14}/><input id="email_input_modal" type="text" bind:value={nuevaParte.email} /></div></div></div>
             {/if}
         {/if}
         <button class="btn-guardar" on:click={guardarNuevaParte}>Guardar</button>
@@ -553,11 +553,11 @@
 {/if}
 
 {#if mostrarModalAsignar}
-  <div class="modal-backdrop" on:click|self={cerrarModales}>
+  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={cerrarModales} on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header"><h3>Asignar</h3><button class="btn-close" on:click={cerrarModales}><X size={18}/></button></div>
       <div class="modal-body">
-        <div class="buscador"><Search size={16} color="#64748b"/><input type="text" placeholder="Buscar..." bind:value={terminoBusqueda} autofocus /></div>
+        <div class="buscador"><Search size={16} color="#64748b"/><input type="text" placeholder="Buscar..." bind:value={terminoBusqueda} /></div>
         <div class="lista-opciones">
           {#if !rolOficinaEditando}<button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}><div class="icono-video"><Video size={18}/></div><span>Video</span></button>{/if}
           {#each hermanosFiltrados as h}<button class="item-opcion" on:click={() => asignarOrador(h.id, false)}><div class="avatar">{h.nombre_completo.charAt(0)}</div><div class="datos-opcion"><span class="nombre">{h.nombre_completo}</span><span class="detalle">{h.nombre_congregacion || '-'}</span></div></button>{/each}
@@ -593,7 +593,6 @@
   .btn-select-dark.ocupado { background: #1e3a8a; border-color: #1e40af; color: #bfdbfe; }
   .btn-content-left { display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
   .text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-  .icon-gear { color: #60a5fa; opacity: 0.7; }
 
   /* Indicadores mini en panel oficina */
   .indicadores-mini { display: flex; gap: 4px; margin-top: 2px; align-items: center; }
