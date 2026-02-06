@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  // Agregué 'Trash2' para los iconos de borrar
   import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2 } from 'lucide-svelte';
   import { open } from '@tauri-apps/plugin-dialog';
 
   // --- VARIABLES ---
+  let asambleaId = 0; // <--- AQUÍ GUARDAMOS EL ID DE LA ASAMBLEA ACTUAL
+  
   let nombre = "";
   let circuito = "";
   let numero = "";
   
-  // Tipado básico para evitar errores
   interface Congregacion {
     id: number;
     nombre: string;
@@ -21,13 +21,27 @@
   let lista: Congregacion[] = [];
   let terminoBusqueda = "";
 
-  onMount(() => { cargar(); });
+  onMount(() => { 
+    // 1. RECUPERAR ID DE LA ASAMBLEA ACTIVA
+    const datosGuardados = localStorage.getItem('asambleaActiva');
+    if (datosGuardados) {
+        const asamblea = JSON.parse(datosGuardados);
+        asambleaId = asamblea.id;
+        console.log("Gestionando congregaciones para asamblea ID:", asambleaId);
+        cargar(); 
+    } else {
+        alert("⚠️ No hay asamblea seleccionada. Vuelve al inicio.");
+    }
+  });
 
   async function cargar() {
     try {
-      lista = await invoke('obtener_congregaciones');
+      // 2. ENVIAR EL ID A RUST
+      // Nota: Tauri convierte automáticamente 'asambleaId' (JS) a 'asamblea_id' (Rust)
+      lista = await invoke('obtener_congregaciones', { asambleaId });
     } catch (e) {
       console.error(e);
+      alert("Error al cargar lista: " + e);
     }
   }
 
@@ -48,7 +62,14 @@
   async function guardar() {
     if (!nombre) return alert("Escribe el nombre");
     try {
-      await invoke('crear_congregacion', { nombre, circuito, numero });
+      // Enviamos asambleaId para que se guarde en la lista correcta
+      await invoke('crear_congregacion', { 
+        asambleaId, 
+        nombre, 
+        circuito, 
+        numero 
+      });
+      
       nombre = ""; circuito = ""; numero = "";
       cargar();
     } catch (e) { alert("Error: " + e); }
@@ -60,7 +81,11 @@
       const archivo = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
       
       if (archivo) {
-        const mensaje = await invoke('importar_congregaciones_csv', { rutaArchivo: archivo });
+        // Enviamos asambleaId para importar SOLO en esta asamblea
+        const mensaje = await invoke('importar_congregaciones_csv', { 
+            asambleaId, 
+            rutaArchivo: archivo 
+        });
         alert(mensaje);
         cargar(); 
       }
@@ -68,23 +93,25 @@
   }
 
   // --- ELIMINAR UNA CONGREGACIÓN ---
+  // (Este no cambia porque elimina por ID único de fila)
   async function eliminar(id: number, nombreCong: string) {
     if(!confirm(`¿Seguro que quieres eliminar "${nombreCong}"?`)) return;
 
     try {
       await invoke('eliminar_congregacion', { id });
-      cargar(); // Recargamos la lista
+      cargar(); 
     } catch (e) {
-      alert("No se pudo eliminar. \n\nPosible causa: Esta congregación tiene personas asignadas. Borra primero a las personas.");
+      alert("No se pudo eliminar. \n\nPosible causa: Esta congregación tiene personas asignadas.");
     }
   }
 
   // --- LIMPIAR TODA LA LISTA ---
   async function limpiarTodo() {
-    if(!confirm("⚠️ ¡PELIGRO! \n\nSe borrarán TODAS las congregaciones de la base de datos.\n¿Estás realmente seguro?")) return;
+    if(!confirm("⚠️ ¡PELIGRO! \n\nSe borrarán las congregaciones de ESTA asamblea.\n¿Estás seguro?")) return;
     
     try {
-      await invoke('limpiar_congregaciones');
+      // Solo limpiamos las de esta asamblea
+      await invoke('limpiar_congregaciones', { asambleaId });
       cargar();
     } catch (e) {
       alert("Error al limpiar: " + e);
@@ -100,7 +127,7 @@
       <input type="text" bind:value={terminoBusqueda} placeholder="Buscar..." />
     </div>
     
-    <button class="btn-danger" on:click={limpiarTodo} title="Borrar todas las congregaciones">
+    <button class="btn-danger" on:click={limpiarTodo} title="Borrar lista de esta asamblea">
         <Trash2 size={16}/> Limpiar Lista
     </button>
 
@@ -138,7 +165,7 @@
 
   <div class="lista">
     <div class="header-lista">
-        <h4>Congregaciones ({listaFiltrada.length})</h4>
+        <h4>Congregaciones (Asamblea #{asambleaId}) - Total: {listaFiltrada.length}</h4>
     </div>
     
     <div class="tabla-header">
@@ -162,7 +189,7 @@
           </div>
         </div>
       {:else}
-        <div class="vacio">No hay resultados.</div>
+        <div class="vacio">No hay congregaciones en esta asamblea.</div>
       {/each}
     </div>
   </div>
@@ -178,7 +205,6 @@
   .btn-importar { background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
   .btn-importar:hover { background: #059669; }
 
-  /* Nuevo estilo para el botón de peligro */
   .btn-danger { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
   .btn-danger:hover { background: #fecaca; }
 
@@ -202,12 +228,10 @@
   .header-lista { padding: 10px; border-bottom: 1px solid #e2e8f0; }
   .lista h4 { margin: 0; color: #334155; font-size: 13px; }
 
-  /* Ajusté el grid para añadir la columna de acción al final */
   .tabla-header { display: grid; grid-template-columns: 2fr 1fr 1fr 60px; padding: 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; }
   
   .tabla-scroll { flex: 1; overflow-y: auto; }
 
-  /* Ajusté el grid de la fila también */
   .fila { display: grid; grid-template-columns: 2fr 1fr 1fr 60px; padding: 10px; border-bottom: 1px solid #f1f5f9; align-items: center; font-size: 13px; }
   
   .nombre { display: flex; gap: 8px; align-items: center; font-weight: 500; color: #1e293b; }
@@ -215,18 +239,7 @@
   .num { color: #64748b; font-family: monospace; font-weight: 600; }
   .vacio { padding: 40px; text-align: center; color: #94a3b8; font-style: italic; }
 
-  /* Estilos para el botón de borrar en la fila */
   .acciones { display: flex; justify-content: center; }
-  .btn-icon-delete { 
-    background: transparent; 
-    color: #94a3b8; 
-    border: none; 
-    padding: 5px; 
-    cursor: pointer; 
-    border-radius: 4px;
-  }
-  .btn-icon-delete:hover { 
-    background: #fee2e2; 
-    color: #ef4444; 
-  }
+  .btn-icon-delete { background: transparent; color: #94a3b8; border: none; padding: 5px; cursor: pointer; border-radius: 4px; }
+  .btn-icon-delete:hover { background: #fee2e2; color: #ef4444; }
 </style>
