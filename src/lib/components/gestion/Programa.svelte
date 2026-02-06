@@ -281,6 +281,39 @@
       } catch(e) { alert(e); } 
   }
 
+  async function obtenerTodosLosEmails() {
+      const emails = new Set<string>();
+      const dias = ['Viernes', 'Sábado', 'Domingo'];
+      
+      for (const dia of dias) {
+          try {
+              const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+              res.forEach(parte => {
+                  if (parte.email_orador && parte.email_orador.trim() && !parte.es_video) {
+                      emails.add(parte.email_orador.trim());
+                  }
+              });
+          } catch (e) {
+              console.error(e);
+          }
+      }
+      
+      return Array.from(emails);
+  }
+
+  function enviarJWPUBATodos() {
+      obtenerTodosLosEmails().then(emails => {
+          if (emails.length === 0) {
+              alert("⚠️ No hay correos de oradores registrados.");
+              return;
+          }
+          
+          const emailsJoinedEncoded = encodeURIComponent(emails.join(';'));
+          const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${emailsJoinedEncoded}`;
+          openUrl(url).catch(e => console.error(e));
+      });
+  }
+
   function filtrarOradores() { const t = nuevaParte.nombre_orador.toLowerCase(); if(t.length<2){sugerenciasOradores=[];mostrarSugerencias=false;return;} sugerenciasOradores = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t)); mostrarSugerencias = sugerenciasOradores.length > 0; }
   function selectSugerencia(h: any) { nuevaParte.nombre_orador = h.nombre_completo; nuevaParte.congregacion = h.nombre_congregacion || ''; nuevaParte.telefono = h.telefono || ''; nuevaParte.email = h.email || ''; mostrarSugerencias = false; }
   
@@ -366,9 +399,12 @@
     <div class="tabs">
       {#each ['Viernes', 'Sábado', 'Domingo'] as dia}<button class:active={diaSeleccionado === dia} on:click={() => diaSeleccionado = dia}>{dia}</button>{/each}
     </div>
-    
+
     <div class="header-sesion">
-      <h2>Programa - {diaSeleccionado}</h2>
+      <div class="header-sesion-left">
+        <h2>Programa - {diaSeleccionado}</h2>
+        <button class="btn-header-orange" on:click={enviarJWPUBATodos} title="Enviar a todos los oradores de los 3 días"><FileJson size={18}/> <span>JWPUB a Todos</span></button>
+      </div>
       <div class="acciones-header">
         <button class="btn-header-csv" on:click={importarPrograma} title="Importar desde JW (CSV)"><FileSpreadsheet size={18}/> <span>Importar</span></button>
         <button class="btn-header-delete" on:click={limpiarTodo} title="Borrar todo el programa"><Trash2 size={18}/> <span>Limpiar</span></button>
@@ -603,14 +639,17 @@
 
   /* --- PROGRAMA (DERECHA) --- */
   .panel-discursos { background: white; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
-  .header-sesion { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; } .header-sesion h2 { margin: 0; font-size: 18px; color: #1e293b; }
+  .header-sesion { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; gap: 15px; } .header-sesion-left { display: flex; align-items: center; gap: 12px; } .header-sesion h2 { margin: 0; font-size: 18px; color: #1e293b; }
   .tabs { display: flex; background: #f8fafc; border-bottom: 1px solid #e2e8f0; } .tabs button { flex: 1; padding: 15px; border: none; background: none; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; } .tabs button.active { color: #2563eb; border-bottom-color: #2563eb; background: white; }
   .lista-partes { padding: 20px; overflow-y: auto; flex: 1; background: #f3f4f6; }
   .acciones-header { display: flex; gap: 10px; }
   
   .btn-header-csv { background: white; border: 1px solid #10b981; color: #10b981; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; } .btn-header-csv:hover { background: #ecfdf5; }
   .btn-header-delete { background: white; border: 1px solid #ef4444; color: #ef4444; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; } .btn-header-delete:hover { background: #fef2f2; }
+  .btn-header-orange { background: white; border: 1px solid #f97316; color: #f97316; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; } .btn-header-orange:hover { background: #fff7ed; }
   .btn-primary { background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; border: none; display: flex; gap: 6px; cursor: pointer; align-items: center; font-size: 12px; font-weight: 600; }
+
+
 
   /* TARJETA ACORDEÓN */
   .tarjeta-acordeon { background: white; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; overflow: hidden; transition: box-shadow 0.2s; } .tarjeta-acordeon:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.05); } .tarjeta-acordeon.expanded { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
