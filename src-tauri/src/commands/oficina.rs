@@ -11,9 +11,13 @@ fn conectar_db(app: &AppHandle) -> Connection {
 
 // --- LECTURA: Obtener asignaciones de un día PARA UNA ASAMBLEA ESPECÍFICA ---
 #[command]
-pub fn obtener_asignaciones_especiales(app: AppHandle, asamblea_id: i32, dia: String) -> Result<Vec<AsignacionEspecialDTO>, String> {
+pub fn obtener_asignaciones_especiales(
+    app: AppHandle,
+    asamblea_id: i32,
+    dia: String,
+) -> Result<Vec<AsignacionEspecialDTO>, String> {
     let conn = conectar_db(&app);
-    
+
     // FILTRO: WHERE ae.asamblea_id = ?1 AND ae.dia = ?2
     let sql = "
         SELECT 
@@ -29,16 +33,18 @@ pub fn obtener_asignaciones_especiales(app: AppHandle, asamblea_id: i32, dia: St
     ";
 
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
-    
-    let filas = stmt.query_map(params![asamblea_id, dia], |row| {
-        Ok(AsignacionEspecialDTO {
-            id: row.get(0)?,
-            tipo_asignacion: row.get(1)?,
-            persona_id: row.get(2)?,
-            nombre_completo: row.get(3)?,
-            nombre_congregacion: row.get(4).ok(),
+
+    let filas = stmt
+        .query_map(params![asamblea_id, dia], |row| {
+            Ok(AsignacionEspecialDTO {
+                id: row.get(0)?,
+                tipo_asignacion: row.get(1)?,
+                persona_id: row.get(2)?,
+                nombre_completo: row.get(3)?,
+                nombre_congregacion: row.get(4).ok(),
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
 
     let mut resultado = Vec::new();
     for fila in filas {
@@ -50,14 +56,14 @@ pub fn obtener_asignaciones_especiales(app: AppHandle, asamblea_id: i32, dia: St
 // --- ESCRITURA: Guardar una asignación EN ESTA ASAMBLEA ---
 #[command]
 pub fn guardar_asignacion_especial(
-    app: AppHandle, 
+    app: AppHandle,
     asamblea_id: i32, // <--- NUEVO
-    dia: String, 
-    tipo_asignacion: String, 
-    persona_id: i32
+    dia: String,
+    tipo_asignacion: String,
+    persona_id: i32,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
-    
+
     // Lógica especial:
     // Si NO es personal de oficina (ej. es Presidente), solo puede haber UNO.
     // Borramos el anterior SOLO DE ESTA ASAMBLEA y ESTE DÍA.
@@ -73,7 +79,7 @@ pub fn guardar_asignacion_especial(
         "INSERT INTO asignaciones_especiales (asamblea_id, dia, tipo_asignacion, persona_id) VALUES (?1, ?2, ?3, ?4)",
         params![asamblea_id, dia, tipo_asignacion, persona_id]
     ).map_err(|e| e.to_string())?;
-    
+
     Ok("Asignación guardada".to_string())
 }
 
@@ -82,7 +88,10 @@ pub fn guardar_asignacion_especial(
 pub fn eliminar_asignacion_especial(app: AppHandle, id: i32) -> Result<String, String> {
     let conn = conectar_db(&app);
     // El ID es único globalmente, así que es seguro borrarlo directo
-    conn.execute("DELETE FROM asignaciones_especiales WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM asignaciones_especiales WHERE id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
     Ok("Asignación eliminada".to_string())
 }

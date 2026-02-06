@@ -14,8 +14,8 @@ pub fn crear_local(
     app: AppHandle,
     nombre: String,
     direccion: String,
-    ciudad: String,      // <--- NUEVO ARGUMENTO
-    estado: String,      // <--- NUEVO ARGUMENTO
+    ciudad: String, // <--- NUEVO ARGUMENTO
+    estado: String, // <--- NUEVO ARGUMENTO
     capacidad: i32,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
@@ -46,9 +46,9 @@ pub fn obtener_locales(app: AppHandle) -> Result<Vec<Local>, String> {
                 id: row.get(0)?,
                 nombre: row.get(1)?,
                 direccion: row.get(2).ok(),
-                ciudad: row.get(3).ok(),     // <--- RECUPERAMOS CIUDAD
-                estado: row.get(4).ok(),     // <--- RECUPERAMOS ESTADO
-                capacidad: row.get(5).ok(),  // (Se desplaza el índice de capacidad)
+                ciudad: row.get(3).ok(),    // <--- RECUPERAMOS CIUDAD
+                estado: row.get(4).ok(),    // <--- RECUPERAMOS ESTADO
+                capacidad: row.get(5).ok(), // (Se desplaza el índice de capacidad)
             })
         })
         .map_err(|e| e.to_string())?;
@@ -67,9 +67,13 @@ pub fn obtener_locales(app: AppHandle) -> Result<Vec<Local>, String> {
 #[command]
 pub fn eliminar_local(app: AppHandle, id: i32) -> Result<String, String> {
     let conn = conectar_db(&app);
-    
+
     // Si borras un salón, desvinculamos las asambleas que lo usaban
-    conn.execute("UPDATE asambleas SET local_id = NULL WHERE local_id = ?1", params![id]).ok();
+    conn.execute(
+        "UPDATE asambleas SET local_id = NULL WHERE local_id = ?1",
+        params![id],
+    )
+    .ok();
 
     match conn.execute("DELETE FROM locales WHERE id = ?1", params![id]) {
         Ok(_) => Ok("Local eliminado".to_string()),
