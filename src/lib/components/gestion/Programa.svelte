@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
+  import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { slide } from 'svelte/transition'; 
   
   import { 
@@ -169,7 +170,45 @@
       const numero = tel.replace(/\D/g, ''); 
       const mensaje = `Hola hermano ${nombre}, le escribimos con respecto a su asignación en la Asamblea Regional.`;
       const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-      window.open(url, '_blank');
+      openUrl(url).catch(e => console.error(e));
+  }
+
+  function abrirJWPUBCarta(objeto: any) {
+      const email = objeto.email_visual || objeto.email_orador || objeto.email;
+      const nombre = objeto.nombre_completo || objeto.nombre_orador || '';
+      
+      if (!email) {
+          alert("⚠️ No hay correo registrado para este hermano.");
+          return;
+      }
+      
+    // Abre OWA para enviar cartas y prefill destinatario
+    const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(email)}`;
+    openUrl(url).catch(e => console.error(e));
+      
+      // Marca que se envió el JWPUB
+      objeto.jwpub_enviado = true;
+      partes = partes;
+      actualizarVistaOficina(objeto);
+  }
+
+  function abrirJWPUBRecordatorio(objeto: any) {
+      const email = objeto.email_visual || objeto.email_orador || objeto.email;
+      const nombre = objeto.nombre_completo || objeto.nombre_orador || '';
+      
+      if (!email) {
+          alert("⚠️ No hay correo registrado para este hermano.");
+          return;
+      }
+      
+    // Abre OWA para enviar recordatorios y prefill destinatario
+    const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(email)}`;
+    openUrl(url).catch(e => console.error(e));
+      
+      // Marca que se envió el recordatorio JWPUB
+      objeto.recordatorio_enviado = true;
+      partes = partes;
+      actualizarVistaOficina(objeto);
   }
 
   // --- GESTIÓN OFICINA ---
@@ -234,7 +273,7 @@
   
   async function importarPrograma() { 
       try { 
-          const f = await open({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
+          const f = await openDialog({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
           if(f) { 
               await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); 
               cargarDatos(); cargarHermanos();
@@ -396,7 +435,7 @@
                             </div>
                             <div class="grupo-accion center"><button class="btn-outline-gray"><Printer size={16}/> IMPRIMIR CARTA</button></div>
                             <div class="grupo-accion right">
-                                <button class="btn-outline-orange"><FileJson size={16}/> JWPUB ENVIAR CARTA</button>
+                                <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}><FileJson size={16}/> JWPUB ENVIAR CARTA</button>
                                 <label class="check-inline"><input type="checkbox" checked={parte.jwpub_enviado} on:change={() => toggleStatus(parte, 'jwpub_enviado')}> Email JWPUB enviado</label>
                             </div>
                             
@@ -405,7 +444,7 @@
                                 <label class="check-inline"><input type="checkbox" checked={parte.recordatorio_enviado} on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> Recordatorio enviado</label>
                             </div>
                             <div class="grupo-accion center"><button class="btn-outline-green" on:click={() => enviarWhatsApp(parte)}><MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP</button></div>
-                            <div class="grupo-accion right"><button class="btn-outline-orange"><FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN</button></div>
+                            <div class="grupo-accion right"><button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}><FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN</button></div>
                         </div>
                     {/if}
                     <div class="footer-tools">
@@ -461,7 +500,7 @@
               </div>
               <div class="grupo-accion center"><button class="btn-outline-gray"><Printer size={16}/> IMPRIMIR CARTA</button></div>
               <div class="grupo-accion right">
-                  <button class="btn-outline-orange"><FileJson size={16}/> JWPUB ENVIAR CARTA</button>
+                  <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(asignacionOficinaActual)}><FileJson size={16}/> JWPUB ENVIAR CARTA</button>
                   <label class="check-inline"><input type="checkbox" checked={asignacionOficinaActual.jwpub_enviado} on:change={() => toggleStatus(asignacionOficinaActual, 'jwpub_enviado')}> Email JWPUB enviado</label>
               </div>
               
@@ -470,7 +509,7 @@
                   <label class="check-inline"><input type="checkbox" checked={asignacionOficinaActual.recordatorio_enviado} on:change={() => toggleStatus(asignacionOficinaActual, 'recordatorio_enviado')}> Recordatorio enviado</label>
               </div>
               <div class="grupo-accion center"><button class="btn-outline-green" on:click={() => enviarWhatsApp(asignacionOficinaActual)}><MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP</button></div>
-              <div class="grupo-accion right"><button class="btn-outline-orange"><FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN</button></div>
+              <div class="grupo-accion right"><button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(asignacionOficinaActual)}><FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN</button></div>
           </div>
       </div>
       <div class="modal-footer footer-gestion">

@@ -169,6 +169,13 @@
             <input type="text" bind:value={telefono} placeholder="+53..." />
         </div>
       </div>
+      <div class="campo">
+        <label>Email (jwpub.org)</label>
+        <div class="icon-input">
+            <Mail size={14} class="ico"/>
+            <input type="email" bind:value={email} placeholder="correo@jwpub.org" />
+        </div>
+      </div>
     </div>
     <div class="footer-form">
         <button on:click={guardar}><Save size={16}/> Guardar</button>
@@ -190,11 +197,11 @@
     <div class="tabla-scroll">
       {#each listaFiltrada as p}
         <div class="fila">
-          <div class="col-nombre">
+           <div class="col-nombre">
              <span class="txt-nombre">{p.nombre_completo}</span>
-             <span class="txt-sub">{p.telefono || '-'}</span>
-          </div>
-          <span class="tag-cong">{p.nombre_congregacion || 'Sin Asignar'}</span>
+             <span class="txt-sub">{p.telefono || '-'} {p.email ? `• ${p.email}` : ''}</span>
+           </div>
+           <span class="tag-cong">{p.nombre_congregacion || 'Sin Asignar'}</span>
           <span class="tag-priv">{p.privilegios || 'Publicador'}</span>
           
           <div class="acciones">
