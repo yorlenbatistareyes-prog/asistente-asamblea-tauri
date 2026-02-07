@@ -22,12 +22,12 @@
     Save, Mic, UserCheck, MessageSquare, ArrowLeft, FileText,
     Bold, Italic, Underline as UnderlineIcon, Strikethrough, 
     AlignLeft, AlignCenter, AlignRight, AlignJustify,
-    Palette, List, ListOrdered, Undo, Redo, Eraser, 
+    List, ListOrdered, Undo, Redo, Eraser, 
     Link as LinkIcon, Minus, 
     IndentDecrease, IndentIncrease, 
-    Plus, ZoomIn, ZoomOut, ChevronDown, Clipboard,
-    Type, Scissors, Copy, Trash2, ArrowUpDown,
-    LayoutTemplate, ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine
+    Plus, ZoomIn, ZoomOut, Clipboard,
+    Type, Scissors, Copy, ArrowUpDown,
+    ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
@@ -55,7 +55,8 @@
   let textAlignJustify = false;
   let isBulletList = false;
   let isOrderedList = false;
-  let isLink = false;
+  
+  // Estado Color Picker
   let isColorPickerOpen = false;
   let colorPickerPos = { top: 0, left: 0 };
 
@@ -65,21 +66,14 @@
   let marginLeft = 2.54;
   let marginRight = 2.54;
 
-  // --- COLORES PREDEFINIDOS ---
+  // --- COLORES ---
   const themeColors = [
-    // Fila 1
     '#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050', '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0',
-    // Fila 2
     '#595959', '#A6A6A6', '#D9D9D9', '#FFFFFF', '#F2F2F2', '#D0CECE', '#B4C6E7', '#8EA9DB', '#5B9BD5', '#2E75B6',
-    // Fila 3
     '#1F4E78', '#376092', '#5B9BD5', '#BDD7EE', '#DEEBF7', '#FCE4D6', '#F8CBAD', '#F4B183', '#ED7D31', '#C65911',
-    // Fila 4
     '#834C11', '#7F6000', '#9CAB7B', '#C6E0B4', '#E2F0D9', '#D7E4BC', '#C5E0B3', '#A9D08E', '#70AD47', '#548235'
   ];
-
-  const standardColors = [
-    '#000000', '#FFFFFF', '#EEECE1', '#1F497D', '#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646'
-  ];
+  const standardColors = ['#000000', '#FFFFFF', '#EEECE1', '#1F497D', '#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646'];
 
   // --- EXTENSIONES ---
   const FontSize = Extension.create({
@@ -118,20 +112,12 @@
           lineHeight: {
             default: null,
             parseHTML: element => {
-              // Intentar obtener line-height de múltiples fuentes
               const styleAttr = element.getAttribute('style') || '';
               const lineHeightMatch = styleAttr.match(/line-height\s*:\s*([^;]+)/i);
-              if (lineHeightMatch && lineHeightMatch[1]) {
-                return lineHeightMatch[1].trim();
-              }
-              
-              // Intentar desde computed style
+              if (lineHeightMatch && lineHeightMatch[1]) return lineHeightMatch[1].trim();
               const computedStyle = window.getComputedStyle(element);
               const computedLH = computedStyle.lineHeight;
-              if (computedLH && computedLH !== 'normal') {
-                return computedLH;
-              }
-              
+              if (computedLH && computedLH !== 'normal') return computedLH;
               return null;
             },
             renderHTML: attributes => {
@@ -177,8 +163,6 @@
       content: '', 
       editorProps: {
         handlePaste: (view, event) => {
-          // Permitir que TipTap maneje el paste naturalmente
-          // Pero luego actualizaremos la toolbar
           setTimeout(() => updateToolbar(), 100);
           return false;
         },
@@ -195,70 +179,36 @@
     });
     cargarPlantilla();
     
-    // Cerrar color picker al hacer clic fuera
-    document.addEventListener('click', closeColorPickerIfClickOutside);
+    document.addEventListener('click', closePopupsIfClickOutside);
     return () => {
-      document.removeEventListener('click', closeColorPickerIfClickOutside);
+      document.removeEventListener('click', closePopupsIfClickOutside);
     };
   });
 
   function getLineHeightFromEditor(): string {
     if (!editor) return '1.5';
-    
-    // Intentar obtener del atributo del nodo
     const node = editor.state.selection.$anchor.parent;
-    if (node && node.attrs && node.attrs.lineHeight) {
-      return node.attrs.lineHeight;
-    }
-    
-    // Intentar obtener del paragraph
+    if (node && node.attrs && node.attrs.lineHeight) return node.attrs.lineHeight;
     const paragraph = editor.getAttributes('paragraph');
-    if (paragraph && paragraph.lineHeight) {
-      return paragraph.lineHeight;
-    }
-    
-    // Intentar obtener del DOM actual
-    try {
-      const domNode = editor.view.nodeDOM(editor.state.selection.$from.pos);
-      if (domNode) {
-        const styles = window.getComputedStyle(domNode as Element);
-        const lh = styles.lineHeight;
-        if (lh && lh !== 'normal') {
-          return lh;
-        }
-      }
-    } catch (e) {
-      // Ignorar errores de acceso al DOM
-    }
-    
+    if (paragraph && paragraph.lineHeight) return paragraph.lineHeight;
     return '1.5';
   }
 
   function updateToolbar() {
     if (!editor) return;
-
-    // Obtener atributos de texto
     const textStyle = editor.getAttributes('textStyle');
     currentFont = textStyle.fontFamily || 'Arial';
     currentSize = textStyle.fontSize || '11';
     currentColor = textStyle.color || '#000000';
-
-    // Obtener atributos de párrafo - Usando función mejorada
     currentLineHeight = getLineHeightFromEditor();
-
-    // Obtener estado de formato
     isBold = editor.isActive('bold');
     isItalic = editor.isActive('italic');
     isUnderline = editor.isActive('underline');
     isStrike = editor.isActive('strike');
-
-    // Obtener alineación
     textAlignLeft = editor.isActive({ textAlign: 'left' });
     textAlignCenter = editor.isActive({ textAlign: 'center' });
     textAlignRight = editor.isActive({ textAlign: 'right' });
     textAlignJustify = editor.isActive({ textAlign: 'justify' });
-
-    // Obtener estado de listas
     isBulletList = editor.isActive('bulletList');
     isOrderedList = editor.isActive('orderedList');
   }
@@ -269,7 +219,6 @@
     if (!editor) return;
     try {
       const htmlFinal = editor.getHTML();
-      // Aquí podrías guardar también los márgenes si tu backend lo soporta
       await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
       alert(`✅ Guardado correctamente.`);
     } catch (e) {
@@ -277,44 +226,35 @@
     }
   }
 
-  // --- PORTAPAPELES ---
+  // --- PORTAPAPELES (CORREGIDO: Sin .run() extra) ---
   function copiar() { editor.commands.focus(); document.execCommand('copy'); }
   function cortar() { editor.commands.focus(); document.execCommand('cut'); }
   async function pegar() {
     editor.commands.focus();
     try {
-      // Intentar leer HTML del portapapeles (preserva estilos)
       const items = await navigator.clipboard.read();
       let pegado = false;
-      
       for (const item of items) {
         if (item.types.includes('text/html')) {
           const html = await item.getType('text/html').then(blob => blob.text());
           if (html) {
-            // CORRECCIÓN 1: Se quitó .run() porque insertContent ya ejecuta el comando
+            // CORRECCIÓN: insertContent ejecuta el comando, no devuelve un chainable si se llama directo desde commands
             editor.commands.insertContent(html);
             pegado = true;
             break;
           }
         }
       }
-      
-      // Si no hay HTML, intenta con texto plano
       if (!pegado) {
         const text = await navigator.clipboard.readText();
         if (text) {
-          // CORRECCIÓN 2: Se quitó .run()
           editor.commands.insertContent(text);
         }
       }
-      
-      // Actualizar toolbar después de un pequeño delay
       setTimeout(() => updateToolbar(), 50);
     } catch (err) { 
-      // Si falla, intenta con el método antiguo (fallback)
       try {
         const text = await navigator.clipboard.readText();
-        // CORRECCIÓN 3: Se quitó .run()
         if (text) editor.commands.insertContent(text);
         setTimeout(() => updateToolbar(), 50);
       } catch (e2) {
@@ -327,56 +267,38 @@
   function cambiarFuente(e: Event) { editor.chain().focus().setFontFamily((e.target as HTMLSelectElement).value).run(); }
   function cambiarTamano(e: Event) { editor.chain().focus().setFontSize((e.target as HTMLSelectElement).value).run(); }
   function cambiarInterlineado(e: Event) { editor.chain().focus().setLineHeight((e.target as HTMLSelectElement).value).run(); }
-  function cambiarColor(e: Event) { 
-      const val = (e.target as HTMLInputElement).value;
-      // Aplicar el color sin perder la selección
-      editor.chain()
-        .setColor(val)
-        .run();
-      currentColor = val;
-      isColorPickerOpen = false;
-  }
   function selectColor(color: string) {
-    editor.chain()
-      .setColor(color)
-      .run();
+    editor.chain().setColor(color).run();
     currentColor = color;
     isColorPickerOpen = false;
   }
   function toggleColorPicker(e: MouseEvent) {
     e.stopPropagation();
-    if (isColorPickerOpen) {
-      isColorPickerOpen = false;
-      return;
-    }
-    
+    if (isColorPickerOpen) { isColorPickerOpen = false; return; }
     const btn = e.currentTarget as HTMLElement;
     const rect = btn.getBoundingClientRect();
-    colorPickerPos = {
-      top: rect.bottom + 8,
-      left: rect.left
-    };
+    colorPickerPos = { top: rect.bottom + 8, left: rect.left };
     isColorPickerOpen = true;
   }
-  function closeColorPickerIfClickOutside(e: MouseEvent) {
-    const target = e.target as HTMLElement;
-    const isColorPicker = target.closest('.color-picker-wrapper');
-    if (!isColorPicker) {
-      isColorPickerOpen = false;
-    }
-  }
+  
+  // --- MARCADORES (SELECTOR NATIVO) ---
   function addMarker(e: Event) {
     const target = e.target as HTMLSelectElement;
     if (target.value && editor) {
       editor.chain().focus().insertContent(`{{${target.value}}}`).run();
-      target.value = ""; 
+      target.value = ""; // Reset del select
     }
   }
+
+  function closePopupsIfClickOutside(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.color-picker-wrapper')) isColorPickerOpen = false;
+  }
+
   function setLink() {
     const url = window.prompt('URL:');
     if (url) editor.chain().focus().setLink({ href: url }).run();
   }
-  
 </script>
 
 <div class="word-layout">
@@ -421,8 +343,7 @@
         <div class="ribbon-group">
             <div class="group-row">
                 <button class="ribbon-btn large" on:click={pegar} title="Pegar">
-                    <Clipboard size={24} />
-                    <span>Pegar</span>
+                    <Clipboard size={24} /> <span>Pegar</span>
                 </button>
                 <div class="group-col small-gap">
                     <button class="ribbon-btn list-item" on:click={cortar} title="Cortar">
@@ -468,77 +389,29 @@
                     <button class="ribbon-btn small" class:active={isStrike} on:click={() => editor.chain().focus().toggleStrike().run()} title="Tachado"><Strikethrough size={16}/></button>
                     <div class="divider-v"></div>
                     <div class="color-picker-wrapper">
-                        <button 
-                            class="color-picker-btn" 
-                            on:click={toggleColorPicker}
-                            title="Color de Fuente">
+                        <button class="color-picker-btn" on:click={toggleColorPicker} title="Color de Fuente">
                             <Type size={16} color={currentColor}/>
                             <div class="color-bar" style="background-color: {currentColor}"></div>
                         </button>
                         {#if isColorPickerOpen}
                             <div class="color-picker-dropdown" style="top: {colorPickerPos.top}px; left: {colorPickerPos.left}px;">
                                 <div class="color-auto-section">
-                                    <button 
-                                        class="color-auto-btn" 
-                                        on:click={() => selectColor('#000000')}
-                                        title="Automático (Negro)">
-                                        <div class="color-auto-indicator">
-                                            <div class="color-auto-square" style="background-color: #000000;"></div>
-                                            <div class="color-auto-text">Automático</div>
-                                        </div>
+                                    <button class="color-auto-btn" on:click={() => selectColor('#000000')} title="Automático (Negro)">
+                                        <div class="color-auto-indicator"><div class="color-auto-square" style="background-color: #000000;"></div><div class="color-auto-text">Automático</div></div>
                                     </button>
                                 </div>
-
                                 <div class="color-section">
                                     <div class="color-section-title">Colores de Tema</div>
                                     <div class="color-grid-theme">
-                                        {#each themeColors as color}
-                                            <button
-                                                class="color-swatch-theme"
-                                                style="background-color: {color}; border: 1px solid {color === '#FFFFFF' ? '#ccc' : 'transparent'};"
-                                                class:active={currentColor === color}
-                                                on:click={() => selectColor(color)}
-                                                title={color}
-                                            ></button>
-                                        {/each}
+                                        {#each themeColors as color}<button class="color-swatch-theme" style="background-color: {color}; border: 1px solid {color === '#FFFFFF' ? '#ccc' : 'transparent'};" class:active={currentColor === color} on:click={() => selectColor(color)} title={color}></button>{/each}
                                     </div>
                                 </div>
-
                                 <div class="color-section">
                                     <div class="color-section-title">Colores Estándar</div>
                                     <div class="color-grid-standard">
-                                        {#each standardColors as color}
-                                            <button
-                                                class="color-swatch-standard"
-                                                style="background-color: {color}; border: 1px solid {color === '#FFFFFF' ? '#ccc' : 'transparent'};"
-                                                class:active={currentColor === color}
-                                                on:click={() => selectColor(color)}
-                                                title={color}
-                                            ></button>
-                                        {/each}
+                                        {#each standardColors as color}<button class="color-swatch-standard" style="background-color: {color}; border: 1px solid {color === '#FFFFFF' ? '#ccc' : 'transparent'};" class:active={currentColor === color} on:click={() => selectColor(color)} title={color}></button>{/each}
                                     </div>
                                 </div>
-
-                                <div class="color-divider"></div>
-
-                                <div class="more-colors-section">
-                                    <button class="more-colors-btn" on:click={() => {
-                                        const input = document.getElementById('color-input-custom') as HTMLInputElement;
-                                        if (input) input.click();
-                                    }}>
-                                        <span class="more-colors-icon">⚙</span>
-                                        <span class="more-colors-text">Más colores...</span>
-                                    </button>
-                                </div>
-
-                                <input 
-                                    id="color-input-custom"
-                                    type="color" 
-                                    class="color-picker-input"
-                                    on:input={cambiarColor} 
-                                    value={currentColor}
-                                    style="display: none;"
-                                >
                             </div>
                         {/if}
                     </div>
@@ -584,24 +457,12 @@
         <div class="ribbon-group">
             <div class="group-col full-h margins-group">
                 <div class="margin-row">
-                    <div class="margin-input" title="Margen Superior (cm)">
-                        <ArrowUpFromLine size={12} />
-                        <input type="number" step="0.1" bind:value={marginTop} />
-                    </div>
-                    <div class="margin-input" title="Margen Inferior (cm)">
-                        <ArrowDownToLine size={12} />
-                        <input type="number" step="0.1" bind:value={marginBottom} />
-                    </div>
+                    <div class="margin-input" title="Margen Superior (cm)"><ArrowUpFromLine size={12} /><input type="number" step="0.1" bind:value={marginTop} /></div>
+                    <div class="margin-input" title="Margen Inferior (cm)"><ArrowDownToLine size={12} /><input type="number" step="0.1" bind:value={marginBottom} /></div>
                 </div>
                 <div class="margin-row">
-                    <div class="margin-input" title="Margen Izquierdo (cm)">
-                        <ArrowLeftFromLine size={12} />
-                        <input type="number" step="0.1" bind:value={marginLeft} />
-                    </div>
-                    <div class="margin-input" title="Margen Derecho (cm)">
-                        <ArrowRightToLine size={12} />
-                        <input type="number" step="0.1" bind:value={marginRight} />
-                    </div>
+                    <div class="margin-input" title="Margen Izquierdo (cm)"><ArrowLeftFromLine size={12} /><input type="number" step="0.1" bind:value={marginLeft} /></div>
+                    <div class="margin-input" title="Margen Derecho (cm)"><ArrowRightToLine size={12} /><input type="number" step="0.1" bind:value={marginRight} /></div>
                 </div>
             </div>
             <div class="group-label">Márgenes</div>
@@ -610,14 +471,8 @@
 
         <div class="ribbon-group">
             <div class="group-row centered">
-               <button class="ribbon-btn large" on:click={setLink} class:active={editor.isActive('link')} title="Vínculo">
-                   <LinkIcon size={22}/>
-                   <span>Link</span>
-               </button>
-               <button class="ribbon-btn large" on:click={() => editor.chain().focus().setHorizontalRule().run()} title="Línea">
-                   <Minus size={22}/>
-                   <span>Línea</span>
-               </button>
+               <button class="ribbon-btn large" on:click={setLink} class:active={editor.isActive('link')} title="Vínculo"><LinkIcon size={22}/><span>Link</span></button>
+               <button class="ribbon-btn large" on:click={() => editor.chain().focus().setHorizontalRule().run()} title="Línea"><Minus size={22}/><span>Línea</span></button>
             </div>
             <div class="group-label">Insertar</div>
         </div>
@@ -625,14 +480,8 @@
 
         <div class="ribbon-group">
              <div class="group-row centered">
-                <button class="ribbon-btn large" on:click={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Deshacer">
-                    <Undo size={22}/>
-                    <span>Deshacer</span>
-                </button>
-                <button class="ribbon-btn large" on:click={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Rehacer">
-                    <Redo size={22}/>
-                    <span>Rehacer</span>
-                </button>
+                <button class="ribbon-btn large" on:click={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Deshacer"><Undo size={22}/><span>Deshacer</span></button>
+                <button class="ribbon-btn large" on:click={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Rehacer"><Redo size={22}/><span>Rehacer</span></button>
              </div>
              <div class="group-label">Edición</div>
         </div>
@@ -645,49 +494,49 @@
                        <option value="" disabled selected>Seleccionar...</option>
                        
                        <optgroup label="Fecha y General">
-                           <option value="FechaActualMediana">Fecha Actual (6 feb)</option>
-                           <option value="FechaActualCompleta">Fecha Completa (6 de febrero)</option>
-                           <option value="DesignacionCircuito">Designación Circuito</option>
+                           <option value="FechaActualMediana">Fecha Actual Mediana (6 feb 2026)</option>
+                           <option value="FechaActualCompleta">Fecha Actual Completa (6 de febrero de 2026)</option>
+                           <option value="DesignacionCircuito">Designación Circuito (ej. SL-01)</option>
                        </optgroup>
 
                        <optgroup label="Asignación y Programa">
-                           <option value="Hora">Hora</option>
-                           <option value="Duracion">Duración</option>
+                           <option value="Hora">Hora (Ej: 10:10 AM)</option>
+                           <option value="Duracion">Duración (Total minutos)</option>
                            <option value="Tema">Tema</option>
-                           <option value="NumeroBosquejo">Número de Bosquejo</option>
-                           <option value="TipoAsignacion">Tipo de Asignación</option>
-                           <option value="Instrucciones">Instrucciones</option>
+                           <option value="NumeroBosquejo">Número de Bosquejo (1)</option>
+                           <option value="TipoAsignacion">Tipo de asignación (Ej: Oración)</option>
+                           <option value="Instrucciones">Instrucciones (Ej: De la Sucursal)</option>
                            <option value="EnlaceBosquejo">Enlace del Bosquejo</option>
                        </optgroup>
 
                        <optgroup label="Orador / Persona">
                            <option value="SaludoSexo">Saludo (Hermano/a)</option>
-                           <option value="Nombre">Nombre</option>
-                           <option value="SegundoNombre">Segundo nombre</option>
-                           <option value="Apellido">Apellido</option>
+                           <option value="Nombre">Nombre (Ej: Roberto)</option>
+                           <option value="SegundoNombre">Segundo nombre (Ej: Adolfo)</option>
+                           <option value="Apellido">Apellido (Ej: Batista)</option>
                        </optgroup>
 
                        <optgroup label="Evento y Lugar">
                            <option value="Fecha">Fecha de Asamblea</option>
-                           <option value="TipoEvento">Tipo de Evento</option>
+                           <option value="TipoEvento">Tipo de Evento (CA-br...)</option>
                            <option value="TemaEvento">Tema del Evento</option>
                            <option value="Notas">Notas</option>
                            <option value="InfoRecorrido">Información Recorrido</option>
                            <option value="InstruccionesEsp">Instrucciones Especiales</option>
-                           <option value="NombreLugar">Nombre del Lugar</option>
+                           <option value="NombreLugar">Nombre del lugar</option>
                            <option value="NombreLugarAlt">Nombre Lugar Alternativo</option>
                            <option value="Direccion">Dirección</option>
                            <option value="Ciudad">Ciudad</option>
-                           <option value="EstadoProvincia">Estado/Provincia</option>
+                           <option value="EstadoProvincia">Estado o Provincia</option>
                        </optgroup>
 
                        <optgroup label="Ensayos">
-                           <option value="EnvolturaEnsayo">Envoltura condicional ensayo</option>
-                           <option value="InfoCompletaEnsayos">Info completa ensayos</option>
-                           <option value="InfoCombinadaEnsayos">Info combinada ensayos</option>
-                           <option value="NotasEnsayos">Notas para ensayos</option>
-                           <option value="LugarEnsayos">Lugar de ensayos</option>
-                           <option value="FechaHoraEnsayo">Fecha y hora ensayo</option>
+                           <option value="EnvolturaEnsayo">Envoltura condicional ensayo (&lt;%...%&gt;)</option>
+                           <option value="InfoCompletaEnsayos">Información completa de los ensayos</option>
+                           <option value="InfoCombinadaEnsayos">Información combinada de los ensayos</option>
+                           <option value="NotasEnsayos">Notas para los ensayos</option>
+                           <option value="LugarEnsayos">Lugar de los ensayos</option>
+                           <option value="FechaHoraEnsayo">Fecha y hora del ensayo</option>
                            <option value="FechaEnsayos">Fecha de ensayos</option>
                            <option value="HoraEnsayos">Hora de ensayos</option>
                        </optgroup>
@@ -703,10 +552,7 @@
         <div class="scroll-container">
             <div class="paper-zoom-wrapper" style="zoom: {zoomLevel}%;">
                 <div class="paper-sheet">
-                    <div class="editor-content" 
-                         bind:this={element}
-                         style="padding: {marginTop}cm {marginRight}cm {marginBottom}cm {marginLeft}cm;"
-                    ></div>
+                    <div class="editor-content" bind:this={element} style="padding: {marginTop}cm {marginRight}cm {marginBottom}cm {marginLeft}cm;"></div>
                 </div>
             </div>
         </div>
@@ -729,7 +575,7 @@
   /* --- LAYOUT GLOBAL --- */
   .word-layout { display: flex; flex-direction: row; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f3f3f3; overflow: hidden; }
 
-  /* --- 1. SIDEBAR --- */
+  /* SIDEBAR */
   .sidebar { width: 70px; background: #e1e1e1; border-right: 1px solid #c0c0c0; display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 100; flex-shrink: 0; }
   .sidebar-top { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; cursor: pointer; }
   .back-btn { background: white; border: 1px solid #ccc; color: #333; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; transition: all 0.2s; }
@@ -739,10 +585,10 @@
   .icon-indicator { width: 45px; height: 45px; background: #2b579a; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
   .doc-type-label { font-size: 10px; font-weight: 700; color: #333; text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 1px; margin-top: 10px; }
 
-  /* --- MAIN CONTENT --- */
+  /* MAIN CONTENT */
   main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-  /* HEADER AZUL */
+  /* HEADER */
   .app-header { background: #2b579a; color: white; height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
   .left-section { display: flex; align-items: center; gap: 12px; }
   .header-icon { opacity: 0.9; }
@@ -752,7 +598,7 @@
   .save-btn { background: white; color: #2b579a; border: none; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
   .save-btn:hover { background: #f0f0f0; }
 
-  /* --- RIBBON --- */
+  /* RIBBON */
   .ribbon { background: #f3f3f3; height: 105px; border-bottom: 1px solid #d1d1d1; display: flex; padding: 5px 10px; gap: 5px; flex-shrink: 0; user-select: none; overflow-x: auto; }
   .ribbon-group { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 0 6px; height: 100%; flex-shrink: 0; }
   .ribbon-group.grow-right { flex-grow: 1; align-items: flex-end; padding-right: 20px; }
@@ -768,12 +614,12 @@
   .separator { width: 1px; background: #d1d1d1; height: 75%; align-self: center; margin: 0 4px; }
   .divider-v { width: 1px; height: 18px; background: #ccc; margin: 0 6px; }
 
-  /* RIBBON BUTTONS */
+  /* BUTTONS */
   .ribbon-btn { border: 1px solid transparent; background: transparent; cursor: pointer; color: #333; border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
   .ribbon-btn:hover { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
   .ribbon-btn.active { background: #cce8ff; border-color: #99d1ff; color: #005a9e; }
   .ribbon-btn:disabled { opacity: 0.5; cursor: default; }
-  .ribbon-btn > :global(svg), .ribbon-btn > span { pointer-events: none; } /* TOOLTIP FIX */
+  .ribbon-btn > :global(svg), .ribbon-btn > span { pointer-events: none; }
   .ribbon-btn.large { flex-direction: column; width: 55px; height: 65px; font-size: 11px; gap: 4px; }
   .ribbon-btn.small { width: 28px; height: 28px; }
   .ribbon-btn.list-item { width: 75px; height: 22px; justify-content: flex-start; gap: 6px; font-size: 11px; padding-left: 4px; }
@@ -788,222 +634,24 @@
   .icon-lh { margin-right: 0px; color: #475569; pointer-events: none; }
   .line-height-select { width: 35px; border: none; background: transparent; }
   
-  /* COLOR PICKER BUTTON EN LA CINTA */
-  .color-picker-btn { 
-    position: relative; 
-    width: 28px; 
-    height: 26px; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: center; 
-    border: 1px solid transparent; 
-    border-radius: 3px; 
-    cursor: pointer; 
-    background: transparent; 
-    padding: 0;
-  }
-  .color-picker-btn:hover { 
-    background: #dbeafe; 
-    border-color: #bfdbfe; 
-  }
-  .color-bar { 
-    width: 18px; 
-    height: 4px; 
-    margin-top: 1px; 
-    border-radius: 1px;
-  }
-  
-  /* COLOR PICKER DROPDOWN - ESTILO WORD */
-  .color-picker-wrapper { 
-    position: relative; 
-    display: inline-block;
-  }
-  
-  .color-picker-dropdown {
-    position: fixed;
-    background: white;
-    border: 1px solid #b0b0b0;
-    border-radius: 0;
-    padding: 8px;
-    width: 180px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    z-index: 10000;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  
-  /* Sección Automático - ESTILO WORD */
-  .color-auto-section {
-    padding: 4px 0;
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 8px;
-  }
-  
-  .color-auto-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    text-align: left;
-    padding: 4px 6px;
-    border: 1px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    font-size: 11px;
-    color: #333;
-    transition: background-color 0.15s;
-    font-family: 'Segoe UI', sans-serif;
-  }
-  
-  .color-auto-btn:hover {
-    background-color: #e6f2ff;
-    border-color: #99d1ff;
-  }
-  
-  .color-auto-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-  }
-  
-  .color-auto-square {
-    width: 16px;
-    height: 16px;
-    border: 1px solid #8c8c8c;
-    border-radius: 1px;
-    flex-shrink: 0;
-  }
-  
-  .color-auto-text {
-    font-size: 11px;
-    color: #333;
-    font-weight: normal;
-  }
-  
-  /* Secciones de colores */
-  .color-section {
-    margin-bottom: 12px;
-  }
-  
-  .color-section-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    padding-left: 2px;
-    font-family: 'Segoe UI', sans-serif;
-  }
-  
-  /* Grid de colores de Tema - 10 columnas x 4 filas */
-  .color-grid-theme {
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap: 2px;
-    margin-bottom: 12px;
-    background: transparent;
-    padding: 2px;
-  }
-  
-  .color-swatch-theme {
-    width: 12px;
-    height: 12px;
-    border: 1px solid #b0b0b0;
-    cursor: pointer;
-    transition: all 0.12s ease;
-    padding: 0;
-    margin: 0;
-    font-size: 0;
-    border-radius: 1px;
-    position: relative;
-  }
-  
-  .color-swatch-theme:hover {
-    transform: scale(1.15);
-    border-color: #2b579a;
-    z-index: 2;
-  }
-  
-  .color-swatch-theme.active {
-    border: 2px solid #2b579a;
-    box-shadow: 0 0 0 1px white inset;
-  }
-  
-  /* Grid de colores Estándar - 10 columnas x 1 fila */
-  .color-grid-standard {
-    display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap: 2px;
-    margin-bottom: 8px;
-    background: transparent;
-    padding: 2px;
-  }
-  
-  .color-swatch-standard {
-    width: 12px;
-    height: 12px;
-    border: 1px solid #b0b0b0;
-    cursor: pointer;
-    transition: all 0.12s ease;
-    padding: 0;
-    margin: 0;
-    font-size: 0;
-    border-radius: 1px;
-    position: relative;
-  }
-  
-  .color-swatch-standard:hover {
-    transform: scale(1.15);
-    border-color: #2b579a;
-    z-index: 2;
-  }
-  
-  .color-swatch-standard.active {
-    border: 2px solid #2b579a;
-    box-shadow: 0 0 0 1px white inset;
-  }
-  
-  /* Línea divisoria */
-  .color-divider {
-    height: 1px;
-    background: #e0e0e0;
-    margin: 8px 0;
-  }
-  
-  /* Sección Más colores */
-  .more-colors-section {
-    margin-top: 6px;
-  }
-  
-  .more-colors-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    text-align: left;
-    padding: 6px 8px;
-    border: 1px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    font-size: 11px;
-    color: #333;
-    transition: background-color 0.15s;
-    font-family: 'Segoe UI', sans-serif;
-  }
-  
-  .more-colors-btn:hover {
-    background-color: #e6f2ff;
-    border-color: #99d1ff;
-  }
-  
-  .more-colors-icon {
-    font-size: 12px;
-    opacity: 0.8;
-  }
-  
-  .more-colors-text {
-    font-size: 11px;
-    color: #333;
-  }
+  /* COLOR PICKER STYLES */
+  .color-picker-wrapper { position: relative; display: inline-block; }
+  .color-picker-btn { position: relative; width: 28px; height: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 3px; cursor: pointer; background: transparent; padding: 0; }
+  .color-picker-btn:hover { background: #dbeafe; border-color: #bfdbfe; }
+  .color-bar { width: 18px; height: 4px; margin-top: 1px; border-radius: 1px; }
+  .color-picker-dropdown { position: fixed; background: white; border: 1px solid #b0b0b0; padding: 8px; width: 180px; box-shadow: 0 4px 8px rgba(0,0,0,0.15); z-index: 10000; font-family: 'Segoe UI', sans-serif; }
+  .color-auto-section { padding: 4px 0; border-bottom: 1px solid #e0e0e0; margin-bottom: 8px; }
+  .color-auto-btn { width: 100%; display: flex; align-items: center; padding: 4px 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 11px; color: #333; }
+  .color-auto-btn:hover { background-color: #e6f2ff; border-color: #99d1ff; }
+  .color-auto-indicator { display: flex; align-items: center; gap: 6px; width: 100%; }
+  .color-auto-square { width: 16px; height: 16px; border: 1px solid #8c8c8c; flex-shrink: 0; }
+  .color-section { margin-bottom: 12px; }
+  .color-section-title { font-size: 11px; font-weight: 600; color: #333; margin-bottom: 6px; padding-left: 2px; }
+  .color-grid-theme { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 2px; }
+  .color-grid-standard { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 2px; }
+  .color-swatch-theme, .color-swatch-standard { width: 12px; height: 12px; border: 1px solid #b0b0b0; cursor: pointer; padding: 0; margin: 0; position: relative; }
+  .color-swatch-theme:hover, .color-swatch-standard:hover { transform: scale(1.15); border-color: #2b579a; z-index: 2; }
+  .active { border: 2px solid #2b579a; box-shadow: 0 0 0 1px white inset; }
 
   /* MÁRGENES */
   .margins-group .margin-row { display: flex; gap: 4px; }
@@ -1011,46 +659,19 @@
   .margin-input input { width: 35px; border: none; font-size: 11px; outline: none; text-align: center; padding: 0; }
   .margin-input :global(svg) { opacity: 0.6; }
 
-  /* MARCADORES */
+  /* MARCADORES (SELECTOR NATIVO) */
   .insert-marker-container { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .insert-marker-container label { font-size: 11px; color: #2b579a; font-weight: 700; margin-left: 2px; }
-  .insert-marker-container select { height: 30px; border: 1px solid #2b579a; background: white; width: 190px; padding-left: 8px; border-radius: 4px; font-weight: 600; color: #333; }
+  .insert-marker-container select { height: 30px; border: 1px solid #2b579a; background: white; width: 220px; padding-left: 8px; border-radius: 4px; font-weight: 600; color: #333; font-size: 11px; }
 
-  /* --- 3. WORKSPACE (SOLUCIÓN CENTRADO + SCROLL + ZOOM) --- */
+  /* WORKSPACE */
   .workspace { flex: 1; background: #5f6368; position: relative; overflow: hidden; }
-  
-  /* CONTENEDOR DE SCROLL: Grid con place-items center es lo más robusto para centrar y scrollear */
-  .scroll-container {
-      width: 100%; height: 100%;
-      overflow: auto; /* Scrollbars aquí */
-      display: grid; 
-      place-items: start center; /* Centra horizontal, empieza arriba */
-      padding: 40px;
-      box-sizing: border-box;
-  }
+  .scroll-container { width: 100%; height: 100%; overflow: auto; display: grid; place-items: start center; padding: 40px; box-sizing: border-box; }
+  .paper-zoom-wrapper { display: flex; justify-content: center; }
+  .paper-sheet { width: 21.59cm; min-height: 27.94cm; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: text; margin-bottom: 20px; }
+  .editor-content { outline: none; font-size: 16px; line-height: 1.5; color: black; min-height: 100%; }
 
-  .paper-zoom-wrapper {
-      /* El wrapper recibe el zoom. Al crecer, el grid padre muestra scrollbars */
-      display: flex;
-      justify-content: center;
-  }
-
-  .paper-sheet {
-      width: 21.59cm; /* Carta (8.5in) */
-      min-height: 27.94cm; /* Carta (11in) */
-      background: white;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      cursor: text;
-      /* Margen extra abajo para no pegar con el borde */
-      margin-bottom: 20px; 
-  }
-
-  .editor-content {
-      outline: none; font-size: 16px; line-height: 1.5; color: black; min-height: 100%;
-      /* El padding se controla vía style inline (márgenes) */
-  }
-
-  /* --- 4. BARRA DE ESTADO --- */
+  /* STATUS BAR */
   .status-bar { height: 26px; background: #f3f3f3; border-top: 1px solid #d1d1d1; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: #555; flex-shrink: 0; }
   .zoom-controls { display: flex; align-items: center; gap: 10px; }
   .zoom-btn { background: transparent; border: none; cursor: pointer; color: #555; padding: 2px; display: flex; align-items: center; }
