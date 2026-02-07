@@ -291,7 +291,8 @@
         if (item.types.includes('text/html')) {
           const html = await item.getType('text/html').then(blob => blob.text());
           if (html) {
-            editor.commands.insertContent(html).run();
+            // CORRECCIÓN 1: Se quitó .run() porque insertContent ya ejecuta el comando
+            editor.commands.insertContent(html);
             pegado = true;
             break;
           }
@@ -302,17 +303,19 @@
       if (!pegado) {
         const text = await navigator.clipboard.readText();
         if (text) {
-          editor.commands.insertContent(text).run();
+          // CORRECCIÓN 2: Se quitó .run()
+          editor.commands.insertContent(text);
         }
       }
       
       // Actualizar toolbar después de un pequeño delay
       setTimeout(() => updateToolbar(), 50);
     } catch (err) { 
-      // Si falla, intenta con el método antiguo
+      // Si falla, intenta con el método antiguo (fallback)
       try {
         const text = await navigator.clipboard.readText();
-        if (text) editor.commands.insertContent(text).run();
+        // CORRECCIÓN 3: Se quitó .run()
+        if (text) editor.commands.insertContent(text);
         setTimeout(() => updateToolbar(), 50);
       } catch (e2) {
         alert("Usa Ctrl+V para pegar.");
@@ -451,7 +454,9 @@
                         <option value="14">14</option>
                         <option value="16">16</option>
                         <option value="18">18</option>
+                        <option value="20">20</option>
                         <option value="24">24</option>
+                        <option value="30">30</option>
                     </select>
                     <div class="divider-v"></div>
                     <button class="ribbon-btn small" on:click={() => editor.chain().focus().unsetAllMarks().run()} title="Borrar Formato"><Eraser size={16}/></button>
@@ -472,7 +477,6 @@
                         </button>
                         {#if isColorPickerOpen}
                             <div class="color-picker-dropdown" style="top: {colorPickerPos.top}px; left: {colorPickerPos.left}px;">
-                                <!-- Automático -->
                                 <div class="color-auto-section">
                                     <button 
                                         class="color-auto-btn" 
@@ -485,7 +489,6 @@
                                     </button>
                                 </div>
 
-                                <!-- Colores de Tema - 10 columnas x 4 filas -->
                                 <div class="color-section">
                                     <div class="color-section-title">Colores de Tema</div>
                                     <div class="color-grid-theme">
@@ -501,7 +504,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Colores Estándar -->
                                 <div class="color-section">
                                     <div class="color-section-title">Colores Estándar</div>
                                     <div class="color-grid-standard">
@@ -519,7 +521,6 @@
 
                                 <div class="color-divider"></div>
 
-                                <!-- Más colores -->
                                 <div class="more-colors-section">
                                     <button class="more-colors-btn" on:click={() => {
                                         const input = document.getElementById('color-input-custom') as HTMLInputElement;
@@ -530,7 +531,6 @@
                                     </button>
                                 </div>
 
-                                <!-- Input de color oculto -->
                                 <input 
                                     id="color-input-custom"
                                     type="color" 
@@ -643,23 +643,53 @@
                    <label>Marcadores de Posición:</label>
                    <select on:change={addMarker} title="Insertar variable">
                        <option value="" disabled selected>Seleccionar...</option>
-                       <optgroup label="General">
-                           <option value="FechaActualMediana">Fecha Actual</option>
-                           <option value="FechaActualCompleta">Fecha Completa</option>
+                       
+                       <optgroup label="Fecha y General">
+                           <option value="FechaActualMediana">Fecha Actual (6 feb)</option>
+                           <option value="FechaActualCompleta">Fecha Completa (6 de febrero)</option>
+                           <option value="DesignacionCircuito">Designación Circuito</option>
                        </optgroup>
-                       <optgroup label="Persona">
-                           <option value="SaludoSexo">Saludo</option>
-                           <option value="Nombre">Nombre</option>
-                           <option value="Apellido">Apellido</option>
-                       </optgroup>
-                       <optgroup label="Asignación">
-                           <option value="Tema">Tema</option>
+
+                       <optgroup label="Asignación y Programa">
                            <option value="Hora">Hora</option>
                            <option value="Duracion">Duración</option>
+                           <option value="Tema">Tema</option>
+                           <option value="NumeroBosquejo">Número de Bosquejo</option>
+                           <option value="TipoAsignacion">Tipo de Asignación</option>
+                           <option value="Instrucciones">Instrucciones</option>
+                           <option value="EnlaceBosquejo">Enlace del Bosquejo</option>
                        </optgroup>
-                       <optgroup label="Lugar">
-                           <option value="NombreLugar">Salón</option>
+
+                       <optgroup label="Orador / Persona">
+                           <option value="SaludoSexo">Saludo (Hermano/a)</option>
+                           <option value="Nombre">Nombre</option>
+                           <option value="SegundoNombre">Segundo nombre</option>
+                           <option value="Apellido">Apellido</option>
+                       </optgroup>
+
+                       <optgroup label="Evento y Lugar">
+                           <option value="Fecha">Fecha de Asamblea</option>
+                           <option value="TipoEvento">Tipo de Evento</option>
+                           <option value="TemaEvento">Tema del Evento</option>
+                           <option value="Notas">Notas</option>
+                           <option value="InfoRecorrido">Información Recorrido</option>
+                           <option value="InstruccionesEsp">Instrucciones Especiales</option>
+                           <option value="NombreLugar">Nombre del Lugar</option>
+                           <option value="NombreLugarAlt">Nombre Lugar Alternativo</option>
                            <option value="Direccion">Dirección</option>
+                           <option value="Ciudad">Ciudad</option>
+                           <option value="EstadoProvincia">Estado/Provincia</option>
+                       </optgroup>
+
+                       <optgroup label="Ensayos">
+                           <option value="EnvolturaEnsayo">Envoltura condicional ensayo</option>
+                           <option value="InfoCompletaEnsayos">Info completa ensayos</option>
+                           <option value="InfoCombinadaEnsayos">Info combinada ensayos</option>
+                           <option value="NotasEnsayos">Notas para ensayos</option>
+                           <option value="LugarEnsayos">Lugar de ensayos</option>
+                           <option value="FechaHoraEnsayo">Fecha y hora ensayo</option>
+                           <option value="FechaEnsayos">Fecha de ensayos</option>
+                           <option value="HoraEnsayos">Hora de ensayos</option>
                        </optgroup>
                    </select>
                </div>
