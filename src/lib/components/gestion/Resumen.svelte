@@ -118,13 +118,19 @@
 </div>
 
 <style>
+  /* APLICANDO VARIABLES GLOBALES DE TEMA */
   .dashboard-container { display: flex; flex-direction: column; gap: 20px; }
   
   /* Grilla de Tarjetas Superiores */
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
 
   /* Estilos Generales de Tarjeta */
-  .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #f0f0f0; }
+  .card { 
+      background: var(--bg-card); 
+      border-radius: 12px; padding: 20px; 
+      box-shadow: 0 2px 5px var(--shadow-color); 
+      border: 1px solid var(--border-color); 
+  }
   
   /* Estilo Específico Tarjetas Stats */
   .stat-card { display: flex; align-items: center; gap: 15px; }
@@ -135,33 +141,35 @@
   .icon-wrapper.orange { background-color: #f59e0b; }
   
   .stat-info { display: flex; flex-direction: column; flex: 1; }
-  .stat-info .label { font-size: 0.85rem; color: #6b7280; font-weight: 500; }
-  .stat-info .value { font-size: 1.5rem; font-weight: 700; color: #111827; line-height: 1.2; }
-  .stat-info .subtext { font-size: 0.75rem; color: #9ca3af; margin-top: 2px; }
+  .stat-info .label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+  .stat-info .value { font-size: 1.5rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+  .stat-info .subtext { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
   .stat-info .text-warning { color: #d97706; font-weight: 600; }
 
   /* Barra de progreso simple */
-  .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .progress-bar { height: 6px; background: var(--bg-body); border-radius: 3px; margin-top: 8px; overflow: hidden; border: 1px solid var(--border-color); }
   .progress-bar .fill { height: 100%; background: #10b981; }
 
   /* Grilla de Detalles Inferiores */
   .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
   
   .list-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-  .card-header { padding: 15px 20px; border-bottom: 1px solid #f3f4f6; background-color: #fafafa; }
-  .card-header h4 { margin: 0; font-size: 1rem; color: #374151; display: flex; align-items: center; gap: 8px; }
+  .card-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-body); }
+  .card-header h4 { margin: 0; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
   
   .card-body { padding: 0; }
   
   /* Tabla Simple */
   .simple-table { width: 100%; border-collapse: collapse; }
-  .simple-table th { text-align: left; padding: 12px 20px; font-size: 0.8rem; color: #6b7280; background: #f9fafb; font-weight: 600; }
-  .simple-table td { padding: 12px 20px; border-top: 1px solid #f3f4f6; font-size: 0.9rem; color: #374151; }
-  .btn-sm { padding: 4px 8px; font-size: 0.75rem; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; }
-  .btn-sm:hover { background: #f3f4f6; }
+  .simple-table th { text-align: left; padding: 12px 20px; font-size: 0.8rem; color: var(--text-secondary); background: var(--bg-body); font-weight: 600; }
+  .simple-table td { padding: 12px 20px; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-main); }
+  .btn-sm { padding: 4px 8px; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 4px; cursor: pointer; color: var(--text-main); }
+  .btn-sm:hover { background: var(--hover-bg); }
 
   /* Lista de tareas */
   .task-list { list-style: none; padding: 20px; margin: 0; }
-  .task-list li { margin-bottom: 10px; padding-left: 20px; position: relative; color: #4b5563; }
-  .task-list li::before { content: "•"; color: #3b82f6; font-weight: bold; position: absolute; left: 0; }
+  .task-list li { margin-bottom: 10px; padding-left: 20px; position: relative; color: var(--text-main); }
+  .task-list li::before { content: "•"; color: var(--primary); font-weight: bold; position: absolute; left: 0; }
+  
+  .empty-msg { padding: 20px; text-align: center; color: var(--text-secondary); font-style: italic; }
 </style>

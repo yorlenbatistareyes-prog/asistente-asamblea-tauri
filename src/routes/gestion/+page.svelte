@@ -1,14 +1,14 @@
 <script lang="ts">
-  // --- IMPORTAMOS LOS NUEVOS ICONOS AQUÍ ---
+  import { onMount } from 'svelte';
+  // --- IMPORTAMOS LOS ICONOS ---
   import { 
     Users, 
     Home, 
     ArrowLeft, 
     Bookmark, 
-    Mail,
-    BookUser,  // Para Registro de Personas (Libro de usuarios)
-    UserCog,   // Para Comité y Admin (Gestión/Administración)
-    Mic2       // Para Programa y Oradores (Micrófono)
+    BookUser,   // Para Registro de Personas
+    UserCog,    // Para Comité y Admin
+    Mic2        // Para Programa y Oradores
   } from 'lucide-svelte';
   
   // --- COMPONENTES ---
@@ -21,6 +21,15 @@
 
   // Controla qué sección vemos
   let seccionActiva = 'inicio';
+  let asambleaActual: any = {};
+
+  onMount(() => {
+    // Recuperar el nombre de la asamblea activa para mostrarlo en el menú
+    const data = localStorage.getItem('asambleaActiva');
+    if (data) {
+        asambleaActual = JSON.parse(data);
+    }
+  });
 
   function cambiarSeccion(nuevaSeccion: string) {
     seccionActiva = nuevaSeccion;
@@ -32,7 +41,7 @@
   <aside class="sidebar">
     <div class="logo-area">
       <h3>Asamblea Regional</h3>
-      <p class="subtitulo">Panel de Control</p>
+      <p class="subtitulo">{asambleaActual.tema || 'Panel de Control'}</p>
     </div>
 
     <nav class="menu">
@@ -68,7 +77,7 @@
 
     <div class="footer-sidebar">
       <a href="/" class="btn-salir">
-        <ArrowLeft size={18} /> Salir
+        <ArrowLeft size={18} /> Salir al Inicio
       </a>
     </div>
   </aside>
@@ -79,7 +88,6 @@
       <h2>
         {#if seccionActiva === 'inicio'} Resumen General {/if}
         {#if seccionActiva === 'info_evento'} Información del Evento {/if} 
-        
         {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
         {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
         {#if seccionActiva === 'comite'} Comité de Asamblea {/if}
@@ -119,27 +127,71 @@
 </div>
 
 <style>
+  /* APLICANDO VARIABLES GLOBALES DE TEMA */
   :global(body) { margin: 0; font-family: 'Segoe UI', sans-serif; }
-  .layout-gestion { display: flex; height: 100vh; background-color: #f3f4f6; }
+  
+  .layout-gestion { 
+      display: flex; height: 100vh; 
+      background-color: var(--bg-body); /* Variable global */
+      color: var(--text-main);          /* Variable global */
+      transition: background 0.3s, color 0.3s;
+  }
 
   /* Sidebar */
-  .sidebar { width: 260px; background-color: white; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
-  .logo-area { padding: 24px; border-bottom: 1px solid #f3f4f6; }
-  .logo-area h3 { margin: 0; color: #0078d4; }
-  .subtitulo { margin: 0; font-size: 12px; color: #9ca3af; }
+  .sidebar { 
+      width: 260px; 
+      background-color: var(--bg-card); /* Variable global */
+      border-right: 1px solid var(--border-color); /* Variable global */
+      display: flex; flex-direction: column; 
+  }
+  
+  .logo-area { padding: 24px; border-bottom: 1px solid var(--border-color); }
+  .logo-area h3 { margin: 0; color: var(--primary); font-weight: 800; }
+  .subtitulo { margin: 5px 0 0; font-size: 12px; color: var(--text-secondary); opacity: 0.8; }
 
   .menu { flex: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
-  .menu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 16px; border: none; background: none; text-align: left; cursor: pointer; color: #4b5563; border-radius: 8px; font-size: 14px; font-weight: 500; transition: background 0.2s; }
-  .menu button:hover { background-color: #f3f4f6; }
-  .menu button.activo { background-color: #eff6ff; color: #0078d4; font-weight: 600; }
+  
+  .menu button { 
+      display: flex; align-items: center; gap: 12px; width: 100%; 
+      padding: 12px 16px; border: none; background: none; 
+      text-align: left; cursor: pointer; 
+      color: var(--text-secondary); 
+      border-radius: 8px; font-size: 14px; font-weight: 500; 
+      transition: all 0.2s; 
+  }
+  
+  .menu button:hover { 
+      background-color: var(--hover-bg); 
+      color: var(--text-main); 
+  }
+  
+  .menu button.activo { 
+      background-color: var(--bg-secondary); /* O usa var(--hover-bg) */
+      color: var(--primary); 
+      font-weight: 600; 
+  }
 
-  .footer-sidebar { padding: 20px; border-top: 1px solid #f3f4f6; }
-  .btn-salir { text-decoration: none; color: #64748b; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: color 0.2s; }
-  .btn-salir:hover { color: #1e293b; }
+  .footer-sidebar { padding: 20px; border-top: 1px solid var(--border-color); }
+  
+  .btn-salir { 
+      text-decoration: none; 
+      color: var(--text-secondary); 
+      display: flex; align-items: center; gap: 8px; 
+      font-size: 14px; transition: color 0.2s; 
+      background: none; border: none; cursor: pointer;
+  }
+  .btn-salir:hover { color: var(--text-main); }
 
   /* Contenido */
-  .contenido { flex: 1; display: flex; flex-direction: column; }
-  header { background: white; padding: 20px 30px; border-bottom: 1px solid #e5e7eb; }
-  header h2 { margin: 0; font-size: 1.2rem; color: #1f2937; }
+  .contenido { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-body); }
+  
+  header { 
+      background: var(--bg-card); 
+      padding: 20px 30px; 
+      border-bottom: 1px solid var(--border-color); 
+  }
+  
+  header h2 { margin: 0; font-size: 1.2rem; color: var(--text-main); }
+  
   .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
 </style>
