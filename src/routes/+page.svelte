@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { goto } from '$app/navigation';
   import { 
     Plus, MapPin, Calendar, Briefcase, Trash2,
-    Mail, Mic, UserCheck, MessageSquare, ChevronRight, Settings, X, Building, Map, LayoutGrid
+    Mail, Mic, UserCheck, MessageSquare, ChevronRight, Settings, X, Building, Map, LayoutGrid,
+    User, Clock 
   } from 'lucide-svelte';
   import Correspondencia from '$lib/components/gestion/Correspondencia.svelte';
 
@@ -12,6 +13,12 @@
   let vistaActual = 'inicio';
   let seccionCorrespondencia = 'oradores'; 
   
+  // VARIABLES DE RELOJ, FECHA Y SALUDO
+  let horaActual = "";
+  let fechaActual = "";
+  let saludo = "Hola"; // Variable para el saludo dinámico
+  let intervaloReloj: any;
+
   // Listas de datos
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = []; 
@@ -32,7 +39,52 @@
 
   onMount(() => {
     cargarDatos();
+    iniciarReloj(); 
   });
+
+  onDestroy(() => {
+    if (intervaloReloj) clearInterval(intervaloReloj); 
+  });
+
+  // ==========================================
+  // LÓGICA DEL RELOJ, FECHA Y SALUDO
+  // ==========================================
+  function iniciarReloj() {
+    actualizarTiempo(); 
+    intervaloReloj = setInterval(actualizarTiempo, 1000); 
+  }
+
+  function actualizarTiempo() {
+    const ahora = new Date();
+    
+    // 1. Formato de Hora (HH:MM)
+    horaActual = ahora.toLocaleTimeString('es-ES', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    });
+
+    // 2. Formato de Fecha
+    const opcionesFecha: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long',
+        year: 'numeric'
+    };
+    let fechaRaw = ahora.toLocaleDateString('es-ES', opcionesFecha);
+    fechaActual = fechaRaw.charAt(0).toUpperCase() + fechaRaw.slice(1);
+
+    // 3. Lógica del Saludo Dinámico
+    const hora = ahora.getHours(); // Obtiene la hora de 0 a 23
+    
+    if (hora >= 6 && hora < 12) {
+        saludo = "Buenos días";
+    } else if (hora >= 12 && hora < 20) {
+        saludo = "Buenas tardes";
+    } else {
+        saludo = "Buenas noches";
+    }
+  }
 
   async function cargarDatos() {
     try {
@@ -131,10 +183,20 @@
 
 <div class="main-container">
   {#if vistaActual === 'inicio'}
-    <header class="top-bar">
-      <div class="brand">
-        <h1>Asistente de Asamblea</h1>
-        <span class="version">v2.1</span>
+    <header class="top-bar-welcome">
+      <div class="welcome-left">
+        <div class="avatar-circle">
+            <User size={28} strokeWidth={2} />
+        </div>
+        <div class="user-info">
+            <h2 class="greeting">{saludo}, Yorlen</h2> 
+            <span class="current-date">{fechaActual}</span>
+        </div>
+      </div>
+
+      <div class="welcome-center-clock">
+        <Clock size={18} class="clock-icon"/>
+        <span class="digital-clock">{horaActual}</span>
       </div>
       
       <div class="header-actions">
@@ -340,21 +402,55 @@
   :global(body) { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
   .main-container { padding: 40px; max-width: 1200px; margin: 0 auto; }
   
-  /* HEADER */
-  .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-  .brand h1 { font-size: 24px; font-weight: 800; margin: 0; color: #0f172a; }
-  .version { font-size: 11px; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #64748b; font-weight: bold; }
+  /* --- NUEVO HEADER ESTILO DASHBOARD --- */
+  .top-bar-welcome { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 45px; 
+      background: white;
+      padding: 15px 25px;
+      border-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      border: 1px solid #f1f5f9;
+  }
+
+  .welcome-left { display: flex; align-items: center; gap: 15px; }
+  
+  .avatar-circle {
+      width: 50px; height: 50px;
+      background: linear-gradient(135deg, #0078d4, #005a9e);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: white;
+      box-shadow: 0 4px 10px rgba(0, 120, 212, 0.3);
+  }
+
+  .user-info { display: flex; flex-direction: column; }
+  .greeting { margin: 0; font-size: 18px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
+  .current-date { font-size: 13px; color: #64748b; text-transform: capitalize; font-weight: 500; }
+
+  .welcome-center-clock {
+      display: flex; align-items: center; gap: 8px;
+      background: #f8fafc;
+      padding: 8px 16px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+  }
+  .digital-clock { font-size: 20px; font-weight: 700; color: #334155; font-family: 'Segoe UI', monospace; letter-spacing: 1px; }
+  .clock-icon { color: #0078d4; }
+
   .header-actions { display: flex; align-items: center; gap: 10px; }
 
   /* BOTONES */
-  .btn-nueva { background-color: #1e293b; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
-  .btn-nueva:hover { background-color: #334155; }
+  .btn-nueva { background-color: #1e293b; color: white; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 10px rgba(30, 41, 59, 0.2); }
+  .btn-nueva:hover { background-color: #334155; transform: translateY(-2px); }
   
-  .btn-secondary { background-color: white; color: #475569; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-  .btn-secondary:hover { background-color: #f1f5f9; }
+  .btn-secondary { background-color: white; color: #475569; border: 1px solid #e2e8f0; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+  .btn-secondary:hover { background-color: #f8fafc; border-color: #cbd5e1; }
   
-  .btn-config { background: white; border: 1px solid #e2e8f0; padding: 8px; border-radius: 8px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; }
-  .btn-config:hover { background: #f1f5f9; color: #334155; }
+  .btn-config { background: white; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .btn-config:hover { background: #f8fafc; color: #334155; border-color: #cbd5e1; }
 
   /* DASHBOARD */
   .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
@@ -444,7 +540,7 @@
   /* GRID PARA DETALLES */
   .grid-detalles-local {
       display: grid;
-      grid-template-columns: 1fr auto; /* Dos columnas: Datos | Capacidad */
+      grid-template-columns: 1fr auto; 
       gap: 4px 15px;
   }
   .detalle-fila { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
