@@ -12,17 +12,23 @@
   let configSeccion = 'general'; 
   
   // Estado para los acordeones de mensajes rápidos (WhatsApp)
+  // Definimos explícitamente el tipo para evitar errores de índice
   let mensajesOpen = {
-      comite: false, programa: false, audiovideo: false,
-      oradores: false, oficina: false, presidentes: false, oraciones: false
+      comite: false,
+      programa: false,
+      audiovideo: false,
+      oradores: false,
+      oficina: false,
+      presidentes: false,
+      oraciones: false
   };
 
+  // Función con tipo específico para las claves
   function toggleMensaje(key: keyof typeof mensajesOpen) {
       mensajesOpen[key] = !mensajesOpen[key];
   }
 
-  // --- PLANTILLAS DE CORREO (ACORDEÓN) ---
-  // Estructura dinámica para manejar las plantillas
+  // --- PLANTILLAS DE CORREO ---
   let plantillasCorreo = [
       { id: 'comite', title: "Plantilla de correo electrónico a todos los miembros de Comité de asamblea", subject: "", body: "", isOpen: false },
       { id: 'programa', title: "Plantilla de correo electrónico a Sup. de Programa", subject: "", body: "", isOpen: false },
@@ -34,8 +40,45 @@
   ];
 
   function togglePlantilla(index: number) {
-      // Cierra las demás y abre la seleccionada (opcional, o permite múltiples abiertas)
       plantillasCorreo[index].isOpen = !plantillasCorreo[index].isOpen;
+  }
+
+  // --- AYUDA ---
+  let ayudaItems = [
+      {
+          title: "Primeros pasos y configuración inicial",
+          content: "Antes de comenzar, asegúrese de configurar su perfil en la sección 'Cuenta y Seguridad'. Los datos allí ingresados (Nombre, Teléfono, Email) se utilizarán automáticamente como firma en los correos electrónicos y mensajes generados por el sistema.",
+          isOpen: false
+      },
+      {
+          title: "Personalización de mensajes de WhatsApp",
+          content: "En la sección 'General', puede predefinir las plantillas de mensajes rápidos. Estos mensajes se copiarán al portapapeles o abrirán WhatsApp Web cuando haga clic en el botón 'WhatsApp' desde el programa de la asamblea. Use marcadores claros para saber dónde insertar nombres automáticamente.",
+          isOpen: false
+      },
+      {
+          title: "Configuración de plantillas de correo electrónico",
+          content: "En la sección 'Plantillas de correo', puede editar el Asunto y el Cuerpo de los correos para cada rol. El sistema permite usar marcadores de posición (ej: [[nombre]], [[tema]]) que se reemplazarán automáticamente con los datos de la asamblea actual al momento de generar el correo.",
+          isOpen: false
+      },
+      {
+          title: "Uso de clientes de correo (Outlook vs Sistema)",
+          content: "Por defecto, la aplicación intenta abrir 'Outlook Online' (OWA) para enviar correos institucionales (jwpub.org). Si prefiere usar una aplicación de escritorio como Thunderbird, Mail (Mac) o Outlook Desktop, active la opción 'Utilice el cliente de correo electrónico en lugar de Outlook Online' en la configuración General.",
+          isOpen: false
+      },
+      {
+          title: "Gestión de Asambleas y Programa",
+          content: "Desde la pantalla principal, puede crear nuevas asambleas. Una vez dentro, en la sección 'Programa', puede asignar oradores arrastrando o seleccionando de la lista. El estado de 'Confirmado', 'Presente' o 'Ensayo' ayuda a la oficina a llevar el control en tiempo real.",
+          isOpen: false
+      },
+      {
+          title: "Respaldo y Restauración de Datos",
+          content: "Es recomendable realizar copias de seguridad periódicas. Vaya a la sección 'Datos' y pulse 'Respaldar Datos' para descargar un archivo JSON con toda la información. Para recuperar información en otro dispositivo o tras una limpieza, use 'Restaurar Datos'.",
+          isOpen: false
+      }
+  ];
+
+  function toggleAyuda(index: number) {
+      ayudaItems[index].isOpen = !ayudaItems[index].isOpen;
   }
 
   // Configuración General
@@ -46,7 +89,7 @@
       accionPdf: "abrir", 
       idioma: "es",
       
-      // Toggles de correo (Opciones generales)
+      // Toggles de correo
       email_asignaciones: true,
       email_general_clase: true,
       email_recordatorios_clase: true,
@@ -351,8 +394,25 @@
                         <button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button>
                     </div>
                 </div>
-            {:else}
-                <div class="empty-section"><p>Sección en desarrollo...</p></div>
+
+            {:else if configSeccion === 'ayuda'}
+                <div class="help-container">
+                    <div class="accordion-list">
+                        {#each ayudaItems as item, i}
+                            <div class="accordion-item">
+                                <button class="accordion-header" on:click={() => toggleAyuda(i)}>
+                                    <div class="acc-title"><HelpCircle size={16}/> {item.title}</div>
+                                    {#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
+                                </button>
+                                {#if item.isOpen}
+                                    <div class="accordion-body">
+                                        <p class="help-text-content">{item.content}</p>
+                                    </div>
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
             {/if}
         </div>
     </main>
@@ -454,7 +514,7 @@
   .accordion-body textarea { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 6px; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: 13px; }
 
   /* --- ESTILOS PLANTILLAS DE CORREO (DETALLE) --- */
-  .mail-templates-container { max-width: 1000px; margin: 0 auto; }
+  .mail-templates-container, .help-container { max-width: 1000px; margin: 0 auto; }
   .accordion-body-template { padding: 25px; background: #fafafa; /* Fondo ligero interno para el editor */ border-top: 1px solid var(--border-color); }
   /* En tema oscuro */
   :global(html.dark-theme) .accordion-body-template { background: #1e293b; }
@@ -586,4 +646,7 @@
   .btn-data-action.danger { background: #fee2e2; color: #dc2626; }
 
   .empty-section { text-align: center; color: var(--text-secondary); padding-top: 50px; }
+  
+  /* Ayuda */
+  .help-text-content { color: var(--text-main); font-size: 14px; line-height: 1.6; }
 </style>
