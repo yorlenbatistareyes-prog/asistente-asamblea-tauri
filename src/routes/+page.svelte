@@ -7,16 +7,20 @@
     Mail, Mic, UserCheck, MessageSquare, ChevronRight, Settings, X, Building, Map, LayoutGrid,
     User, Clock 
   } from 'lucide-svelte';
+  
+  // --- IMPORTACIÓN DE COMPONENTES ---
   import Correspondencia from '$lib/components/gestion/Correspondencia.svelte';
+  // Asegúrate de que la ruta sea correcta según donde creaste el archivo:
+  import Configuracion from '$lib/components/gestion/Configuracion.svelte';
 
   // --- ESTADO ---
-  let vistaActual = 'inicio';
+  let vistaActual = 'inicio'; // Valores posibles: 'inicio', 'correspondencia', 'configuracion'
   let seccionCorrespondencia = 'oradores'; 
   
   // VARIABLES DE RELOJ, FECHA Y SALUDO
   let horaActual = "";
   let fechaActual = "";
-  let saludo = "Hola"; // Variable para el saludo dinámico
+  let saludo = "Hola"; 
   let intervaloReloj: any;
 
   // Listas de datos
@@ -47,7 +51,7 @@
   });
 
   // ==========================================
-  // LÓGICA DEL RELOJ, FECHA Y SALUDO
+  // LÓGICA DEL RELOJ Y TIEMPO
   // ==========================================
   function iniciarReloj() {
     actualizarTiempo(); 
@@ -57,33 +61,23 @@
   function actualizarTiempo() {
     const ahora = new Date();
     
-    // 1. Formato de Hora (HH:MM)
+    // Hora
     horaActual = ahora.toLocaleTimeString('es-ES', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
+        hour: '2-digit', minute: '2-digit', hour12: true 
     });
 
-    // 2. Formato de Fecha
+    // Fecha
     const opcionesFecha: Intl.DateTimeFormatOptions = { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long',
-        year: 'numeric'
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
     };
     let fechaRaw = ahora.toLocaleDateString('es-ES', opcionesFecha);
     fechaActual = fechaRaw.charAt(0).toUpperCase() + fechaRaw.slice(1);
 
-    // 3. Lógica del Saludo Dinámico
-    const hora = ahora.getHours(); // Obtiene la hora de 0 a 23
-    
-    if (hora >= 6 && hora < 12) {
-        saludo = "Buenos días";
-    } else if (hora >= 12 && hora < 20) {
-        saludo = "Buenas tardes";
-    } else {
-        saludo = "Buenas noches";
-    }
+    // Saludo
+    const hora = ahora.getHours(); 
+    if (hora >= 6 && hora < 12) saludo = "Buenos días";
+    else if (hora >= 12 && hora < 20) saludo = "Buenas tardes";
+    else saludo = "Buenas noches";
   }
 
   async function cargarDatos() {
@@ -98,7 +92,7 @@
   }
 
   // ==========================================
-  // LÓGICA DE LOCALES (SALONES)
+  // LÓGICA DE LOCALES
   // ==========================================
   async function guardarLocal() {
     if (!nuevoLocal.nombre) return alert("Escribe el nombre del salón");
@@ -168,6 +162,9 @@
     }
   }
 
+  // ==========================================
+  // NAVEGACIÓN ENTRE VISTAS
+  // ==========================================
   function irAGestionar(item: any) {
     localStorage.setItem('asambleaActiva', JSON.stringify(item));
     goto('/gestion');
@@ -178,11 +175,19 @@
     vistaActual = 'correspondencia';
   }
 
+  // FUNCIÓN PARA ABRIR CONFIGURACIÓN
+  function irAConfiguracion() {
+    vistaActual = 'configuracion';
+  }
+
+  // VOLVER AL INICIO (Se usa en el evento 'close' de los componentes hijos)
   const volverAlInicio = () => vistaActual = 'inicio';
 </script>
 
-<div class="main-container">
+<div class="main-container" class:full-screen={vistaActual === 'configuracion'}>
+  
   {#if vistaActual === 'inicio'}
+    
     <header class="top-bar-welcome">
       <div class="welcome-left">
         <div class="avatar-circle">
@@ -210,7 +215,9 @@
             <span>Nueva Asamblea</span>
         </button>
         
-        <button class="btn-config"><Settings size={20} /></button>
+        <button class="btn-config" on:click={irAConfiguracion} title="Configuración">
+            <Settings size={20} />
+        </button>
       </div>
     </header>
 
@@ -349,7 +356,6 @@
                         <div class="icon-box"><Building size={20}/></div>
                         <div class="info-local">
                             <strong class="nombre-local">{l.nombre}</strong>
-                            
                             <div class="grid-detalles-local">
                                 <div class="detalle-fila" title="Dirección">
                                     <MapPin size={13} class="icon-gris"/> 
@@ -374,7 +380,6 @@
                                     <span class="text-cap">{l.capacidad || 0} asientos</span>
                                 </div>
                             </div>
-
                         </div>
                         <button class="btn-trash-mini" on:click={() => eliminarLocal(l.id)} title="Borrar Salón"><Trash2 size={16}/></button>
                     </div>
@@ -395,60 +400,37 @@
       seccionInicial={seccionCorrespondencia} 
       on:close={volverAlInicio} 
     />
+
+  {:else if vistaActual === 'configuracion'}
+    <Configuracion 
+      on:close={volverAlInicio} 
+    />
   {/if}
 </div>
 
 <style>
   :global(body) { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
-  .main-container { padding: 40px; max-width: 1200px; margin: 0 auto; }
+  .main-container { padding: 40px; max-width: 1200px; margin: 0 auto; transition: all 0.2s; }
   
-  /* --- NUEVO HEADER ESTILO DASHBOARD --- */
-  .top-bar-welcome { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      margin-bottom: 45px; 
-      background: white;
-      padding: 15px 25px;
-      border-radius: 20px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-      border: 1px solid #f1f5f9;
-  }
+  /* Cuando está en config, quitamos el padding para que ocupe todo */
+  .main-container.full-screen { padding: 0; max-width: 100%; height: 100vh; overflow: hidden; background: #1e293b; }
 
+  /* HEADER */
+  .top-bar-welcome { display: flex; justify-content: space-between; align-items: center; margin-bottom: 45px; background: white; padding: 15px 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f1f5f9; }
   .welcome-left { display: flex; align-items: center; gap: 15px; }
-  
-  .avatar-circle {
-      width: 50px; height: 50px;
-      background: linear-gradient(135deg, #0078d4, #005a9e);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      color: white;
-      box-shadow: 0 4px 10px rgba(0, 120, 212, 0.3);
-  }
-
+  .avatar-circle { width: 50px; height: 50px; background: linear-gradient(135deg, #0078d4, #005a9e); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 10px rgba(0, 120, 212, 0.3); }
   .user-info { display: flex; flex-direction: column; }
   .greeting { margin: 0; font-size: 18px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
   .current-date { font-size: 13px; color: #64748b; text-transform: capitalize; font-weight: 500; }
-
-  .welcome-center-clock {
-      display: flex; align-items: center; gap: 8px;
-      background: #f8fafc;
-      padding: 8px 16px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-  }
+  .welcome-center-clock { display: flex; align-items: center; gap: 8px; background: #f8fafc; padding: 8px 16px; border-radius: 12px; border: 1px solid #e2e8f0; }
   .digital-clock { font-size: 20px; font-weight: 700; color: #334155; font-family: 'Segoe UI', monospace; letter-spacing: 1px; }
   .clock-icon { color: #0078d4; }
-
+  
   .header-actions { display: flex; align-items: center; gap: 10px; }
-
-  /* BOTONES */
   .btn-nueva { background-color: #1e293b; color: white; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 4px 10px rgba(30, 41, 59, 0.2); }
   .btn-nueva:hover { background-color: #334155; transform: translateY(-2px); }
-  
   .btn-secondary { background-color: white; color: #475569; border: 1px solid #e2e8f0; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
   .btn-secondary:hover { background-color: #f8fafc; border-color: #cbd5e1; }
-  
   .btn-config { background: white; border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .btn-config:hover { background: #f8fafc; color: #334155; border-color: #cbd5e1; }
 
@@ -456,8 +438,6 @@
   .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
   .section-header { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 1px; margin-bottom: 20px; text-transform: uppercase; }
   .grid-asambleas { display: flex; flex-direction: column; gap: 20px; }
-
-  /* CARDS ASAMBLEA */
   .card-hero { background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%); padding: 30px; border-radius: 20px; color: white; cursor: pointer; box-shadow: 0 20px 25px -5px rgba(0, 120, 212, 0.2); transition: transform 0.2s; position: relative; }
   .card-hero:hover { transform: translateY(-5px); }
   .status-pill { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
@@ -467,10 +447,8 @@
   .btn-manage { margin-top: 25px; background: white; color: #0078d4; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; width: 100%; }
   .btn-trash { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.2); border: none; color: white; padding: 8px; border-radius: 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
   .card-hero:hover .btn-trash { opacity: 1; } .btn-trash:hover { background: #ef4444; }
-
   .empty-state { border: 2px dashed #cbd5e1; border-radius: 20px; padding: 40px; text-align: center; color: #64748b; }
   .empty-state button { margin-top: 10px; padding: 8px 16px; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: #475569; }
-
   .grid-cartas { display: flex; flex-direction: column; gap: 12px; }
   .card-action { background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 16px; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: all 0.2s; width: 100%; text-align: left; }
   .card-action:hover { border-color: #0078d4; transform: scale(1.01); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
@@ -478,80 +456,37 @@
   .oradores { background: #f0fdf4; color: #16a34a; } .presidentes { background: #eff6ff; color: #2563eb; } .oraciones { background: #fff7ed; color: #ea580c; }
   .card-text h3 { margin: 0; font-size: 16px; color: #1e293b; } .card-text p { margin: 2px 0 0; font-size: 12px; color: #64748b; }
 
-  /* MODALS GENERAL */
+  /* MODALS */
   .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
   .modal-content { background: white; padding: 25px; border-radius: 16px; width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
   .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; } .modal-header h3 { margin: 0; font-size: 18px; color: #0f172a; display: flex; align-items: center; }
   .btn-close { background: none; border: none; cursor: pointer; color: #64748b; }
-  
   .modal-body { display: flex; flex-direction: column; gap: 10px; }
   .modal-body label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px; display: block; }
   .modal-body input, select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; width: 100%; box-sizing: border-box; }
   .modal-body input:focus, select:focus { border-color: #0078d4; }
-
   .select-wrapper { display: flex; gap: 5px; }
   .btn-mini-add { background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; border-radius: 8px; width: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .btn-mini-add:hover { background: #dbeafe; }
-
-  /* --- GESTOR DE SALONES (MODAL GRANDE) --- */
   .modal-content.large { width: 700px; max-width: 95vw; }
-
-  /* GRID FORM */
-  .form-local-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 15px;
-      background: #f8fafc;
-      padding: 20px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-  }
-  .input-group { display: flex; flex-direction: column; }
-  .full-width { grid-column: span 3; }
-  
-  .action-area {
-      grid-column: span 3;
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 10px;
-  }
-
-  .btn-confirm-small { 
-    background: #0078d4; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px;
-  }
+  .form-local-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+  .input-group { display: flex; flex-direction: column; } .full-width { grid-column: span 3; }
+  .action-area { grid-column: span 3; display: flex; justify-content: flex-end; margin-top: 10px; }
+  .btn-confirm-small { background: #0078d4; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; }
   .btn-confirm-small:hover { background: #005a9e; }
-
   .separador { height: 1px; background: #e2e8f0; margin: 20px 0; }
-
-  /* LISTA DE SALONES (VISUAL MEJORADO) */
   .lista-locales-scroll { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
-
-  .item-local { 
-    display: flex; align-items: flex-start; gap: 15px; 
-    padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; transition: all 0.2s;
-  }
+  .item-local { display: flex; align-items: flex-start; gap: 15px; padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; transition: all 0.2s; }
   .item-local:hover { border-color: #0078d4; box-shadow: 0 4px 6px -2px rgba(0,0,0,0.05); }
-
   .icon-box { width: 40px; height: 40px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0; }
-  
-  .info-local { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-  .nombre-local { font-size: 15px; color: #1e293b; margin-bottom: 2px; }
-  
-  /* GRID PARA DETALLES */
-  .grid-detalles-local {
-      display: grid;
-      grid-template-columns: 1fr auto; 
-      gap: 4px 15px;
-  }
+  .info-local { flex: 1; display: flex; flex-direction: column; gap: 4px; } .nombre-local { font-size: 15px; color: #1e293b; margin-bottom: 2px; }
+  .grid-detalles-local { display: grid; grid-template-columns: 1fr auto; gap: 4px 15px; }
   .detalle-fila { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .icon-gris { color: #94a3b8; flex-shrink: 0; }
   .text-cap { font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-
   .btn-trash-mini { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 8px; border-radius: 6px; transition: all 0.2s; height: fit-content; } 
   .btn-trash-mini:hover { background: #fee2e2; color: #ef4444; }
-
   .empty-locales { text-align: center; color: #cbd5e1; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-
   .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
   .btn-cancel { background: white; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; color: #64748b; }
   .btn-confirm { background: #0078d4; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; display: flex; align-items: center; gap: 5px; }
