@@ -27,7 +27,8 @@
     IndentDecrease, IndentIncrease, 
     Plus, ZoomIn, ZoomOut, Clipboard,
     Type, Scissors, Copy, ArrowUpDown,
-    ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine
+    ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine,
+    ChevronDown, ChevronUp, Braces 
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
@@ -40,7 +41,7 @@
   let editor: Editor;       
   let contenidoCargado = "";
 
-  // Variables UI (Fuentes)
+  // Variables UI
   let currentFont = 'Arial';
   let currentSize = '11';
   let currentColor = '#000000';
@@ -56,15 +57,119 @@
   let isBulletList = false;
   let isOrderedList = false;
   
-  // Estado Color Picker
+  // Estado Popups
   let isColorPickerOpen = false;
+  let isMarkerPickerOpen = false; 
   let colorPickerPos = { top: 0, left: 0 };
+  let markerPickerPos = { top: 0, left: 0 };
 
-  // Variables UI (Márgenes en cm)
+  // Márgenes
   let marginTop = 2.54;
   let marginBottom = 2.54;
   let marginLeft = 2.54;
   let marginRight = 2.54;
+
+  // --- DATOS DE MARCADORES ---
+  let markerGroups = [
+      {
+          title: "Lista rápida de Marcadores",
+          isOpen: true,
+          items: [
+              { label: "Saludo según sexo", desc: "Ejemplo: Hermano, o Hermana", code: "[[Saludo según sexo]]", value: "Saludo según sexo" },
+              { label: "Designación del Circuito", desc: "Ejemplo: HG-06", code: "[[Designación del Circuito]]", value: "Designación del Circuito" }
+          ]
+      },
+      {
+          title: "Marcadores de Fechas",
+          isOpen: false,
+          items: [
+              { label: "Fecha Actual Mediana", desc: "Ejemplo: 7 feb 2026", code: "[[Fecha Actual Mediana]]", value: "Fecha Actual Mediana" },
+              { label: "Fecha Actual Completa", desc: "Ejemplo: 7 de febrero de 2026", code: "[[Fecha Actual Completa]]", value: "Fecha Actual Completa" }
+          ]
+      },
+      {
+          title: "Marcadores de Asignación",
+          isOpen: false,
+          items: [
+              { label: "Hora", desc: "Ejemplo: 10:10 AM", code: "[[Hora]]", value: "Hora" },
+              { label: "Duración", desc: "Total de minutos", code: "[[Duración]]", value: "Duración" },
+              { label: "Tema", desc: "Título del discurso", code: "[[Tema]]", value: "Tema" },
+              { label: "Número de Bosquejo", desc: "Ejemplo: 1", code: "[[Número de Bosquejo]]", value: "Número de Bosquejo" },
+              { label: "Tipo de asignación", desc: "Ejemplo: Discurso...", code: "[[Tipo de asignación]]", value: "Tipo de asignación" },
+              { label: "Enlace(s) del Bosquejo", desc: "Cualquier enlace", code: "[[Enlace(s) del Bosquejo]]", value: "Enlace(s) del Bosquejo" },
+              { label: "Notas", desc: "", code: "[[Notas]]", value: "Notas" }
+          ]
+      },
+      {
+          title: "Marcadores de Orador",
+          isOpen: false,
+          items: [
+              { label: "Nombre", desc: "Ejemplo: Roberto", code: "[[Nombre]]", value: "Nombre" },
+              { label: "Segundo nombre", desc: "Ejemplo: Adolfo", code: "[[Segundo nombre]]", value: "Segundo nombre" },
+              { label: "Apellidos", desc: "Ejemplo: Batista Peña", code: "[[Apellidos]]", value: "Apellidos" }
+          ]
+      },
+      {
+          title: "Marcadores de Lugar",
+          isOpen: false,
+          items: [
+              { label: "Nombre del lugar", desc: "Ejemplo: Salón", code: "[[Nombre del lugar]]", value: "Nombre del lugar" },
+              { label: "Dirección del lugar", desc: "Ejemplo: Av. Central", code: "[[Dirección]]", value: "Dirección" },
+              { label: "Ciudad", desc: "Ejemplo: Holguín", code: "[[Ciudad]]", value: "Ciudad" },
+              { label: "Provincia o Estado", desc: "Ejemplo: HG", code: "[[Estado o Provincia]]", value: "Estado o Provincia" }
+          ]
+      },
+      {
+          title: "Marcadores de Evento",
+          isOpen: false,
+          items: [
+              { label: "Fecha", desc: "Ejemplo: Fecha de la Asamblea", code: "[[Fecha]]", value: "Fecha" },
+              { label: "Tipo de evento", desc: "Ejemplo: CA-br", code: "[[Tipo de Evento]]", value: "Tipo de Evento" },
+              { label: "Tema del evento", desc: "Título del evento", code: "[[Tema del Evento]]", value: "Tema del Evento" }
+          ]
+      },
+      {
+          title: "Marcadores de Ensayo",
+          isOpen: false,
+          items: [
+              { label: "Información completa de los ensayos", desc: "Info completa", code: "[[Información completa de los ensayos]]", value: "Información completa de los ensayos" },
+              { label: "Nota para los ensayos", desc: "", code: "[[Notas para los ensayos]]", value: "Notas para los ensayos" },
+              { label: "Lugar de los ensayos", desc: "", code: "[[Lugar de los ensayos]]", value: "Lugar de los ensayos" },
+              { label: "Fecha y hora del ensayo", desc: "", code: "[[Fecha y hora del ensayo]]", value: "Fecha y hora del ensayo" },
+              { label: "Fecha de ensayos", desc: "", code: "[[Fecha de ensayos]]", value: "Fecha de ensayos" },
+              { label: "Hora de ensayos", desc: "", code: "[[Hora de ensayos]]", value: "Hora de ensayos" }
+          ]
+      },
+      {
+          title: "Marcadores del Presidente",
+          isOpen: false,
+          items: [
+              { label: "Correo electrónico del Presidente", desc: "Ejemplo: mail@jwpub.org", code: "[[correo electrónico jwpub del Presidente de la asamblea]]", value: "correo electrónico jwpub del Presidente de la asamblea" },
+              { label: "Teléfono del Presidente", desc: "", code: "[[Teléfono del Presidente de la asamblea]]", value: "Teléfono del Presidente de la asamblea" }
+          ]
+      },
+      {
+          title: "Marcadores de Instrucciones",
+          isOpen: false,
+          items: [
+              { label: "Información de orientaciones", desc: "Plataforma...", code: "[[Información de orientaciones]]", value: "Información de orientaciones" },
+              { label: "Instrucciones especiales", desc: "Sucursal", code: "[[Instrucciones Especiales]]", value: "Instrucciones Especiales" }
+          ]
+      }
+  ];
+
+  function toggleMarkerGroup(index: number) {
+      markerGroups[index].isOpen = !markerGroups[index].isOpen;
+      markerGroups = [...markerGroups]; 
+  }
+
+  function insertMarker(value: string) {
+      if (editor) {
+          editor.chain().focus().run();
+          editor.chain().focus().insertContent(`[[${value}]]`).run();
+          isMarkerPickerOpen = false;
+      }
+  }
 
   // --- COLORES ---
   const themeColors = [
@@ -226,7 +331,7 @@
     }
   }
 
-  // --- PORTAPAPELES (CORREGIDO: Sin .run() extra) ---
+  // --- PORTAPAPELES ---
   function copiar() { editor.commands.focus(); document.execCommand('copy'); }
   function cortar() { editor.commands.focus(); document.execCommand('cut'); }
   async function pegar() {
@@ -238,7 +343,6 @@
         if (item.types.includes('text/html')) {
           const html = await item.getType('text/html').then(blob => blob.text());
           if (html) {
-            // CORRECCIÓN: insertContent ejecuta el comando, no devuelve un chainable si se llama directo desde commands
             editor.commands.insertContent(html);
             pegado = true;
             break;
@@ -267,11 +371,13 @@
   function cambiarFuente(e: Event) { editor.chain().focus().setFontFamily((e.target as HTMLSelectElement).value).run(); }
   function cambiarTamano(e: Event) { editor.chain().focus().setFontSize((e.target as HTMLSelectElement).value).run(); }
   function cambiarInterlineado(e: Event) { editor.chain().focus().setLineHeight((e.target as HTMLSelectElement).value).run(); }
+  
   function selectColor(color: string) {
     editor.chain().setColor(color).run();
     currentColor = color;
     isColorPickerOpen = false;
   }
+  
   function toggleColorPicker(e: MouseEvent) {
     e.stopPropagation();
     if (isColorPickerOpen) { isColorPickerOpen = false; return; }
@@ -279,20 +385,23 @@
     const rect = btn.getBoundingClientRect();
     colorPickerPos = { top: rect.bottom + 8, left: rect.left };
     isColorPickerOpen = true;
+    isMarkerPickerOpen = false; 
   }
   
-  // --- MARCADORES (SELECTOR NATIVO) ---
-  function addMarker(e: Event) {
-    const target = e.target as HTMLSelectElement;
-    if (target.value && editor) {
-      editor.chain().focus().insertContent(`{{${target.value}}}`).run();
-      target.value = ""; // Reset del select
-    }
+  function toggleMarkerPicker(e: MouseEvent) {
+    e.stopPropagation();
+    if (isMarkerPickerOpen) { isMarkerPickerOpen = false; return; }
+    const btn = e.currentTarget as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    markerPickerPos = { top: rect.bottom + 8, left: rect.left };
+    isMarkerPickerOpen = true;
+    isColorPickerOpen = false; 
   }
 
   function closePopupsIfClickOutside(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (!target.closest('.color-picker-wrapper')) isColorPickerOpen = false;
+    if (!target.closest('.marker-dropdown-wrapper') && !target.closest('.marker-dropdown')) isMarkerPickerOpen = false;
   }
 
   function setLink() {
@@ -488,59 +597,39 @@
 
         <div class="ribbon-group ml-auto grow-right">
             <div class="group-row centered">
-               <div class="insert-marker-container">
-                   <label>Marcadores de Posición:</label>
-                   <select on:change={addMarker} title="Insertar variable">
-                       <option value="" disabled selected>Seleccionar...</option>
-                       
-                       <optgroup label="Fecha y General">
-                           <option value="FechaActualMediana">Fecha Actual Mediana (6 feb 2026)</option>
-                           <option value="FechaActualCompleta">Fecha Actual Completa (6 de febrero de 2026)</option>
-                           <option value="DesignacionCircuito">Designación Circuito (ej. SL-01)</option>
-                       </optgroup>
-
-                       <optgroup label="Asignación y Programa">
-                           <option value="Hora">Hora (Ej: 10:10 AM)</option>
-                           <option value="Duracion">Duración (Total minutos)</option>
-                           <option value="Tema">Tema</option>
-                           <option value="NumeroBosquejo">Número de Bosquejo (1)</option>
-                           <option value="TipoAsignacion">Tipo de asignación (Ej: Oración)</option>
-                           <option value="Instrucciones">Instrucciones (Ej: De la Sucursal)</option>
-                           <option value="EnlaceBosquejo">Enlace del Bosquejo</option>
-                       </optgroup>
-
-                       <optgroup label="Orador / Persona">
-                           <option value="SaludoSexo">Saludo (Hermano/a)</option>
-                           <option value="Nombre">Nombre (Ej: Roberto)</option>
-                           <option value="SegundoNombre">Segundo nombre (Ej: Adolfo)</option>
-                           <option value="Apellido">Apellido (Ej: Batista)</option>
-                       </optgroup>
-
-                       <optgroup label="Evento y Lugar">
-                           <option value="Fecha">Fecha de Asamblea</option>
-                           <option value="TipoEvento">Tipo de Evento (CA-br...)</option>
-                           <option value="TemaEvento">Tema del Evento</option>
-                           <option value="Notas">Notas</option>
-                           <option value="InfoRecorrido">Información Recorrido</option>
-                           <option value="InstruccionesEsp">Instrucciones Especiales</option>
-                           <option value="NombreLugar">Nombre del lugar</option>
-                           <option value="NombreLugarAlt">Nombre Lugar Alternativo</option>
-                           <option value="Direccion">Dirección</option>
-                           <option value="Ciudad">Ciudad</option>
-                           <option value="EstadoProvincia">Estado o Provincia</option>
-                       </optgroup>
-
-                       <optgroup label="Ensayos">
-                           <option value="EnvolturaEnsayo">Envoltura condicional ensayo (&lt;%...%&gt;)</option>
-                           <option value="InfoCompletaEnsayos">Información completa de los ensayos</option>
-                           <option value="InfoCombinadaEnsayos">Información combinada de los ensayos</option>
-                           <option value="NotasEnsayos">Notas para los ensayos</option>
-                           <option value="LugarEnsayos">Lugar de los ensayos</option>
-                           <option value="FechaHoraEnsayo">Fecha y hora del ensayo</option>
-                           <option value="FechaEnsayos">Fecha de ensayos</option>
-                           <option value="HoraEnsayos">Hora de ensayos</option>
-                       </optgroup>
-                   </select>
+               <div class="marker-dropdown-wrapper">
+                   <button class="ribbon-btn large" on:click={toggleMarkerPicker} title="Marcadores de Posición">
+                       <Braces size={22}/> <span>Marcadores</span>
+                   </button>
+                   
+                   {#if isMarkerPickerOpen}
+                        <div class="marker-dropdown" style="top: {markerPickerPos.top}px; right: 20px;">
+                            <div class="marker-header">Insertar Marcador</div>
+                            <div class="marker-scroll">
+                                {#each markerGroups as group, i}
+                                    <div class="marker-group">
+                                        <button type="button" class="marker-group-header" on:mousedown|preventDefault={() => toggleMarkerGroup(i)}>
+                                            <strong>{group.title}</strong>
+                                            {#if group.isOpen}<ChevronUp size={14}/>{:else}<ChevronDown size={14}/>{/if}
+                                        </button>
+                                        {#if group.isOpen}
+                                            <div class="marker-list">
+                                                {#each group.items as item}
+                                                    <button type="button" class="marker-item" on:mousedown|preventDefault={() => insertMarker(item.value)} title={item.desc}>
+                                                        <div class="marker-content-row">
+                                                            <span class="m-label">{item.label}</span>
+                                                            {#if item.desc}<span class="m-desc">{item.desc}</span>{/if}
+                                                        </div>
+                                                        <div class="m-code">{item.code}</div>
+                                                    </button>
+                                                {/each}
+                                            </div>
+                                        {/if}
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                   {/if}
                </div>
             </div>
             <div class="group-label">Correspondencia</div>
@@ -551,7 +640,7 @@
     <div class="workspace">
         <div class="scroll-container">
             <div class="paper-zoom-wrapper" style="zoom: {zoomLevel}%;">
-                <div class="paper-sheet">
+                <div class="paper-sheet" on:click={() => editor?.commands.focus()}>
                     <div class="editor-content" bind:this={element} style="padding: {marginTop}cm {marginRight}cm {marginBottom}cm {marginLeft}cm;"></div>
                 </div>
             </div>
@@ -573,33 +662,33 @@
 
 <style>
   /* --- LAYOUT GLOBAL --- */
-  .word-layout { display: flex; flex-direction: row; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f3f3f3; overflow: hidden; }
+  .word-layout { display: flex; flex-direction: row; height: 100vh; font-family: 'Segoe UI', sans-serif; background: var(--bg-body); overflow: hidden; color: var(--text-main); }
 
   /* SIDEBAR */
-  .sidebar { width: 70px; background: #e1e1e1; border-right: 1px solid #c0c0c0; display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 100; flex-shrink: 0; }
+  .sidebar { width: 70px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 100; flex-shrink: 0; }
   .sidebar-top { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; cursor: pointer; }
-  .back-btn { background: white; border: 1px solid #ccc; color: #333; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; transition: all 0.2s; }
-  .back-btn:hover { background: #2b579a; color: white; border-color: #2b579a; }
-  .back-label { font-size: 10px; font-weight: 700; color: #555; }
+  .back-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; transition: all 0.2s; }
+  .back-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+  .back-label { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
   .sidebar-content { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .icon-indicator { width: 45px; height: 45px; background: #2b579a; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
-  .doc-type-label { font-size: 10px; font-weight: 700; color: #333; text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 1px; margin-top: 10px; }
+  .icon-indicator { width: 45px; height: 45px; background: var(--primary); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+  .doc-type-label { font-size: 10px; font-weight: 700; color: var(--text-main); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 1px; margin-top: 10px; }
 
   /* MAIN CONTENT */
   main { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
   /* HEADER */
-  .app-header { background: #2b579a; color: white; height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
+  .app-header { background: var(--primary); color: white; height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
   .left-section { display: flex; align-items: center; gap: 12px; }
   .header-icon { opacity: 0.9; }
   .doc-info { display: flex; flex-direction: column; justify-content: center; }
   .doc-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: white; text-transform: uppercase; }
   .doc-status { font-size: 11px; opacity: 0.8; font-weight: 400; }
-  .save-btn { background: white; color: #2b579a; border: none; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-  .save-btn:hover { background: #f0f0f0; }
+  .save-btn { background: var(--bg-card); color: var(--primary); border: none; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+  .save-btn:hover { background: var(--hover-bg); }
 
   /* RIBBON */
-  .ribbon { background: #f3f3f3; height: 105px; border-bottom: 1px solid #d1d1d1; display: flex; padding: 5px 10px; gap: 5px; flex-shrink: 0; user-select: none; overflow-x: auto; }
+  .ribbon { background: var(--bg-body); height: 105px; border-bottom: 1px solid var(--border-color); display: flex; padding: 5px 10px; gap: 5px; flex-shrink: 0; user-select: none; overflow-x: auto; }
   .ribbon-group { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 0 6px; height: 100%; flex-shrink: 0; }
   .ribbon-group.grow-right { flex-grow: 1; align-items: flex-end; padding-right: 20px; }
   .ribbon-group.ml-auto { margin-left: auto; }
@@ -610,14 +699,14 @@
   .group-col.full-h { height: 100%; justify-content: flex-start; padding-top: 4px; gap: 4px; padding-bottom: 16px; }
   .controls-row { display: flex; gap: 2px; align-items: center; }
   .controls-row.spacing { gap: 4px; }
-  .group-label { font-size: 11px; color: #666; margin-top: -20px; text-align: center; width: 100%; pointer-events: none; }
-  .separator { width: 1px; background: #d1d1d1; height: 75%; align-self: center; margin: 0 4px; }
-  .divider-v { width: 1px; height: 18px; background: #ccc; margin: 0 6px; }
+  .group-label { font-size: 11px; color: var(--text-secondary); margin-top: -20px; text-align: center; width: 100%; pointer-events: none; }
+  .separator { width: 1px; background: var(--border-color); height: 75%; align-self: center; margin: 0 4px; }
+  .divider-v { width: 1px; height: 18px; background: var(--border-color); margin: 0 6px; }
 
   /* BUTTONS */
-  .ribbon-btn { border: 1px solid transparent; background: transparent; cursor: pointer; color: #333; border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
-  .ribbon-btn:hover { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
-  .ribbon-btn.active { background: #cce8ff; border-color: #99d1ff; color: #005a9e; }
+  .ribbon-btn { border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-main); border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+  .ribbon-btn:hover { background: var(--hover-bg); border-color: var(--border-color); color: var(--primary); }
+  .ribbon-btn.active { background: var(--bg-secondary); border-color: var(--primary); color: var(--primary); }
   .ribbon-btn:disabled { opacity: 0.5; cursor: default; }
   .ribbon-btn > :global(svg), .ribbon-btn > span { pointer-events: none; }
   .ribbon-btn.large { flex-direction: column; width: 55px; height: 65px; font-size: 11px; gap: 4px; }
@@ -625,57 +714,74 @@
   .ribbon-btn.list-item { width: 75px; height: 22px; justify-content: flex-start; gap: 6px; font-size: 11px; padding-left: 4px; }
 
   /* INPUTS */
-  select { font-family: 'Segoe UI', sans-serif; border: 1px solid transparent; background: transparent; font-size: 12px; height: 22px; outline: none; cursor: pointer; }
-  select:hover { border-color: #ccc; background: white; }
-  .font-select { width: 120px; border: 1px solid #ccc; background: white; height: 24px; padding-left: 4px; }
-  .size-select { width: 45px; border: 1px solid #ccc; background: white; height: 24px; margin-left: 2px; text-align: center; }
+  select { font-family: 'Segoe UI', sans-serif; border: 1px solid transparent; background: transparent; font-size: 12px; height: 22px; outline: none; cursor: pointer; color: var(--text-main); }
+  select:hover { border-color: var(--border-color); background: var(--bg-card); }
+  .font-select { width: 120px; border: 1px solid var(--border-color); background: var(--bg-card); height: 24px; padding-left: 4px; }
+  .size-select { width: 45px; border: 1px solid var(--border-color); background: var(--bg-card); height: 24px; margin-left: 2px; text-align: center; }
   .line-height-wrapper { display: flex; align-items: center; border: 1px solid transparent; padding-left: 2px; border-radius: 3px; }
-  .line-height-wrapper:hover { border-color: #ccc; background: #e1e1e1; }
-  .icon-lh { margin-right: 0px; color: #475569; pointer-events: none; }
+  .line-height-wrapper:hover { border-color: var(--border-color); background: var(--bg-secondary); }
+  .icon-lh { margin-right: 0px; color: var(--text-secondary); pointer-events: none; }
   .line-height-select { width: 35px; border: none; background: transparent; }
   
   /* COLOR PICKER STYLES */
   .color-picker-wrapper { position: relative; display: inline-block; }
   .color-picker-btn { position: relative; width: 28px; height: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 3px; cursor: pointer; background: transparent; padding: 0; }
-  .color-picker-btn:hover { background: #dbeafe; border-color: #bfdbfe; }
+  .color-picker-btn:hover { background: var(--hover-bg); border-color: var(--border-color); }
   .color-bar { width: 18px; height: 4px; margin-top: 1px; border-radius: 1px; }
-  .color-picker-dropdown { position: fixed; background: white; border: 1px solid #b0b0b0; padding: 8px; width: 180px; box-shadow: 0 4px 8px rgba(0,0,0,0.15); z-index: 10000; font-family: 'Segoe UI', sans-serif; }
-  .color-auto-section { padding: 4px 0; border-bottom: 1px solid #e0e0e0; margin-bottom: 8px; }
-  .color-auto-btn { width: 100%; display: flex; align-items: center; padding: 4px 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 11px; color: #333; }
-  .color-auto-btn:hover { background-color: #e6f2ff; border-color: #99d1ff; }
+  .color-picker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border-color); padding: 8px; width: 180px; box-shadow: 0 4px 8px var(--shadow-color); z-index: 10000; font-family: 'Segoe UI', sans-serif; }
+  .color-auto-section { padding: 4px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 8px; }
+  .color-auto-btn { width: 100%; display: flex; align-items: center; padding: 4px 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 11px; color: var(--text-main); }
+  .color-auto-btn:hover { background-color: var(--hover-bg); border-color: var(--primary); }
   .color-auto-indicator { display: flex; align-items: center; gap: 6px; width: 100%; }
-  .color-auto-square { width: 16px; height: 16px; border: 1px solid #8c8c8c; flex-shrink: 0; }
+  .color-auto-square { width: 16px; height: 16px; border: 1px solid var(--text-secondary); flex-shrink: 0; }
   .color-section { margin-bottom: 12px; }
-  .color-section-title { font-size: 11px; font-weight: 600; color: #333; margin-bottom: 6px; padding-left: 2px; }
+  .color-section-title { font-size: 11px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; padding-left: 2px; }
   .color-grid-theme { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 2px; }
   .color-grid-standard { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; padding: 2px; }
   .color-swatch-theme, .color-swatch-standard { width: 12px; height: 12px; border: 1px solid #b0b0b0; cursor: pointer; padding: 0; margin: 0; position: relative; }
-  .color-swatch-theme:hover, .color-swatch-standard:hover { transform: scale(1.15); border-color: #2b579a; z-index: 2; }
-  .active { border: 2px solid #2b579a; box-shadow: 0 0 0 1px white inset; }
+  .color-swatch-theme:hover, .color-swatch-standard:hover { transform: scale(1.15); border-color: var(--primary); z-index: 2; }
+  .active { border: 2px solid var(--primary); box-shadow: 0 0 0 1px white inset; }
+
+  /* MARCADORES (DROPDOWN ACORDEÓN) */
+  .marker-dropdown-wrapper { position: relative; }
+  .marker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border-color); width: 320px; box-shadow: 0 4px 10px var(--shadow-color); z-index: 10000; font-family: 'Segoe UI', sans-serif; max-height: 500px; overflow-y: hidden; display: flex; flex-direction: column; }
+  .marker-header { background: var(--bg-secondary); padding: 8px 12px; font-weight: 700; font-size: 12px; color: var(--text-main); border-bottom: 1px solid var(--border-color); }
+  .marker-scroll { overflow-y: auto; flex: 1; }
+  .marker-group { border-bottom: 1px solid var(--border-color); }
+  .marker-group-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-card); border: none; cursor: pointer; font-size: 12px; color: var(--text-main); transition: background 0.2s; }
+  .marker-group-header:hover { background: var(--hover-bg); }
+  .marker-group-header strong { font-weight: 700; color: var(--primary); }
+  .marker-list { background: var(--bg-body); padding: 5px 0; }
+  .marker-item { display: block; width: 100%; text-align: left; padding: 8px 15px; border: none; background: transparent; font-size: 11px; cursor: pointer; color: var(--text-main); }
+  .marker-item:last-child { border-bottom: none; }
+  .marker-item:hover { background: var(--hover-bg); color: var(--primary); }
+  .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .m-label { font-size: 11px; font-weight: 600; color: var(--text-main); }
+  .m-desc { font-size: 10px; color: var(--text-secondary); font-style: italic; max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-code { font-size: 10px; color: var(--primary); font-family: monospace; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 3px; width: fit-content; }
 
   /* MÁRGENES */
   .margins-group .margin-row { display: flex; gap: 4px; }
-  .margin-input { display: flex; align-items: center; gap: 2px; background: white; border: 1px solid #ccc; padding: 0 4px; border-radius: 3px; height: 22px; }
-  .margin-input input { width: 35px; border: none; font-size: 11px; outline: none; text-align: center; padding: 0; }
-  .margin-input :global(svg) { opacity: 0.6; }
-
-  /* MARCADORES (SELECTOR NATIVO) */
-  .insert-marker-container { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-  .insert-marker-container label { font-size: 11px; color: #2b579a; font-weight: 700; margin-left: 2px; }
-  .insert-marker-container select { height: 30px; border: 1px solid #2b579a; background: white; width: 220px; padding-left: 8px; border-radius: 4px; font-weight: 600; color: #333; font-size: 11px; }
+  .margin-input { display: flex; align-items: center; gap: 2px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 0 4px; border-radius: 3px; height: 22px; }
+  .margin-input input { width: 35px; border: none; font-size: 11px; outline: none; text-align: center; padding: 0; background: transparent; color: var(--text-main); }
+  .margin-input :global(svg) { opacity: 0.6; color: var(--text-secondary); }
 
   /* WORKSPACE */
   .workspace { flex: 1; background: #5f6368; position: relative; overflow: hidden; }
   .scroll-container { width: 100%; height: 100%; overflow: auto; display: grid; place-items: start center; padding: 40px; box-sizing: border-box; }
   .paper-zoom-wrapper { display: flex; justify-content: center; }
   .paper-sheet { width: 21.59cm; min-height: 27.94cm; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: text; margin-bottom: 20px; }
-  .editor-content { outline: none; font-size: 16px; line-height: 1.5; color: black; min-height: 100%; }
+  
+  /* FORCE BLACK TEXT ON EDITOR ALWAYS (Paper is always white) */
+  .editor-content { outline: none; font-size: 16px; line-height: 1.5; color: #000000 !important; min-height: 100%; }
+  :global(.ProseMirror) { color: #000000 !important; }
+  :global(.ProseMirror p, .ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror li, .ProseMirror span) { color: #000000 !important; }
 
   /* STATUS BAR */
-  .status-bar { height: 26px; background: #f3f3f3; border-top: 1px solid #d1d1d1; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: #555; flex-shrink: 0; }
+  .status-bar { height: 26px; background: var(--bg-body); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
   .zoom-controls { display: flex; align-items: center; gap: 10px; }
-  .zoom-btn { background: transparent; border: none; cursor: pointer; color: #555; padding: 2px; display: flex; align-items: center; }
-  .zoom-btn:hover { background: #e1e1e1; border-radius: 3px; color: #000; }
+  .zoom-btn { background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px; display: flex; align-items: center; }
+  .zoom-btn:hover { background: var(--bg-card); border-radius: 3px; color: var(--text-main); }
   .zoom-slider-container { width: 100px; display: flex; align-items: center; }
   .zoom-slider { width: 100%; cursor: pointer; height: 4px; }
   .zoom-text { min-width: 40px; text-align: center; }
