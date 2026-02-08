@@ -3,6 +3,10 @@
   
   // --- STORE IMPORTS ---
   import { emailTemplates, whatsappTemplates, marcadoresGlobales, type PlantillaEmail, type PlantillaWhatsApp } from '$lib/stores/plantillas';
+  
+  // --- DATA IMPORTS (NUEVO) ---
+  // Importamos el contenido estático de ayuda
+  import { guiaUsuario } from '$lib/data/ayuda';
 
   // --- TIPTAP IMPORTS ---
   import { Editor } from '@tiptap/core';
@@ -47,9 +51,9 @@
   let editor: Editor | null = null; 
   let showSourceCode = false; 
 
-  // Referencia al Input de Asunto y rastreo de campo activo
+  // Referencia al Input de Asunto
   let subjectInput: HTMLInputElement;
-  let activeField: 'subject' | 'body' = 'body'; // Por defecto inserta en el cuerpo
+  let activeField: 'subject' | 'body' = 'body'; 
 
   // --- MARCADORES ---
   let marcadoresUI = marcadoresGlobales.map(grp => ({ ...grp }));
@@ -90,7 +94,7 @@
               updateToolbar();
           },
           onFocus: () => {
-              activeField = 'body'; // Detectar cuando el foco entra al editor
+              activeField = 'body'; 
           },
           onTransaction: () => { updateToolbar(); },
           onSelectionUpdate: () => { updateToolbar(); }
@@ -181,7 +185,7 @@
       plantillaActual = { ...plantilla }; 
       editandoPlantilla = true;
       showSourceCode = false;
-      activeField = 'body'; // Resetear foco por defecto al cuerpo
+      activeField = 'body'; 
   }
 
   function guardarPlantillaEditada() {
@@ -206,26 +210,22 @@
   // --- LÓGICA DE INSERCIÓN INTELIGENTE ---
   function insertarMarcador(code: string) {
       if (activeField === 'subject' && plantillaActual && subjectInput) {
-          // 1. Inserción en el ASUNTO
           const start = subjectInput.selectionStart || 0;
           const end = subjectInput.selectionEnd || 0;
           const text = plantillaActual.subject;
           
-          // Insertar en la posición del cursor
           const newText = text.substring(0, start) + ` ${code} ` + text.substring(end);
           plantillaActual.subject = newText;
           
-          // Restaurar foco y posición del cursor (UX)
           setTimeout(() => {
               if (subjectInput) {
                   subjectInput.focus();
-                  const newPos = start + code.length + 2; // +2 por los espacios
+                  const newPos = start + code.length + 2; 
                   subjectInput.setSelectionRange(newPos, newPos);
               }
           }, 0);
 
       } else {
-          // 2. Inserción en el CUERPO (Editor)
           if (editor && !showSourceCode) { 
               editor.chain().focus().insertContent(` ${code} `).run(); 
           } else if (plantillaActual) { 
@@ -248,16 +248,14 @@
       whatsappTemplates.update(items => items.map(w => w.id === id ? { ...w, isOpen: !w.isOpen } : w));
   }
 
-  // --- AYUDA ---
-  let ayudaItems = [
-      { title: "Primeros pasos y configuración inicial", content: "Configure su perfil...", isOpen: false },
-      { title: "Personalización de mensajes de WhatsApp", content: "Configure mensajes rápidos...", isOpen: false },
-  ];
+  // --- AYUDA (CONECTADA AL ARCHIVO EXTERNO) ---
+  // Inicializamos el estado local (abierto/cerrado) basándonos en los datos importados
+  let ayudaItems = guiaUsuario.map(item => ({ ...item, isOpen: false }));
   
   function toggleAyuda(index: number) { 
       if (ayudaItems[index]) {
           ayudaItems[index].isOpen = !ayudaItems[index].isOpen;
-          ayudaItems = [...ayudaItems];
+          ayudaItems = [...ayudaItems]; // Reactividad
       }
   }
 
