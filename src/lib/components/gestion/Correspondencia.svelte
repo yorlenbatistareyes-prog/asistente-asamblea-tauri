@@ -31,7 +31,9 @@
     Plus, ZoomIn, ZoomOut, Clipboard,
     Type, Scissors, Copy, ArrowUpDown,
     ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine,
-    ChevronDown, ChevronUp, Braces 
+    ChevronDown, ChevronUp, Braces,
+    // Iconos para autoguardado:
+    Check, Loader2, Cloud 
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
@@ -44,6 +46,10 @@
   let editor: Editor;       
   let contenidoCargado = "";
   let isSaving = false;
+
+  // Autoguardado
+  let autosaveTimer: any;
+  let saveStatus: 'saved' | 'saving' | 'unsaved' = 'saved';
 
   // Variables UI
   let currentFont = 'Arial';
@@ -73,7 +79,7 @@
   let marginLeft = 2.54;
   let marginRight = 2.54;
 
-  // --- DATOS DE MARCADORES (TU LISTA COMPLETA) ---
+  // --- DATOS DE MARCADORES ---
   let markerGroups = [
       {
           title: "Lista rápida de Marcadores",
@@ -184,7 +190,7 @@
   ];
   const standardColors = ['#000000', '#FFFFFF', '#EEECE1', '#1F497D', '#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646'];
 
-  // --- EXTENSIONES (TIPOS CORREGIDOS) ---
+  // --- EXTENSIONES ---
   const FontSize = Extension.create({
     name: 'fontSize',
     addOptions() { return { types: ['textStyle'] }; },
@@ -249,37 +255,38 @@
   // --- CARGA ---
   async function cargarPlantilla() {
     try {
-      // 1. Intentar DB
       const respuesta = await invoke('obtener_plantilla', { id: tipoActivo }) as string;
-      
       if (respuesta && respuesta.length > 5) {
           contenidoCargado = respuesta;
       } else {
-          // 2. Fallback Store
           const storeData = $cartasStore.find(c => c.id === tipoActivo);
-          contenidoCargado = storeData ? storeData.html : `<p>Escriba el contenido aquí...</p>`;
+          contenidoCargado = storeData ? storeData.html : `<p>Escriba aquí el contenido para ${tipoActivo}...</p>`;
       }
-      
       if (editor) editor.commands.setContent(contenidoCargado);
     } catch (e) {
       console.error(e);
-      // Fallback Emergencia
       const storeData = $cartasStore.find(c => c.id === tipoActivo);
       if(editor && storeData) editor.commands.setContent(storeData.html);
     }
   }
 
-  // --- GUARDADO ---
-  async function actualizar() {
+  // --- LÓGICA DE GUARDADO (MANUAL Y AUTOMÁTICO) ---
+  
+  // Función centralizada para guardar
+  async function actualizar(silencioso = false) {
     if (!editor) return;
-    isSaving = true;
+    
+    // Gestión visual de estado
+    if (!silencioso) isSaving = true; // Botón grande
+    if (silencioso) saveStatus = 'saving'; // Pill pequeño
+
     try {
       const htmlFinal = editor.getHTML();
       
-      // 1. Guardar en Rust (DB)
+      // Guardar en Rust (DB)
       await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
       
-      // 2. Guardar en Store (Memoria)
+      // Guardar en Store
       cartasStore.update(cartas => {
           const index = cartas.findIndex(c => c.id === tipoActivo);
           if (index !== -1) cartas[index].html = htmlFinal;
@@ -287,12 +294,26 @@
           return cartas;
       });
 
-      alert(`✅ Guardado correctamente.`);
+      // Feedback
+      if (!silencioso) alert(`✅ Guardado correctamente.`);
+      saveStatus = 'saved';
+
     } catch (e) {
-      alert("Error: " + e);
+      if(!silencioso) alert("Error: " + e);
+      saveStatus = 'unsaved'; // Hubo error
     } finally {
       isSaving = false;
     }
+  }
+
+  // Función Trigger para el debounce (Autoguardado)
+  function triggerAutosave() {
+      saveStatus = 'unsaved';
+      clearTimeout(autosaveTimer);
+      // Espera 2 segundos después de escribir para guardar
+      autosaveTimer = setTimeout(() => {
+          actualizar(true); // Guardado silencioso
+      }, 2000);
   }
 
   // --- INICIALIZAR EDITOR ---
@@ -317,6 +338,7 @@
       onUpdate: () => { 
         editor = editor;
         updateToolbar();
+        triggerAutosave(); // <--- ACTIVA EL AUTOGUARDADO
       },
       onTransaction: () => { 
         editor = editor; 
@@ -329,6 +351,7 @@
     document.addEventListener('click', closePopupsIfClickOutside);
     return () => {
       document.removeEventListener('click', closePopupsIfClickOutside);
+      if(editor) editor.destroy();
     };
   });
 
@@ -336,8 +359,6 @@
     if (!editor) return '1.5';
     const node = editor.state.selection.$anchor.parent;
     if (node && node.attrs && node.attrs.lineHeight) return node.attrs.lineHeight;
-    const paragraph = editor.getAttributes('paragraph');
-    if (paragraph && paragraph.lineHeight) return paragraph.lineHeight;
     return '1.5';
   }
 
@@ -360,9 +381,7 @@
     isOrderedList = editor.isActive('orderedList');
   }
 
-  onDestroy(() => { if (editor) editor.destroy(); });
-
-  // --- PORTAPAPELES ---
+  // --- ACTIONS UI ---
   function copiar() { editor.commands.focus(); document.execCommand('copy'); }
   function cortar() { editor.commands.focus(); document.execCommand('cut'); }
   async function pegar() {
@@ -398,7 +417,6 @@
     }
   }
 
-  // --- ACCIONES UI ---
   function cambiarFuente(e: Event) { editor.chain().focus().setFontFamily((e.target as HTMLSelectElement).value).run(); }
   function cambiarTamano(e: Event) { editor.chain().focus().setFontSize((e.target as HTMLSelectElement).value).run(); }
   function cambiarInterlineado(e: Event) { editor.chain().focus().setLineHeight((e.target as HTMLSelectElement).value).run(); }
@@ -468,11 +486,21 @@
           <FileText size={24} class="header-icon"/>
           <div class="doc-info">
               <span class="doc-title">PLANTILLA: {tipoActivo.toUpperCase()}</span>
-              <span class="doc-status">{isSaving ? 'Guardando...' : 'Guardado en este PC'}</span>
+              
+              <div class="autosave-indicator">
+                  {#if saveStatus === 'saved'}
+                      <span class="status-pill saved"><Check size={12} /> Guardado</span>
+                  {:else if saveStatus === 'saving'}
+                      <span class="status-pill saving"><Loader2 size={12} class="spin" /> Guardando...</span>
+                  {:else}
+                      <span class="status-pill unsaved"><Cloud size={12} /> Cambios sin guardar</span>
+                  {/if}
+              </div>
+
           </div>
       </div>
       <div class="right-section">
-          <button class="save-btn" on:click={actualizar}>
+          <button class="save-btn" on:click={() => actualizar(false)} disabled={isSaving}>
               <Save size={18} /> <span>{isSaving ? 'Guardando...' : 'Guardar Cambios'}</span>
           </button>
       </div>
@@ -718,6 +746,15 @@
   .save-btn { background: var(--bg-card); color: var(--primary); border: none; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
   .save-btn:hover { background: var(--hover-bg); }
 
+  /* AUTOGUARDADO INDICADORES */
+  .autosave-indicator { display: flex; align-items: center; margin-top: 2px; }
+  .status-pill { display: flex; align-items: center; gap: 4px; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; transition: all 0.3s ease; }
+  .status-pill.saved { color: rgba(255, 255, 255, 0.8); background: rgba(255, 255, 255, 0.1); }
+  .status-pill.saving { color: white; background: rgba(255, 255, 255, 0.2); }
+  .status-pill.unsaved { color: rgba(255, 255, 255, 0.6); }
+  :global(.spin) { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   /* RIBBON */
   .ribbon { background: var(--bg-body); height: 105px; border-bottom: 1px solid var(--border-color); display: flex; padding: 5px 10px; gap: 5px; flex-shrink: 0; user-select: none; overflow-x: auto; }
   .ribbon-group { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 0 6px; height: 100%; flex-shrink: 0; }
@@ -812,9 +849,6 @@
   .status-bar { height: 26px; background: var(--bg-body); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
   .zoom-controls { display: flex; align-items: center; gap: 10px; }
   .zoom-btn { background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px; display: flex; align-items: center; }
-  .zoom-btn:hover { background: var(--bg-card); border-radius: 3px; color: var(--text-main); }
-  .zoom-slider-container { width: 100px; display: flex; align-items: center; }
-  .zoom-slider { width: 100%; cursor: pointer; height: 4px; }
   .zoom-text { min-width: 40px; text-align: center; }
 
   /* TIPTAP */
