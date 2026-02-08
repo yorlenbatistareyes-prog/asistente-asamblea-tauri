@@ -47,6 +47,10 @@
   let editor: Editor | null = null; 
   let showSourceCode = false; 
 
+  // Referencia al Input de Asunto y rastreo de campo activo
+  let subjectInput: HTMLInputElement;
+  let activeField: 'subject' | 'body' = 'body'; // Por defecto inserta en el cuerpo
+
   // --- MARCADORES ---
   let marcadoresUI = marcadoresGlobales.map(grp => ({ ...grp }));
 
@@ -84,6 +88,9 @@
           onUpdate: ({ editor }) => {
               if (plantillaActual) plantillaActual.body = editor.getHTML();
               updateToolbar();
+          },
+          onFocus: () => {
+              activeField = 'body'; // Detectar cuando el foco entra al editor
           },
           onTransaction: () => { updateToolbar(); },
           onSelectionUpdate: () => { updateToolbar(); }
@@ -171,9 +178,10 @@
   }
 
   function editarPlantilla(plantilla: PlantillaEmail) {
-      plantillaActual = { ...plantilla };
+      plantillaActual = { ...plantilla }; 
       editandoPlantilla = true;
       showSourceCode = false;
+      activeField = 'body'; // Resetear foco por defecto al cuerpo
   }
 
   function guardarPlantillaEditada() {
@@ -181,7 +189,7 @@
       emailTemplates.update(items => {
           const index = items.findIndex(p => p.id === plantillaActual?.id);
           if (index !== -1 && plantillaActual) {
-              items[index] = { ...plantillaActual, isOpen: false };
+              items[index] = { ...plantillaActual, isOpen: false }; 
           }
           return items;
       });
@@ -195,11 +203,34 @@
       plantillaActual = null; 
   }
 
+  // --- LÓGICA DE INSERCIÓN INTELIGENTE ---
   function insertarMarcador(code: string) {
-      if (editor && !showSourceCode) { 
-          editor.chain().focus().insertContent(` ${code} `).run(); 
-      } else if (plantillaActual) { 
-          plantillaActual.body += ` ${code}`; 
+      if (activeField === 'subject' && plantillaActual && subjectInput) {
+          // 1. Inserción en el ASUNTO
+          const start = subjectInput.selectionStart || 0;
+          const end = subjectInput.selectionEnd || 0;
+          const text = plantillaActual.subject;
+          
+          // Insertar en la posición del cursor
+          const newText = text.substring(0, start) + ` ${code} ` + text.substring(end);
+          plantillaActual.subject = newText;
+          
+          // Restaurar foco y posición del cursor (UX)
+          setTimeout(() => {
+              if (subjectInput) {
+                  subjectInput.focus();
+                  const newPos = start + code.length + 2; // +2 por los espacios
+                  subjectInput.setSelectionRange(newPos, newPos);
+              }
+          }, 0);
+
+      } else {
+          // 2. Inserción en el CUERPO (Editor)
+          if (editor && !showSourceCode) { 
+              editor.chain().focus().insertContent(` ${code} `).run(); 
+          } else if (plantillaActual) { 
+              plantillaActual.body += ` ${code}`; 
+          }
       }
   }
 
@@ -321,11 +352,17 @@
                         
                         <div class="editor-form">
                             <label>Asunto</label>
-                            <input type="text" bind:value={plantillaActual.subject} class="input-subject" />
+                            <input 
+                                type="text" 
+                                class="input-subject" 
+                                bind:value={plantillaActual.subject} 
+                                bind:this={subjectInput}
+                                on:focus={() => activeField = 'subject'}
+                            />
                             
                             <label>Cuerpo</label>
                             
-                            <div class="toolbar-ribbon">
+                            <div class="toolbar-ribbon" on:click={() => { if(editor) editor.commands.focus(); activeField='body'; }}>
                                 <div class="toolbar-row">
                                     <button class="tool-btn" class:active={isBold} on:click={toggleBold} title="Negrita"><Bold size={16}/></button>
                                     <button class="tool-btn" class:active={isItalic} on:click={toggleItalic} title="Cursiva"><Italic size={16}/></button>
@@ -368,7 +405,7 @@
                             </div>
                             
                             {#if showSourceCode}
-                                <textarea class="source-code-view" bind:value={plantillaActual.body}></textarea>
+                                <textarea class="source-code-view" bind:value={plantillaActual.body} on:focus={() => activeField='body'}></textarea>
                             {:else}
                                 <div class="editor-container" use:setupEditor></div>
                             {/if}
@@ -507,10 +544,7 @@
                 </div>
 
                 <div class="user-info-section">
-                    <div class="user-info-header">
-                        <h3>Información del usuario</h3>
-                        <button class="btn-edit-user" on:click={abrirModalUsuario}>Editar</button>
-                    </div>
+                    <div class="user-info-header"><h3>Información del usuario</h3><button class="btn-edit-user" on:click={abrirModalUsuario}>Editar</button></div>
                     <div class="user-info-grid">
                         <div class="ui-item"><label>nombre completo</label><span>{usuario.nombre} {usuario.apellido}</span></div>
                         <div class="ui-item"><label>Correo electrónico</label><span>{usuario.email}</span></div>
@@ -678,7 +712,7 @@
   .sidebar-title { padding: 15px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--text-main); font-size: 14px; }
   .markers-accordion { overflow-y: auto; flex: 1; }
   .marker-group-item { border-bottom: 1px solid var(--border-color); }
-  .marker-header { width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; border-bottom: 1px solid var(--border-color); cursor: pointer; text-align: left; font-size: 13px; color: var(--text-main); font-weight: 500; }
+  .marker-header { width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; cursor: pointer; text-align: left; font-size: 13px; color: var(--text-main); font-weight: 500; }
   .marker-header:hover { background: var(--hover-bg); }
   .marker-content { background: var(--bg-body); padding: 5px 0; }
   .marker-pill { display: block; width: 100%; text-align: left; padding: 8px 15px; border: none; background: transparent; font-size: 11px; cursor: pointer; color: var(--text-main); border-bottom: 1px solid rgba(0,0,0,0.03); }
