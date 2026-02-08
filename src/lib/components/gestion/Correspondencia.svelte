@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+  
+  // --- TAURI & STORE ---
   import { invoke } from '@tauri-apps/api/core';
+  import { cartasStore } from '$lib/stores/cartas'; 
   
   // --- TIPTAP ---
   import { Editor, Extension } from '@tiptap/core';
@@ -40,6 +43,7 @@
   let element: HTMLElement;
   let editor: Editor;       
   let contenidoCargado = "";
+  let isSaving = false;
 
   // Variables UI
   let currentFont = 'Arial';
@@ -69,7 +73,7 @@
   let marginLeft = 2.54;
   let marginRight = 2.54;
 
-  // --- DATOS DE MARCADORES ---
+  // --- DATOS DE MARCADORES (TU LISTA COMPLETA) ---
   let markerGroups = [
       {
           title: "Lista rápida de Marcadores",
@@ -180,7 +184,7 @@
   ];
   const standardColors = ['#000000', '#FFFFFF', '#EEECE1', '#1F497D', '#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646'];
 
-  // --- EXTENSIONES ---
+  // --- EXTENSIONES (TIPOS CORREGIDOS) ---
   const FontSize = Extension.create({
     name: 'fontSize',
     addOptions() { return { types: ['textStyle'] }; },
@@ -190,8 +194,8 @@
         attributes: {
           fontSize: {
             default: null,
-            parseHTML: element => element.style.fontSize.replace('px', ''),
-            renderHTML: attributes => {
+            parseHTML: (element: any) => element.style.fontSize.replace('px', ''),
+            renderHTML: (attributes: any) => {
               if (!attributes.fontSize) return {};
               return { style: `font-size: ${attributes.fontSize}px` };
             },
@@ -201,8 +205,8 @@
     },
     addCommands() {
       return {
-        setFontSize: (fontSize) => ({ chain }) => chain().setMark('textStyle', { fontSize }).run(),
-        unsetFontSize: () => ({ chain }) => chain().setMark('textStyle', { fontSize: null }).run(),
+        setFontSize: (fontSize: string) => ({ chain }: any) => chain().setMark('textStyle', { fontSize }).run(),
+        unsetFontSize: () => ({ chain }: any) => chain().setMark('textStyle', { fontSize: null }).run(),
       };
     },
   });
@@ -216,7 +220,7 @@
         attributes: {
           lineHeight: {
             default: null,
-            parseHTML: element => {
+            parseHTML: (element: any) => {
               const styleAttr = element.getAttribute('style') || '';
               const lineHeightMatch = styleAttr.match(/line-height\s*:\s*([^;]+)/i);
               if (lineHeightMatch && lineHeightMatch[1]) return lineHeightMatch[1].trim();
@@ -225,7 +229,7 @@
               if (computedLH && computedLH !== 'normal') return computedLH;
               return null;
             },
-            renderHTML: attributes => {
+            renderHTML: (attributes: any) => {
               if (!attributes.lineHeight) return {};
               return { style: `line-height: ${attributes.lineHeight}` };
             },
@@ -235,7 +239,7 @@
     },
     addCommands() {
       return {
-        setLineHeight: (lineHeight: string) => ({ commands }) => {
+        setLineHeight: (lineHeight: string) => ({ commands }: any) => {
            return this.options.types.every((type: string) => commands.updateAttributes(type, { lineHeight }));
         },
       };
@@ -245,11 +249,49 @@
   // --- CARGA ---
   async function cargarPlantilla() {
     try {
+      // 1. Intentar DB
       const respuesta = await invoke('obtener_plantilla', { id: tipoActivo }) as string;
-      contenidoCargado = respuesta || `<p>Estimado hermano:</p><p>Nos complace informarle...</p>`;
+      
+      if (respuesta && respuesta.length > 5) {
+          contenidoCargado = respuesta;
+      } else {
+          // 2. Fallback Store
+          const storeData = $cartasStore.find(c => c.id === tipoActivo);
+          contenidoCargado = storeData ? storeData.html : `<p>Escriba el contenido aquí...</p>`;
+      }
+      
       if (editor) editor.commands.setContent(contenidoCargado);
     } catch (e) {
-      if(editor) editor.commands.setContent("<p style='color:red'>Error de conexión.</p>");
+      console.error(e);
+      // Fallback Emergencia
+      const storeData = $cartasStore.find(c => c.id === tipoActivo);
+      if(editor && storeData) editor.commands.setContent(storeData.html);
+    }
+  }
+
+  // --- GUARDADO ---
+  async function actualizar() {
+    if (!editor) return;
+    isSaving = true;
+    try {
+      const htmlFinal = editor.getHTML();
+      
+      // 1. Guardar en Rust (DB)
+      await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
+      
+      // 2. Guardar en Store (Memoria)
+      cartasStore.update(cartas => {
+          const index = cartas.findIndex(c => c.id === tipoActivo);
+          if (index !== -1) cartas[index].html = htmlFinal;
+          else cartas.push({ id: tipoActivo, html: htmlFinal });
+          return cartas;
+      });
+
+      alert(`✅ Guardado correctamente.`);
+    } catch (e) {
+      alert("Error: " + e);
+    } finally {
+      isSaving = false;
     }
   }
 
@@ -319,17 +361,6 @@
   }
 
   onDestroy(() => { if (editor) editor.destroy(); });
-
-  async function actualizar() {
-    if (!editor) return;
-    try {
-      const htmlFinal = editor.getHTML();
-      await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
-      alert(`✅ Guardado correctamente.`);
-    } catch (e) {
-      alert("Error: " + e);
-    }
-  }
 
   // --- PORTAPAPELES ---
   function copiar() { editor.commands.focus(); document.execCommand('copy'); }
@@ -437,12 +468,12 @@
           <FileText size={24} class="header-icon"/>
           <div class="doc-info">
               <span class="doc-title">PLANTILLA: {tipoActivo.toUpperCase()}</span>
-              <span class="doc-status">Guardado en este PC</span>
+              <span class="doc-status">{isSaving ? 'Guardando...' : 'Guardado en este PC'}</span>
           </div>
       </div>
       <div class="right-section">
           <button class="save-btn" on:click={actualizar}>
-              <Save size={18} /> <span>Guardar Cambios</span>
+              <Save size={18} /> <span>{isSaving ? 'Guardando...' : 'Guardar Cambios'}</span>
           </button>
       </div>
     </div>
@@ -663,7 +694,7 @@
 <style>
   /* --- LAYOUT GLOBAL --- */
   .word-layout { display: flex; flex-direction: row; height: 100vh; font-family: 'Segoe UI', sans-serif; background: var(--bg-body); overflow: hidden; color: var(--text-main); }
-
+  
   /* SIDEBAR */
   .sidebar { width: 70px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 100; flex-shrink: 0; }
   .sidebar-top { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; cursor: pointer; }

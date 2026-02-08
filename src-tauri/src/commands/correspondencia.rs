@@ -1,39 +1,63 @@
-use rusqlite::{params, Connection, Result};
 use tauri::{command, AppHandle};
+use rusqlite::{params, Connection};
+
+// Asumimos que tienes una función pública en database.rs para obtener la ruta
+// Si no la tienes pública, asegúrate de añadir 'pub' en src/database.rs
+use crate::database; 
 
 #[command]
 pub fn obtener_plantilla(app: AppHandle, id: String) -> Result<String, String> {
-    // 1. Obtenemos la conexión usando tu módulo de base de datos existente
-    let db_path = crate::database::obtener_ruta_db(&app);
-    let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
+    // 1. Obtener ruta de la DB
+    let db_path = database::obtener_ruta_db(&app);
+    
+    // 2. Abrir conexión
+    let conn = Connection::open(db_path)
+        .map_err(|e| format!("Error al abrir DB: {}", e))?;
 
-    // 2. Preparamos la consulta
+    // 3. Preparar consulta
+    // Usamos 'optional' para manejar elegantemente si no existe el registro
     let mut stmt = conn
         .prepare("SELECT contenido_html FROM plantillas_cartas WHERE id = ?1")
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Error al preparar consulta: {}", e))?;
 
-    // 3. Ejecutamos la consulta
-    // NOTA: Usamos params![id] para consistencia y evitar errores de tipos
-    let result: Result<String, _> = stmt.query_row(params![id], |row| row.get(0));
+    // 4. Ejecutar y mapear
+    let result = stmt.query_row(params![id], |row| {
+        row.get::<_, String>(0)
+    });
 
-    // 4. Manejamos el resultado: Si existe devuelve el texto, si no existe devuelve texto por defecto
+    // 5. Manejar resultado
     match result {
         Ok(contenido) => Ok(contenido),
-        Err(_) => Ok("<p>Escribe el contenido de la carta aquí...</p>".to_string()),
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            // Si no hay plantilla guardada, devolvemos un texto por defecto o vacío
+            Ok("<p>Escribe aquí el contenido de la carta...</p>".to_string())
+        },
+        Err(e) => Err(format!("Error al leer plantilla: {}", e)),
     }
 }
 
 #[command]
 pub fn guardar_plantilla(app: AppHandle, id: String, contenido: String) -> Result<(), String> {
-    let db_path = crate::database::obtener_ruta_db(&app);
-    let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
+    let db_path = database::obtener_ruta_db(&app);
+    let conn = Connection::open(db_path)
+        .map_err(|e| format!("Error al abrir DB: {}", e))?;
 
-    // 5. Insertar o Reemplazar (Upsert)
+    // 6. Asegurar que la tabla existe (Por seguridad, aunque debería estar en init_db)
+    // Esto previene errores si la tabla 'plantillas_cartas' no fue creada en la migración inicial
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS plantillas_cartas (
+            id TEXT PRIMARY KEY,
+            contenido_html TEXT
+        )",
+        [],
+    ).map_err(|e| format!("Error creando tabla: {}", e))?;
+
+    // 7. Insertar o Reemplazar (Upsert)
     conn.execute(
         "INSERT OR REPLACE INTO plantillas_cartas (id, contenido_html) VALUES (?1, ?2)",
         params![id, contenido],
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("Error al guardar plantilla: {}", e))?;
 
     Ok(())
 }

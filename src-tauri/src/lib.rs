@@ -29,18 +29,21 @@ pub fn run() {
             // LOCALES (SALONES)
             commands::locales::crear_local,
             commands::locales::obtener_locales,
-            commands::locales::eliminar_local, // <--- NUEVO COMANDO REGISTRADO
+            commands::locales::eliminar_local,
+            
             // CONGREGACIONES
             commands::congregaciones::crear_congregacion,
             commands::congregaciones::obtener_congregaciones,
             commands::congregaciones::eliminar_congregacion,
             commands::congregaciones::limpiar_congregaciones,
+            
             // PERSONAS
             commands::personas::crear_persona,
             commands::personas::obtener_personas,
             commands::personas::actualizar_persona,
             commands::personas::eliminar_persona,
             commands::personas::limpiar_personas,
+            
             // ASAMBLEA
             commands::asambleas::guardar_info_evento,
             commands::asambleas::guardar_comite,
@@ -48,10 +51,12 @@ pub fn run() {
             commands::asambleas::crear_asamblea,
             commands::asambleas::obtener_asambleas,
             commands::asambleas::eliminar_asamblea,
+            
             // IMPORTAR
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,
             commands::importar::importar_programa_jw,
+            
             // PROGRAMA
             commands::programa::obtener_programa_dia,
             commands::programa::asignar_parte,
@@ -61,11 +66,14 @@ pub fn run() {
             commands::programa::crear_parte,
             commands::programa::eliminar_parte,
             commands::programa::alternar_estado_parte,
+            
             // OFICINA
             commands::oficina::obtener_asignaciones_especiales,
             commands::oficina::guardar_asignacion_especial,
             commands::oficina::eliminar_asignacion_especial,
-            // CORRESPONDENCIA
+            
+            // CORRESPONDENCIA (CARTAS)
+            // CORRECCIÓN AQUÍ: Se eliminó el sufijo "_carta" para coincidir con correspondencia.rs
             commands::correspondencia::obtener_plantilla,
             commands::correspondencia::guardar_plantilla,
         ])
