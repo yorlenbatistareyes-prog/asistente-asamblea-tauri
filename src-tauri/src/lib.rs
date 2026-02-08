@@ -7,6 +7,7 @@ pub mod commands {
     pub mod correspondencia;
     pub mod importar;
     pub mod locales;
+    pub mod mensajeria; // <--- NUEVO MÓDULO AGREGADO
     pub mod oficina;
     pub mod personas;
     pub mod programa;
@@ -72,10 +73,13 @@ pub fn run() {
             commands::oficina::guardar_asignacion_especial,
             commands::oficina::eliminar_asignacion_especial,
             
-            // CORRESPONDENCIA (CARTAS)
-            // CORRECCIÓN AQUÍ: Se eliminó el sufijo "_carta" para coincidir con correspondencia.rs
+            // CORRESPONDENCIA (CARTAS - Solo HTML)
             commands::correspondencia::obtener_plantilla,
             commands::correspondencia::guardar_plantilla,
+
+            // MENSAJERÍA (EMAIL Y WHATSAPP - Asunto + HTML) <--- NUEVOS COMANDOS
+            commands::mensajeria::obtener_plantilla_mensaje,
+            commands::mensajeria::guardar_plantilla_mensaje,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

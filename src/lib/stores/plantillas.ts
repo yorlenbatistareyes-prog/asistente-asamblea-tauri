@@ -1,10 +1,9 @@
 import { writable } from 'svelte/store';
 
 // --- INTERFAZ UNIFICADA ---
-// Usaremos esta misma estructura para Correos y WhatsApp
 export interface Plantilla {
     id: string;
-    title: string;   // Título visible en la lista (ej: "Mensaje a Oradores")
+    title: string;   // Título visible en la lista
     subject: string; // Asunto del correo o Referencia del mensaje
     body: string;    // El contenido (HTML del editor)
     isOpen: boolean; // Para abrir/cerrar el acordeón
@@ -23,26 +22,26 @@ export interface MarcadorGrupo {
     items: MarcadorItem[];
 }
 
-// --- DATOS INICIALES (CORREOS) ---
+// --- DATOS INICIALES (CORREOS) - IDs con prefijo 'email_' ---
 const plantillasEmailDefault: Plantilla[] = [
-    { id: 'comite', title: "Correo a Comité de asamblea", subject: "", body: "", isOpen: false },
-    { id: 'programa', title: "Correo a Sup. de Programa", subject: "", body: "", isOpen: false },
-    { id: 'av', title: "Correo a Audio y video", subject: "", body: "", isOpen: false },
-    { id: 'oradores', title: "Correo a Oradores del programa", subject: "", body: "", isOpen: false },
-    { id: 'oficina', title: "Correo a Oficina del presidente", subject: "", body: "", isOpen: false },
-    { id: 'presidentes', title: "Correo a Presidentes de Sesión", subject: "", body: "", isOpen: false },
-    { id: 'oraciones', title: "Correo a Hermanos de oraciones", subject: "", body: "", isOpen: false }
+    { id: 'email_comite', title: "Correo a Comité de asamblea", subject: "", body: "", isOpen: false },
+    { id: 'email_programa', title: "Correo a Sup. de Programa", subject: "", body: "", isOpen: false },
+    { id: 'email_av', title: "Correo a Audio y video", subject: "", body: "", isOpen: false },
+    { id: 'email_oradores', title: "Correo a Oradores del programa", subject: "", body: "", isOpen: false },
+    { id: 'email_oficina', title: "Correo a Oficina del presidente", subject: "", body: "", isOpen: false },
+    { id: 'email_presidentes', title: "Correo a Presidentes de Sesión", subject: "", body: "", isOpen: false },
+    { id: 'email_oraciones', title: "Correo a Hermanos de oraciones", subject: "", body: "", isOpen: false }
 ];
 
-// --- DATOS INICIALES (WHATSAPP) - AHORA CON LA MISMA ESTRUCTURA ---
+// --- DATOS INICIALES (WHATSAPP) - IDs con prefijo 'whatsapp_' ---
 const plantillasWhatsAppDefault: Plantilla[] = [
-    { id: 'comite', title: 'Mensaje WhatsApp a Comité', subject: "Aviso Comité", body: "", isOpen: false },
-    { id: 'programa', title: 'Mensaje WhatsApp a Sup. Programa', subject: "Aviso Programa", body: "", isOpen: false },
-    { id: 'audiovideo', title: 'Mensaje WhatsApp a Audio y Video', subject: "Aviso A/V", body: "", isOpen: false },
-    { id: 'oradores', title: 'Mensaje WhatsApp a Oradores', subject: "Recordatorio Asignación", body: "", isOpen: false },
-    { id: 'oficina', title: 'Mensaje WhatsApp a Oficina', subject: "Aviso Oficina", body: "", isOpen: false },
-    { id: 'presidentes', title: 'Mensaje WhatsApp a Presidentes', subject: "Recordatorio Presidencia", body: "", isOpen: false },
-    { id: 'oraciones', title: 'Mensaje WhatsApp a Oraciones', subject: "Recordatorio Oración", body: "", isOpen: false }
+    { id: 'whatsapp_comite', title: 'Mensaje WhatsApp a Comité', subject: "Aviso Comité", body: "", isOpen: false },
+    { id: 'whatsapp_programa', title: 'Mensaje WhatsApp a Sup. Programa', subject: "Aviso Programa", body: "", isOpen: false },
+    { id: 'whatsapp_audiovideo', title: 'Mensaje WhatsApp a Audio y Video', subject: "Aviso A/V", body: "", isOpen: false },
+    { id: 'whatsapp_oradores', title: 'Mensaje WhatsApp a Oradores', subject: "Recordatorio Asignación", body: "", isOpen: false },
+    { id: 'whatsapp_oficina', title: 'Mensaje WhatsApp a Oficina', subject: "Aviso Oficina", body: "", isOpen: false },
+    { id: 'whatsapp_presidentes', title: 'Mensaje WhatsApp a Presidentes', subject: "Recordatorio Presidencia", body: "", isOpen: false },
+    { id: 'whatsapp_oraciones', title: 'Mensaje WhatsApp a Oraciones', subject: "Recordatorio Oración", body: "", isOpen: false }
 ];
 
 // --- DATOS CONSTANTES (MARCADORES) ---
