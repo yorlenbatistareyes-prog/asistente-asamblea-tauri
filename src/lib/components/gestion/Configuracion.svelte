@@ -1,6 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   
+  // --- STORE IMPORTS ---
+  import { emailTemplates, whatsappTemplates, marcadoresGlobales, type PlantillaEmail, type PlantillaWhatsApp } from '$lib/stores/plantillas';
+
   // --- TIPTAP IMPORTS ---
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
@@ -9,47 +12,77 @@
   import Link from '@tiptap/extension-link';
   import { Color } from '@tiptap/extension-color';
   import { TextStyle } from '@tiptap/extension-text-style';
+  import Highlight from '@tiptap/extension-highlight'; 
 
   // --- ICONOS ---
   import { 
     ArrowLeft, Sliders, Mail, Shield, X,
     Database, CircleHelp, Download, Upload, Trash2, HelpCircle, 
     ChevronDown, ChevronUp, MessageCircle, FileText, RefreshCw, PenTool,
-    Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, Link as LinkIcon 
+    Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify, 
+    Link as LinkIcon, Unlink, RemoveFormatting, List, ListOrdered, 
+    IndentDecrease, IndentIncrease, Type, Baseline, Highlighter, 
+    Minus, Pilcrow, Eye, Code, Undo, Redo, Copy, Clipboard, FileCode, Check
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
+
+  // --- INTERFACES LOCALES ---
+  interface MensajesState {
+      comite: boolean;
+      programa: boolean;
+      audiovideo: boolean;
+      oradores: boolean;
+      oficina: boolean;
+      presidentes: boolean;
+      oraciones: boolean;
+  }
 
   // --- ESTADO GENERAL ---
   let configSeccion = 'general'; 
   
   // --- ESTADO EDICIÓN PLANTILLA ---
   let editandoPlantilla = false;
-  let plantillaActual: any = null;
+  let plantillaActual: PlantillaEmail | null = null;
   let editor: Editor | null = null; 
+  let showSourceCode = false; 
 
-  // Variables Reactivas del Editor
+  // --- MARCADORES ---
+  let marcadoresUI = marcadoresGlobales.map(grp => ({ ...grp }));
+
+  function toggleMarcadorGroup(index: number) {
+      marcadoresUI[index].isOpen = !marcadoresUI[index].isOpen;
+      marcadoresUI = [...marcadoresUI]; 
+  }
+
+  // --- VARIABLES REACTIVAS DEL EDITOR ---
   let isBold = false;
   let isItalic = false;
   let isUnderline = false;
-  let textAlignLeft = false;
-  let textAlignCenter = false;
-  let textAlignRight = false;
-  let textAlignJustify = false;
+  let isStrike = false;
   let isLink = false;
+  let isHighlight = false;
+  let isBulletList = false;
+  let isOrderedList = false;
+  let isCodeBlock = false;
+  let textAlign = 'left';
 
   // Acción para inicializar el editor
   function setupEditor(node: HTMLElement) {
       editor = new Editor({
           element: node,
           extensions: [
-              StarterKit, Underline, TextStyle, Color,
+              StarterKit,
+              Underline,
+              TextStyle,
+              Color,
+              Highlight.configure({ multicolor: true }),
               Link.configure({ openOnClick: false }),
               TextAlign.configure({ types: ['heading', 'paragraph'] }),
           ],
           content: plantillaActual?.body || '',
           onUpdate: ({ editor }) => {
-              plantillaActual.body = editor.getHTML();
+              if (plantillaActual) plantillaActual.body = editor.getHTML();
               updateToolbar();
           },
           onTransaction: () => { updateToolbar(); },
@@ -66,94 +99,122 @@
       isBold = editor.isActive('bold');
       isItalic = editor.isActive('italic');
       isUnderline = editor.isActive('underline');
+      isStrike = editor.isActive('strike');
       isLink = editor.isActive('link');
-      textAlignLeft = editor.isActive({ textAlign: 'left' });
-      textAlignCenter = editor.isActive({ textAlign: 'center' });
-      textAlignRight = editor.isActive({ textAlign: 'right' });
-      textAlignJustify = editor.isActive({ textAlign: 'justify' });
+      isHighlight = editor.isActive('highlight');
+      isBulletList = editor.isActive('bulletList');
+      isOrderedList = editor.isActive('orderedList');
+      isCodeBlock = editor.isActive('codeBlock');
+      
+      if (editor.isActive({ textAlign: 'left' })) textAlign = 'left';
+      else if (editor.isActive({ textAlign: 'center' })) textAlign = 'center';
+      else if (editor.isActive({ textAlign: 'right' })) textAlign = 'right';
+      else if (editor.isActive({ textAlign: 'justify' })) textAlign = 'justify';
+      else textAlign = 'left';
   }
 
-  function toggleBold() { editor?.chain().focus().toggleBold().run(); }
-  function toggleItalic() { editor?.chain().focus().toggleItalic().run(); }
-  function toggleUnderline() { editor?.chain().focus().toggleUnderline().run(); }
-  function setAlign(align: string) { editor?.chain().focus().setTextAlign(align).run(); }
-  function setLink() {
+  // --- FUNCIONES DEL EDITOR ---
+  const toggleBold = () => editor?.chain().focus().toggleBold().run();
+  const toggleItalic = () => editor?.chain().focus().toggleItalic().run();
+  const toggleUnderline = () => editor?.chain().focus().toggleUnderline().run();
+  const toggleStrike = () => editor?.chain().focus().toggleStrike().run(); 
+  const unsetAllMarks = () => editor?.chain().focus().unsetAllMarks().run();
+  
+  const setAlign = (align: string) => editor?.chain().focus().setTextAlign(align).run();
+  
+  const toggleBulletList = () => editor?.chain().focus().toggleBulletList().run();
+  const toggleOrderedList = () => editor?.chain().focus().toggleOrderedList().run();
+  
+  const indent = () => editor?.chain().focus().sinkListItem('listItem').run(); 
+  const outdent = () => editor?.chain().focus().liftListItem('listItem').run();
+
+  const setTextColor = () => {
+      const color = prompt('Color (hex o nombre):', '#000000');
+      if (color) editor?.chain().focus().setColor(color).run();
+  };
+  const toggleHighlight = () => editor?.chain().focus().toggleHighlight().run();
+
+  const setLink = () => {
       const previousUrl = editor?.getAttributes('link').href;
       const url = window.prompt('URL', previousUrl);
       if (url === null) return;
       if (url === '') { editor?.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
       editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  };
+  const unsetLink = () => editor?.chain().focus().unsetLink().run();
+  const addHorizontalRule = () => editor?.chain().focus().setHorizontalRule().run();
+
+  const toggleCodeBlock = () => editor?.chain().focus().toggleCodeBlock().run();
+  const undo = () => editor?.chain().focus().undo().run();
+  const redo = () => editor?.chain().focus().redo().run();
+  
+  const copyContent = () => {
+      if(editor) navigator.clipboard.writeText(editor.getText());
+      alert("Texto copiado al portapapeles");
+  };
+  
+  async function pasteContent() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if(editor) editor.chain().focus().insertContent(text).run();
+      } catch (err) {
+        console.error('Error al pegar:', err);
+      }
   }
 
-  // --- LOGICA DE MARCADORES Y PLANTILLAS ---
-  let plantillasCorreo = [
-      { id: 'comite', title: "Plantilla de correo electrónico a todos los miembros de Comité de asamblea", subject: "", body: "", isOpen: false },
-      { id: 'programa', title: "Plantilla de correo electrónico a Sup. de Programa", subject: "", body: "", isOpen: false },
-      { id: 'av', title: "Plantilla de correo electrónico a Audio y video", subject: "", body: "", isOpen: false },
-      { id: 'oradores', title: "Plantilla de correo electrónico a Oradores del programa", subject: "", body: "", isOpen: false },
-      { id: 'oficina', title: "Plantilla de correo electrónico a Miembros de la Oficina del presidente", subject: "", body: "", isOpen: false },
-      { id: 'presidentes', title: "Plantilla de correo electrónico a Presidentes de Sesión", subject: "", body: "", isOpen: false },
-      { id: 'oraciones', title: "Plantilla de correo electrónico a hermanos que harán oraciones", subject: "", body: "", isOpen: false }
-  ];
+  const toggleSourceView = () => { showSourceCode = !showSourceCode; };
 
-  function togglePlantilla(index: number) {
-      plantillasCorreo[index].isOpen = !plantillasCorreo[index].isOpen;
+
+  // --- LÓGICA GENERAL ---
+  function togglePlantilla(id: string) {
+      emailTemplates.update(items => items.map(p => p.id === id ? { ...p, isOpen: !p.isOpen } : p));
   }
 
-  function editarPlantilla(plantilla: any) {
+  function editarPlantilla(plantilla: PlantillaEmail) {
       plantillaActual = { ...plantilla };
       editandoPlantilla = true;
+      showSourceCode = false;
   }
 
   function guardarPlantillaEditada() {
-      const index = plantillasCorreo.findIndex(p => p.id === plantillaActual.id);
-      if (index !== -1) { plantillasCorreo[index] = { ...plantillaActual }; }
+      if (!plantillaActual) return;
+      emailTemplates.update(items => {
+          const index = items.findIndex(p => p.id === plantillaActual?.id);
+          if (index !== -1 && plantillaActual) {
+              items[index] = { ...plantillaActual, isOpen: false };
+          }
+          return items;
+      });
       editandoPlantilla = false;
       plantillaActual = null;
       alert("Plantilla guardada correctamente.");
   }
 
-  function cancelarEdicionPlantilla() {
-      editandoPlantilla = false;
-      plantillaActual = null;
+  function cancelarEdicionPlantilla() { 
+      editandoPlantilla = false; 
+      plantillaActual = null; 
   }
 
-  function insertarMarcador(marcador: string) {
-      if (editor) { editor.chain().focus().insertContent(` [[${marcador}]] `).run(); }
-      else if (plantillaActual) { plantillaActual.body += ` [[${marcador}]]`; }
+  function insertarMarcador(code: string) {
+      if (editor && !showSourceCode) { 
+          editor.chain().focus().insertContent(` ${code} `).run(); 
+      } else if (plantillaActual) { 
+          plantillaActual.body += ` ${code}`; 
+      }
   }
 
-  // --- MARCADORES (DATOS) ---
-  let marcadoresItems = [
-      { category: "Lista rápida", items: ["Saludo según sexo", "Designación del Circuito"] },
-      { category: "Fechas", items: ["Fecha Actual Mediana", "Fecha Actual Completa"] },
-      { category: "Asignación", items: ["Hora", "Duración", "Tema", "Número de Bosquejo", "Tipo de asignación", "Enlace(s) del Bosquejo", "Notas"] },
-      { category: "Orador", items: ["Nombre", "Segundo nombre", "Apellidos"] },
-      { category: "Lugar", items: ["Nombre del lugar", "Dirección", "Ciudad", "Estado o Provincia"] },
-      { category: "Evento", items: ["Fecha", "Tipo de Evento", "Tema del Evento"] },
-      { category: "Ensayo", items: ["Información completa", "Notas ensayo", "Lugar ensayo", "Fecha/Hora ensayo"] },
-      { category: "Presidente", items: ["Email Presidente", "Teléfono Presidente"] }
-  ];
-  
-  let marcadoresOpen: boolean[] = new Array(marcadoresItems.length).fill(false);
-  marcadoresOpen[0] = true; 
-
-  function toggleMarcadorGroup(index: number) { marcadoresOpen[index] = !marcadoresOpen[index]; }
-
-  // --- WHATSAPP (ACORDEÓN) - CORRECCIÓN DE TIPOS ---
-  // Se usa una estructura manual en el HTML para evitar errores de índice en TS
-  let mensajesOpen = { 
-      comite: false, 
-      programa: false, 
-      audiovideo: false, 
-      oradores: false, 
-      oficina: false, 
-      presidentes: false, 
-      oraciones: false 
+  // --- WHATSAPP ---
+  let mensajesOpen: MensajesState = { 
+      comite: false, programa: false, audiovideo: false, oradores: false, 
+      oficina: false, presidentes: false, oraciones: false 
   };
   
-  function toggleMensaje(key: keyof typeof mensajesOpen) { 
+  function toggleMensaje(key: keyof MensajesState) { 
       mensajesOpen[key] = !mensajesOpen[key]; 
+  }
+  
+  function toggleWhatsapp(id: string) {
+      whatsappTemplates.update(items => items.map(w => w.id === id ? { ...w, isOpen: !w.isOpen } : w));
   }
 
   // --- AYUDA ---
@@ -161,32 +222,56 @@
       { title: "Primeros pasos y configuración inicial", content: "Configure su perfil...", isOpen: false },
       { title: "Personalización de mensajes de WhatsApp", content: "Configure mensajes rápidos...", isOpen: false },
   ];
-  function toggleAyuda(index: number) { ayudaItems[index].isOpen = !ayudaItems[index].isOpen; }
+  
+  function toggleAyuda(index: number) { 
+      if (ayudaItems[index]) {
+          ayudaItems[index].isOpen = !ayudaItems[index].isOpen;
+          ayudaItems = [...ayudaItems];
+      }
+  }
 
-  // Configuración General
+  // --- CONFIGURACIÓN & USUARIO ---
   let config = {
-      msgComite: "", msgPrograma: "", msgAudioVideo: "", msgOradores: "", msgOficina: "", msgPresidentes: "", msgOraciones: "",
       accionPdf: "abrir", idioma: "es",
       email_asignaciones: true, email_general_clase: true, email_recordatorios_clase: true, email_conclusion_clase: true, email_foto_clase: true, email_emergencia: false,
-      usar_cliente_sistema: false, no_precompletar: false
+      usar_cliente_sistema: false, no_precompletar: false,
+      msgComite: "", msgPrograma: "", msgAudioVideo: "", msgOradores: "", msgOficina: "", msgPresidentes: "", msgOraciones: ""
   };
+  
+  $: {
+      $whatsappTemplates.forEach(t => {
+          switch(t.id) {
+              case 'comite': config.msgComite = t.content; break;
+              case 'programa': config.msgPrograma = t.content; break;
+              case 'audiovideo': config.msgAudioVideo = t.content; break;
+              case 'oradores': config.msgOradores = t.content; break;
+              case 'oficina': config.msgOficina = t.content; break;
+              case 'presidentes': config.msgPresidentes = t.content; break;
+              case 'oraciones': config.msgOraciones = t.content; break;
+          }
+      });
+  }
 
-  // Datos de usuario
-  let usuario = {
-      nombre: "Yorlen", segundoNombre: "", apellido: "Batista Reyes", sufijo: "",
-      email: "yorlenbatistareyes@gmail.com", emailJw: "batistareyyorlen7@jwpub.org",
-      movil: "54891111", id: "7164622", fechaCreacion: "4/11/2025" 
-  };
-
-  // --- MODAL USUARIO ---
+  let usuario = { nombre: "Yorlen", segundoNombre: "", apellido: "Batista Reyes", sufijo: "", email: "yorlenbatistareyes@gmail.com", emailJw: "batistareyyorlen7@jwpub.org", movil: "54891111", id: "7164622", fechaCreacion: "4/11/2025" };
   let mostrarModalUsuario = false;
   let usuarioEditando = { ...usuario }; 
   function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
   function guardarUsuario() { usuario = { ...usuarioEditando }; mostrarModalUsuario = false; }
   function cerrar() { dispatch('close'); }
-  function guardarCambiosConfig() { alert("Configuración guardada correctamente"); }
-
-  // --- LÓGICA DE DATOS ---
+  function guardarCambiosConfig() { 
+       whatsappTemplates.update(items => items.map(w => {
+           let content = w.content;
+           if(w.id === 'comite') content = config.msgComite;
+           if(w.id === 'programa') content = config.msgPrograma;
+           if(w.id === 'audiovideo') content = config.msgAudioVideo;
+           if(w.id === 'oradores') content = config.msgOradores;
+           if(w.id === 'oficina') content = config.msgOficina;
+           if(w.id === 'presidentes') content = config.msgPresidentes;
+           if(w.id === 'oraciones') content = config.msgOraciones;
+           return {...w, content};
+       }));
+      alert("Configuración guardada correctamente"); 
+  }
   async function respaldarDatos() { alert("Iniciando copia de seguridad..."); }
   async function restaurarDatos() { if(confirm("¿Sobrescribir datos actuales?")) alert("Seleccionar archivo..."); }
   async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }
@@ -239,20 +324,54 @@
                             <input type="text" bind:value={plantillaActual.subject} class="input-subject" />
                             
                             <label>Cuerpo</label>
-                            <div class="toolbar-reactive">
-                                <button class="tool-btn" class:active={isBold} on:click={toggleBold} title="Negrita"><Bold size={16}/></button>
-                                <button class="tool-btn" class:active={isItalic} on:click={toggleItalic} title="Cursiva"><Italic size={16}/></button>
-                                <button class="tool-btn" class:active={isUnderline} on:click={toggleUnderline} title="Subrayado"><UnderlineIcon size={16}/></button>
-                                <div class="sep"></div>
-                                <button class="tool-btn" class:active={textAlignLeft} on:click={() => setAlign('left')}><AlignLeft size={16}/></button>
-                                <button class="tool-btn" class:active={textAlignCenter} on:click={() => setAlign('center')}><AlignCenter size={16}/></button>
-                                <button class="tool-btn" class:active={textAlignRight} on:click={() => setAlign('right')}><AlignRight size={16}/></button>
-                                <button class="tool-btn" class:active={textAlignJustify} on:click={() => setAlign('justify')}><AlignJustify size={16}/></button>
-                                <div class="sep"></div>
-                                <button class="tool-btn" class:active={isLink} on:click={setLink}><LinkIcon size={16}/></button>
+                            
+                            <div class="toolbar-ribbon">
+                                <div class="toolbar-row">
+                                    <button class="tool-btn" class:active={isBold} on:click={toggleBold} title="Negrita"><Bold size={16}/></button>
+                                    <button class="tool-btn" class:active={isItalic} on:click={toggleItalic} title="Cursiva"><Italic size={16}/></button>
+                                    <button class="tool-btn" class:active={isUnderline} on:click={toggleUnderline} title="Subrayado"><UnderlineIcon size={16}/></button>
+                                    <button class="tool-btn" class:active={isStrike} on:click={toggleStrike} title="Tachado"><RemoveFormatting size={16}/></button>
+                                    <button class="tool-btn" on:click={unsetAllMarks} title="Borrar formato"><X size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" class:active={textAlign === 'left'} on:click={() => setAlign('left')} title="Izquierda"><AlignLeft size={16}/></button>
+                                    <button class="tool-btn" class:active={textAlign === 'center'} on:click={() => setAlign('center')} title="Centrar"><AlignCenter size={16}/></button>
+                                    <button class="tool-btn" class:active={textAlign === 'right'} on:click={() => setAlign('right')} title="Derecha"><AlignRight size={16}/></button>
+                                    <button class="tool-btn" class:active={textAlign === 'justify'} on:click={() => setAlign('justify')} title="Justificar"><AlignJustify size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" class:active={isBulletList} on:click={toggleBulletList} title="Viñetas"><List size={16}/></button>
+                                    <button class="tool-btn" class:active={isOrderedList} on:click={toggleOrderedList} title="Lista numerada"><ListOrdered size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" on:click={outdent} title="Disminuir sangría"><IndentDecrease size={16}/></button>
+                                    <button class="tool-btn" on:click={indent} title="Aumentar sangría"><IndentIncrease size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" on:click={setTextColor} title="Color de texto"><div class="color-indicator">A</div></button>
+                                    <button class="tool-btn" class:active={isHighlight} on:click={toggleHighlight} title="Resaltado"><Highlighter size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" class:active={isLink} on:click={setLink} title="Insertar enlace"><LinkIcon size={16}/></button>
+                                    <button class="tool-btn" on:click={unsetLink} title="Quitar enlace"><Unlink size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" on:click={addHorizontalRule} title="Línea horizontal"><Minus size={16}/></button>
+                                </div>
+
+                                <div class="toolbar-row">
+                                    <button class="tool-btn" title="Párrafo"><Pilcrow size={16}/></button>
+                                    <button class="tool-btn" class:active={!showSourceCode} on:click={() => showSourceCode = false} title="Vista previa"><Eye size={16}/></button>
+                                    <button class="tool-btn" class:active={showSourceCode} on:click={toggleSourceView} title="Ver código fuente"><FileCode size={16}/></button>
+                                    <button class="tool-btn" class:active={isCodeBlock} on:click={toggleCodeBlock} title="Bloque de código"><Code size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" on:click={undo} title="Deshacer"><Undo size={16}/></button>
+                                    <button class="tool-btn" on:click={redo} title="Rehacer"><Redo size={16}/></button>
+                                    <div class="sep"></div>
+                                    <button class="tool-btn" on:click={copyContent} title="Copiar"><Copy size={16}/></button>
+                                    <button class="tool-btn" on:click={pasteContent} title="Pegar"><Clipboard size={16}/></button>
+                                </div>
                             </div>
                             
-                            <div class="editor-container" use:setupEditor></div>
+                            {#if showSourceCode}
+                                <textarea class="source-code-view" bind:value={plantillaActual.body}></textarea>
+                            {:else}
+                                <div class="editor-container" use:setupEditor></div>
+                            {/if}
                         </div>
 
                         <div class="editor-footer-actions">
@@ -264,16 +383,24 @@
                     <div class="editor-sidebar">
                         <div class="sidebar-title">Marcadores de posición</div>
                         <div class="markers-accordion">
-                            {#each marcadoresItems as group, i}
+                            {#each marcadoresUI as group, i}
                                 <div class="marker-group-item">
                                     <button class="marker-header" on:click={() => toggleMarcadorGroup(i)}>
                                         <span>{group.category}</span>
-                                        {#if marcadoresOpen[i]}<ChevronUp size={14}/>{:else}<ChevronDown size={14}/>{/if}
+                                        {#if group.isOpen}<ChevronUp size={14}/>{:else}<ChevronDown size={14}/>{/if}
                                     </button>
-                                    {#if marcadoresOpen[i]}
+                                    {#if group.isOpen}
                                         <div class="marker-content">
                                             {#each group.items as item}
-                                                <button class="marker-pill" on:click={() => insertarMarcador(item)}>{item}</button>
+                                                <button class="marker-pill" on:click={() => insertarMarcador(item.code)} title={item.label}>
+                                                    <div class="marker-content-row">
+                                                        <span class="m-label">{item.label}</span>
+                                                    </div>
+                                                    {#if item.desc}
+                                                        <div class="marker-row-desc">{item.desc}</div>
+                                                    {/if}
+                                                    <div class="m-code">{item.code}</div>
+                                                </button>
                                             {/each}
                                         </div>
                                     {/if}
@@ -380,7 +507,10 @@
                 </div>
 
                 <div class="user-info-section">
-                    <div class="user-info-header"><h3>Información del usuario</h3><button class="btn-edit-user" on:click={abrirModalUsuario}>Editar</button></div>
+                    <div class="user-info-header">
+                        <h3>Información del usuario</h3>
+                        <button class="btn-edit-user" on:click={abrirModalUsuario}>Editar</button>
+                    </div>
                     <div class="user-info-grid">
                         <div class="ui-item"><label>nombre completo</label><span>{usuario.nombre} {usuario.apellido}</span></div>
                         <div class="ui-item"><label>Correo electrónico</label><span>{usuario.email}</span></div>
@@ -394,27 +524,24 @@
             {:else if configSeccion === 'correos'}
                 <div class="mail-templates-container">
                     <div class="accordion-list">
-                        {#each plantillasCorreo as plantilla, index}
+                        {#each $emailTemplates as plantilla (plantilla.id)}
                             <div class="accordion-item">
-                                <button class="accordion-header" on:click={() => togglePlantilla(index)}>
+                                <button class="accordion-header" on:click={() => togglePlantilla(plantilla.id)}>
                                     <div class="acc-title"><FileText size={16}/> {plantilla.title}</div>
                                     {#if plantilla.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
                                 </button>
                                 {#if plantilla.isOpen}
                                     <div class="accordion-body-template">
-                                        
                                         <div class="preview-group">
                                             <label>Asunto</label>
                                             <input type="text" value={plantilla.subject || '(Sin asunto)'} readonly class="preview-input"/>
                                         </div>
-
                                         <div class="preview-group">
                                             <label>Cuerpo</label>
                                             <div class="preview-textarea">
                                                 {@html plantilla.body || '<span style="color:var(--text-secondary); font-style:italic;">(Sin contenido...)</span>'}
                                             </div>
                                         </div>
-
                                         <div class="template-actions">
                                             <button class="btn-template-action left" on:click={() => editarPlantilla(plantilla)}><PenTool size={14}/> Editar</button>
                                             <div class="group-center">
@@ -432,15 +559,31 @@
 
             {:else if configSeccion === 'datos'}
                 <div class="data-management-container">
-                    <div class="data-card"><div class="data-icon-wrapper blue"><Upload size={24}/></div><div class="data-content"><h3>Respaldar Datos</h3><p>Guardar copia.</p></div><button class="btn-data-action primary">Respaldar</button></div>
+                    <div class="data-card">
+                        <div class="data-icon-wrapper blue"><Upload size={24} /></div> <div class="data-content"><h3>Respaldar Datos</h3><p>Guardar copia de seguridad.</p></div>
+                        <button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button>
                     </div>
+                    <div class="data-card">
+                        <div class="data-icon-wrapper green"><Download size={24} /></div> <div class="data-content"><h3>Restaurar Datos</h3><p>Cargar copia de seguridad.</p></div>
+                        <button class="btn-data-action secondary" on:click={restaurarDatos}>Restaurar</button>
+                    </div>
+                    <div class="data-card danger-zone">
+                        <div class="data-icon-wrapper red"><Trash2 size={24} /></div> <div class="data-content"><h3>Limpiar Todo</h3><p>Borrar base de datos.</p></div>
+                        <button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button>
+                    </div>
+                </div>
             {:else if configSeccion === 'ayuda'}
                 <div class="help-container">
                     <div class="accordion-list">
                         {#each ayudaItems as item, i}
                             <div class="accordion-item">
-                                <button class="accordion-header" on:click={() => toggleAyuda(i)}><div class="acc-title"><HelpCircle size={16}/> {item.title}</div>{#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}</button>
-                                {#if item.isOpen}<div class="accordion-body"><p>{item.content}</p></div>{/if}
+                                <button class="accordion-header" on:click={() => toggleAyuda(i)}>
+                                    <div class="acc-title"><HelpCircle size={16}/> {item.title}</div>
+                                    {#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
+                                </button>
+                                {#if item.isOpen}
+                                    <div class="accordion-body"><p class="help-text-content">{item.content}</p></div>
+                                {/if}
                             </div>
                         {/each}
                     </div>
@@ -456,7 +599,13 @@
                 <div class="modal-body-user">
                     <div class="form-user-grid">
                         <div class="input-group"><label>Nombre</label><input type="text" bind:value={usuarioEditando.nombre} /></div>
-                        <div class="input-group"><label>Email</label><input type="email" bind:value={usuarioEditando.email} /></div>
+                        <div class="input-group"><label>Segundo nombre</label><input type="text" bind:value={usuarioEditando.segundoNombre} /></div>
+                        <div class="input-group"><label>Apellido</label><input type="text" bind:value={usuarioEditando.apellido} /></div>
+                        <div class="input-group"><label>Sufijo</label><input type="text" bind:value={usuarioEditando.sufijo} /></div>
+                        <div class="input-group"><label>Correo electrónico</label><input type="email" bind:value={usuarioEditando.email} /></div>
+                        <div class="input-group"><label>Correo electrónico JWPub</label><input type="email" bind:value={usuarioEditando.emailJw} /></div>
+                        <div class="input-group"><label>Móvil</label><input type="text" bind:value={usuarioEditando.movil} /></div>
+                        <div class="input-group"><label>Número de identificación</label><input type="text" bind:value={usuarioEditando.id} /></div>
                     </div>
                 </div>
                 <div class="modal-footer-user"><button class="btn-cancel-user" on:click={() => mostrarModalUsuario = false}>Cancelar</button><button class="btn-save-user" on:click={guardarUsuario}>Guardar</button></div>
@@ -469,7 +618,7 @@
   /* VARIABLES */
   .config-layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; background: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', sans-serif; }
   
-  /* Sidebar */
+  /* Sidebar y Header */
   .config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; }
   .config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
   .config-header h2 { margin: 15px 0 0; font-size: 1.2rem; }
@@ -494,35 +643,53 @@
   .editor-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; height: 100%; }
   .editor-main { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
   .editor-header-bar { background: var(--bg-secondary); padding: 10px 20px; border-bottom: 1px solid var(--border-color); font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-main); }
-  .btn-close-editor { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
+  .title-wrap { display: flex; align-items: center; gap: 8px; }
+  .btn-close-editor { background: none; border: none; cursor: pointer; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px; }
+  .btn-close-editor:hover { background: var(--hover-bg); color: var(--text-main); }
   
   .editor-form { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow-y: hidden; }
   .editor-form label { font-weight: 700; font-size: 13px; color: var(--text-secondary); margin-top: 10px; }
   .input-subject { padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-main); font-size: 14px; }
   
-  .toolbar-reactive { display: flex; gap: 5px; padding: 5px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-bottom: none; border-radius: 4px 4px 0 0; }
-  .tool-btn { background: none; border: 1px solid transparent; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 3px; display: flex; align-items: center; }
+  /* BARRA CINTA (RIBBON) */
+  .toolbar-ribbon { background: var(--bg-secondary); border: 1px solid var(--border-color); border-bottom: none; border-radius: 4px 4px 0 0; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .toolbar-row { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; }
+  
+  .tool-btn { background: none; border: 1px solid transparent; padding: 4px; cursor: pointer; color: var(--text-secondary); border-radius: 3px; display: flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; }
   .tool-btn:hover { background: var(--hover-bg); color: var(--text-main); }
   .tool-btn.active { background: #dbeafe; border-color: #bfdbfe; color: var(--primary); }
-  .sep { width: 1px; background: var(--border-color); margin: 0 5px; }
+  :global(html.dark-theme) .tool-btn.active { background: #1e3a8a; border-color: #1e40af; }
+  .sep { width: 1px; height: 18px; background: var(--border-color); margin: 0 4px; }
   
-  .editor-container { flex: 1; padding: 15px; border: 1px solid var(--border-color); border-radius: 0 0 4px 4px; background: var(--input-bg); color: var(--text-main); overflow-y: auto; cursor: text; }
-  :global(.ProseMirror) { height: 100%; outline: none; }
-  
-  .editor-footer-actions { padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; background: var(--bg-card); }
-  .btn-cancelar-editor { background: #ea580c; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-  .btn-guardar-editor { background: #ea580c; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .color-indicator { font-weight: 900; font-family: serif; border-bottom: 3px solid #d32f2f; line-height: 12px; }
 
+  .editor-container { flex: 1; padding: 15px; border: 1px solid var(--border-color); border-radius: 0 0 4px 4px; background: var(--input-bg); color: var(--text-main); overflow-y: auto; cursor: text; }
+  .source-code-view { flex: 1; padding: 15px; border: 1px solid var(--border-color); border-radius: 0 0 4px 4px; background: #1e1e1e; color: #d4d4d4; font-family: monospace; resize: none; }
+  
+  :global(.ProseMirror) { height: 100%; outline: none; }
+  :global(.ProseMirror p) { margin-top: 0; margin-bottom: 0.5em; }
+
+  .editor-footer-actions { padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; background: var(--bg-card); }
+  .btn-cancelar-editor { background: #e2580c; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .btn-guardar-editor { background: #e2580c; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+  /* SIDEBAR MARCADORES */
   .editor-sidebar { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
   .sidebar-title { padding: 15px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--text-main); font-size: 14px; }
   .markers-accordion { overflow-y: auto; flex: 1; }
+  .marker-group-item { border-bottom: 1px solid var(--border-color); }
   .marker-header { width: 100%; display: flex; justify-content: space-between; padding: 10px 15px; background: transparent; border: none; border-bottom: 1px solid var(--border-color); cursor: pointer; text-align: left; font-size: 13px; color: var(--text-main); font-weight: 500; }
   .marker-header:hover { background: var(--hover-bg); }
-  .marker-content { background: var(--bg-body); padding: 10px; display: flex; flex-direction: column; gap: 5px; }
-  .marker-pill { background: var(--bg-card); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; text-align: left; color: var(--text-secondary); }
-  .marker-pill:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
+  .marker-content { background: var(--bg-body); padding: 5px 0; }
+  .marker-pill { display: block; width: 100%; text-align: left; padding: 8px 15px; border: none; background: transparent; font-size: 11px; cursor: pointer; color: var(--text-main); border-bottom: 1px solid rgba(0,0,0,0.03); }
+  .marker-pill:last-child { border-bottom: none; }
+  .marker-pill:hover { background: var(--hover-bg); }
+  .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
+  .m-label { font-weight: 600; color: var(--text-main); }
+  .marker-row-desc { font-size: 10px; color: var(--text-secondary); font-style: italic; margin-bottom: 2px; }
+  .m-code { font-size: 10px; color: var(--primary); font-family: monospace; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 3px; width: fit-content; }
 
-  /* OTROS */
+  /* OTROS ESTILOS (Acordeones, Inputs, etc.) */
   .accordion-list { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
   .accordion-item { border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
   .accordion-header { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: var(--bg-card); border: none; cursor: pointer; color: var(--text-main); }
@@ -535,33 +702,11 @@
   
   .preview-group { margin-bottom: 15px; }
   .preview-group label { display: block; font-weight: 700; font-size: 13px; color: var(--text-main); margin-bottom: 5px; }
-  /* Estilo visual ajustado: Fondo blanco (input-bg), borde sutil, relleno cómodo */
-  .preview-input { 
-      width: 100%; 
-      padding: 10px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 4px; 
-      background: var(--bg-card); /* Se adapta al tema */
-      color: var(--text-secondary); /* Color texto secundario para indicar solo lectura */
-      font-size: 14px; 
-      box-sizing: border-box; 
-  }
-  .preview-textarea { 
-      width: 100%; 
-      padding: 15px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 4px; 
-      background: var(--bg-card); 
-      color: var(--text-secondary); 
-      font-size: 14px; 
-      min-height: 100px; 
-      max-height: 300px; 
-      box-sizing: border-box; 
-      overflow-y: auto; 
-  }
+  
+  .preview-input { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); font-size: 14px; box-sizing: border-box; }
+  .preview-textarea { width: 100%; padding: 15px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); font-size: 14px; min-height: 100px; max-height: 300px; box-sizing: border-box; overflow-y: auto; }
 
   .template-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
-  /* Botones color vino */
   .btn-template-action { background: #5f1d22; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
   .btn-template-action:hover { background: #4a1519; }
   .group-center { display: flex; gap: 10px; }
@@ -574,7 +719,6 @@
   .radio-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
   .active-radio { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
   
-  /* Toggles */
   .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
   .switch input { opacity: 0; width: 0; height: 0; }
   .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; }
@@ -586,6 +730,45 @@
   .desc-text { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
   .mt-large { margin-top: 30px; }
   .group-label-icon { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 10px; }
+
+  /* User Info (RESTAURADO) */
+  .user-info-section { 
+      grid-column: span 2; 
+      background: var(--bg-card); 
+      border: 1px solid var(--border-color); 
+      border-radius: 8px; 
+      padding: 25px; 
+      margin-top: 20px; 
+      margin-bottom: 40px; 
+      box-shadow: 0 2px 5px var(--shadow-color); 
+  }
+  .user-info-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
+  .user-info-header h3 { margin: 0; font-size: 20px; color: var(--text-main); font-weight: 700; }
+  .btn-edit-user { background: #ea580c; color: white; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .user-info-grid { 
+      display: grid; 
+      grid-template-columns: repeat(3, 1fr); 
+      gap: 30px; 
+  }
+  .ui-item { display: flex; flex-direction: column; gap: 4px; }
+  .ui-item label { font-size: 12px; color: var(--text-secondary); text-transform: lowercase; }
+  .ui-item label::first-letter { text-transform: uppercase; }
+  .ui-item span { font-size: 15px; color: var(--text-main); font-weight: 400; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+  .modal-content-user { background: var(--bg-card); padding: 0; border-radius: 8px; width: 800px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; border: 1px solid var(--border-color); }
+  .modal-header-user { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-bottom: 1px solid var(--border-color); }
+  .modal-header-user h3 { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); }
+  .btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
+  .modal-body-user { padding: 30px; background: var(--bg-card); }
+  .form-user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 30px; }
+  .input-group { display: flex; flex-direction: column; gap: 5px; }
+  .input-group label { font-size: 13px; color: var(--text-secondary); font-weight: 400; }
+  .input-group input { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 4px; width: 100%; box-sizing: border-box; background: var(--input-bg); font-size: 15px; color: var(--text-main); }
+  .modal-footer-user { padding: 20px 30px; display: flex; justify-content: flex-end; gap: 15px; background: var(--bg-card); }
+  .btn-cancel-user { background: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; }
+  .btn-save-user { background: #ea580c; border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; }
 
   /* Datos & Ayuda */
   .data-management-container { max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
