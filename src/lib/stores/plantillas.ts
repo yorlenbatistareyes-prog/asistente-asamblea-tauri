@@ -1,19 +1,13 @@
 import { writable } from 'svelte/store';
 
-// --- INTERFACES ---
-export interface PlantillaEmail {
+// --- INTERFAZ UNIFICADA ---
+// Usaremos esta misma estructura para Correos y WhatsApp
+export interface Plantilla {
     id: string;
-    title: string;
-    subject: string;
-    body: string;
-    isOpen: boolean;
-}
-
-export interface PlantillaWhatsApp {
-    id: string;
-    label: string;
-    content: string;
-    isOpen: boolean;
+    title: string;   // Título visible en la lista (ej: "Mensaje a Oradores")
+    subject: string; // Asunto del correo o Referencia del mensaje
+    body: string;    // El contenido (HTML del editor)
+    isOpen: boolean; // Para abrir/cerrar el acordeón
 }
 
 export interface MarcadorItem {
@@ -30,29 +24,28 @@ export interface MarcadorGrupo {
 }
 
 // --- DATOS INICIALES (CORREOS) ---
-const plantillasEmailDefault: PlantillaEmail[] = [
-    { id: 'comite', title: "Plantilla de correo electrónico a todos los miembros de Comité de asamblea", subject: "", body: "", isOpen: false },
-    { id: 'programa', title: "Plantilla de correo electrónico a Sup. de Programa", subject: "", body: "", isOpen: false },
-    { id: 'av', title: "Plantilla de correo electrónico a Audio y video", subject: "", body: "", isOpen: false },
-    { id: 'oradores', title: "Plantilla de correo electrónico a Oradores del programa", subject: "", body: "", isOpen: false },
-    { id: 'oficina', title: "Plantilla de correo electrónico a Miembros de la Oficina del presidente", subject: "", body: "", isOpen: false },
-    { id: 'presidentes', title: "Plantilla de correo electrónico a Presidentes de Sesión", subject: "", body: "", isOpen: false },
-    { id: 'oraciones', title: "Plantilla de correo electrónico a hermanos que harán oraciones", subject: "", body: "", isOpen: false }
+const plantillasEmailDefault: Plantilla[] = [
+    { id: 'comite', title: "Correo a Comité de asamblea", subject: "", body: "", isOpen: false },
+    { id: 'programa', title: "Correo a Sup. de Programa", subject: "", body: "", isOpen: false },
+    { id: 'av', title: "Correo a Audio y video", subject: "", body: "", isOpen: false },
+    { id: 'oradores', title: "Correo a Oradores del programa", subject: "", body: "", isOpen: false },
+    { id: 'oficina', title: "Correo a Oficina del presidente", subject: "", body: "", isOpen: false },
+    { id: 'presidentes', title: "Correo a Presidentes de Sesión", subject: "", body: "", isOpen: false },
+    { id: 'oraciones', title: "Correo a Hermanos de oraciones", subject: "", body: "", isOpen: false }
 ];
 
-// --- DATOS INICIALES (WHATSAPP) ---
-const plantillasWhatsAppDefault: PlantillaWhatsApp[] = [
-    { id: 'comite', label: 'Mensaje a Comité', content: "", isOpen: false },
-    { id: 'programa', label: 'Mensaje a Sup. Programa', content: "", isOpen: false },
-    { id: 'audiovideo', label: 'Mensaje a Audio y Video', content: "", isOpen: false },
-    { id: 'oradores', label: 'Mensaje a Oradores', content: "", isOpen: false },
-    { id: 'oficina', label: 'Mensaje a Oficina', content: "", isOpen: false },
-    { id: 'presidentes', label: 'Mensaje a Presidentes', content: "", isOpen: false },
-    { id: 'oraciones', label: 'Mensaje a Oraciones', content: "", isOpen: false }
+// --- DATOS INICIALES (WHATSAPP) - AHORA CON LA MISMA ESTRUCTURA ---
+const plantillasWhatsAppDefault: Plantilla[] = [
+    { id: 'comite', title: 'Mensaje WhatsApp a Comité', subject: "Aviso Comité", body: "", isOpen: false },
+    { id: 'programa', title: 'Mensaje WhatsApp a Sup. Programa', subject: "Aviso Programa", body: "", isOpen: false },
+    { id: 'audiovideo', title: 'Mensaje WhatsApp a Audio y Video', subject: "Aviso A/V", body: "", isOpen: false },
+    { id: 'oradores', title: 'Mensaje WhatsApp a Oradores', subject: "Recordatorio Asignación", body: "", isOpen: false },
+    { id: 'oficina', title: 'Mensaje WhatsApp a Oficina', subject: "Aviso Oficina", body: "", isOpen: false },
+    { id: 'presidentes', title: 'Mensaje WhatsApp a Presidentes', subject: "Recordatorio Presidencia", body: "", isOpen: false },
+    { id: 'oraciones', title: 'Mensaje WhatsApp a Oraciones', subject: "Recordatorio Oración", body: "", isOpen: false }
 ];
 
 // --- DATOS CONSTANTES (MARCADORES) ---
-// Estos no necesitan ser un store escribible si no cambian, pero los exportamos para usarlos.
 export const marcadoresGlobales: MarcadorGrupo[] = [
     {
         category: "Lista rápida",
@@ -142,5 +135,5 @@ export const marcadoresGlobales: MarcadorGrupo[] = [
 ];
 
 // --- STORES ---
-export const emailTemplates = writable<PlantillaEmail[]>(plantillasEmailDefault);
-export const whatsappTemplates = writable<PlantillaWhatsApp[]>(plantillasWhatsAppDefault);
+export const emailTemplates = writable<Plantilla[]>(plantillasEmailDefault);
+export const whatsappTemplates = writable<Plantilla[]>(plantillasWhatsAppDefault);
