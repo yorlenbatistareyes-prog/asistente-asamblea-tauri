@@ -3,7 +3,6 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-// Mantenemos la versión v7 para asegurar consistencia
 const DB_NAME: &str = "asamblea_db_v7.sqlite";
 
 pub fn obtener_ruta_db(app: &AppHandle) -> PathBuf {
@@ -69,7 +68,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 4. PERSONAS (Ajustado con congregacion directa para simplificar reportes) ---
+    // --- 4. PERSONAS ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS personas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -87,7 +86,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 5. PROGRAMA ---
+    // --- 5. PROGRAMA (Ajustado con numero_bosquejo) ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS programa (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -102,6 +101,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         es_video BOOLEAN DEFAULT 0, 
         estado TEXT DEFAULT 'Pendiente', 
         esta_presente BOOLEAN DEFAULT 0, 
+        numero_bosquejo TEXT, -- <--- NUEVO: Soporte en la creación
         FOREIGN KEY(persona_id) REFERENCES personas(id),
         FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
     )",
@@ -130,11 +130,12 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN sexo TEXT DEFAULT 'M'", []);
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN congregacion TEXT", []);
     let _ = conn.execute("ALTER TABLE asignaciones_especiales ADD COLUMN fecha TEXT", []);
-    
-    // Migraciones de asambleas
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_lugar TEXT", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_fecha TEXT", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_hora TEXT", []);
+    
+    // 👇 MIGRACIÓN CRÍTICA: Añade la columna si no existe para no perder datos
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
 
     Ok(())
 }

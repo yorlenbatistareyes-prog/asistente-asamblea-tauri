@@ -14,44 +14,67 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
             return;
         }
 
-        // 2. REEMPLAZO DE MARCADORES (Se mantiene igual)
+        // 2. REEMPLAZO DE MARCADORES (ACTUALIZADO COMPLETO)
         const mapaReemplazo: Record<string, string> = {
-            '[[Nombre]]': datos.nombre || 'Hermano',
-            '[[Tema]]': datos.tema || '',
-            '[[Fecha]]': datos.fecha_asignacion || '---',
-            '[[Hora]]': datos.hora_asignacion || '---',
-            '[[Lugar]]': datos.lugar || 'Salón de Asambleas',
-            '[[Saludo según sexo]]': datos.saludo || 'Hermano'
+            '[[Fecha Actual Completa]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
+            '[[Saludo según sexo]]': datos.saludo || 'Hermano',
+            '[[Nombre]]': datos.nombre || '',
+            '[[Apellidos]]': datos.apellidos || '',
+            
+            // Datos del Evento
+            '[[Fecha]]': datos.fecha_asignacion || '---', 
+            '[[Tipo de Evento]]': datos.tipo_evento || 'Asamblea Regional',
+            '[[Tema del Evento]]': datos.tema_evento || '',
+            
+            // Datos del Lugar
+            '[[Nombre del lugar]]': datos.lugar || '',
+            '[[Dirección]]': datos.direccion || '',
+            '[[Ciudad]]': datos.ciudad || '',
+            '[[Estado o Provincia]]': datos.estado || '',
+
+            // Datos de la Asignación
+            '[[Número de Bosquejo]]': datos.numero_bosquejo || '---',
+            '[[Tema]]': datos.tema || '', 
+            '[[Hora]]': datos.hora_asignacion || '',
+            '[[Tipo de asignación]]': datos.tipo_asignacion || 'Discurso',
+            '[[Enlace(s) del Bosquejo]]': datos.enlace_bosquejo || '',
+
+            // Datos de Ensayos e Instrucciones
+            '[[Fecha de ensayos]]': datos.fecha_ensayo || '---',
+            '[[Hora de ensayos]]': datos.hora_ensayo || '---',
+            '[[Lugar de los ensayos]]': datos.lugar_ensayo || '',
+            '[[Información de orientaciones]]': datos.orientaciones || '',
+            '[[Instrucciones Especiales]]': datos.instrucciones || ''
         };
 
         for (const [marcador, valor] of Object.entries(mapaReemplazo)) {
+            // Aseguramos que el valor sea una cadena y manejamos caracteres especiales de Regex
+            const valStr = valor ? String(valor) : "";
             const regex = new RegExp(marcador.replace(/\[/g, '\\[').replace(/\]/g, '\\]'), 'g');
-            htmlContent = htmlContent.replace(regex, valor); 
+            htmlContent = htmlContent.replace(regex, valStr); 
         }
 
-        // 3. CREAR CONTENEDOR TEMPORAL (Punto crítico)
+        // 3. CREAR CONTENEDOR TEMPORAL
         const container = document.createElement('div');
         container.id = "temp-pdf-container";
         
-        // Estilos para que jsPDF lo vea pero el usuario no
         Object.assign(container.style, {
             position: 'absolute',
             top: '0',
             left: '0',
-            width: '180mm', // Ancho fijo para evitar que se comprima
+            width: '180mm',
             padding: '20mm',
             backgroundColor: 'white',
             color: 'black',
             zIndex: '-9999',
-            opacity: '1',      // ¡Debe ser 1! Si es 0, sale en blanco
+            opacity: '1',
             visibility: 'visible'
         });
 
         container.innerHTML = htmlContent;
         document.body.appendChild(container);
 
-        // --- ESPERA DE RENDERIZADO ---
-        // Damos tiempo a que el navegador "dibuje" el HTML internamente
+        // Espera de renderizado para asegurar que las fuentes y estilos se apliquen
         await new Promise(resolve => setTimeout(resolve, 250));
 
         // 4. GENERAR DOCUMENTO
@@ -64,10 +87,9 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
         await doc.html(container, {
             x: 0,
             y: 0,
-            width: 210, // Ancho total de la página A4
-            windowWidth: 800, // Escala virtual para que no salga pequeño
+            width: 210,
+            windowWidth: 800,
             callback: async function (doc) {
-                // Limpiar el DOM
                 document.body.removeChild(container);
 
                 const pdfArrayBuffer = doc.output('arraybuffer');
