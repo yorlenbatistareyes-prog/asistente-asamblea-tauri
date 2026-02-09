@@ -68,7 +68,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 4. PERSONAS ---
+    // --- 4. PERSONAS (Aseguramos columna 'sexo') ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS personas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -86,7 +86,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 5. PROGRAMA (Ajustado con numero_bosquejo) ---
+    // --- 5. PROGRAMA (Unificado a 'orador_id') ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS programa (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -97,12 +97,12 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         tema TEXT NOT NULL, 
         tipo TEXT DEFAULT 'Discurso', 
         duracion INTEGER, 
-        persona_id INTEGER, 
+        orador_id INTEGER, -- <--- CAMBIADO: Antes era persona_id
         es_video BOOLEAN DEFAULT 0, 
         estado TEXT DEFAULT 'Pendiente', 
         esta_presente BOOLEAN DEFAULT 0, 
-        numero_bosquejo TEXT, -- <--- NUEVO: Soporte en la creación
-        FOREIGN KEY(persona_id) REFERENCES personas(id),
+        numero_bosquejo TEXT, 
+        FOREIGN KEY(orador_id) REFERENCES personas(id),
         FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
     )",
         [],
@@ -126,16 +126,11 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     // --- 7. PLANTILLAS ---
     conn.execute("CREATE TABLE IF NOT EXISTS plantillas_cartas (id TEXT PRIMARY KEY, contenido_html TEXT NOT NULL)", [])?;
 
-    // --- MIGRACIONES PREVENTIVAS ---
+    // --- MIGRACIONES PREVENTIVAS (Para bases de datos existentes) ---
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN sexo TEXT DEFAULT 'M'", []);
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN congregacion TEXT", []);
-    let _ = conn.execute("ALTER TABLE asignaciones_especiales ADD COLUMN fecha TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_lugar TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_fecha TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_hora TEXT", []);
-    
-    // 👇 MIGRACIÓN CRÍTICA: Añade la columna si no existe para no perder datos
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
     Ok(())
 }

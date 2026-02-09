@@ -30,8 +30,12 @@
 
   async function cargarDatos() {
     try {
-      personas = await invoke('obtener_personas', { asambleaId });
-      congregaciones = await invoke('obtener_congregaciones', { asambleaId });
+      // Usamos desestructuración para asegurar que las variables se actualicen correctamente
+      const resPersonas = await invoke('obtener_personas', { asambleaId });
+      const resCongs = await invoke('obtener_congregaciones', { asambleaId });
+      
+      personas = [...(resPersonas as any[])];
+      congregaciones = [...(resCongs as any[])];
     } catch (e) { console.error(e); }
   }
 
@@ -54,7 +58,7 @@
       await invoke('crear_persona', { 
         asambleaId, 
         nombreCompleto: nombre, 
-        genero: "Hombre", 
+        sexo: "M", // Ajustado para coincidir con tu base de datos actual
         privilegios: privilegio,
         idCongregacion: idCong, 
         telefono, 
@@ -62,7 +66,7 @@
       });
       
       nombre = ""; telefono = ""; email = ""; privilegio = ""; idCongregacion = null;
-      cargarDatos();
+      await cargarDatos();
     } catch (e) { alert("Error: " + e); }
   }
 
@@ -76,7 +80,11 @@
             rutaArchivo: archivo 
         });
         alert(mensaje);
-        cargarDatos(); 
+        
+        // Pequeño retraso para que la base de datos termine de procesar y Svelte refresque la lista
+        setTimeout(async () => {
+            await cargarDatos();
+        }, 300);
       }
     } catch (e) { alert("Error: " + e); }
   }
@@ -86,7 +94,7 @@
     if(!confirm(`¿Eliminar a ${nombreP}?`)) return;
     try {
         await invoke('eliminar_persona', { id });
-        cargarDatos();
+        await cargarDatos();
     } catch(e) { alert(e); }
   }
 
@@ -95,7 +103,7 @@
     if(!confirm("⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán las personas de ESTA asamblea.\nLos discursos asignados quedarán vacíos.")) return;
     try {
         await invoke('limpiar_personas', { asambleaId });
-        cargarDatos();
+        await cargarDatos();
     } catch(e) { alert(e); }
   }
 </script>

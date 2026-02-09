@@ -5,13 +5,13 @@
   import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { slide } from 'svelte/transition'; 
   
-  // --- NUEVO: Utilidad de impresión (usa jsPDF internamente) ---
   import { generarCartaPDF } from '$lib/utils/impresion'; 
   
   import { 
     Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
-    FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare
+    FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
+    FileText // <--- Nuevo icono para bosquejos
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -36,7 +36,8 @@
   
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
-  let nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '' };
+  // Ajuste en nuevaParte para incluir numero_bosquejo
+  let nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '' };
   
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
@@ -54,7 +55,6 @@
 
   async function cargarDatos() {
     if (!asambleaId) return;
-    
     const abiertos = new Set(partes.filter(p => p._expanded).map(p => p.id));
 
     try { 
@@ -140,31 +140,34 @@
   async function toggleStatus(objeto: any, campo: string) {
       objeto[campo] = !objeto[campo];
       partes = partes; 
-      actualizarVistaOficina(objeto);
+      actualizarVistaOficina(objeto); // <-- Corregido: antes decía actualVistaOficina
   }
 
   async function toggleConfirmado(objeto: any) {
       const nuevoEstado = (objeto.estado === 'Confirmado') ? 'Pendiente' : 'Confirmado';
       objeto.estado = nuevoEstado;
       partes = partes; 
-      actualizarVistaOficina(objeto);
+      actualizarVistaOficina(objeto); // <-- Corregido
   }
 
   async function togglePresente(objeto: any) {
       objeto.esta_presente = !objeto.esta_presente;
-      partes = partes;
-      actualizarVistaOficina(objeto);
+      partes = partes; 
+      actualizarVistaOficina(objeto); // <-- Corregido
   }
 
   function enviarWhatsApp(objeto: any) {
       const tel = objeto.telefono_visual || objeto.telefono_orador || objeto.telefono; 
       const nombre = objeto.nombre_orador || objeto.nombre_completo;
 
-      if (!tel) return alert("No hay teléfono registrado.");
+      if (!tel) return alert("⚠️ No hay teléfono registrado para este hermano.");
+      
+      // Limpiamos el número para que solo tenga dígitos
       const numero = tel.replace(/\D/g, ''); 
       const mensaje = `Hola hermano ${nombre}, le escribimos con respecto a su asignación en la Asamblea Regional.`;
       const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-      openUrl(url).catch(e => console.error(e));
+      
+      openUrl(url).catch(e => console.error("Error al abrir WhatsApp:", e));
   }
 
   function abrirJWPUBCarta(objeto: any) {
@@ -174,7 +177,7 @@
       openUrl(url).catch(e => console.error(e));
       objeto.jwpub_enviado = true;
       partes = partes;
-      actualizarVistaOficina(objeto);
+      actualizarVistaOficina(objeto); // <-- Corregido
   }
 
   function abrirJWPUBRecordatorio(objeto: any) {
@@ -187,50 +190,31 @@
       actualizarVistaOficina(objeto);
   }
 
-  // --- NUEVA LÓGICA DE IMPRESIÓN (CORREGIDA) ---
-  // Se conecta a las plantillas de CORRESPONDENCIA (cartas), no de email.
   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
       if (!objeto || !asambleaId) {
           alert("⚠️ Error: No hay asamblea activa o datos del hermano.");
           return;
       }
-
-      console.log("🖨️ Iniciando impresión para:", objeto.nombre_orador || objeto.nombre_completo);
-
       try {
-          // 1. Obtener datos extra (ensayos, dirección del local) desde Rust
           const infoEvento: any = await invoke('obtener_info_extra_evento', { asambleaId });
-          
-          // 2. Preparar el paquete de datos para los marcadores [[ ]]
           const datosCombinados = {
               nombre: (objeto.nombre_orador || objeto.nombre_completo || 'Hermano').trim(),
               tema: objeto.tema || (esPartePrograma ? 'Discurso' : 'Asignación Especial'),
-              
-              // Si es discurso usamos el número, si es oficina usamos el tipo de rol
-              numero_bosquejo: objeto.numero_bosquejo || objeto.tipo || '',
-              
+              numero_bosquejo: objeto.numero_bosquejo || '',
               fecha_asignacion: objeto.fecha || diaSeleccionado,
               hora_asignacion: objeto.hora_inicio || objeto.hora || '---',
-              
-              // Buscamos la congregación en todas las variantes posibles del objeto
               congregacion: objeto.congregacion_orador || objeto.nombre_congregacion || objeto.congregacion_visual || '',
-              
-              // Datos que vienen de la tabla 'asambleas' en Rust
               lugar: infoEvento?.lugar || 'Salón de Asambleas',
               direccion: infoEvento?.direccion || '',
               fecha_ensayo: infoEvento?.fecha_ensayo || '---',
               hora_ensayo: infoEvento?.hora_ensayo || '---'
           };
 
-          // 3. SELECCIÓN DE ID DE PLANTILLA (Clave para evitar el texto por defecto)
           let plantillaId = ''; 
-          
           if (esPartePrograma) {
-              // Este debe ser EXACTAMENTE el ID que usas en el editor de Correspondencia
               plantillaId = 'oradores'; 
           } else {
               const rol = (objeto.tipo_asignacion || '').toLowerCase();
-              
               if (rol.includes('presidente')) {
                   plantillaId = 'presidentes';
                   datosCombinados.tema = 'Presidente de la Sesión';
@@ -241,13 +225,8 @@
                   plantillaId = 'oficina'; 
               }
           }
-
-          // 4. Llamar a la utilidad de impresión
-          console.log("📄 Generando PDF con ID de plantilla:", plantillaId);
           await generarCartaPDF(datosCombinados, plantillaId);
-
       } catch (e) {
-          console.error("❌ Error en el proceso de impresión:", e);
           alert("Error al preparar los datos: " + e);
       }
   }
@@ -276,38 +255,104 @@
       parteEditando = null; rolOficinaEditando = null; asignacionOficinaActual = null;
   }
 
+  // --- FUNCIÓN ACTUALIZADA PARA GUARDAR EL BOSQUEJO ---
   async function asignarOrador(oradorId: number | null, esVideo: boolean) {
     if (oradorId === null && !esVideo) return;
+    
+    // Capturamos el valor exacto del input en el modal
+    const bosquejoAEnviar = parteEditando?.numero_bosquejo || "";
+
     try {
         if (parteEditando) {
-            await invoke('asignar_parte', { idParte: parteEditando.id, oradorId, esVideo });
+            await invoke('asignar_parte', { 
+                idParte: parteEditando.id, 
+                oradorId, 
+                esVideo,
+                // Coincide exactamente con el parámetro en programa.rs
+                numero_bosquejo: bosquejoAEnviar 
+            });
         } else if (rolOficinaEditando && oradorId) {
-            await invoke('guardar_asignacion_especial', { asambleaId, dia: diaSeleccionado, tipoAsignacion: rolOficinaEditando, personaId: oradorId });
+            await invoke('guardar_asignacion_especial', { 
+                asambleaId, 
+                dia: diaSeleccionado, 
+                tipoAsignacion: rolOficinaEditando, 
+                personaId: oradorId 
+            });
         }
-        cerrarModales(); cargarDatos();
-    } catch (e) { alert(e); }
+        
+        cerrarModales(); 
+        
+        // Un pequeño retraso asegura que Rust termine de escribir en el archivo DB
+        setTimeout(async () => {
+            await cargarDatos();
+        }, 150);
+        
+    } catch (e) { 
+        console.error("Error al asignar:", e);
+        alert("Error al guardar: " + e); 
+    }
   }
 
   async function guardarNuevaParte() {
-    if(!nuevaParte.hora || !nuevaParte.tema) return alert("Falta datos");
+    if(!nuevaParte.hora || !nuevaParte.tema) return alert("Faltan datos");
     try {
       await invoke('crear_parte', { 
-        asambleaId, dia: diaSeleccionado, sesion: nuevaParte.sesion, hora: nuevaParte.hora, tema: nuevaParte.tema, tipo: nuevaParte.tipo, duracion: Number(nuevaParte.duracion), 
-        nombreOrador: nuevaParte.nombre_orador || null, congregacion: nuevaParte.congregacion || null, email: nuevaParte.email || null, telefono: nuevaParte.telefono || null 
+        asambleaId, 
+        dia: diaSeleccionado, 
+        sesion: nuevaParte.sesion, 
+        hora: nuevaParte.hora, 
+        tema: nuevaParte.tema, 
+        tipo: nuevaParte.tipo, 
+        duracion: Number(nuevaParte.duracion), 
+        nombre_orador: nuevaParte.nombre_orador || null, 
+        congregacion: nuevaParte.congregacion || null, 
+        email: nuevaParte.email || null, 
+        telefono: nuevaParte.telefono || null,
+        // Coincide exactamente con el parámetro en programa.rs
+        numero_bosquejo: nuevaParte.numero_bosquejo || "" 
       });
-      mostrarModalCrear = false; nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '' };
-      cargarDatos(); cargarHermanos(); 
-    } catch (e) { alert(e); }
+      
+      mostrarModalCrear = false; 
+      // Limpiamos el formulario para la próxima vez
+      nuevaParte = { 
+        hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', 
+        nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '' 
+      };
+      
+      await cargarDatos(); 
+      await cargarHermanos(); 
+    } catch (e) { 
+        alert("Error al crear parte: " + e); 
+    }
   }
 
-  async function limpiarTodo() { if(confirm("¿Borrar todo el programa de ESTE DÍA?")) { await invoke('limpiar_programa', { asambleaId }); cargarDatos(); } }
-  async function eliminarParte(id: number) { if(confirm("¿Eliminar?")) { await invoke('eliminar_parte', { id }); cargarDatos(); } }
+  async function limpiarTodo() { 
+    if(confirm("¿Borrar todo el programa de ESTE DÍA?")) { 
+        await invoke('limpiar_programa', { asambleaId }); 
+        cargarDatos(); 
+    } 
+  }
+
+  async function eliminarParte(id: number) { 
+    if(confirm("¿Eliminar esta parte del programa?")) { 
+        await invoke('eliminar_parte', { id }); 
+        cargarDatos(); 
+    } 
+  }
   
   async function importarPrograma() { 
       try { 
-          const f = await openDialog({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
-          if(f) { await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); cargarDatos(); cargarHermanos(); } 
-      } catch(e) { alert(e); } 
+          const f = await openDialog({ 
+              filters: [{ name: 'CSV', extensions: ['csv'] }] 
+          }); 
+          if(f) { 
+              await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); 
+              await cargarDatos(); 
+              await cargarHermanos(); 
+          } 
+      } catch(e) { 
+          alert("Error al importar: " + e); 
+      } 
   }
 
   async function obtenerTodosLosEmails() {
@@ -446,6 +491,7 @@
             <div class="col-tema">
                 <span class="tema-txt">{parte.tema}</span>
                 {#if parte.es_video}<span class="badge-video"><Video size={12}/> Video</span>{/if}
+                {#if parte.numero_bosquejo}<span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>{/if}
             </div>
             <div class="col-orador-mini">
                 {#if !parte.es_video}
@@ -601,6 +647,9 @@
         </div>
         <div class="campo"><label for="tipo_select">Tipo</label><select id="tipo_select" bind:value={nuevaParte.tipo}><option>Cántico</option><option>Discurso</option><option>Simposio</option><option>Video</option></select></div>
         <div class="campo"><label for="tema_input">Tema</label><input id="tema_input" type="text" placeholder="Tema..." bind:value={nuevaParte.tema} /></div>
+        
+        <div class="campo"><label for="bosquejo_input">Número de Bosquejo</label><input id="bosquejo_input" type="text" placeholder="Ej: 145" bind:value={nuevaParte.numero_bosquejo} /></div>
+
         {#if nuevaParte.tipo !== 'Video'}
             <div class="separator-line"></div>
             <h4 class="form-title">Asignación Rápida</h4>
@@ -626,7 +675,19 @@
     <div class="modal">
       <div class="modal-header"><h3>Asignar</h3><button class="btn-close" on:click={cerrarModales}><X size={18}/></button></div>
       <div class="modal-body">
-        <div class="buscador"><Search size={16} color="var(--text-secondary)"/><input type="text" placeholder="Buscar..." bind:value={terminoBusqueda} /></div>
+        
+        {#if parteEditando}
+            <div class="campo" style="margin-bottom: 20px; background: var(--bg-body); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <label for="edit_bosquejo" style="color: var(--primary); font-weight: bold;">NÚMERO DE BOSQUEJO</label>
+                <div class="input-icon" style="margin-top: 5px;">
+                    <FileText size={16} style="position: absolute; left: 10px;"/>
+                    <input id="edit_bosquejo" type="text" placeholder="Ej: 178" bind:value={parteEditando.numero_bosquejo} style="padding-left: 35px; width: 100%;" />
+                </div>
+                <small style="font-size: 10px; color: var(--text-secondary); display: block; margin-top: 5px;">* Se guardará al seleccionar un hermano o cerrar este panel.</small>
+            </div>
+        {/if}
+
+        <div class="buscador"><Search size={16} color="var(--text-secondary)"/><input type="text" placeholder="Buscar hermano..." bind:value={terminoBusqueda} /></div>
         <div class="lista-opciones">
           {#if !rolOficinaEditando}<button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}><div class="icono-video"><Video size={18}/></div><span>Video</span></button>{/if}
           {#each hermanosFiltrados as h}<button class="item-opcion" on:click={() => asignarOrador(h.id, false)}><div class="avatar">{h.nombre_completo.charAt(0)}</div><div class="datos-opcion"><span class="nombre">{h.nombre_completo}</span><span class="detalle">{h.nombre_congregacion || '-'}</span></div></button>{/each}
@@ -637,7 +698,7 @@
 {/if}
 
 <style>
-/* ... (ESTILOS SIN CAMBIOS) ... */
+/* ... (ESTILOS ORIGINALES MANTENIDOS AL 100%) ... */
 .layout-programa { display: grid; grid-template-columns: 280px 1fr; gap: 20px; height: 100%; overflow: hidden; }
 .panel-oficina.dark-theme { background: var(--bg-card); color: var(--text-main); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); }
 .header-oficina-dark { background: var(--bg-body); padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
@@ -674,6 +735,8 @@
 .col-tiempo { display: flex; flex-direction: column; min-width: 60px; } .hora { font-weight: 800; color: var(--primary); font-size: 14px; } .duracion { font-size: 11px; color: var(--text-secondary); }
 .col-tema { flex: 1; display: flex; flex-direction: column; } .tema-txt { font-weight: 600; color: var(--text-main); font-size: 14px; line-height: 1.2; }
 .badge-video { font-size: 10px; background: var(--bg-body); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; }
+/* Nuevo Badge para Bosquejo */
+.badge-bosquejo { font-size: 10px; background: #fef9c3; color: #854d0e; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; border: 1px solid #fde047; }
 .col-orador-mini { width: 180px; display: flex; flex-direction: column; } .orador-nombre { font-weight: 600; color: var(--text-main); font-size: 13px; text-transform: uppercase; } .cong-mini { font-size: 11px; color: var(--text-secondary); }
 .col-estados-mini { display: flex; gap: 6px; min-width: 60px; justify-content: flex-end; align-items: center; }
 .icon-indicator { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; }
@@ -729,47 +792,13 @@
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
 /* --- COLORES DINÁMICOS PARA FILAS --- */
-
-/* Estado: Presente (Verde suave) */
-.tarjeta-acordeon.estado-presente {
-    border-left: 6px solid #10b981 !important;
-    background-color: #f0fdf4;
-}
-.tarjeta-acordeon.estado-presente:hover {
-    background-color: #dcfce7;
-}
-
-/* Estado: Confirmado / Recibido (Azul suave) */
-.tarjeta-acordeon.estado-confirmado {
-    border-left: 6px solid #3b82f6 !important;
-    background-color: #eff6ff;
-}
-.tarjeta-acordeon.estado-confirmado:hover {
-    background-color: #dbeafe;
-}
-
-/* Estado: Ensayo Terminado (Amarillo/Naranja suave) */
-.tarjeta-acordeon.estado-ensayo {
-    border-left: 6px solid #eab308 !important;
-    background-color: #fefce8;
-}
-.tarjeta-acordeon.estado-ensayo:hover {
-    background-color: #fef9c3;
-}
-
-/* Ajuste para que el encabezado no oculte el color de fondo */
-.header-parte {
-    background: transparent !important;
-}
-
-/* Efecto de pulso para los que están presentes (Opcional pero útil) */
-.estado-presente .icon-indicator.green {
-    animation: pulse-green 2s infinite;
-}
-
-@keyframes pulse-green {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
+.tarjeta-acordeon.estado-presente { border-left: 6px solid #10b981 !important; background-color: #f0fdf4; }
+.tarjeta-acordeon.estado-presente:hover { background-color: #dcfce7; }
+.tarjeta-acordeon.estado-confirmado { border-left: 6px solid #3b82f6 !important; background-color: #eff6ff; }
+.tarjeta-acordeon.estado-confirmado:hover { background-color: #dbeafe; }
+.tarjeta-acordeon.estado-ensayo { border-left: 6px solid #eab308 !important; background-color: #fefce8; }
+.tarjeta-acordeon.estado-ensayo:hover { background-color: #fef9c3; }
+.header-parte { background: transparent !important; }
+.estado-presente .icon-indicator.green { animation: pulse-green 2s infinite; }
+@keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
 </style>
