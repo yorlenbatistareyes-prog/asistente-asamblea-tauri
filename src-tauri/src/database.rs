@@ -1,13 +1,12 @@
 use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager}; // Manager es necesario para usar .path()
+use tauri::{AppHandle, Manager};
 
-// Mantenemos la versión v7 para asegurar que se cree la base de datos con las nuevas columnas
+// Mantenemos la versión v7 para asegurar consistencia
 const DB_NAME: &str = "asamblea_db_v7.sqlite";
 
 pub fn obtener_ruta_db(app: &AppHandle) -> PathBuf {
-    // CORRECCIÓN: En Tauri v2 se usa app.path() gracias al trait Manager
     let app_dir = app
         .path()
         .app_data_dir()
@@ -23,7 +22,6 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     let db_path = obtener_ruta_db(app);
     let conn = Connection::open(db_path)?;
 
-    // Activar Foreign Keys para mantener la integridad de los datos
     conn.execute("PRAGMA foreign_keys = ON;", [])?;
 
     // --- 1. ASAMBLEAS ---
@@ -45,14 +43,14 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 2. LOCALES (Con Ciudad y Estado) ---
+    // --- 2. LOCALES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS locales (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         nombre TEXT NOT NULL, 
         direccion TEXT, 
-        ciudad TEXT,        -- Columna nueva
-        estado TEXT,        -- Columna nueva
+        ciudad TEXT,
+        estado TEXT,
         capacidad INTEGER
     )",
         [],
@@ -71,15 +69,16 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 4. PERSONAS ---
+    // --- 4. PERSONAS (Ajustado con congregacion directa para simplificar reportes) ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS personas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         asamblea_id INTEGER,
         nombre_completo TEXT NOT NULL, 
-        genero TEXT DEFAULT 'Hombre', 
+        sexo TEXT DEFAULT 'M', 
         privilegios TEXT, 
         id_congregacion INTEGER, 
+        congregacion TEXT, 
         telefono TEXT, 
         email TEXT, 
         FOREIGN KEY(id_congregacion) REFERENCES congregaciones(id) ON DELETE SET NULL,
@@ -99,11 +98,11 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         tema TEXT NOT NULL, 
         tipo TEXT DEFAULT 'Discurso', 
         duracion INTEGER, 
-        orador_id INTEGER, 
+        persona_id INTEGER, 
         es_video BOOLEAN DEFAULT 0, 
         estado TEXT DEFAULT 'Pendiente', 
         esta_presente BOOLEAN DEFAULT 0, 
-        FOREIGN KEY(orador_id) REFERENCES personas(id),
+        FOREIGN KEY(persona_id) REFERENCES personas(id),
         FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
     )",
         [],
@@ -115,6 +114,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         asamblea_id INTEGER,
         dia TEXT NOT NULL, 
+        fecha TEXT,
         tipo_asignacion TEXT NOT NULL, 
         persona_id INTEGER NOT NULL, 
         FOREIGN KEY(persona_id) REFERENCES personas(id),
@@ -126,35 +126,15 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     // --- 7. PLANTILLAS ---
     conn.execute("CREATE TABLE IF NOT EXISTS plantillas_cartas (id TEXT PRIMARY KEY, contenido_html TEXT NOT NULL)", [])?;
 
-    // --- MIGRACIONES DE SEGURIDAD ---
-    // Esto asegura que si por error se carga una BD vieja, se añadan las columnas
-    let _ = conn.execute("ALTER TABLE locales ADD COLUMN ciudad TEXT", []);
-    let _ = conn.execute("ALTER TABLE locales ADD COLUMN estado TEXT", []);
-
-    // Otras migraciones preventivas
-    let _ = conn.execute(
-        "ALTER TABLE congregaciones ADD COLUMN asamblea_id INTEGER",
-        [],
-    );
-    let _ = conn.execute("ALTER TABLE personas ADD COLUMN asamblea_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE programa ADD COLUMN asamblea_id INTEGER", []);
-    let _ = conn.execute(
-        "ALTER TABLE asignaciones_especiales ADD COLUMN asamblea_id INTEGER",
-        [],
-    );
+    // --- MIGRACIONES PREVENTIVAS ---
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN sexo TEXT DEFAULT 'M'", []);
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN congregacion TEXT", []);
+    let _ = conn.execute("ALTER TABLE asignaciones_especiales ADD COLUMN fecha TEXT", []);
+    
+    // Migraciones de asambleas
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_lugar TEXT", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_fecha TEXT", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_hora TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN recorridos_info TEXT", []);
-    let _ = conn.execute(
-        "ALTER TABLE asambleas ADD COLUMN instrucciones_esp TEXT",
-        [],
-    );
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_notas TEXT", []);
-    let _ = conn.execute(
-        "ALTER TABLE asambleas ADD COLUMN jw_stream_studio INTEGER DEFAULT 0",
-        [],
-    );
 
     Ok(())
 }

@@ -20,7 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        // 👇👇👇 IMPORTANTE: ESTE PLUGIN ES NECESARIO PARA GUARDAR EL PDF 👇👇👇
+        // ✅ PLUGIN FS: Esencial para que writeFile funcione en el frontend
         .plugin(tauri_plugin_fs::init()) 
         .setup(|app| {
             match database::initialize_database(app.handle()) {
@@ -55,7 +55,6 @@ pub fn run() {
             commands::asambleas::crear_asamblea,
             commands::asambleas::obtener_asambleas,
             commands::asambleas::eliminar_asamblea,
-            // 👇 COMANDO PARA OBTENER DATOS DE ENSAYO 👇
             commands::asambleas::obtener_info_extra_evento,
             
             // IMPORTAR
@@ -78,7 +77,7 @@ pub fn run() {
             commands::oficina::guardar_asignacion_especial,
             commands::oficina::eliminar_asignacion_especial,
             
-            // CORRESPONDENCIA (CARTAS)
+            // CORRESPONDENCIA (Aseguramos registro)
             commands::correspondencia::obtener_plantilla,
             commands::correspondencia::guardar_plantilla,
 
@@ -86,8 +85,7 @@ pub fn run() {
             commands::mensajeria::obtener_plantilla_mensaje,
             commands::mensajeria::guardar_plantilla_mensaje,
 
-            // IMPRESIÓN (PDF)
-            // Se mantiene para compatibilidad, aunque usemos la estrategia híbrida
+            // IMPRESIÓN (Aseguramos registro)
             commands::impresion::obtener_datos_para_impresion,
         ])
         .run(tauri::generate_context!())

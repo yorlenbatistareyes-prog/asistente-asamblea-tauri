@@ -32,7 +32,6 @@
     Type, Scissors, Copy, ArrowUpDown,
     ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine,
     ChevronDown, ChevronUp, Braces,
-    // Iconos para autoguardado:
     Check, Loader2, Cloud 
   } from 'lucide-svelte';
 
@@ -255,9 +254,9 @@
   // --- CARGA ---
   async function cargarPlantilla() {
     try {
-      const respuesta = await invoke('obtener_plantilla', { id: tipoActivo }) as string;
-      if (respuesta && respuesta.length > 5) {
-          contenidoCargado = respuesta;
+      const respuesta: any = await invoke('obtener_plantilla', { id: tipoActivo });
+      if (respuesta && respuesta.cuerpo) {
+          contenidoCargado = respuesta.cuerpo;
       } else {
           const storeData = $cartasStore.find(c => c.id === tipoActivo);
           contenidoCargado = storeData ? storeData.html : `<p>Escriba aquí el contenido para ${tipoActivo}...</p>`;
@@ -270,23 +269,16 @@
     }
   }
 
-  // --- LÓGICA DE GUARDADO (MANUAL Y AUTOMÁTICO) ---
-  
-  // Función centralizada para guardar
+  // --- LÓGICA DE GUARDADO ---
   async function actualizar(silencioso = false) {
     if (!editor) return;
-    
-    // Gestión visual de estado
-    if (!silencioso) isSaving = true; // Botón grande
-    if (silencioso) saveStatus = 'saving'; // Pill pequeño
+    if (!silencioso) isSaving = true;
+    if (silencioso) saveStatus = 'saving';
 
     try {
       const htmlFinal = editor.getHTML();
-      
-      // Guardar en Rust (DB)
       await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
       
-      // Guardar en Store
       cartasStore.update(cartas => {
           const index = cartas.findIndex(c => c.id === tipoActivo);
           if (index !== -1) cartas[index].html = htmlFinal;
@@ -294,25 +286,21 @@
           return cartas;
       });
 
-      // Feedback
       if (!silencioso) alert(`✅ Guardado correctamente.`);
       saveStatus = 'saved';
-
     } catch (e) {
       if(!silencioso) alert("Error: " + e);
-      saveStatus = 'unsaved'; // Hubo error
+      saveStatus = 'unsaved';
     } finally {
       isSaving = false;
     }
   }
 
-  // Función Trigger para el debounce (Autoguardado)
   function triggerAutosave() {
       saveStatus = 'unsaved';
       clearTimeout(autosaveTimer);
-      // Espera 2 segundos después de escribir para guardar
       autosaveTimer = setTimeout(() => {
-          actualizar(true); // Guardado silencioso
+          actualizar(true);
       }, 2000);
   }
 
@@ -338,7 +326,7 @@
       onUpdate: () => { 
         editor = editor;
         updateToolbar();
-        triggerAutosave(); // <--- ACTIVA EL AUTOGUARDADO
+        triggerAutosave();
       },
       onTransaction: () => { 
         editor = editor; 
@@ -401,19 +389,13 @@
       }
       if (!pegado) {
         const text = await navigator.clipboard.readText();
-        if (text) {
-          editor.commands.insertContent(text);
-        }
+        if (text) editor.commands.insertContent(text);
       }
       setTimeout(() => updateToolbar(), 50);
     } catch (err) { 
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text) editor.commands.insertContent(text);
-        setTimeout(() => updateToolbar(), 50);
-      } catch (e2) {
-        alert("Usa Ctrl+V para pegar.");
-      }
+      const text = await navigator.clipboard.readText();
+      if (text) editor.commands.insertContent(text);
+      setTimeout(() => updateToolbar(), 50);
     }
   }
 

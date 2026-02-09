@@ -9,15 +9,19 @@ pub struct DatosImpresion {
     apellidos: String,
     tema: String,
     numero_bosquejo: String,
-    fecha: String,
-    hora: String,
+    fecha_asignacion: String,
+    hora_asignacion: String,
     lugar: String,
     direccion: String,
     ciudad: String,
     congregacion: String,
+    fecha_ensayo: String,
+    hora_ensayo: String,
+    lugar_ensayo: String,
+    saludo: String,
 }
 
-// Valores por defecto para evitar errores si faltan datos
+// Valores por defecto mejorados para la correspondencia
 impl Default for DatosImpresion {
     fn default() -> Self {
         DatosImpresion {
@@ -25,12 +29,16 @@ impl Default for DatosImpresion {
             apellidos: "".to_string(),
             tema: "".to_string(),
             numero_bosquejo: "".to_string(),
-            fecha: "".to_string(),
-            hora: "".to_string(),
+            fecha_asignacion: "".to_string(),
+            hora_asignacion: "".to_string(),
             lugar: "Salón de Asambleas".to_string(),
             direccion: "".to_string(),
             ciudad: "".to_string(),
             congregacion: "".to_string(),
+            fecha_ensayo: "".to_string(),
+            hora_ensayo: "".to_string(),
+            lugar_ensayo: "el Salón de Asambleas".to_string(),
+            saludo: "Hermano".to_string(),
         }
     }
 }
@@ -44,11 +52,8 @@ pub fn obtener_datos_para_impresion(
     let db_path = database::obtener_ruta_db(&app);
     let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
 
-    // --- CASO 1: ORADOR (Desde tabla 'programa') ---
+    // --- CASO 1: ORADOR ---
     if tipo == "orador" {
-        // CORRECCIÓN:
-        // 1. Usamos 'p.congregacion' en lugar de 'p.nombre_congregacion'
-        // 2. Usamos 'prog.tema' directamente (sin tabla discursos)
         let mut stmt = conn
             .prepare(
                 "
@@ -58,7 +63,8 @@ pub fn obtener_datos_para_impresion(
                 prog.tema,
                 IFNULL(prog.tipo, ''), 
                 prog.fecha, 
-                prog.hora_inicio
+                prog.hora_inicio,
+                IFNULL(p.sexo, 'M')
             FROM programa prog
             JOIN personas p ON prog.persona_id = p.id
             WHERE prog.id = ?1
@@ -68,16 +74,17 @@ pub fn obtener_datos_para_impresion(
 
         let datos = stmt
             .query_row(params![id_referencia], |row| {
-                let nombre_completo: String = row.get(0).unwrap_or_default();
+                let sexo: String = row.get(6).unwrap_or_else(|_| "M".to_string());
+                let saludo = if sexo == "F" { "Hermana" } else { "Hermano" };
 
                 Ok(DatosImpresion {
-                    nombre: nombre_completo,
-                    apellidos: "".to_string(),
+                    nombre: row.get(0).unwrap_or_default(),
                     congregacion: row.get(1).unwrap_or_default(),
                     tema: row.get(2).unwrap_or_default(),
                     numero_bosquejo: row.get(3).unwrap_or_default(),
-                    fecha: row.get(4).unwrap_or_default(),
-                    hora: row.get(5).unwrap_or_default(),
+                    fecha_asignacion: row.get(4).unwrap_or_default(),
+                    hora_asignacion: row.get(5).unwrap_or_default(),
+                    saludo: saludo.to_string(),
                     ..Default::default()
                 })
             })
@@ -86,9 +93,9 @@ pub fn obtener_datos_para_impresion(
 
         return Ok(datos.unwrap_or_default());
     }
+    
     // --- CASO 2: OFICINA (Presidente, Oración, etc.) ---
     else if tipo == "presidente" || tipo == "oracion" || tipo == "oficina" {
-        // CORRECCIÓN: Igual aquí, usamos 'p.congregacion'
         let mut stmt = conn
             .prepare(
                 "
@@ -96,7 +103,8 @@ pub fn obtener_datos_para_impresion(
                 p.nombre_completo,
                 IFNULL(p.congregacion, ''),
                 ae.fecha,
-                ae.tipo_asignacion
+                ae.tipo_asignacion,
+                IFNULL(p.sexo, 'M')
             FROM asignaciones_especiales ae
             JOIN personas p ON ae.persona_id = p.id
             WHERE ae.id = ?1
@@ -106,7 +114,9 @@ pub fn obtener_datos_para_impresion(
 
         let datos = stmt
             .query_row(params![id_referencia], |row| {
-                let _rol: String = row.get(3).unwrap_or_default(); // El guion bajo evita el warning amarillo
+                let sexo: String = row.get(4).unwrap_or_else(|_| "M".to_string());
+                let saludo = if sexo == "F" { "Hermana" } else { "Hermano" };
+                
                 let tema_ficticio = if tipo == "presidente" {
                     "Presidente de la Sesión"
                 } else {
@@ -116,8 +126,9 @@ pub fn obtener_datos_para_impresion(
                 Ok(DatosImpresion {
                     nombre: row.get(0).unwrap_or_default(),
                     congregacion: row.get(1).unwrap_or_default(),
-                    fecha: row.get(2).unwrap_or_default(),
+                    fecha_asignacion: row.get(2).unwrap_or_default(),
                     tema: tema_ficticio.to_string(),
+                    saludo: saludo.to_string(),
                     ..Default::default()
                 })
             })
