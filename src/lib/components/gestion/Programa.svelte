@@ -189,75 +189,66 @@
 
   // --- NUEVA LÓGICA DE IMPRESIÓN (CORREGIDA) ---
   // Se conecta a las plantillas de CORRESPONDENCIA (cartas), no de email.
-  // --- LÓGICA DE IMPRESIÓN ---
- // --- LÓGICA DE IMPRESIÓN ---
- // --- LÓGICA DE IMPRESIÓN (FINAL) ---
   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
-      // 1. Validaciones de seguridad iniciales
-      if (!objeto) return;
-      
-      if (!asambleaId) {
-          alert("⚠️ Error: No se ha detectado una asamblea activa. Por favor, selecciona una asamblea en el inicio.");
+      if (!objeto || !asambleaId) {
+          alert("⚠️ Error: No hay asamblea activa o datos del hermano.");
           return;
       }
 
-      console.log("🖨️ Procesando impresión para:", objeto.nombre_orador || objeto.nombre_completo);
+      console.log("🖨️ Iniciando impresión para:", objeto.nombre_orador || objeto.nombre_completo);
 
       try {
-          // 2. Pedir datos generales del evento (Ensayos, Lugar, Dirección) al Backend
-          // Usamos 'as any' para evitar errores de tipo si la respuesta varía ligeramente
-          const infoEvento: any = await invoke('obtener_info_extra_evento', { asambleaId: asambleaId });
+          // 1. Obtener datos extra (ensayos, dirección del local) desde Rust
+          const infoEvento: any = await invoke('obtener_info_extra_evento', { asambleaId });
           
-          // 3. Preparar el paquete de datos combinado (Datos de Pantalla + Datos de Backend)
+          // 2. Preparar el paquete de datos para los marcadores [[ ]]
           const datosCombinados = {
-              // --- DATOS DEL INDIVIDUO (Lo que ya ves en la pantalla) ---
-              nombre: objeto.nombre_orador || objeto.nombre_completo || 'Hermano',
-              apellidos: '', // Generalmente el nombre completo ya incluye apellidos
-              tema: objeto.tema || 'Asignación Especial',
+              nombre: (objeto.nombre_orador || objeto.nombre_completo || 'Hermano').trim(),
+              tema: objeto.tema || (esPartePrograma ? 'Discurso' : 'Asignación Especial'),
               
-              // Lógica para el bosquejo: Si es discurso usa el número, si es otro tipo usa el nombre del tipo
-              numero_bosquejo: objeto.tipo === 'Discurso' ? (objeto.numero_bosquejo || '') : objeto.tipo,
+              // Si es discurso usamos el número, si es oficina usamos el tipo de rol
+              numero_bosquejo: objeto.numero_bosquejo || objeto.tipo || '',
               
               fecha_asignacion: objeto.fecha || diaSeleccionado,
               hora_asignacion: objeto.hora_inicio || objeto.hora || '---',
               
-              // Buscamos la congregación en todas las posibles variantes
+              // Buscamos la congregación en todas las variantes posibles del objeto
               congregacion: objeto.congregacion_orador || objeto.nombre_congregacion || objeto.congregacion_visual || '',
               
-              // --- DATOS DEL EVENTO (Lo que trajo del Backend) ---
+              // Datos que vienen de la tabla 'asambleas' en Rust
               lugar: infoEvento?.lugar || 'Salón de Asambleas',
               direccion: infoEvento?.direccion || '',
               fecha_ensayo: infoEvento?.fecha_ensayo || '---',
               hora_ensayo: infoEvento?.hora_ensayo || '---'
           };
 
-          // 4. Seleccionar la Plantilla Correcta (ID)
+          // 3. SELECCIÓN DE ID DE PLANTILLA (Clave para evitar el texto por defecto)
           let plantillaId = ''; 
           
           if (esPartePrograma) {
-              plantillaId = 'carta_oradores'; 
+              // Este debe ser EXACTAMENTE el ID que usas en el editor de Correspondencia
+              plantillaId = 'oradores'; 
           } else {
-              // Lógica para Asignaciones de Oficina
               const rol = (objeto.tipo_asignacion || '').toLowerCase();
               
               if (rol.includes('presidente')) {
-                  plantillaId = 'carta_presidentes';
-                  datosCombinados.tema = 'Presidente de la Sesión'; // Sobrescribimos el tema para que quede bien en la carta
+                  plantillaId = 'presidentes';
+                  datosCombinados.tema = 'Presidente de la Sesión';
               } else if (rol.includes('oracion')) {
-                  plantillaId = 'carta_oraciones';
+                  plantillaId = 'oraciones';
                   datosCombinados.tema = 'Oración';
               } else {
-                  plantillaId = 'carta_oficina'; 
+                  plantillaId = 'oficina'; 
               }
           }
 
-          // 5. Ejecutar la generación del PDF
-          console.log("📄 Enviando a generar PDF con plantilla:", plantillaId);
+          // 4. Llamar a la utilidad de impresión
+          console.log("📄 Generando PDF con ID de plantilla:", plantillaId);
           await generarCartaPDF(datosCombinados, plantillaId);
 
       } catch (e) {
-          console.error("❌ Error crítico al preparar la impresión:", e);
-          alert("Hubo un problema al obtener los datos de la asamblea. Revisa que la base de datos esté conectada.");
+          console.error("❌ Error en el proceso de impresión:", e);
+          alert("Error al preparar los datos: " + e);
       }
   }
 
@@ -441,87 +432,92 @@
       {#if partes.length === 0}<div class="empty-state"><p>Programa vacío para este día.</p></div>{/if}
       
       {#each partes as parte}
-        <div class="tarjeta-acordeon" class:expanded={parte._expanded}>
-            <div class="header-parte" role="button" tabindex="0" on:click={() => toggleExpandir(parte.id)} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
-                <div class="col-tiempo">
-                    <span class="hora">{parte.hora_inicio}</span>
-                    <span class="duracion">({parte.duracion}m)</span>
-                </div>
-                <div class="col-tema">
-                    <span class="tema-txt">{parte.tema}</span>
-                    {#if parte.es_video}<span class="badge-video"><Video size={12}/> Video</span>{/if}
-                </div>
-                <div class="col-orador-mini">
-                    {#if !parte.es_video}
-                        <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
-                        {#if parte.congregacion_orador}<span class="cong-mini">{parte.congregacion_orador}</span>{/if}
-                    {/if}
-                </div>
-                <div class="col-estados-mini">
-                    {#if parte.estado === 'Confirmado'}<div class="icon-indicator blue" title="Asignación Recibida"><FileCheck size={14}/></div>{/if}
-                    {#if parte.esta_presente}<div class="icon-indicator green" title="Presente"><UserCheck size={14}/></div>{/if}
-                    {#if parte.ensayo_terminado}<div class="icon-indicator yellow" title="Ensayo"><Mic size={14}/></div>{/if}
-                </div>
-                <div class="col-toggle">
-                    {#if parte._expanded}<ChevronUp size={20} color="var(--text-secondary)"/>{:else}<ChevronDown size={20} color="var(--text-secondary)"/>{/if}
+    <div class="tarjeta-acordeon" 
+         class:expanded={parte._expanded}
+         class:estado-presente={parte.esta_presente}
+         class:estado-confirmado={parte.estado === 'Confirmado' && !parte.esta_presente}
+         class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && parte.estado !== 'Confirmado'}>
+        
+        <div class="header-parte" role="button" tabindex="0" on:click={() => toggleExpandir(parte.id)} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
+            <div class="col-tiempo">
+                <span class="hora">{parte.hora_inicio}</span>
+                <span class="duracion">({parte.duracion}m)</span>
+            </div>
+            <div class="col-tema">
+                <span class="tema-txt">{parte.tema}</span>
+                {#if parte.es_video}<span class="badge-video"><Video size={12}/> Video</span>{/if}
+            </div>
+            <div class="col-orador-mini">
+                {#if !parte.es_video}
+                    <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
+                    {#if parte.congregacion_orador}<span class="cong-mini">{parte.congregacion_orador}</span>{/if}
+                {/if}
+            </div>
+            <div class="col-estados-mini">
+                {#if parte.estado === 'Confirmado'}<div class="icon-indicator blue" title="Asignación Recibida"><FileCheck size={14}/></div>{/if}
+                {#if parte.esta_presente}<div class="icon-indicator green" title="Presente"><UserCheck size={14}/></div>{/if}
+                {#if parte.ensayo_terminado}<div class="icon-indicator yellow" title="Ensayo"><Mic size={14}/></div>{/if}
+            </div>
+            <div class="col-toggle">
+                {#if parte._expanded}<ChevronUp size={20} color="var(--text-secondary)"/>{:else}<ChevronDown size={20} color="var(--text-secondary)"/>{/if}
+            </div>
+        </div>
+
+        {#if parte._expanded}
+            <div class="body-parte" transition:slide={{ duration: 200 }}>
+                {#if !parte.es_video}
+                    <div class="fila-superior-control">
+                        <div class="info-orador-full">
+                            <span class="label-tiny">ORADOR:</span>
+                            <strong>{parte.nombre_orador || "---"}</strong>
+                            <div class="detalles-contacto-panel">
+                                {#if parte.congregacion_orador}<span class="cong-tag">{parte.congregacion_orador}</span>{/if}
+                                {#if parte.telefono_orador}<span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>{/if}
+                                {#if parte.email_orador}<span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>{/if}
+                            </div>
+                        </div>
+                        <div class="checks-grandes">
+                            <button class="btn-status-toggle blue" class:active={parte.estado === 'Confirmado'} on:click={() => toggleConfirmado(parte)}><FileCheck size={18} /><span>RECIBIDO</span></button>
+                            <button class="btn-status-toggle green" class:active={parte.esta_presente} on:click={() => togglePresente(parte)}><UserCheck size={18} /><span>PRESENTE</span></button>
+                            <button class="btn-status-toggle yellow" class:active={parte.ensayo_terminado} on:click={() => toggleStatus(parte, 'ensayo_terminado')}><Mic size={18} /><span>ENSAYO</span></button>
+                        </div>
+                    </div>
+                    <div class="grid-acciones">
+                        <div class="grupo-accion">
+                            <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
+                            <div class="checks-row">
+                                <label class="check-inline"><input type="checkbox" checked={parte.email_enviado} on:change={() => toggleStatus(parte, 'email_enviado')}> Email enviado</label>
+                                <label class="check-inline strong-check"><input type="checkbox" checked={parte.carta_recibida_check} on:change={() => toggleStatus(parte, 'carta_recibida_check')}> Carta Recibida</label>
+                            </div>
+                        </div>
+                        
+                        <div class="grupo-accion center">
+                            <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
+                                <Printer size={16}/> IMPRIMIR CARTA
+                            </button>
+                        </div>
+
+                        <div class="grupo-accion right">
+                            <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}><FileJson size={16}/> JWPUB ENVIAR CARTA</button>
+                            <label class="check-inline"><input type="checkbox" checked={parte.jwpub_enviado} on:change={() => toggleStatus(parte, 'jwpub_enviado')}> Email JWPUB enviado</label>
+                        </div>
+                        
+                        <div class="grupo-accion">
+                            <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
+                            <label class="check-inline"><input type="checkbox" checked={parte.recordatorio_enviado} on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> Recordatorio enviado</label>
+                        </div>
+                        <div class="grupo-accion center"><button class="btn-outline-green" on:click={() => enviarWhatsApp(parte)}><MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP</button></div>
+                        <div class="grupo-accion right"><button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}><FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN</button></div>
+                    </div>
+                {/if}
+                <div class="footer-tools">
+                    <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}><Edit size={14}/> Editar Datos / Asignar</button>
+                    <button class="btn-tool delete" on:click={() => eliminarParte(parte.id)}><Trash2 size={14}/> Eliminar Parte</button>
                 </div>
             </div>
-
-            {#if parte._expanded}
-                <div class="body-parte" transition:slide={{ duration: 200 }}>
-                    {#if !parte.es_video}
-                        <div class="fila-superior-control">
-                            <div class="info-orador-full">
-                                <span class="label-tiny">ORADOR:</span>
-                                <strong>{parte.nombre_orador || "---"}</strong>
-                                <div class="detalles-contacto-panel">
-                                    {#if parte.congregacion_orador}<span class="cong-tag">{parte.congregacion_orador}</span>{/if}
-                                    {#if parte.telefono_orador}<span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>{/if}
-                                    {#if parte.email_orador}<span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>{/if}
-                                </div>
-                            </div>
-                            <div class="checks-grandes">
-                                <button class="btn-status-toggle blue" class:active={parte.estado === 'Confirmado'} on:click={() => toggleConfirmado(parte)}><FileCheck size={18} /><span>RECIBIDO</span></button>
-                                <button class="btn-status-toggle green" class:active={parte.esta_presente} on:click={() => togglePresente(parte)}><UserCheck size={18} /><span>PRESENTE</span></button>
-                                <button class="btn-status-toggle yellow" class:active={parte.ensayo_terminado} on:click={() => toggleStatus(parte, 'ensayo_terminado')}><Mic size={18} /><span>ENSAYO</span></button>
-                            </div>
-                        </div>
-                        <div class="grid-acciones">
-                            <div class="grupo-accion">
-                                <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-                                <div class="checks-row">
-                                    <label class="check-inline"><input type="checkbox" checked={parte.email_enviado} on:change={() => toggleStatus(parte, 'email_enviado')}> Email enviado</label>
-                                    <label class="check-inline strong-check"><input type="checkbox" checked={parte.carta_recibida_check} on:change={() => toggleStatus(parte, 'carta_recibida_check')}> Carta Recibida</label>
-                                </div>
-                            </div>
-                            
-                            <div class="grupo-accion center">
-                                <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
-                                    <Printer size={16}/> IMPRIMIR CARTA
-                                </button>
-                            </div>
-
-                            <div class="grupo-accion right">
-                                <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}><FileJson size={16}/> JWPUB ENVIAR CARTA</button>
-                                <label class="check-inline"><input type="checkbox" checked={parte.jwpub_enviado} on:change={() => toggleStatus(parte, 'jwpub_enviado')}> Email JWPUB enviado</label>
-                            </div>
-                            
-                            <div class="grupo-accion">
-                                <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-                                <label class="check-inline"><input type="checkbox" checked={parte.recordatorio_enviado} on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> Recordatorio enviado</label>
-                            </div>
-                            <div class="grupo-accion center"><button class="btn-outline-green" on:click={() => enviarWhatsApp(parte)}><MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP</button></div>
-                            <div class="grupo-accion right"><button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}><FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN</button></div>
-                        </div>
-                    {/if}
-                    <div class="footer-tools">
-                        <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}><Edit size={14}/> Editar Datos / Asignar</button>
-                        <button class="btn-tool delete" on:click={() => eliminarParte(parte.id)}><Trash2 size={14}/> Eliminar Parte</button>
-                    </div>
-                </div>
-            {/if}
-        </div>
-      {/each}
+        {/if}
+    </div>
+{/each}
     </div>
   </main>
 </div>
@@ -731,4 +727,49 @@
 .input-icon { position: relative; display: flex; align-items: center; } .input-icon :global(svg) { position: absolute; left: 10px; color: var(--text-secondary); } .input-icon input { padding-left: 32px; width: 100%; }
 .fila { display: flex; gap: 15px; } .fila .campo { flex: 1; }
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+/* --- COLORES DINÁMICOS PARA FILAS --- */
+
+/* Estado: Presente (Verde suave) */
+.tarjeta-acordeon.estado-presente {
+    border-left: 6px solid #10b981 !important;
+    background-color: #f0fdf4;
+}
+.tarjeta-acordeon.estado-presente:hover {
+    background-color: #dcfce7;
+}
+
+/* Estado: Confirmado / Recibido (Azul suave) */
+.tarjeta-acordeon.estado-confirmado {
+    border-left: 6px solid #3b82f6 !important;
+    background-color: #eff6ff;
+}
+.tarjeta-acordeon.estado-confirmado:hover {
+    background-color: #dbeafe;
+}
+
+/* Estado: Ensayo Terminado (Amarillo/Naranja suave) */
+.tarjeta-acordeon.estado-ensayo {
+    border-left: 6px solid #eab308 !important;
+    background-color: #fefce8;
+}
+.tarjeta-acordeon.estado-ensayo:hover {
+    background-color: #fef9c3;
+}
+
+/* Ajuste para que el encabezado no oculte el color de fondo */
+.header-parte {
+    background: transparent !important;
+}
+
+/* Efecto de pulso para los que están presentes (Opcional pero útil) */
+.estado-presente .icon-indicator.green {
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
 </style>

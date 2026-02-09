@@ -5,7 +5,7 @@ use crate::database;
 
 #[derive(Serialize)]
 pub struct PlantillaCarta {
-    cuerpo: String,
+    pub cuerpo: String,
 }
 
 #[command]
@@ -13,7 +13,7 @@ pub fn obtener_plantilla(app: AppHandle, id: String) -> Result<PlantillaCarta, S
     let db_path = database::obtener_ruta_db(&app);
     let conn = Connection::open(db_path).map_err(|e| format!("Error al abrir DB: {}", e))?;
 
-    // Aseguramos que la tabla exista antes de intentar leer, por si es la primera vez
+    // Aseguramos la tabla
     conn.execute(
         "CREATE TABLE IF NOT EXISTS plantillas_cartas (
             id TEXT PRIMARY KEY,
@@ -22,18 +22,21 @@ pub fn obtener_plantilla(app: AppHandle, id: String) -> Result<PlantillaCarta, S
         [],
     ).map_err(|e| format!("Error al verificar tabla: {}", e))?;
 
+    // Usamos trim() en el ID para evitar errores por espacios invisibles
+    let id_limpio = id.trim();
+
     let mut stmt = conn
         .prepare("SELECT contenido_html FROM plantillas_cartas WHERE id = ?1")
         .map_err(|e| format!("Error al preparar consulta: {}", e))?;
 
-    let result = stmt.query_row(params![id], |row| {
+    let result = stmt.query_row(params![id_limpio], |row| {
         row.get::<_, String>(0)
     });
 
     match result {
         Ok(contenido) => Ok(PlantillaCarta { cuerpo: contenido }),
         Err(rusqlite::Error::QueryReturnedNoRows) => {
-            // Si no existe, devolvemos una estructura base útil
+            // Este es el texto que ves en el PDF cuando la DB no encuentra el ID
             Ok(PlantillaCarta {
                 cuerpo: "<p>Estimado hermano [[Nombre]]:</p><p>Escriba aquí el contenido de la carta...</p>".to_string()
             })
@@ -55,10 +58,12 @@ pub fn guardar_plantilla(app: AppHandle, id: String, contenido: String) -> Resul
         [],
     ).map_err(|e| format!("Error creando tabla: {}", e))?;
 
-    // Usamos INSERT OR REPLACE para que el ID sea único y siempre se actualice el contenido
+    let id_limpio = id.trim();
+
+    // INSERT OR REPLACE asegura que se sobrescriba la plantilla vieja
     conn.execute(
         "INSERT OR REPLACE INTO plantillas_cartas (id, contenido_html) VALUES (?1, ?2)",
-        params![id, contenido],
+        params![id_limpio, contenido],
     ).map_err(|e| format!("Error al guardar permanentemente: {}", e))?;
 
     Ok(())
