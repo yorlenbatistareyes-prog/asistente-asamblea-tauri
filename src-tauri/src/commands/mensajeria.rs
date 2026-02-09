@@ -1,6 +1,6 @@
-use tauri::{command, AppHandle};
-use rusqlite::{params, Connection};
 use crate::database;
+use rusqlite::{params, Connection};
+use tauri::{command, AppHandle};
 
 // Estructura para devolver los datos al Frontend
 #[derive(serde::Serialize)]
@@ -12,8 +12,7 @@ pub struct PlantillaMensaje {
 #[command]
 pub fn obtener_plantilla_mensaje(app: AppHandle, id: String) -> Result<PlantillaMensaje, String> {
     let db_path = database::obtener_ruta_db(&app);
-    let conn = Connection::open(db_path)
-        .map_err(|e| format!("Error DB: {}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format!("Error DB: {}", e))?;
 
     // Recuperamos asunto y cuerpo
     let mut stmt = conn
@@ -35,15 +34,19 @@ pub fn obtener_plantilla_mensaje(app: AppHandle, id: String) -> Result<Plantilla
                 asunto: "".to_string(),
                 cuerpo: "".to_string(),
             })
-        },
+        }
     }
 }
 
 #[command]
-pub fn guardar_plantilla_mensaje(app: AppHandle, id: String, asunto: String, cuerpo: String) -> Result<(), String> {
+pub fn guardar_plantilla_mensaje(
+    app: AppHandle,
+    id: String,
+    asunto: String,
+    cuerpo: String,
+) -> Result<(), String> {
     let db_path = database::obtener_ruta_db(&app);
-    let conn = Connection::open(db_path)
-        .map_err(|e| format!("Error DB: {}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format!("Error DB: {}", e))?;
 
     // Crear tabla si no existe (con columna extra para 'asunto')
     conn.execute(
@@ -53,7 +56,8 @@ pub fn guardar_plantilla_mensaje(app: AppHandle, id: String, asunto: String, cue
             cuerpo TEXT
         )",
         [],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
 
     // Guardar o Actualizar
     conn.execute(
