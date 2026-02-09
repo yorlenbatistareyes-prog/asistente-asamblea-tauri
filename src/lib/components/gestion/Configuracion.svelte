@@ -1,46 +1,51 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  
-  // --- DATOS ---
   import { guiaUsuario } from '$lib/data/ayuda';
-
-  // --- NUEVOS COMPONENTES INDEPENDIENTES ---
-  // IMPORTANTE: Ya NO importamos EditorPlantilla.svelte porque lo borramos
+  
+  // --- COMPONENTES HIJOS ---
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
   import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
 
-  // --- ICONOS ---
+  // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
-    ArrowLeft, Sliders, Mail, Shield, X, Database, CircleHelp, Upload, Download, Trash2, HelpCircle 
+    ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, Upload, Download, Trash2, HelpCircle,
+    ChevronUp, ChevronDown, X 
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
-
-  // --- ESTADO ---
   let configSeccion = 'general'; 
+  
+  // ESTADO: ¿Hay un editor abierto en pantalla completa en alguno de los hijos?
+  let editorAbierto = false; 
 
-  // --- FUNCIONES GENERALES ---
   function cerrar() { dispatch('close'); }
   
-  // Funciones dummy para configuración general
-  function guardarCambiosConfig() { alert("Configuración general guardada"); }
-  async function respaldarDatos() { alert("Iniciando copia de seguridad..."); }
-  async function restaurarDatos() { if(confirm("¿Sobrescribir datos?")) alert("Restaurando..."); }
-  async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }
-
-  // --- AYUDA ---
-  let ayudaItems = guiaUsuario.map(item => ({ ...item, isOpen: false }));
-  function toggleAyuda(index: number) { 
-      if (ayudaItems[index]) { ayudaItems[index].isOpen = !ayudaItems[index].isOpen; ayudaItems = [...ayudaItems]; }
+  // Recibe el aviso del hijo (WhatsApp/Correo) para expandir la pantalla
+  function manejarCambioModo(e: CustomEvent<boolean>) {
+      editorAbierto = e.detail;
   }
 
-  // --- DATOS USUARIO / CONFIG ---
+  // Ayuda y Datos Dummy
+  let ayudaItems = guiaUsuario.map(item => ({ ...item, isOpen: false }));
+  function toggleAyuda(index: number) { 
+      if (ayudaItems[index]) { 
+          ayudaItems[index].isOpen = !ayudaItems[index].isOpen; 
+          ayudaItems = [...ayudaItems]; 
+      } 
+  }
+
   let config = { accionPdf: "abrir", idioma: "es", email_asignaciones: true, email_general_clase: true, email_recordatorios_clase: true, email_conclusion_clase: true, email_foto_clase: true, email_emergencia: false, usar_cliente_sistema: false, no_precompletar: false };
   let usuario = { nombre: "Yorlen", segundoNombre: "", apellido: "Batista Reyes", sufijo: "", email: "yorlenbatistareyes@gmail.com", emailJw: "batistareyyorlen7@jwpub.org", movil: "54891111", id: "7164622", fechaCreacion: "4/11/2025" };
+  
   let mostrarModalUsuario = false;
   let usuarioEditando = { ...usuario }; 
+  
+  function guardarCambiosConfig() { alert("Configuración guardada"); }
   function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
   function guardarUsuario() { usuario = { ...usuarioEditando }; mostrarModalUsuario = false; }
+  async function respaldarDatos() { alert("Respaldando..."); }
+  async function restaurarDatos() { alert("Restaurando..."); }
+  async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }
 </script>
 
 <div class="config-layout">
@@ -69,7 +74,7 @@
                 {:else if configSeccion === 'datos'} Gestión de Datos 
                 {:else if configSeccion === 'ayuda'} Centro de Ayuda {/if}
             </h1>
-            {#if configSeccion === 'general'}
+            {#if configSeccion === 'general' && !editorAbierto}
                 <div class="config-actions"><button class="btn-save-config" on:click={guardarCambiosConfig}>Guardar Cambios</button></div>
             {/if}
         </div>
@@ -77,38 +82,107 @@
         <div class="config-scroll-area">
             
             {#if configSeccion === 'general'}
-                <div class="config-grid">
+                <div class="config-grid" class:full-width={editorAbierto}>
                     <div class="col-main">
-                        <PlantillasWhatsapp />
+                        <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
                         
-                        <div class="config-group radio-group-box">
-                            <label class="group-label">Configuraciones de PDF</label>
-                            <label class="radio-item" class:active-radio={config.accionPdf === 'nada'}><input type="radio" name="pdf" value="nada" bind:group={config.accionPdf}> <span>Sin acción</span></label>
-                            <label class="radio-item" class:active-radio={config.accionPdf === 'carpeta'}><input type="radio" name="pdf" value="carpeta" bind:group={config.accionPdf}> <span>Mostrar en Explorer</span></label>
-                            <label class="radio-item active-radio" class:active-radio={config.accionPdf === 'abrir'}><input type="radio" name="pdf" value="abrir" bind:group={config.accionPdf}> <span>Abrir predeterminado</span></label>
-                        </div>
-                        <div class="config-group"><label>Idioma</label><select bind:value={config.idioma} class="input-light"><option value="es">Español</option><option value="en">English</option></select></div>
+                        {#if !editorAbierto}
+                            <div class="config-group radio-group-box">
+                                <label class="group-label">Configuraciones de PDF</label>
+                                <label class="radio-item" class:active-radio={config.accionPdf === 'nada'}><input type="radio" name="pdf" value="nada" bind:group={config.accionPdf}> <span>Sin acción</span></label>
+                                <label class="radio-item" class:active-radio={config.accionPdf === 'carpeta'}><input type="radio" name="pdf" value="carpeta" bind:group={config.accionPdf}> <span>Mostrar en Explorer</span></label>
+                                <label class="radio-item active-radio" class:active-radio={config.accionPdf === 'abrir'}><input type="radio" name="pdf" value="abrir" bind:group={config.accionPdf}> <span>Abrir predeterminado</span></label>
+                            </div>
+                            <div class="config-group"><label>Idioma</label><select bind:value={config.idioma} class="input-light"><option value="es">Español</option><option value="en">English</option></select></div>
+                        {/if}
                     </div>
                     
-                    <div class="col-side">
-                        <div class="config-group"><label class="group-label">Opciones de Correo</label><div class="toggle-list"><div class="toggle-item"><span>Correos de asignaciones</span><label class="switch"><input type="checkbox" bind:checked={config.email_asignaciones}><span class="slider round"></span></label></div><div class="toggle-item"><span>Correo general de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_general_clase}><span class="slider round"></span></label></div><div class="toggle-item"><span>Recordatorios de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_recordatorios_clase}><span class="slider round"></span></label></div><div class="toggle-item"><span>Conclusión de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_conclusion_clase}><span class="slider round"></span></label></div><div class="toggle-item"><span>Foto de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_foto_clase}><span class="slider round"></span></label></div><div class="toggle-item"><span>Anuncio de emergencia</span><label class="switch"><input type="checkbox" bind:checked={config.email_emergencia}><span class="slider round"></span></label></div></div></div>
-                        <div class="config-group mt-large"><label class="group-label-icon">Utilice el cliente de correo electrónico <HelpCircle size={14}/></label><div class="toggle-item description-toggle"><label class="switch"><input type="checkbox" bind:checked={config.usar_cliente_sistema}><span class="slider round"></span></label><div class="desc-text">Utilice Thunderbird, BlueMail u otro cliente compatible</div></div></div>
-                        <div class="config-group"><label class="group-label-icon">No complete con texto sin formato <HelpCircle size={14}/></label><div class="toggle-item description-toggle"><label class="switch"><input type="checkbox" bind:checked={config.no_precompletar}><span class="slider round"></span></label><div class="desc-text">Solo cuerpo HTML</div></div></div>
-                    </div>
+                    {#if !editorAbierto}
+                        <div class="col-side">
+                            <div class="config-group">
+                                <label class="group-label">Opciones de Correo</label>
+                                <div class="toggle-list">
+                                    <div class="toggle-item"><span>Correos de asignaciones</span><label class="switch"><input type="checkbox" bind:checked={config.email_asignaciones}><span class="slider round"></span></label></div>
+                                    <div class="toggle-item"><span>Correo general de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_general_clase}><span class="slider round"></span></label></div>
+                                    <div class="toggle-item"><span>Recordatorios de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_recordatorios_clase}><span class="slider round"></span></label></div>
+                                    <div class="toggle-item"><span>Conclusión de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_conclusion_clase}><span class="slider round"></span></label></div>
+                                    <div class="toggle-item"><span>Foto de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_foto_clase}><span class="slider round"></span></label></div>
+                                    <div class="toggle-item"><span>Anuncio de emergencia</span><label class="switch"><input type="checkbox" bind:checked={config.email_emergencia}><span class="slider round"></span></label></div>
+                                </div>
+                            </div>
+                            <div class="config-group mt-large">
+                                <label class="group-label-icon">Utilice el cliente de correo electrónico <HelpCircle size={14}/></label>
+                                <div class="toggle-item description-toggle">
+                                    <label class="switch"><input type="checkbox" bind:checked={config.usar_cliente_sistema}><span class="slider round"></span></label>
+                                    <div class="desc-text">Utilice Thunderbird, BlueMail u otro cliente compatible</div>
+                                </div>
+                            </div>
+                            <div class="config-group">
+                                <label class="group-label-icon">No complete con texto sin formato <HelpCircle size={14}/></label>
+                                <div class="toggle-item description-toggle">
+                                    <label class="switch"><input type="checkbox" bind:checked={config.no_precompletar}><span class="slider round"></span></label>
+                                    <div class="desc-text">Solo cuerpo HTML</div>
+                                </div>
+                            </div>
+                        </div>
+                    {/if}
                 </div>
 
+                {#if !editorAbierto}
+                    <div class="user-info-section">
+                        <div class="user-info-header">
+                            <h3>Información del usuario</h3>
+                            <button class="btn-edit-user" on:click={abrirModalUsuario}>Editar</button>
+                        </div>
+                        <div class="user-info-grid">
+                            <div class="ui-item"><label>nombre completo</label><span>{usuario.nombre} {usuario.apellido}</span></div>
+                            <div class="ui-item"><label>Correo electrónico</label><span>{usuario.email}</span></div>
+                            <div class="ui-item"><label>Móvil</label><span>{usuario.movil}</span></div>
+                            <div class="ui-item"><label>Correo electrónico JWPub</label><span>{usuario.emailJw}</span></div>
+                            <div class="ui-item"><label>Número de identificación</label><span>{usuario.id}</span></div>
+                            <div class="ui-item"><label>Fecha de creación</label><span>{usuario.fechaCreacion}</span></div>
+                        </div>
+                    </div>
+                {/if}
+
             {:else if configSeccion === 'correos'}
-                <PlantillasCorreos />
+                <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
 
             {:else if configSeccion === 'datos'}
                 <div class="data-management-container">
-                    <div class="data-card"><div class="data-icon-wrapper blue"><Upload size={24} /></div><div class="data-content"><h3>Respaldar Datos</h3><p>Guardar copia de seguridad.</p></div><button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button></div>
-                    <div class="data-card"><div class="data-icon-wrapper green"><Download size={24} /></div><div class="data-content"><h3>Restaurar Datos</h3><p>Cargar copia de seguridad.</p></div><button class="btn-data-action secondary" on:click={restaurarDatos}>Restaurar</button></div>
-                    <div class="data-card danger-zone"><div class="data-icon-wrapper red"><Trash2 size={24} /></div><div class="data-content"><h3>Limpiar Todo</h3><p>Borrar base de datos.</p></div><button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button></div>
+                    <div class="data-card">
+                        <div class="data-icon-wrapper blue"><Upload size={24} /></div>
+                        <div class="data-content"><h3>Respaldar Datos</h3><p>Guardar copia de seguridad.</p></div>
+                        <button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-icon-wrapper green"><Download size={24} /></div>
+                        <div class="data-content"><h3>Restaurar Datos</h3><p>Cargar copia de seguridad.</p></div>
+                        <button class="btn-data-action secondary" on:click={restaurarDatos}>Restaurar</button>
+                    </div>
+                    <div class="data-card danger-zone">
+                        <div class="data-icon-wrapper red"><Trash2 size={24} /></div>
+                        <div class="data-content"><h3>Limpiar Todo</h3><p>Borrar base de datos.</p></div>
+                        <button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button>
+                    </div>
                 </div>
 
             {:else if configSeccion === 'ayuda'}
-                <div class="help-container"><div class="accordion-list">{#each ayudaItems as item, i}<div class="accordion-item"><button class="accordion-header" on:click={() => toggleAyuda(i)}><div class="acc-title"><CircleHelp size={16}/> {item.title}</div>{#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}</button>{#if item.isOpen}<div class="accordion-body"><p class="help-text-content">{item.content}</p></div>{/if}</div>{/each}</div></div>
+                <div class="help-container">
+                    <div class="accordion-list">
+                        {#each ayudaItems as item, i}
+                            <div class="accordion-item">
+                                <button class="accordion-header" on:click={() => toggleAyuda(i)}>
+                                    <div class="acc-title"><CircleHelp size={16}/> {item.title}</div>
+                                    {#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
+                                </button>
+                                {#if item.isOpen}
+                                    <div class="accordion-body"><p class="help-text-content">{item.content}</p></div>
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
             {/if}
         </div>
     </main>
@@ -116,7 +190,10 @@
     {#if mostrarModalUsuario}
         <div class="modal-backdrop" on:click|self={() => mostrarModalUsuario = false}>
             <div class="modal-content-user">
-                <div class="modal-header-user"><h3>Editar información de usuario</h3><button class="btn-close" on:click={() => mostrarModalUsuario = false}><X size={20}/></button></div>
+                <div class="modal-header-user">
+                    <h3>Editar información de usuario</h3>
+                    <button class="btn-close" on:click={() => mostrarModalUsuario = false}><X size={20}/></button>
+                </div>
                 <div class="modal-body-user">
                     <div class="form-user-grid">
                         <div class="input-group"><label>Nombre</label><input type="text" bind:value={usuarioEditando.nombre} /></div>
@@ -129,7 +206,10 @@
                         <div class="input-group"><label>Número de identificación</label><input type="text" bind:value={usuarioEditando.id} /></div>
                     </div>
                 </div>
-                <div class="modal-footer-user"><button class="btn-cancel-user" on:click={() => mostrarModalUsuario = false}>Cancelar</button><button class="btn-save-user" on:click={guardarUsuario}>Guardar</button></div>
+                <div class="modal-footer-user">
+                    <button class="btn-cancel-user" on:click={() => mostrarModalUsuario = false}>Cancelar</button>
+                    <button class="btn-save-user" on:click={guardarUsuario}>Guardar</button>
+                </div>
             </div>
         </div>
     {/if}
@@ -138,21 +218,28 @@
 <style>
 /* VARIABLES */
 .config-layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; background: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', sans-serif; }
+
+/* Sidebar y Header */
 .config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; }
 .config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
 .config-header h2 { margin: 15px 0 0; font-size: 1.2rem; }
 .btn-back-config { background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+
 .config-nav { padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
 .config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
 .config-nav button:hover { background: var(--hover-bg); color: var(--text-main); }
 .config-nav button.active { background: var(--primary); color: white; font-weight: 600; }
 .config-footer { padding: 20px; font-size: 11px; color: var(--text-secondary); text-align: center; }
+
+/* Content */
 .config-content { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-body); }
 .config-title-bar { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
 .config-title-bar h1 { margin: 0; font-size: 24px; color: var(--text-main); font-weight: 700; }
 .btn-save-config { background: #10b981; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
 .config-scroll-area { flex: 1; overflow-y: auto; padding: 40px; }
-.config-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 60px; max-width: 1200px; }
+.config-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 60px; max-width: 1200px; transition: all 0.3s ease; }
+.config-grid.full-width { grid-template-columns: 1fr; gap: 0; max-width: 100%; }
 
 /* Inputs Generales */
 .config-group { margin-bottom: 30px; }
@@ -161,6 +248,7 @@
 .radio-group-box { background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); }
 .radio-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
 .active-radio { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
+
 .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; }
@@ -198,13 +286,22 @@ input:checked + .slider:before { transform: translateX(20px); }
 .modal-footer-user { padding: 20px 30px; display: flex; justify-content: flex-end; gap: 15px; background: var(--bg-card); }
 .btn-cancel-user { background: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; }
 .btn-save-user { background: #ea580c; border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; }
+
+/* Cards de Datos */
 .data-management-container { max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
 .data-card { display: flex; align-items: center; gap: 20px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; }
-.data-content h3 { margin: 0; color: var(--text-main); } .data-content p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.data-content h3 { margin: 0; color: var(--text-main); } 
+.data-content p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 .data-icon-wrapper { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.data-icon-wrapper.blue { background: #eff6ff; color: #2563eb; } .data-icon-wrapper.green { background: #f0fdf4; color: #16a34a; } .data-icon-wrapper.red { background: #fef2f2; color: #dc2626; }
+.data-icon-wrapper.blue { background: #eff6ff; color: #2563eb; } 
+.data-icon-wrapper.green { background: #f0fdf4; color: #16a34a; } 
+.data-icon-wrapper.red { background: #fef2f2; color: #dc2626; }
 .btn-data-action { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; }
-.btn-data-action.primary { background: var(--primary); color: white; } .btn-data-action.secondary { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); } .btn-data-action.danger { background: #fee2e2; color: #dc2626; }
+.btn-data-action.primary { background: var(--primary); color: white; } 
+.btn-data-action.secondary { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); } 
+.btn-data-action.danger { background: #fee2e2; color: #dc2626; }
+
+/* Acordeones (Ayuda) */
 .help-container { max-width: 1000px; margin: 0 auto; }
 .help-text-content { color: var(--text-main); font-size: 14px; line-height: 1.6; }
 .accordion-list { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }

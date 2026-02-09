@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { createEventDispatcher } from 'svelte';
   
-  // --- STORE DE DATOS (USAMOS EL DE CORREOS) ---
+  // --- STORE DE DATOS ---
   import { emailTemplates, type Plantilla, marcadoresGlobales } from '$lib/stores/plantillas';
 
-  // --- TIPTAP (MOTOR DEL EDITOR) ---
+  // --- TIPTAP ---
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import Underline from '@tiptap/extension-underline';
@@ -20,79 +21,84 @@
     FileText, ChevronUp, ChevronDown, PenTool, Upload, Download, RefreshCw,
     X, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
-    Check, Loader2, Cloud
+    Check, Loader2, Cloud, Undo, Redo
   } from 'lucide-svelte';
 
-  // --- ESTADO DE LA VISTA ---
+  const dispatch = createEventDispatcher();
+
+  // --- ESTADO ---
   let editando = false; 
   let plantillaActual: Plantilla | null = null;
 
-  // --- ESTADO DEL EDITOR ---
+  // --- EDITOR ---
   let editor: Editor | null = null;
   let element: HTMLElement; 
   let saveStatus: 'saved' | 'saving' | 'unsaved' = 'saved';
   let autosaveTimer: any;
   
-  // Estados para la barra de herramientas (Reactividad visual)
+  // Estados Toolbar
   let isBold = false, isItalic = false, isUnderline = false, isStrike = false;
   let isLink = false, isHighlight = false, isBulletList = false, isOrderedList = false;
   let textAlign = 'left';
+  let canUndo = false;
+  let canRedo = false;
 
-  // --- GESTIÓN DE LISTA (ACORDEÓN) ---
   function toggle(id: string) {
       emailTemplates.update(items => items.map(p => p.id === id ? { ...p, isOpen: !p.isOpen } : p));
   }
 
-  // --- INICIAR EDICIÓN ---
+  // --- COMUNICACIÓN CON PADRE ---
+  function setModoEdicion(estado: boolean) {
+      editando = estado;
+      dispatch('cambioModo', estado);
+  }
+
+  // --- ABRIR EDITOR ---
   async function abrirEditor(plantilla: Plantilla) {
-      // 1. Copia profunda para aislar datos y evitar referencias cruzadas
       plantillaActual = JSON.parse(JSON.stringify(plantilla));
       
-      // 2. Cargar datos frescos de la base de datos
-      try {
-          const res: any = await invoke('obtener_plantilla_mensaje', { id: plantillaActual.id });
-          if (res && (res.cuerpo || res.asunto)) {
-              plantillaActual.body = res.cuerpo;
-              plantillaActual.subject = res.asunto;
+      if (plantillaActual) {
+          try {
+              const res: any = await invoke('obtener_plantilla_mensaje', { id: plantillaActual.id });
+              if (res && (res.cuerpo || res.asunto)) {
+                  if (plantillaActual) {
+                      plantillaActual.body = res.cuerpo;
+                      plantillaActual.subject = res.asunto;
+                  }
+              }
+          } catch (e) {
+              console.error("Error cargando DB:", e);
           }
-      } catch (e) {
-          console.error("Error cargando DB:", e);
       }
 
-      // 3. Cambiar a vista de editor
-      editando = true;
-      // Pequeño delay para asegurar que el div del editor existe
+      setModoEdicion(true);
       setTimeout(() => initEditor(), 50);
   }
 
-  // --- CONFIGURACIÓN DE TIPTAP ---
   function initEditor() {
       if (editor) editor.destroy();
 
       editor = new Editor({
           element: element,
           extensions: [
-              StarterKit, Underline, TextStyle, Color,
-              Highlight.configure({ multicolor: true }),
-              Link.configure({ openOnClick: false }),
-              TextAlign.configure({ types: ['heading', 'paragraph'] }),
+              StarterKit, 
+              Underline, TextStyle, Color, Highlight.configure({ multicolor: true }),
+              Link.configure({ openOnClick: false }), TextAlign.configure({ types: ['heading', 'paragraph'] }),
           ],
           content: plantillaActual?.body || '',
           onUpdate: ({ editor }) => {
               if (plantillaActual) {
                   plantillaActual.body = editor.getHTML();
-                  actualizarToolbar(); // Actualizar botones activos
-                  triggerAutosave();   // Disparar guardado automático
+                  actualizarToolbar();
+                  triggerAutosave();
               }
           },
-          // Estos eventos aseguran que la barra reaccione al mover el cursor o seleccionar texto
           onSelectionUpdate: () => actualizarToolbar(),
           onTransaction: () => actualizarToolbar()
       });
       actualizarToolbar();
   }
 
-  // --- BARRA DE HERRAMIENTAS REACTIVA ---
   function actualizarToolbar() {
       if (!editor) return;
       isBold = editor.isActive('bold');
@@ -109,9 +115,12 @@
       else if (editor.isActive({ textAlign: 'right' })) textAlign = 'right';
       else if (editor.isActive({ textAlign: 'justify' })) textAlign = 'justify';
       else textAlign = 'left';
+
+      canUndo = editor.can().undo();
+      canRedo = editor.can().redo();
   }
 
-  // --- FUNCIONES DE FORMATO ---
+  // Funciones Toolbar
   const toggleB = () => editor?.chain().focus().toggleBold().run();
   const toggleI = () => editor?.chain().focus().toggleItalic().run();
   const toggleU = () => editor?.chain().focus().toggleUnderline().run();
@@ -124,8 +133,10 @@
   const setHighlight = () => editor?.chain().focus().toggleHighlight().run();
   const setTextColor = () => { const c = prompt('Color (hex):', '#000000'); if(c) editor?.chain().focus().setColor(c).run(); };
   const addLine = () => editor?.chain().focus().setHorizontalRule().run();
+  const undo = () => editor?.chain().focus().undo().run();
+  const redo = () => editor?.chain().focus().redo().run();
 
-  // --- MARCADORES ---
+  // Marcadores
   let marcadoresUI = marcadoresGlobales.map(grp => ({ ...grp }));
   
   function toggleMarcadorGroup(i: number) {
@@ -140,22 +151,19 @@
       }
   }
 
-  // --- GUARDADO ---
   async function guardar(cerrarAlTerminar = false) {
       if (!plantillaActual) return;
       saveStatus = 'saving';
 
       try {
-          // 1. Backend Rust
           await invoke('guardar_plantilla_mensaje', {
               id: plantillaActual.id,
               asunto: plantillaActual.subject,
               cuerpo: plantillaActual.body
           });
 
-          // 2. Actualizar Store visual (Lista principal)
           emailTemplates.update(items => items.map(p => 
-              p.id === plantillaActual?.id ? { ...plantillaActual, isOpen: true } : p
+              p.id === plantillaActual!.id ? { ...plantillaActual!, isOpen: true } : p
           ));
 
           saveStatus = 'saved';
@@ -178,9 +186,33 @@
   function cerrarEditor() {
       if (editor) { editor.destroy(); editor = null; }
       clearTimeout(autosaveTimer);
-      editando = false;
       plantillaActual = null;
+      setModoEdicion(false);
   }
+
+  // --- CARGA INICIAL (RECUPERAR DATOS AL ABRIR LA APP) ---
+  onMount(async () => {
+      // Obtenemos la lista actual de plantillas
+      const templates = $emailTemplates;
+      
+      // Recorremos todas y buscamos sus datos en la BD
+      const promesas = templates.map(async (p) => {
+          try {
+              const res: any = await invoke('obtener_plantilla_mensaje', { id: p.id });
+              // Si hay datos guardados, actualizamos la vista previa
+              if (res && (res.asunto || res.cuerpo)) {
+                  return { ...p, subject: res.asunto, body: res.cuerpo };
+              }
+          } catch (e) {
+              console.error("Error recuperando plantilla " + p.id, e);
+          }
+          return p; // Si falla o no hay datos, devolvemos la original
+      });
+
+      // Esperamos a que todas se carguen y actualizamos el Store
+      const resultados = await Promise.all(promesas);
+      emailTemplates.set(resultados);
+  });
 
   onDestroy(() => {
       if (editor) editor.destroy();
@@ -243,41 +275,49 @@
             </div>
 
             <div class="editor-form-area">
-                <label>Asunto / Referencia</label>
-                <input type="text" class="input-subject" bind:value={plantillaActual.subject} on:input={triggerAutosave} />
-
-                <label>Contenido</label>
-                <div class="toolbar-ribbon">
-                    <button class="tool-btn" class:active={isBold} on:click={toggleB} title="Negrita"><Bold size={16}/></button>
-                    <button class="tool-btn" class:active={isItalic} on:click={toggleI} title="Cursiva"><Italic size={16}/></button>
-                    <button class="tool-btn" class:active={isUnderline} on:click={toggleU} title="Subrayado"><UnderlineIcon size={16}/></button>
-                    <button class="tool-btn" class:active={isStrike} on:click={toggleStrike} title="Tachado"><span style="text-decoration: line-through;">S</span></button>
-                    <div class="sep"></div>
-                    
-                    <button class="tool-btn" class:active={textAlign==='left'} on:click={() => setAlign('left')}><AlignLeft size={16}/></button>
-                    <button class="tool-btn" class:active={textAlign==='center'} on:click={() => setAlign('center')}><AlignCenter size={16}/></button>
-                    <button class="tool-btn" class:active={textAlign==='right'} on:click={() => setAlign('right')}><AlignRight size={16}/></button>
-                    <button class="tool-btn" class:active={textAlign==='justify'} on:click={() => setAlign('justify')}><AlignJustify size={16}/></button>
-                    <div class="sep"></div>
-
-                    <button class="tool-btn" class:active={isBulletList} on:click={() => setList('bullet')}><List size={16}/></button>
-                    <button class="tool-btn" class:active={isOrderedList} on:click={() => setList('ordered')}><ListOrdered size={16}/></button>
-                    <div class="sep"></div>
-
-                    <button class="tool-btn" on:click={() => indent('out')}><IndentDecrease size={16}/></button>
-                    <button class="tool-btn" on:click={() => indent('in')}><IndentIncrease size={16}/></button>
-                    <div class="sep"></div>
-
-                    <button class="tool-btn" on:click={setTextColor} title="Color Texto"><span style="border-bottom: 2px solid red; font-weight:bold;">A</span></button>
-                    <button class="tool-btn" class:active={isHighlight} on:click={setHighlight} title="Resaltar"><Highlighter size={16}/></button>
-                    <div class="sep"></div>
-
-                    <button class="tool-btn" class:active={isLink} on:click={setLink}><LinkIcon size={16}/></button>
-                    <button class="tool-btn" on:click={unsetLink}><Unlink size={16}/></button>
-                    <button class="tool-btn" on:click={addLine}><Minus size={16}/></button>
+                <div class="input-group-top">
+                    <label>Asunto</label>
+                    <input type="text" class="input-subject" bind:value={plantillaActual.subject} on:input={triggerAutosave} />
                 </div>
 
-                <div class="editor-container" bind:this={element}></div>
+                <div class="editor-wrapper-box">
+                    <label>Contenido</label>
+                    <div class="toolbar-ribbon">
+                        <button class="tool-btn" class:active={isBold} on:click={toggleB} title="Negrita"><Bold size={16}/></button>
+                        <button class="tool-btn" class:active={isItalic} on:click={toggleI} title="Cursiva"><Italic size={16}/></button>
+                        <button class="tool-btn" class:active={isUnderline} on:click={toggleU} title="Subrayado"><UnderlineIcon size={16}/></button>
+                        <button class="tool-btn" class:active={isStrike} on:click={toggleStrike} title="Tachado"><span style="text-decoration: line-through;">S</span></button>
+                        <div class="sep"></div>
+                        
+                        <button class="tool-btn" class:active={textAlign==='left'} on:click={() => setAlign('left')}><AlignLeft size={16}/></button>
+                        <button class="tool-btn" class:active={textAlign==='center'} on:click={() => setAlign('center')}><AlignCenter size={16}/></button>
+                        <button class="tool-btn" class:active={textAlign==='right'} on:click={() => setAlign('right')}><AlignRight size={16}/></button>
+                        <button class="tool-btn" class:active={textAlign==='justify'} on:click={() => setAlign('justify')}><AlignJustify size={16}/></button>
+                        <div class="sep"></div>
+
+                        <button class="tool-btn" class:active={isBulletList} on:click={() => setList('bullet')}><List size={16}/></button>
+                        <button class="tool-btn" class:active={isOrderedList} on:click={() => setList('ordered')}><ListOrdered size={16}/></button>
+                        <div class="sep"></div>
+
+                        <button class="tool-btn" on:click={() => indent('out')}><IndentDecrease size={16}/></button>
+                        <button class="tool-btn" on:click={() => indent('in')}><IndentIncrease size={16}/></button>
+                        <div class="sep"></div>
+
+                        <button class="tool-btn" on:click={setTextColor} title="Color Texto"><span style="border-bottom: 2px solid red; font-weight:bold;">A</span></button>
+                        <button class="tool-btn" class:active={isHighlight} on:click={setHighlight} title="Resaltar"><Highlighter size={16}/></button>
+                        <div class="sep"></div>
+
+                        <button class="tool-btn" class:active={isLink} on:click={setLink}><LinkIcon size={16}/></button>
+                        <button class="tool-btn" on:click={unsetLink}><Unlink size={16}/></button>
+                        <button class="tool-btn" on:click={addLine}><Minus size={16}/></button>
+                        <div class="sep"></div>
+
+                        <button class="tool-btn" on:click={undo} disabled={!canUndo} title="Deshacer"><Undo size={16}/></button>
+                        <button class="tool-btn" on:click={redo} disabled={!canRedo} title="Rehacer"><Redo size={16}/></button>
+                    </div>
+
+                    <div class="editor-container" bind:this={element}></div>
+                </div>
             </div>
 
             <div class="editor-footer">
@@ -296,10 +336,13 @@
                             {#if group.isOpen}<ChevronUp size={14}/>{:else}<ChevronDown size={14}/>{/if}
                         </button>
                         {#if group.isOpen}
-                            <div class="marker-items">
+                            <div class="marker-content">
                                 {#each group.items as item}
-                                    <button class="marker-item" on:click={() => insertarMarcador(item.code)}>
-                                        <div class="m-label">{item.label}</div>
+                                    <button class="marker-pill" on:click={() => insertarMarcador(item.code)} title={item.label}>
+                                        <div class="marker-content-row"><span class="m-label">{item.label}</span></div>
+                                        {#if item.desc}
+                                            <div class="marker-row-desc">{item.desc}</div>
+                                        {/if}
                                         <div class="m-code">{item.code}</div>
                                     </button>
                                 {/each}
@@ -318,23 +361,19 @@
   .accordion-item { border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
   .accordion-header { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: var(--bg-card); border: none; cursor: pointer; color: var(--text-main); }
   .acc-title { display: flex; align-items: center; gap: 10px; }
-  
   .accordion-body-template { padding: 25px; background: var(--bg-body); border-top: 1px solid var(--border-color); }
-  .preview-group { margin-bottom: 15px; }
-  .preview-group label { display: block; font-weight: 700; font-size: 13px; color: var(--text-main); margin-bottom: 5px; }
-  .preview-input { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); font-size: 14px; box-sizing: border-box; }
-  .preview-textarea { width: 100%; padding: 15px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); font-size: 14px; min-height: 100px; max-height: 300px; box-sizing: border-box; overflow-y: auto; }
-
-  .template-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
-  .btn-template-action { background: #5f1d22; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-  .btn-template-action:hover { background: #4a1519; }
+  .preview-input, .preview-textarea { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); margin-bottom: 10px; }
+  .btn-template-action { background: #5f1d22; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; display: flex; gap: 5px; }
   .group-center { display: flex; gap: 10px; }
+  .template-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
 
   /* --- ESTILOS DEL EDITOR (MODO EDICIÓN) --- */
-  .editor-layout-wrapper { display: grid; grid-template-columns: 1fr 300px; gap: 20px; height: 650px; margin-bottom: 20px; }
+  
+  /* Layout Principal más alto para evitar el "amontonado" */
+  .editor-layout-wrapper { display: grid; grid-template-columns: 1fr 280px; gap: 20px; height: calc(100vh - 200px); min-height: 600px; margin-bottom: 40px; }
+  
   .editor-main { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
   
-  /* Header Editor */
   .editor-header-bar { padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
   .title-wrap { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text-main); font-size: 15px; }
   .autosave-badge { margin-left: 15px; }
@@ -342,33 +381,37 @@
   .status-pill.saved { background: rgba(16, 185, 129, 0.15); color: #10b981; }
   .status-pill.saving { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
   .status-pill.unsaved { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-  :global(.spin) { animation: spin 1s linear infinite; }
-  @keyframes spin { from {transform: rotate(0deg);} to {transform: rotate(360deg);} }
   .btn-close-header { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
   .btn-close-header:hover { color: var(--text-main); }
 
-  /* Formulario Editor */
-  .editor-form-area { padding: 20px; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .editor-form-area label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-top: 10px; margin-bottom: 5px; }
-  .input-subject { width: 100%; padding: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 4px; box-sizing: border-box; margin-bottom: 10px; }
+  /* Ajustes de espacio en el formulario */
+  .editor-form-area { padding: 25px; flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 15px; }
+  
+  .input-group-top label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+  .input-subject { width: 100%; padding: 12px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+
+  /* Wrapper flexible para el área de contenido */
+  .editor-wrapper-box { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  .editor-wrapper-box label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
 
   /* Toolbar */
-  .toolbar-ribbon { display: flex; gap: 4px; padding: 6px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-bottom: none; border-radius: 4px 4px 0 0; flex-wrap: wrap; }
-  .tool-btn { background: none; border: 1px solid transparent; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--text-secondary); cursor: pointer; }
+  .toolbar-ribbon { display: flex; gap: 4px; padding: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-bottom: none; border-radius: 6px 6px 0 0; flex-wrap: wrap; }
+  .tool-btn { background: none; border: 1px solid transparent; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--text-secondary); cursor: pointer; }
   .tool-btn:hover { background: var(--hover-bg); color: var(--text-main); }
   .tool-btn.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); }
+  .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .sep { width: 1px; height: 20px; background: var(--border-color); margin: 0 4px; }
 
-  /* Tiptap Container */
-  .editor-container { flex: 1; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 0 0 4px 4px; overflow-y: auto; padding: 15px; cursor: text; }
+  /* Tiptap Container: Ocupa todo el espacio restante */
+  .editor-container { flex: 1; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 0 0 6px 6px; overflow-y: auto; padding: 20px; cursor: text; min-height: 250px; }
+  
   :global(.ProseMirror) { height: 100%; outline: none; }
   :global(.ProseMirror p) { margin-top: 0; margin-bottom: 0.8em; line-height: 1.5; }
   :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 20px; margin: 10px 0; }
 
-  /* Footer Actions */
-  .editor-footer { padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); }
-  .btn-cancel { background: #4b5563; color: white; border: none; padding: 9px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-  .btn-save { background: #ea580c; color: white; border: none; padding: 9px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .editor-footer { padding: 15px 25px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); }
+  .btn-cancel { background: #4b5563; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .btn-save { background: #ea580c; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
   .btn-save:hover { background: #c2410c; }
 
   /* Sidebar Marcadores */
@@ -376,11 +419,15 @@
   .sidebar-header { padding: 15px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--text-main); font-size: 14px; }
   .markers-list { overflow-y: auto; flex: 1; }
   .marker-group { border-bottom: 1px solid var(--border-color); }
-  .marker-group-btn { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: transparent; border: none; color: var(--text-main); font-size: 13px; font-weight: 500; cursor: pointer; }
+  .marker-group-btn { width: 100%; padding: 12px 15px; display: flex; justify-content: space-between; background: transparent; border: none; color: var(--text-main); cursor: pointer; font-size: 13px; font-weight: 500; }
   .marker-group-btn:hover { background: var(--hover-bg); }
   .marker-content { background: var(--bg-body); padding: 5px 0; }
-  .marker-item { width: 100%; text-align: left; padding: 8px 15px; background: transparent; border: none; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.02); }
-  .marker-item:hover { background: var(--hover-bg); }
-  .m-label { font-size: 12px; font-weight: 500; color: var(--text-main); margin-bottom: 2px; }
-  .m-code { font-size: 10px; font-family: monospace; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 2px 4px; border-radius: 3px; width: fit-content; }
+  
+  /* ESTILOS DE MARCADOR DETALLADO */
+  .marker-pill { display: block; width: 100%; padding: 10px 15px; text-align: left; background: none; border: none; cursor: pointer; color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.02); }
+  .marker-pill:hover { background: var(--hover-bg); }
+  .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .m-label { font-size: 12px; font-weight: 600; color: var(--text-main); }
+  .marker-row-desc { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px; opacity: 0.8; }
+  .m-code { font-size: 10px; font-family: monospace; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 3px 6px; border-radius: 4px; width: fit-content; }
 </style>
