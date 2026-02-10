@@ -4,6 +4,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
 
+// CONFIGURACIÓN
 interface MembreteConfig {
     usarEncabezado: boolean;
     usarPiePagina: boolean;
@@ -14,6 +15,8 @@ interface MembreteConfig {
     colorTexto: string;
     colorLineaPie: string;
     colorTextoPie: string;
+    tamanoTitulo?: number;
+    tamanoContacto?: number;
 }
 
 const DEFAULT_MEMBRETE: MembreteConfig = {
@@ -25,14 +28,22 @@ const DEFAULT_MEMBRETE: MembreteConfig = {
     colorLinea: '#000000',
     colorTexto: '#000000',
     colorLineaPie: '#cccccc',
-    colorTextoPie: '#666666'
+    colorTextoPie: '#666666',
+    tamanoTitulo: 12,
+    tamanoContacto: 8
 };
 
 export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string) {
     try {
+        // CARGAR CONFIG
         let configMembrete = DEFAULT_MEMBRETE;
         const configGuardada = localStorage.getItem('config_membrete');
-        if (configGuardada) configMembrete = { ...DEFAULT_MEMBRETE, ...JSON.parse(configGuardada) };
+        if (configGuardada) {
+            configMembrete = { ...DEFAULT_MEMBRETE, ...JSON.parse(configGuardada) };
+        }
+
+        const sizeTitulo = configMembrete.tamanoTitulo || 12;
+        const sizeContacto = configMembrete.tamanoContacto || 8;
 
         const plantillaData: any = await invoke('obtener_plantilla', { id: idPlantilla });
         let htmlContent = plantillaData?.cuerpo || plantillaData?.contenido;
@@ -42,20 +53,18 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             return;
         }
 
-        // MAPA DE REEMPLAZO
+        // REEMPLAZOS
         const mapaReemplazo: Record<string, string> = {
             '[[Saludo según sexo]]': datos.saludo,
             '[[Designación del Circuito]]': datos.circuito,
-            
-            // FECHAS (Aquí está la fecha de la carta)
             '[[Fecha Actual Completa]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
             '[[Fecha Actual Mediana]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
-            
+
             '[[Hora]]': datos.hora,
             '[[Tema]]': datos.tema_asignacion,
             '[[Número de Bosquejo]]': datos.num_bosquejo,
             '[[Tipo de asignación]]': datos.tipo_asignacion,
-            '[[Enlace(s) del Bosquejo]]': '', 
+            '[[Enlace(s) del Bosquejo]]': '',
             '[[Notas]]': datos.nota_asignacion,
 
             '[[Nombre]]': datos.nombre_pila,
@@ -73,7 +82,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             '[[Tema del Evento]]': datos.tema_evento,
 
             '[[Información completa de los ensayos]]': generarInfoEnsayos(datos),
-            '[[Lugar de los ensayos]]': construirLugarEnsayo(datos), 
+            '[[Lugar de los ensayos]]': construirLugarEnsayo(datos),
             '[[Fecha y hora del ensayo]]': `${datos.ensayo_fecha} a las ${datos.ensayo_hora}`,
             '[[Fecha de ensayos]]': datos.ensayo_fecha,
             '[[Hora de ensayos]]': datos.ensayo_hora,
@@ -81,63 +90,75 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
             '[[Información de orientaciones]]': datos.orientaciones || 'No hay orientaciones específicas.',
             '[[Instrucciones Especiales]]': datos.instrucciones || 'Ninguna.',
-            
+
             '[[correo electrónico jwpub del Presidente de la asamblea]]': datos.email_presidente,
             '[[Teléfono del Presidente de la asamblea]]': datos.tel_presidente
         };
 
         for (const [marcador, valor] of Object.entries(mapaReemplazo)) {
             const regex = new RegExp(marcador.replace(/\[/g, '\\[').replace(/\]/g, '\\]'), 'g');
-            htmlContent = htmlContent.replace(regex, String(valor || '')); 
+            htmlContent = htmlContent.replace(regex, String(valor || ''));
         }
 
-        // LIMPIEZA VISUAL (Párrafos vacíos iniciales)
-        htmlContent = htmlContent.replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/i, '');
+        // LIMPIEZA EXTRA
+        htmlContent = htmlContent
+            .replace(/<p>\s*<\/p>/g, '')
+            .replace(/<p>\s*<br\s*\/?>\s*<\/p>/g, '')
+            .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
 
-        // CÁLCULO DE POSICIÓN Y (Corregido)
+        // CÁLCULO DE ALTURA DEL ENCABEZADO
         const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
-        let inicioTextoY = 15; 
+        let inicioTextoY = 15;
 
         if (configMembrete.usarEncabezado) {
+            docCalc.setFontSize(sizeContacto);
             const lineas = docCalc.splitTextToSize(configMembrete.contacto, 180);
-            const alturaContacto = lineas.length * 3;
-            // CORRECCIÓN: +8mm es seguro para que la fecha se vea perfecta debajo de la línea
-            inicioTextoY = 21 + alturaContacto + 8; 
+
+            const alturaPorLinea = sizeContacto * 0.352 * 1.2;
+            const alturaBloqueContacto = lineas.length * alturaPorLinea;
+
+            const lineaNegraY = 21 + alturaBloqueContacto;
+            inicioTextoY = lineaNegraY + 3;
         }
 
+        // CONTENEDOR HTML
         const container = document.createElement('div');
-        // CSS RESET SEGURO: Margin 0 (no negativo)
         const estilosReset = `
             <style>
                 * { box-sizing: border-box; }
                 body { margin: 0; padding: 0; }
-                p { margin: 0 0 8px 0; line-height: 1.25; }
-                /* CORRECCIÓN: Quitamos el -6px que escondía la fecha */
-                p:first-child, div:first-child, h1:first-child { 
-                    margin-top: 0 !important; 
-                    padding-top: 0 !important; 
+                p { margin: 0 0 3mm 0; line-height: 1.25; }
+                .pdf-content > *:first-child {
+                    margin-top: 0 !important;
+                    padding-top: 0 !important;
                 }
             </style>
         `;
-        
+
         container.innerHTML = `${estilosReset}<div class="pdf-content">${htmlContent}</div>`;
-        
+
         Object.assign(container.style, {
-            position: 'absolute', top: '0', left: '0',
-            width: '186mm', 
-            padding: '0', margin: '0',
-            backgroundColor: 'white', color: 'black', zIndex: '-9999',
-            fontFamily: '"Times New Roman", Times, serif', 
-            fontSize: '11pt', lineHeight: '1.2', textAlign: 'justify'
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '186mm',
+            padding: '0',
+            margin: '0',
+            backgroundColor: 'white',
+            color: 'black',
+            zIndex: '-9999',
+            fontFamily: '"Times New Roman", Times, serif',
+            fontSize: '11pt',
+            lineHeight: '1.25',
+            textAlign: 'justify'
         });
 
         document.body.appendChild(container);
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // GENERAR PDF
-        const margenSide = 12; // 1.2 cm
+        // PDF
+        const margenSide = 12;
         const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
-        const margenTopPaging = configMembrete.usarEncabezado ? 28 : 15;
 
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -148,20 +169,27 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
             if (configMembrete.usarEncabezado) {
                 pdf.setFont("helvetica", "bold");
-                pdf.setFontSize(12);
+                pdf.setFontSize(sizeTitulo);
                 pdf.setTextColor(configMembrete.colorTexto);
                 pdf.text(configMembrete.titulo.toUpperCase(), cx, 14, { align: 'center' });
 
                 pdf.setFont("helvetica", "normal");
-                pdf.setFontSize(8);
+                pdf.setFontSize(sizeContacto);
                 pdf.setTextColor(configMembrete.colorTexto);
+
                 const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
-                pdf.text(lineas, cx, 19, { align: 'center' });
+                const alturaPorLinea = sizeContacto * 0.352 * 1.2;
+
+                let cursorY = 19;
+                lineas.forEach((line: string) => {
+                    pdf.text(line, cx, cursorY, { align: 'center' });
+                    cursorY += alturaPorLinea;
+                });
 
                 pdf.setDrawColor(configMembrete.colorLinea);
                 pdf.setLineWidth(0.5);
-                const lY = 21 + (lineas.length * 3);
-                pdf.line(margenSide, lY, w - margenSide, lY);
+                const lineaY = cursorY + 1;
+                pdf.line(margenSide, lineaY, w - margenSide, lineaY);
             }
 
             if (configMembrete.usarPiePagina) {
@@ -182,12 +210,13 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                     pdf.setPage(i);
                     dibujarMembrete(pdf);
                 }
+
                 document.body.removeChild(container);
-                
+
                 const pdfData = pdf.output('arraybuffer');
                 const binary = new Uint8Array(pdfData);
                 const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
-                
+
                 try {
                     const path = await save({
                         defaultPath: `Carta_${safeName}.pdf`,
@@ -197,13 +226,17 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                         await writeFile(path, binary);
                         alert("✅ Carta generada correctamente.");
                     }
-                } catch (e) { console.log("Cancelado", e); }
+                } catch (e) {
+                    console.log("Cancelado", e);
+                }
             },
+
+            // USAMOS SOLO inicioTextoY — SIN margen superior adicional
             x: margenSide,
-            y: inicioTextoY, 
+            y: inicioTextoY,
             width: 186,
             windowWidth: 800,
-            margin: [margenTopPaging, margenSide, margenBottom, margenSide], 
+            margin: [0, margenSide, margenBottom, margenSide],
             autoPaging: 'text'
         });
 
