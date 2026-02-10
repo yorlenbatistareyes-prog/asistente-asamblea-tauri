@@ -234,7 +234,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             // USAMOS SOLO inicioTextoY — SIN margen superior adicional
             x: margenSide,
             y: inicioTextoY,
-            width: 194,
+            width: 204,
             windowWidth: 800,
             margin: [0, margenSide, margenBottom, margenSide],
             autoPaging: 'text'
