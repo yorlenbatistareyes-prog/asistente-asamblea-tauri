@@ -1,9 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
 // INTERFAZ MAESTRA
-// Define qué datos están disponibles para CUALQUIER correspondencia
 export interface ContextoDocumento {
-    // Personal
     saludo: string;
     nombre_pila: string;
     segundo_nombre: string;
@@ -12,7 +10,6 @@ export interface ContextoDocumento {
     sexo: string;
     circuito: string;
 
-    // Asignación
     tema_asignacion: string;
     tipo_asignacion: string;
     num_bosquejo: string;
@@ -21,7 +18,6 @@ export interface ContextoDocumento {
     congregacion: string;
     nota_asignacion: string;
     
-    // Evento
     tema_evento: string;
     tipo_evento: string;
     fecha_evento_texto: string;
@@ -30,36 +26,25 @@ export interface ContextoDocumento {
     ciudad: string;
     estado: string;
 
-    // Ensayos
     ensayo_fecha: string;
     ensayo_hora: string;
     ensayo_lugar: string;
     ensayo_direccion: string;
-    ensayo_notas: string; // HTML
+    ensayo_notas: string;
 
-    // Instrucciones
-    orientaciones: string; // HTML
+    orientaciones: string;
     instrucciones: string;
 
-    // Presidente
     email_presidente: string;
     tel_presidente: string;
 }
 
-/**
- * Recopila datos de BD, Orador y Asamblea para crear un contexto unificado.
- */
 export async function generarContexto(objeto: any, asambleaId: number, esPartePrograma: boolean): Promise<ContextoDocumento> {
     
-    // 1. OBTENER DATOS DEL BACKEND
-    // Fuente A: Textos ricos, temas y configuraciones (InformacionEvento.svelte)
     const infoAsamblea: any = await invoke('obtener_asamblea_activa') || {};
-    // Fuente B: Datos relacionales, direcciones de locales (Gestión Salones)
     const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
 
-    console.log("📂 CONTEXTO RAW:", { orador: objeto, asamblea: infoAsamblea, extra: infoExtra });
-
-    // 2. NORMALIZACIÓN DE NOMBRES
+    // NORMALIZACIÓN DE NOMBRES
     let nombreCompleto = (objeto.nombre_orador || objeto.nombre_completo || objeto.nombre || 'Hermano').trim();
     let nombrePila = '';
     let apellidos = objeto.apellidos || '';
@@ -76,11 +61,17 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         }
     }
 
-    // 3. CONSTRUCCIÓN DEL CONTEXTO FINAL
-    // Aquí mapeamos lo que viene de la BD a nuestra estructura estándar
+    // --- LÓGICA INTELIGENTE DE EVENTO ---
+    // Si la BD dice "Asamblea" (a secas), nosotros lo mejoramos a "Asamblea Regional"
+    let tipoEventoMejorado = infoAsamblea.tipo || 'Asamblea';
+    if (tipoEventoMejorado.trim().toLowerCase() === 'asamblea') {
+        tipoEventoMejorado = 'Asamblea Regional';
+    }
+
     return {
         // --- PERSONAL ---
-        saludo: objeto.sexo === 'F' ? 'Estimada hermana' : 'Estimado hermano',
+        // CAMBIO AQUÍ: Ya no ponemos "Estimado", solo la palabra clave.
+        saludo: objeto.sexo === 'F' ? 'hermana' : 'hermano',
         nombre_pila: nombrePila,
         segundo_nombre: segundoNombre,
         apellidos: apellidos,
@@ -93,33 +84,29 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         tipo_asignacion: esPartePrograma ? 'Discurso' : (objeto.tipo_asignacion || 'Asignación'),
         num_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '',
         hora: objeto.hora_inicio || objeto.hora || '---',
-        fecha_asignacion: objeto.fecha || '---', // Fecha específica de la parte
+        fecha_asignacion: objeto.fecha || '---',
         congregacion: objeto.congregacion_orador || objeto.nombre_congregacion || '',
         nota_asignacion: objeto.notas || '',
 
         // --- EVENTO ---
         tema_evento: infoAsamblea.tema || 'Asamblea Regional',
-        tipo_evento: infoAsamblea.tipo || 'Asamblea',
+        tipo_evento: tipoEventoMejorado, // Aquí va el nombre corregido
         fecha_evento_texto: infoAsamblea.fecha || infoExtra.fecha_texto || 'Fecha por definir',
         
         // --- LUGAR ---
-        // Priorizamos infoExtra.lugar (que viene del join con locales) sobre el texto plano
         lugar_nombre: infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
         lugar_direccion: infoExtra.direccion || infoAsamblea.local_direccion || '',
         ciudad: infoAsamblea.ciudad || 'Holguín',
         estado: 'Holguín',
 
         // --- ENSAYOS ---
-        // Prioridad: Datos específicos de infoAsamblea (guardados en InformacionEvento)
         ensayo_fecha: infoAsamblea.ensayo_fecha || infoExtra.fecha_ensayo || '---',
         ensayo_hora: infoAsamblea.ensayo_hora || infoExtra.hora_ensayo || '---',
         ensayo_lugar: infoAsamblea.ensayo_lugar || infoExtra.lugar || '',
-        // Dirección específica para ensayo si es diferente
         ensayo_direccion: infoExtra.direccion_ensayo || infoExtra.direccion || '',
         ensayo_notas: infoAsamblea.ensayo_notas || '',
 
         // --- INSTRUCCIONES ---
-        // infoAsamblea.recorridos_info es como se llama en la BD (verificado en tu código anterior)
         orientaciones: infoAsamblea.recorridos_info || infoExtra.recorridos_info || '',
         instrucciones: infoAsamblea.instrucciones_esp || infoExtra.instrucciones_esp || '',
 
