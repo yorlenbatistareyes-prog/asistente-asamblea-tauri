@@ -1,22 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Settings, Edit, FileText, ToggleLeft, ToggleRight, X, Save, Eye } from 'lucide-svelte';
-  // import { invoke } from '@tauri-apps/api/core'; // Descomenta cuando conectes el backend
+  // import { invoke } from '@tauri-apps/api/core'; 
 
   // --- CONFIGURACIÓN POR DEFECTO ---
   let config = {
     usarEncabezado: true,
     usarPiePagina: true,
     titulo: 'ASAMBLEA REGIONAL DE LOS TESTIGOS DE JEHOVÁ',
-    subtitulo: 'Sección de Alojamiento y Programa',
+    // Subtítulo eliminado
     contacto: 'Carretera Central Km 5 ½. Holguín.\nTel: 24-462211 • Email: asamblea@jwpub.org',
     piePagina: '© 2026 Comité de Asamblea Regional. Información confidencial.'
   };
 
   let mostrarModal = false;
-  let configEditando = { ...config }; // Copia temporal para editar
+  let configEditando = { ...config }; 
 
-  // Simulación de carga (Aquí conectarás con Rust luego)
   onMount(() => {
     const guardado = localStorage.getItem('config_membrete');
     if (guardado) {
@@ -26,8 +25,7 @@
 
   function guardarCambios() {
     config = { ...configEditando };
-    localStorage.setItem('config_membrete', JSON.stringify(config)); // Guardado temporal
-    // await invoke('guardar_config_membrete', { config }); // Guardado real en Rust
+    localStorage.setItem('config_membrete', JSON.stringify(config));
     mostrarModal = false;
   }
 
@@ -89,7 +87,6 @@
         {#if config.usarEncabezado}
           <div class="membrete-preview">
             <h1 class="p-titulo">{config.titulo}</h1>
-            <h2 class="p-subtitulo">{config.subtitulo}</h2>
             <div class="linea-separadora"></div>
             <p class="p-contacto">{@html config.contacto.replace(/\n/g, '<br>')}</p>
           </div>
@@ -127,11 +124,6 @@
         <label>
           <span>Título Principal</span>
           <input type="text" bind:value={configEditando.titulo} placeholder="Ej. ASAMBLEA REGIONAL...">
-        </label>
-
-        <label>
-          <span>Subtítulo / Departamento</span>
-          <input type="text" bind:value={configEditando.subtitulo} placeholder="Ej. Sección de Alojamiento...">
         </label>
 
         <label>
@@ -200,7 +192,7 @@
   .cuerpo-config {
     padding: 20px;
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Dividir en 2 columnas: Controles | Preview */
+    grid-template-columns: 1fr 1fr; 
     gap: 30px;
   }
 
@@ -228,23 +220,23 @@
   }
 
   .hoja-papel {
-    background: white; /* Siempre blanco para simular papel */
+    background: white; 
     width: 100%;
-    max-width: 320px; /* Tamaño carta a escala pequeña */
-    aspect-ratio: 210/297; /* Proporción A4 */
+    max-width: 320px; 
+    aspect-ratio: 210/297; 
     padding: 20px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    color: #333; /* Texto negro siempre en papel */
+    color: #333; 
     font-family: "Times New Roman", serif;
     position: relative;
   }
 
   .membrete-preview { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
   .p-titulo { margin: 0; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-  .p-subtitulo { margin: 2px 0; font-size: 8px; text-transform: uppercase; color: #555; }
+  /* Se eliminó el estilo p-subtitulo del HTML, aunque quede en CSS no afecta */
   .p-contacto { margin: 4px 0 0 0; font-size: 6px; color: #666; }
 
   .contenido-ficticio { flex: 1; padding: 10px 0; opacity: 0.2; }
