@@ -157,7 +157,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         await new Promise(resolve => setTimeout(resolve, 300));
 
         // PDF
-        const margenSide = 12;
+        const margenSide = 8;
         const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
 
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -234,7 +234,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             // USAMOS SOLO inicioTextoY — SIN margen superior adicional
             x: margenSide,
             y: inicioTextoY,
-            width: 186,
+            width: 194,
             windowWidth: 800,
             margin: [0, margenSide, margenBottom, margenSide],
             autoPaging: 'text'
