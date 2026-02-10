@@ -62,9 +62,10 @@ pub fn run() {
             commands::importar::importar_congregaciones_csv,
             commands::importar::importar_programa_jw,
             
-            // PROGRAMA
+            // PROGRAMA - AQUÍ AGREGAMOS EL NUEVO COMANDO
             commands::programa::obtener_programa_dia,
             commands::programa::asignar_parte,
+            commands::programa::actualizar_numero_bosquejo,  // <-- NUEVO COMANDO AGREGADO
             commands::programa::obtener_oficina_dia,
             commands::programa::generar_programa_base,
             commands::programa::limpiar_programa,
