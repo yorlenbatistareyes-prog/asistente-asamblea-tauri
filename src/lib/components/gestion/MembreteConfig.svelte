@@ -48,7 +48,7 @@
       <FileText size={24} class="text-primary"/>
       <div>
         <h3>Diseñador de Membrete</h3>
-        <p>Personaliza el estilo para que coincida con tu aplicación.</p>
+        <p>Personaliza el estilo visual de tus documentos.</p>
       </div>
     </div>
     
@@ -80,24 +80,27 @@
 
         {#if config.usarEncabezado}
           <div class="inputs-group">
-            <label>
+            <div class="input-wrapper">
               <span class="sub-label">Título Principal</span>
               <input type="text" bind:value={config.titulo} placeholder="Nombre o Título...">
-            </label>
+            </div>
             
-            <label>
+            <div class="input-wrapper">
               <span class="sub-label">Datos de Contacto</span>
               <textarea rows="3" bind:value={config.contacto} placeholder="Dirección..."></textarea>
-            </label>
+            </div>
 
             <div class="fila-colores-group">
-              <label class="fila-color">
-                <span class="sub-label"><Palette size={14}/> Texto</span>
-                <input type="color" bind:value={config.colorTexto} class="input-color">
+              <label class="color-picker-btn" title="Color del Texto">
+                <span class="color-label"><Type size={14}/> Texto</span>
+                <div class="color-preview" style="background-color: {config.colorTexto};"></div>
+                <input type="color" bind:value={config.colorTexto}>
               </label>
-              <label class="fila-color">
-                <span class="sub-label"><Palette size={14}/> Línea</span>
-                <input type="color" bind:value={config.colorLinea} class="input-color">
+
+              <label class="color-picker-btn" title="Color de la Línea">
+                <span class="color-label"><Palette size={14}/> Línea</span>
+                <div class="color-preview" style="background-color: {config.colorLinea};"></div>
+                <input type="color" bind:value={config.colorLinea}>
               </label>
             </div>
 
@@ -122,19 +125,22 @@
 
         {#if config.usarPiePagina}
           <div class="inputs-group">
-            <label>
-              <span class="sub-label">Texto Informativo</span>
+            <div class="input-wrapper">
+              <span class="sub-label">Texto Legal / Informativo</span>
               <input type="text" bind:value={config.piePagina} class="input-pie">
-            </label>
+            </div>
             
             <div class="fila-colores-group">
-              <label class="fila-color">
-                <span class="sub-label"><Palette size={14}/> Texto</span>
-                <input type="color" bind:value={config.colorTextoPie} class="input-color">
+               <label class="color-picker-btn" title="Color del Texto">
+                <span class="color-label"><Type size={14}/> Texto</span>
+                <div class="color-preview" style="background-color: {config.colorTextoPie};"></div>
+                <input type="color" bind:value={config.colorTextoPie}>
               </label>
-              <label class="fila-color">
-                <span class="sub-label"><Palette size={14}/> Línea</span>
-                <input type="color" bind:value={config.colorLineaPie} class="input-color">
+
+              <label class="color-picker-btn" title="Color de la Línea">
+                <span class="color-label"><Palette size={14}/> Línea</span>
+                <div class="color-preview" style="background-color: {config.colorLineaPie};"></div>
+                <input type="color" bind:value={config.colorLineaPie}>
               </label>
             </div>
           </div>
@@ -152,11 +158,9 @@
         {#if config.usarEncabezado}
           <div class="membrete-preview">
             <h1 class="p-titulo" style="color: {config.colorTexto};">{config.titulo}</h1>
-            
             <p class="p-contacto" style="color: {config.colorTexto}; opacity: 0.85;">
               {@html config.contacto.replace(/\n/g, '<br>')}
             </p>
-            
             <div class="linea-separadora" style="background-color: {config.colorLinea};"></div>
           </div>
         {:else}
@@ -185,155 +189,146 @@
 <style>
   /* --- ESTRUCTURA --- */
   .card-config {
-    background: var(--bg-card);
+    background: var(--bg-card, #ffffff);
     border-radius: 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-color, #e5e7eb);
     overflow: hidden;
     margin-top: 20px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 
   .header-section {
     padding: 15px 25px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--bg-body, #f9fafb);
   }
 
   .titulo-icono { display: flex; gap: 12px; align-items: center; }
-  .header-section h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); font-weight: 700; }
-  .header-section p { margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-secondary); }
-  .text-primary { color: var(--primary); }
+  .header-section h3 { margin: 0; font-size: 1.1rem; color: var(--text-main, #111827); font-weight: 700; }
+  .header-section p { margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-secondary, #6b7280); }
+  .text-primary { color: var(--primary, #3b82f6); }
 
   .acciones-header { display: flex; gap: 10px; }
 
-  /* BOTÓN RESTAURAR - ESTILO ALERTA/ROJO */
+  /* BOTONES */
   .btn-reset {
-    background: transparent;
-    border: 1px solid #ef4444; /* Borde rojo */
-    color: #ef4444;            /* Texto rojo */
-    padding: 8px 14px;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex; align-items: center; gap: 8px;
-    transition: all 0.2s;
+    background: transparent; border: 1px solid #ef4444; color: #ef4444;
+    padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
   }
-  .btn-reset:hover {
-    background: rgba(239, 68, 68, 0.1); /* Fondo rojo suave al pasar mouse */
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(239, 68, 68, 0.2);
-  }
-  .btn-reset:active { transform: translateY(0); }
+  .btn-reset:hover { background: rgba(239, 68, 68, 0.05); box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1); }
 
-  /* BOTÓN GUARDAR */
   .btn-guardar-main {
-    background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px;
-    font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
-    transition: all 0.2s;
+    background: var(--primary, #3b82f6); color: white; border: none;
+    padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
   }
-  .btn-guardar-main:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-guardar-main:hover { filter: brightness(1.1); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3); }
 
-  .cuerpo-config {
-    display: grid; grid-template-columns: 1fr 1fr; min-height: 450px;
-  }
+  .cuerpo-config { display: grid; grid-template-columns: 1fr 1fr; min-height: 450px; }
 
   /* --- EDITOR --- */
   .panel-editor {
-    padding: 25px; display: flex; flex-direction: column; gap: 20px; border-right: 1px solid var(--border-color);
+    padding: 25px; display: flex; flex-direction: column; gap: 25px;
+    border-right: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-card, #fff);
   }
-  .editor-bloque { display: flex; flex-direction: column; gap: 12px; }
-  .bloque-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
-  .label-con-icono { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
+  .editor-bloque { display: flex; flex-direction: column; gap: 15px; }
+  .bloque-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .label-con-icono { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-main, #374151); font-size: 0.95rem; }
 
-  .inputs-group { display: flex; flex-direction: column; gap: 12px; animation: fadeIn 0.3s ease-out; }
+  /* --- INPUTS CORREGIDOS PARA DARK MODE --- */
+  .inputs-group { display: flex; flex-direction: column; gap: 15px; animation: fadeIn 0.3s ease-out; }
+  .input-wrapper { display: flex; flex-direction: column; gap: 6px; }
+  .sub-label { font-size: 0.75rem; color: var(--text-secondary, #6b7280); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  label { display: flex; flex-direction: column; gap: 6px; }
-  .sub-label { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; }
-  
   input[type="text"], textarea {
-    padding: 10px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color);
-    border-radius: 6px; color: var(--text-main); font-family: inherit; font-size: 0.9rem;
-    transition: border-color 0.2s;
+    padding: 12px;
+    /* CAMBIO CLAVE: Usar la variable bg-input, pero si no existe, usar transparente oscuro (funciona en ambos modos con borde) */
+    background: var(--bg-input, rgba(0, 0, 0, 0.05)); 
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 8px;
+    
+    /* CAMBIO CLAVE: Asegurar que el color del texto sea el principal (que cambia a blanco en dark mode) */
+    color: var(--text-main, inherit);
+    
+    font-family: inherit; font-size: 0.95rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
-  input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--primary); background: rgba(0, 0, 0, 0.3); }
 
-  .fila-colores-group { display: flex; gap: 10px; }
-  .fila-color {
-    flex-direction: row; align-items: center; justify-content: space-between; flex: 1;
-    background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);
+  input[type="text"]:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
-  .input-color { background: none; border: none; width: 24px; height: 24px; cursor: pointer; padding: 0; }
+  
+  input[type="text"]:hover, textarea:hover { border-color: #9ca3af; }
 
-  .texto-desactivado { font-style: italic; color: var(--text-secondary); opacity: 0.6; font-size: 0.85rem; padding: 5px 0; }
-  .separador-interno { border: 0; border-top: 1px solid var(--border-color); opacity: 0.3; }
+  /* --- SELECTORES DE COLOR --- */
+  .fila-colores-group { display: flex; gap: 12px; margin-top: 5px; }
+  
+  .color-picker-btn {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-body, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px; cursor: pointer;
+    transition: all 0.2s; position: relative;
+  }
+  .color-picker-btn:hover { border-color: #bfa094; filter: brightness(0.95); }
+  
+  .color-label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; display: flex; gap: 6px; align-items: center; flex: 1; }
+  
+  .color-preview {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 2px solid white; box-shadow: 0 0 0 1px #ddd;
+  }
+  
+  .color-picker-btn input[type="color"] {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+  }
+
+  /* --- OTROS --- */
+  .texto-desactivado { font-style: italic; color: #9ca3af; opacity: 0.8; font-size: 0.85rem; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 6px; text-align: center; }
+  .separador-interno { border: 0; border-top: 1px solid var(--border-color, #e5e7eb); opacity: 0.6; }
 
   /* Switch Mini */
   .switch-mini { position: relative; display: inline-block; width: 36px; height: 20px; }
   .switch-mini input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4b5563; transition: .4s; border-radius: 34px; }
-  .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #d1d5db; transition: .4s; border-radius: 34px; }
+  .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
   input:checked + .slider { background-color: #22c55e; }
   input:checked + .slider:before { transform: translateX(16px); }
 
   /* --- PREVIEW --- */
   .area-preview {
-    background: rgba(0,0,0,0.2); padding: 30px;
+    background: var(--bg-body, #f3f4f6); padding: 30px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-left: 1px solid var(--border-color);
   }
-  .etiqueta-preview { margin-bottom: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); display: flex; gap: 6px; align-items: center; }
+  .etiqueta-preview { margin-bottom: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary, #6b7280); display: flex; gap: 6px; align-items: center; }
 
   .hoja-papel {
     background: white; width: 100%; max-width: 340px; aspect-ratio: 210/297;
     padding: 25px; 
-    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
     display: flex; flex-direction: column; justify-content: space-between;
-    
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: #111;
+    font-family: system-ui, -apple-system, sans-serif; color: #111;
   }
 
-  .membrete-preview { 
-    text-align: center; 
-    margin-bottom: 15px; 
-  }
-
-  .p-titulo { 
-    margin: 0 0 4px 0; 
-    font-size: 11px;   
-    font-weight: 700; 
-    text-transform: uppercase; 
-    letter-spacing: 0.3px; 
-    line-height: 1.2; 
-  }
-
-  .p-contacto { 
-    margin: 0 auto 6px auto; 
-    font-size: 7px;          
-    line-height: 1.4; 
-    width: 90%; 
-    text-align: center; 
-  }
-
-  .linea-separadora { 
-    height: 1px; 
-    margin: 0 auto; 
-    width: 100%; 
-    opacity: 0.8;
-  }
+  .membrete-preview { text-align: center; margin-bottom: 15px; }
+  .p-titulo { margin: 0 0 4px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; }
+  .p-contacto { margin: 0 auto 6px auto; font-size: 7px; line-height: 1.4; width: 90%; text-align: center; }
+  .linea-separadora { height: 1px; margin: 0 auto; width: 100%; opacity: 0.8; }
 
   .contenido-ficticio { flex: 1; padding: 15px 0; opacity: 0.1; }
   .barra-gris { height: 4px; background: #000; margin-bottom: 6px; border-radius: 2px; }
 
-  .footer-preview { 
-    text-align: center; 
-    border-top: 1px solid #ddd; 
-    padding-top: 8px; 
-    transition: border-color 0.3s;
-  }
+  .footer-preview { text-align: center; border-top: 1px solid #ddd; padding-top: 8px; transition: border-color 0.3s; }
   .footer-preview p { margin: 0; font-size: 6.5px; }
 
   .espacio-vacio { text-align: center; font-size: 10px; color: #ccc; padding: 15px; border: 1px dashed #ddd; border-radius: 4px; }
