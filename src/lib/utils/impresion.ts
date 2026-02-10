@@ -3,6 +3,9 @@ import { jsPDF } from 'jspdf';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
+// Importamos la interfaz del archivo vecino
+import type { ContextoDocumento } from './contexto_impresion';
+
 interface MembreteConfig {
     usarEncabezado: boolean;
     usarPiePagina: boolean;
@@ -27,7 +30,8 @@ const DEFAULT_MEMBRETE: MembreteConfig = {
     colorTextoPie: '#666666'
 };
 
-export async function generarCartaPDF(datos: any, idPlantilla: string) {
+// Recibe 'datos' con tipo ContextoDocumento
+export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string) {
     try {
         // 1. CARGAR CONFIGURACIÓN
         let configMembrete = DEFAULT_MEMBRETE;
@@ -43,80 +47,108 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
             return;
         }
 
-        // 3. MAPA DE REEMPLAZO (Con todos los datos asegurados)
+        // 3. MAPA DE REEMPLAZO MAESTRO
         const mapaReemplazo: Record<string, string> = {
-            // --- DATOS PERSONALES ---
-            '[[Saludo según sexo]]': datos.saludo || 'Estimado(a)',
-            '[[Nombre]]': datos.nombre || '',
-            '[[Apellidos]]': datos.apellidos || '',
-            '[[Nombre Completo]]': datos.nombre_completo || '',
-            '[[Designación del Circuito]]': 'HG-06',
+            // RÁPIDA
+            '[[Saludo según sexo]]': datos.saludo,
+            '[[Designación del Circuito]]': datos.circuito,
 
-            // --- FECHAS CARTA ---
+            // FECHAS
             '[[Fecha Actual Completa]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
             '[[Fecha Actual Mediana]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
 
-            // --- ASIGNACIÓN ---
-            '[[Hora]]': datos.hora_asignacion || '---',
-            '[[Tema]]': datos.tema || '',
-            '[[Número de Bosquejo]]': datos.numero_bosquejo || '',
-            '[[Tipo de asignación]]': datos.tipo_asignacion || 'Discurso',
-            '[[Enlace(s) del Bosquejo]]': '',
-            '[[Notas]]': '',
+            // ASIGNACIÓN
+            '[[Hora]]': datos.hora,
+            '[[Tema]]': datos.tema_asignacion,
+            '[[Número de Bosquejo]]': datos.num_bosquejo,
+            '[[Tipo de asignación]]': datos.tipo_asignacion,
+            '[[Enlace(s) del Bosquejo]]': '', 
+            '[[Notas]]': datos.nota_asignacion,
 
-            // --- LUGAR Y EVENTO ---
-            '[[Nombre del lugar]]': datos.lugar || 'Salón de Asambleas',
-            '[[Dirección]]': datos.direccion || '', // Dirección del Salón de Asambleas
-            '[[Ciudad]]': datos.ciudad || '',
-            '[[Estado o Provincia]]': 'Holguín',
-            
-            // Usamos la fecha del evento (Octubre)
-            '[[Fecha]]': datos.fecha_evento_texto || '---', 
-            '[[Tipo de Evento]]': 'Asamblea Regional',
-            '[[Tema del Evento]]': datos.tema_evento || '',
+            // ORADOR
+            '[[Nombre]]': datos.nombre_pila,
+            '[[Segundo nombre]]': datos.segundo_nombre,
+            '[[Apellidos]]': datos.apellidos,
+            '[[Nombre Completo]]': datos.nombre_completo,
 
-            // --- ENSAYOS ---
+            // LUGAR
+            '[[Nombre del lugar]]': datos.lugar_nombre,
+            '[[Dirección]]': datos.lugar_direccion,
+            '[[Ciudad]]': datos.ciudad,
+            '[[Estado o Provincia]]': datos.estado,
+
+            // EVENTO
+            '[[Fecha]]': datos.fecha_evento_texto,
+            '[[Tipo de Evento]]': datos.tipo_evento,
+            '[[Tema del Evento]]': datos.tema_evento,
+
+            // ENSAYOS
             '[[Información completa de los ensayos]]': generarInfoEnsayos(datos),
-            // "Lugar de los ensayos" debe mostrar el nombre del local + direccion si hay
             '[[Lugar de los ensayos]]': construirLugarEnsayo(datos), 
-            '[[Fecha y hora del ensayo]]': `${datos.fecha_ensayo} a las ${datos.hora_ensayo}`,
-            '[[Fecha de ensayos]]': datos.fecha_ensayo || '---',
-            '[[Hora de ensayos]]': datos.hora_ensayo || '---',
-            '[[Notas para los ensayos]]': datos.notas_ensayo || '',
+            '[[Fecha y hora del ensayo]]': `${datos.ensayo_fecha} a las ${datos.ensayo_hora}`,
+            '[[Fecha de ensayos]]': datos.ensayo_fecha,
+            '[[Hora de ensayos]]': datos.ensayo_hora,
+            '[[Notas para los ensayos]]': datos.ensayo_notas,
 
-            // --- INSTRUCCIONES ---
+            // INSTRUCCIONES
             '[[Información de orientaciones]]': datos.orientaciones || 'No hay orientaciones específicas.',
-            '[[Instrucciones Especiales]]': datos.instrucciones || 'Ninguna.'
+            '[[Instrucciones Especiales]]': datos.instrucciones || 'Ninguna.',
+            
+            // PRESIDENTE
+            '[[correo electrónico jwpub del Presidente de la asamblea]]': datos.email_presidente,
+            '[[Teléfono del Presidente de la asamblea]]': datos.tel_presidente
         };
 
-        // 4. REEMPLAZO DE MARCADORES
+        // 4. REEMPLAZO
         for (const [marcador, valor] of Object.entries(mapaReemplazo)) {
             const regex = new RegExp(marcador.replace(/\[/g, '\\[').replace(/\]/g, '\\]'), 'g');
             htmlContent = htmlContent.replace(regex, String(valor || '')); 
         }
 
-        // 5. PREPARAR CONTENEDOR SIN MARGEN EXTRA
+        // LIMPIEZA VISUAL
+        htmlContent = htmlContent.replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/i, '');
+
+        // 5. CÁLCULO DE POSICIÓN
+        const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
+        let inicioTextoY = 15; 
+
+        if (configMembrete.usarEncabezado) {
+            const lineas = docCalc.splitTextToSize(configMembrete.contacto, 180);
+            const alturaContacto = lineas.length * 3;
+            // Cálculo exacto: Línea base + altura contacto + 6mm espacio
+            inicioTextoY = 21 + alturaContacto + 6; 
+        }
+
+        // 6. CONTENEDOR HTML
         const container = document.createElement('div');
-        container.innerHTML = `<div style="margin-top:0; padding-top:0;">${htmlContent}</div>`;
+        const estilosReset = `
+            <style>
+                * { box-sizing: border-box; }
+                body { margin: 0; padding: 0; }
+                p { margin: 0 0 8px 0; line-height: 1.25; }
+                p:first-child, div:first-child { margin-top: 0 !important; padding-top: 0 !important; }
+            </style>
+        `;
         
+        container.innerHTML = `${estilosReset}<div class="pdf-content">${htmlContent}</div>`;
+        
+        // ANCHO: A4 (210) - 12 - 12 = 186mm
         Object.assign(container.style, {
             position: 'absolute', top: '0', left: '0',
-            width: '170mm', padding: '0', margin: '0',
+            width: '186mm', 
+            padding: '0', margin: '0',
             backgroundColor: 'white', color: 'black', zIndex: '-9999',
             fontFamily: '"Times New Roman", Times, serif', 
-            fontSize: '11pt', lineHeight: '1.3', textAlign: 'justify'
+            fontSize: '11pt', lineHeight: '1.2', textAlign: 'justify'
         });
 
         document.body.appendChild(container);
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // 6. MÁRGENES VISUALES
-        // 22mm para subir el texto
-        const margenTopStart = configMembrete.usarEncabezado ? 22 : 15;
-        // 28mm para paginación (para que no tape el encabezado en pag 2)
+        // 7. GENERAR PDF
+        const margenSide = 12; // 1.2cm
+        const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
         const margenTopPaging = configMembrete.usarEncabezado ? 28 : 15;
-        const margenBottom = configMembrete.usarPiePagina ? 25 : 15;
-        const margenSide = 20;
 
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
@@ -134,7 +166,7 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
                 pdf.setFont("helvetica", "normal");
                 pdf.setFontSize(8);
                 pdf.setTextColor(configMembrete.colorTexto);
-                const lineas = pdf.splitTextToSize(configMembrete.contacto, 160);
+                const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
                 pdf.text(lineas, cx, 19, { align: 'center' });
 
                 pdf.setDrawColor(configMembrete.colorLinea);
@@ -154,7 +186,6 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
             }
         };
 
-        // 7. GENERAR
         await doc.html(container, {
             callback: async function (pdf) {
                 const totalPages = pdf.getNumberOfPages();
@@ -166,7 +197,7 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
                 
                 const pdfData = pdf.output('arraybuffer');
                 const binary = new Uint8Array(pdfData);
-                const safeName = (datos.nombre || 'Documento').replace(/[^a-z0-9]/gi, '_');
+                const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
                 
                 try {
                     const path = await save({
@@ -177,13 +208,13 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
                         await writeFile(path, binary);
                         alert("✅ Carta generada correctamente.");
                     }
-                } catch (e) { console.log("Guardado cancelado", e); }
+                } catch (e) { console.log("Cancelado", e); }
             },
             x: margenSide,
-            y: margenTopStart, // INICIO DEL TEXTO
-            width: 170,
+            y: inicioTextoY, 
+            width: 186,
             windowWidth: 800,
-            margin: [margenTopPaging, margenSide, margenBottom, margenSide], // MARGENES PÁGINA
+            margin: [margenTopPaging, margenSide, margenBottom, margenSide], 
             autoPaging: 'text'
         });
 
@@ -193,24 +224,17 @@ export async function generarCartaPDF(datos: any, idPlantilla: string) {
     }
 }
 
-// Genera la frase completa del ensayo
-function generarInfoEnsayos(d: any): string {
-    if (!d.fecha_ensayo || d.fecha_ensayo === '---') return "No se requiere ensayo.";
-    
-    // Aquí usamos el helper de abajo para obtener "Lugar (Dirección)"
-    let lugarCompleto = construirLugarEnsayo(d);
-    
-    return `Su ensayo está programado para el ${d.fecha_ensayo} a las ${d.hora_ensayo || ''} en ${lugarCompleto}.`;
+// Helpers que usan la interfaz tipada
+function generarInfoEnsayos(d: ContextoDocumento): string {
+    if (!d.ensayo_fecha || d.ensayo_fecha === '---') return "No se requiere ensayo.";
+    let lugar = construirLugarEnsayo(d);
+    return `Su ensayo está programado para el ${d.ensayo_fecha} a las ${d.ensayo_hora || ''} en ${lugar}.`;
 }
 
-// Construye "Salón X (Calle Y)" o solo "Salón X" si no hay dirección o es la misma
-function construirLugarEnsayo(d: any): string {
-    let lugar = d.lugar_ensayo || 'Salón de Asambleas'; // Nombre del lugar (ej. SAN RAFAEL)
-    let direccion = d.direccion || ''; // Dirección del evento (ej. Carretera Mayarí)
-
-    // Si tenemos dirección y el nombre del lugar no la incluye ya
-    if (direccion && direccion.trim() !== '' && !lugar.includes(direccion)) {
-        return `${lugar} (${direccion})`;
+function construirLugarEnsayo(d: ContextoDocumento): string {
+    let lugar = d.ensayo_lugar || 'Salón de Asambleas';
+    if (d.ensayo_direccion && d.ensayo_direccion.trim() !== '' && !lugar.includes(d.ensayo_direccion)) {
+        return `${lugar} (${d.ensayo_direccion})`;
     }
     return lugar;
 }

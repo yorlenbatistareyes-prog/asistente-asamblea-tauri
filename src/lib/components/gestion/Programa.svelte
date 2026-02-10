@@ -5,7 +5,9 @@
   import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { slide } from 'svelte/transition'; 
   
-  import { generarCartaPDF } from '$lib/utils/impresion'; 
+  // --- NUEVAS IMPORTACIONES PARA EL SISTEMA MODULAR ---
+  import { generarContexto } from '$lib/utils/contexto_impresion';
+  import { generarCartaPDF } from '$lib/utils/impresion';
 
   // NUEVO: Importamos la función de exportar desde la ruta limpia
   import { exportarProgramaPDF, exportarOficinaPDF } from '$lib/utils/exportar';
@@ -203,71 +205,29 @@
 
   // En src/lib/components/gestion/Programa.svelte
 
-async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
-    if (!objeto || !asambleaId) return alert("⚠️ Datos incompletos.");
-    
-    try {
-        // 1. OBTENER DATOS DE VARIAS FUENTES PARA ASEGURAR QUE TENGAMOS TODO
-        // Fuente A: Datos del salón y ensayos (Dirección física)
-        const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
-        // Fuente B: Datos de texto (Tema, Orientaciones, Instrucciones - La que usa InformacionEvento.svelte)
-        const infoAsamblea: any = await invoke('obtener_asamblea_activa') || {};
+// Función optimizada que usa el Hub de Datos (Contexto)
+  async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
+      // Validación básica
+      if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila y asegúrese de que hay una asamblea activa.");
+      
+      try {
+          // 1. GENERAR CONTEXTO
+          // Esta línea va a 'contexto_impresion.ts', busca todos los datos (BD, textos, direcciones)
+          // y te devuelve el paquete limpio y completo.
+          const contexto = await generarContexto(objeto, asambleaId, esPartePrograma);
 
-        console.log("INFO EXTRA:", infoExtra);
-        console.log("INFO ASAMBLEA:", infoAsamblea);
+          console.log("🖨️ CONTEXTO GENERADO:", contexto); // Para depuración
 
-        // 2. COMBINAR DATOS (Priorizando los que tengan valor)
-        const datosCombinados = {
-            // --- PERSONAL ---
-            saludo: objeto.sexo === 'F' ? 'Estimada hermana' : 'Estimado hermano',
-            nombre: (objeto.nombre_orador || objeto.nombre_completo || objeto.nombre || 'Hermano').trim(),
-            nombre_completo: (objeto.nombre_orador || objeto.nombre_completo || '').trim(),
-            apellidos: objeto.apellidos || '',
+          // 2. IMPRIMIR
+          // Enviamos el paquete limpio al motor de impresión
+          let plantillaId = esPartePrograma ? 'oradores' : 'oficina'; 
+          await generarCartaPDF(contexto, plantillaId);
 
-            // --- ASIGNACIÓN ---
-            numero_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '',
-            tema: objeto.tema || (esPartePrograma ? 'Discurso' : 'Asignación Especial'),
-            tipo_asignacion: esPartePrograma ? 'Discurso' : (objeto.tipo_asignacion || 'Asignación'),
-            hora_asignacion: objeto.hora_inicio || objeto.hora || '---',
-            // Fecha del día que discursa (ej. Viernes)
-            dia_asignacion: objeto.fecha || diaSeleccionado || '---',
-
-            // --- EVENTO (Aquí cruzamos los datos) ---
-            // El tema viene de infoAsamblea.tema
-            tema_evento: infoAsamblea.tema || 'Asamblea Regional',
-            // La fecha texto (10-12 Oct) viene de infoAsamblea.fecha
-            fecha_evento_texto: infoAsamblea.fecha || 'Fecha por definir',
-            
-            // --- LUGAR ---
-            // Lugar nombre viene de infoExtra (ej. SAN RAFAEL) o infoAsamblea
-            lugar: infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
-            // Dirección viene de infoExtra (que hace el join con locales)
-            direccion: infoExtra.direccion || '', 
-            ciudad: 'Holguín',
-
-            // --- ENSAYOS ---
-            // Usamos lo que venga de cualquiera de las dos fuentes
-            fecha_ensayo: infoExtra.fecha_ensayo || infoAsamblea.ensayo_fecha || '---',
-            hora_ensayo: infoExtra.hora_ensayo || infoAsamblea.ensayo_hora || '---',
-            lugar_ensayo: infoExtra.lugar || infoAsamblea.ensayo_lugar || '', 
-            // Notas HTML
-            notas_ensayo: infoAsamblea.ensayo_notas || '',
-            
-            // --- INSTRUCCIONES Y ORIENTACIONES (CRÍTICO) ---
-            // Estos vienen de infoAsamblea (recorridos_info / instrucciones_esp)
-            orientaciones: infoAsamblea.recorridos_info || '',
-            instrucciones: infoAsamblea.instrucciones_esp || ''
-        };
-
-        // 3. IMPRIMIR
-        let plantillaId = esPartePrograma ? 'oradores' : 'oficina'; 
-        await generarCartaPDF(datosCombinados, plantillaId);
-
-    } catch (e) { 
-        console.error(e);
-        alert("Error al procesar: " + e); 
-    }
-}
+      } catch (e) { 
+          console.error("Error en impresión:", e);
+          alert("Error al preparar el documento: " + e); 
+      }
+  }
 
   function clickEnOficina(key: string, asignacion: any) {
       if (asignacion) {
