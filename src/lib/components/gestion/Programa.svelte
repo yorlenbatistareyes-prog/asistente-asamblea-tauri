@@ -545,9 +545,18 @@
         </button>
       </div>
       <div class="acciones-header">
+
         <button class="btn-header-csv" on:click={importarPrograma} title="Importar desde JW (CSV)">
           <FileSpreadsheet size={18}/> <span>Importar</span>
         </button>
+
+        <button class="btn-header-pdf" 
+                title="Exportar lista de discursos a PDF"
+                on:click={() => exportarProgramaPDF(partes, diaSeleccionado)}>
+            <FileUp size={18}/> 
+            <span>PDF</span>
+        </button>
+
         <button class="btn-header-delete" on:click={limpiarTodo} title="Borrar todo el programa">
           <Trash2 size={18}/> <span>Limpiar</span>
         </button>
@@ -1390,5 +1399,46 @@
 /* Efecto al hacer clic */
 .btn-icon-pdf:active {
   transform: translateY(1px);
+}
+
+/* =========================================
+   BOTÓN EXPORTAR PDF (Estilo Profesional)
+   ========================================= */
+
+.btn-header-pdf {
+  /* Estructura */
+  display: flex;
+  align-items: center;
+  gap: 6px;                /* Espacio entre el icono y el texto */
+  
+  /* Tamaño y Forma */
+  padding: 8px 14px;       /* Un poco más ancho para que se vea bien */
+  border-radius: 6px;
+  
+  /* Colores (Rojo PDF estándar) */
+  background-color: transparent; 
+  border: 1px solid #ef4444;  /* Rojo vibrante pero elegante */
+  color: #ef4444;
+  
+  /* Texto */
+  font-size: 12px;
+  font-weight: 700;        /* Letra un poco más gruesa */
+  cursor: pointer;
+  
+  /* Animación suave */
+  transition: all 0.2s ease-in-out;
+}
+
+/* Efecto al pasar el mouse (Hover) */
+.btn-header-pdf:hover {
+  background-color: rgba(239, 68, 68, 0.08); /* Fondo rojo muy sutil */
+  transform: translateY(-2px);               /* Se eleva un poquito */
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2); /* Sombrita roja */
+}
+
+/* Efecto al hacer click */
+.btn-header-pdf:active {
+  transform: translateY(0);
+  background-color: rgba(239, 68, 68, 0.15);
 }
 </style>
