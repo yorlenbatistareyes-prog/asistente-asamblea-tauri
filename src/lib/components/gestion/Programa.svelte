@@ -6,12 +6,15 @@
   import { slide } from 'svelte/transition'; 
   
   import { generarCartaPDF } from '$lib/utils/impresion'; 
+
+  // NUEVO: Importamos la función de exportar desde la ruta limpia
+  import { exportarProgramaPDF, exportarOficinaPDF } from '$lib/utils/exportar';
   
   import { 
     Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
     FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
-    FileText 
+    FileText, Download 
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -79,17 +82,28 @@
   }
 
   function organizarOficina(datos: any[]) {
-      oficina = { personal: [], presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null, presidente_tarde: null, oracion_conclusion: null, bosquejos_tarde: null, plataforma_tarde: null };
-      datos.forEach(d => {
-          d.estado = d.estado || 'Pendiente';
-          d.esta_presente = d.esta_presente || false;
-          d.ensayo_terminado = d.ensayo_terminado || false;
-          d.carta_recibida_check = false;
+      // Reiniciamos con estructura segura
+      let nuevaOficina: any = { 
+          personal: [], 
+          presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null, 
+          presidente_tarde: null, oracion_conclusion: null, bosquejos_tarde: null, plataforma_tarde: null 
+      };
+      
+      if (datos && Array.isArray(datos)) {
+          datos.forEach(d => {
+              d.estado = d.estado || 'Pendiente';
+              d.esta_presente = d.esta_presente || false;
+              d.ensayo_terminado = d.ensayo_terminado || false;
+              d.carta_recibida_check = false;
 
-          if (d.tipo_asignacion === 'personal_oficina') oficina.personal.push(d);
-          else if (oficina.hasOwnProperty(d.tipo_asignacion)) oficina[d.tipo_asignacion] = d;
-      });
-      oficina = { ...oficina };
+              if (d.tipo_asignacion === 'personal_oficina') {
+                  nuevaOficina.personal.push(d);
+              } else if (Object.keys(nuevaOficina).includes(d.tipo_asignacion)) {
+                  nuevaOficina[d.tipo_asignacion] = d;
+              }
+          });
+      }
+      oficina = nuevaOficina; // Asignación reactiva final
   }
 
   async function cargarHermanos() { 
@@ -399,6 +413,12 @@
   <aside class="panel-oficina dark-theme">
     <div class="header-oficina-dark">
       <h3><Users size={20}/> Oficina</h3>
+      
+      <button class="btn-icon-pdf" 
+              title="Exportar Oficina a PDF"
+              on:click={() => exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado)}>
+        <FileUp size={18}/> </button>
+
       <span class="badge-dark">{diaSeleccionado}</span>
     </div>
     <div class="contenido-oficina">
@@ -1338,5 +1358,37 @@
   align-items: center;
   gap: 4px;
   margin-top: 2px;
+}
+
+/* Botón PDF Oficina: Estilo "Ghost" (Fantasma/Limpio) */
+.btn-icon-pdf {
+  background: transparent;      /* Sin fondo feo */
+  border: none;                 /* Sin borde */
+  color: var(--text-secondary); /* Color gris suave */
+  
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;           /* Bordes redondeados */
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  
+  margin-left: auto;            /* Empuja el botón a la derecha */
+  margin-right: 8px;            /* Un poco de aire con la etiqueta del día */
+  transition: all 0.2s ease;
+}
+
+/* Efecto al pasar el mouse */
+.btn-icon-pdf:hover {
+  background-color: var(--hover-bg); /* Fondo sutil al tocar */
+  color: var(--primary);             /* El icono se pone azul (o tu color primario) */
+  transform: translateY(-1px);       /* Efecto visual de "clic" */
+}
+
+/* Efecto al hacer clic */
+.btn-icon-pdf:active {
+  transform: translateY(1px);
 }
 </style>
