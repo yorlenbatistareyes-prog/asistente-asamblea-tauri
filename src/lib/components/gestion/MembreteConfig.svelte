@@ -4,18 +4,24 @@
   // import { invoke } from '@tauri-apps/api/core'; 
 
   // --- VALORES INICIALES (POR DEFECTO) ---
-  const DEFAULT_CONFIG = {
-    usarEncabezado: true,
-    usarPiePagina: true,
-    titulo: 'YORLEN BATISTA REYES. CIRCUITO, HG-06',
-    contacto: 'Carretera a Mayarí, Km 5 ½. San Rafael. Holguín.\nTeléfonos: 54891111; 59401476.\nEmail: batistareyyorlen7@jwpub.org',
-    piePagina: '© 2026 Presidente de Asamblea Regional. Información confidencial.',
-    // COLORES
-    colorLinea: '#000000',      
-    colorTexto: '#000000',      
-    colorLineaPie: '#cccccc',   
-    colorTextoPie: '#666666'    
-  };
+const DEFAULT_CONFIG = {
+  usarEncabezado: true,
+  usarPiePagina: true,
+  titulo: 'YORLEN BATISTA REYES. CIRCUITO, HG-06',
+  contacto: 'Carretera a Mayarí, Km 5 ½. San Rafael. Holguín.\nTeléfonos: 54891111; 59401476.\nEmail: batistareyyorlen7@jwpub.org',
+  piePagina: '© 2026 Presidente de Asamblea Regional. Información confidencial.',
+  
+  // NUEVOS VALORES DE TAMAÑO
+  tamanoTitulo: 24,    // Valor por defecto para el título
+  tamanoContacto: 10,  // Valor por defecto para el contacto
+  tamanoPiePagina: 8,
+
+  // COLORES
+  colorLinea: '#000000',      
+  colorTexto: '#000000',      
+  colorLineaPie: '#cccccc',   
+  colorTextoPie: '#666666'    
+};
 
   // Estado reactivo
   let config = { ...DEFAULT_CONFIG };
@@ -43,121 +49,167 @@
 
 <div class="card-config">
   
-  <div class="header-section">
-    <div class="titulo-icono">
-      <FileText size={24} class="text-primary"/>
-      <div>
-        <h3>Diseñador de Membrete</h3>
-        <p>Personaliza el estilo visual de tus documentos.</p>
-      </div>
-    </div>
-    
-    <div class="acciones-header">
-      <button class="btn-reset" on:click={restaurarValores} title="Restaurar valores iniciales">
-        <RotateCcw size={18} /> <span>Restaurar</span>
-      </button>
-
-      <button class="btn-guardar-main" on:click={guardarCambios}>
-        <Save size={18} /> <span>Guardar</span>
-      </button>
+ <div class="header-section">
+  <div class="titulo-icono">
+    <FileText size={24} class="text-primary"/>
+    <div>
+      <h3>Diseñador de Membrete</h3>
+      <p>Personaliza el estilo visual de tus documentos.</p>
     </div>
   </div>
+  
+  <div class="acciones-header">
+    <button class="btn-reset" on:click={restaurarValores} title="Restaurar valores iniciales">
+      <RotateCcw size={18} /> <span>Restaurar</span>
+    </button>
 
-  <div class="cuerpo-config">
+    <button class="btn-guardar-main" on:click={guardarCambios}>
+      <Save size={18} /> <span>Guardar</span>
+    </button>
+  </div>
+</div>
+
+<div class="cuerpo-config">
+  
+  <div class="panel-editor">
     
-    <div class="panel-editor">
-      
-      <div class="editor-bloque">
-        <div class="bloque-header">
-          <div class="label-con-icono">
-             <LayoutTemplate size={18} /> <span>Encabezado</span>
-          </div>
-          <label class="switch-mini">
-            <input type="checkbox" bind:checked={config.usarEncabezado}>
-            <span class="slider"></span>
-          </label>
+    <div class="editor-bloque">
+      <div class="bloque-header">
+        <div class="label-con-icono">
+           <LayoutTemplate size={18} /> <span>Encabezado</span>
         </div>
-
-        {#if config.usarEncabezado}
-          <div class="inputs-group">
-            <div class="input-wrapper">
-              <span class="sub-label">Título Principal</span>
-              <input type="text" bind:value={config.titulo} placeholder="Nombre o Título...">
-            </div>
-            
-            <div class="input-wrapper">
-              <span class="sub-label">Datos de Contacto</span>
-              <textarea rows="3" bind:value={config.contacto} placeholder="Dirección..."></textarea>
-            </div>
-
-            <div class="fila-colores-group">
-              <label class="color-picker-btn" title="Color del Texto">
-                <span class="color-label"><Type size={14}/> Texto</span>
-                <div class="color-preview" style="background-color: {config.colorTexto};"></div>
-                <input type="color" bind:value={config.colorTexto}>
-              </label>
-
-              <label class="color-picker-btn" title="Color de la Línea">
-                <span class="color-label"><Palette size={14}/> Línea</span>
-                <div class="color-preview" style="background-color: {config.colorLinea};"></div>
-                <input type="color" bind:value={config.colorLinea}>
-              </label>
-            </div>
-
-          </div>
-        {:else}
-          <p class="texto-desactivado">Encabezado oculto.</p>
-        {/if}
+        <label class="switch-mini">
+          <input type="checkbox" bind:checked={config.usarEncabezado}>
+          <span class="slider"></span>
+        </label>
       </div>
+
+      {#if config.usarEncabezado}
+        <div class="inputs-group">
+          
+          <div class="input-wrapper">
+            <span class="sub-label">Título Principal</span>
+            <input type="text" bind:value={config.titulo} placeholder="Nombre o Título...">
+          </div>
+
+          <div class="input-wrapper">
+            <div class="label-row">
+              <span class="sub-label">Tamaño del Título</span>
+              <span class="value-tag">{config.tamanoTitulo}px</span>
+            </div>
+            <input 
+              type="range" 
+              min="10" 
+              max="50" 
+              bind:value={config.tamanoTitulo} 
+              class="config-slider"
+            >
+          </div>
+
+          <div class="input-wrapper">
+            <span class="sub-label">Datos de Contacto</span>
+            <textarea rows="3" bind:value={config.contacto} placeholder="Dirección..."></textarea>
+          </div>
+
+          <div class="input-wrapper">
+            <div class="label-row">
+              <span class="sub-label">Tamaño de Datos de Contacto</span>
+              <span class="value-tag">{config.tamanoContacto}px</span>
+            </div>
+            <input 
+              type="range" 
+              min="8" 
+              max="20" 
+              bind:value={config.tamanoContacto} 
+              class="config-slider"
+            >
+          </div>
+
+          <div class="fila-colores-group">
+            <label class="color-picker-btn" title="Color del Texto">
+              <span class="color-label"><Type size={14}/> Texto</span>
+              <div class="color-preview" style="background-color: {config.colorTexto};"></div>
+              <input type="color" bind:value={config.colorTexto}>
+            </label>
+
+            <label class="color-picker-btn" title="Color de la Línea">
+              <span class="color-label"><Palette size={14}/> Línea</span>
+              <div class="color-preview" style="background-color: {config.colorLinea};"></div>
+              <input type="color" bind:value={config.colorLinea}>
+            </label>
+          </div>
+
+        </div>
+      {:else}
+        <p class="texto-desactivado">Encabezado oculto.</p>
+      {/if}
+    </div>
 
       <hr class="separador-interno">
 
       <div class="editor-bloque">
-        <div class="bloque-header">
-          <div class="label-con-icono">
-            <Type size={18} /> <span>Pie de Página</span>
-          </div>
-          <label class="switch-mini">
-            <input type="checkbox" bind:checked={config.usarPiePagina}>
-            <span class="slider"></span>
-          </label>
-        </div>
+  <div class="bloque-header">
+    <div class="label-con-icono">
+      <Type size={18} /> <span>Pie de Página</span>
+    </div>
+    <label class="switch-mini">
+      <input type="checkbox" bind:checked={config.usarPiePagina}>
+      <span class="slider"></span>
+    </label>
+  </div>
 
-        {#if config.usarPiePagina}
-          <div class="inputs-group">
-            <div class="input-wrapper">
-              <span class="sub-label">Texto Legal / Informativo</span>
-              <input type="text" bind:value={config.piePagina} class="input-pie">
-            </div>
-            
-            <div class="fila-colores-group">
-               <label class="color-picker-btn" title="Color del Texto">
-                <span class="color-label"><Type size={14}/> Texto</span>
-                <div class="color-preview" style="background-color: {config.colorTextoPie};"></div>
-                <input type="color" bind:value={config.colorTextoPie}>
-              </label>
-
-              <label class="color-picker-btn" title="Color de la Línea">
-                <span class="color-label"><Palette size={14}/> Línea</span>
-                <div class="color-preview" style="background-color: {config.colorLineaPie};"></div>
-                <input type="color" bind:value={config.colorLineaPie}>
-              </label>
-            </div>
-          </div>
-        {:else}
-          <p class="texto-desactivado">Pie de página oculto.</p>
-        {/if}
+  {#if config.usarPiePagina}
+    <div class="inputs-group">
+      <div class="input-wrapper">
+        <span class="sub-label">Texto Legal / Informativo</span>
+        <input type="text" bind:value={config.piePagina} class="input-pie">
       </div>
+      
+      <div class="input-wrapper">
+        <div class="label-row">
+          <span class="sub-label">Tamaño del Texto</span>
+          <span class="value-tag">{config.tamanoPiePagina}px</span>
+        </div>
+        <input 
+          type="range" 
+          min="6" 
+          max="14" 
+          bind:value={config.tamanoPiePagina} 
+          class="config-slider"
+        >
+      </div>
+
+      <div class="fila-colores-group">
+         <label class="color-picker-btn" title="Color del Texto">
+          <span class="color-label"><Type size={14}/> Texto</span>
+          <div class="color-preview" style="background-color: {config.colorTextoPie};"></div>
+          <input type="color" bind:value={config.colorTextoPie}>
+        </label>
+
+        <label class="color-picker-btn" title="Color de la Línea">
+          <span class="color-label"><Palette size={14}/> Línea</span>
+          <div class="color-preview" style="background-color: {config.colorLineaPie};"></div>
+          <input type="color" bind:value={config.colorLineaPie}>
+        </label>
+      </div>
+    </div>
+  {:else}
+    <p class="texto-desactivado">Pie de página oculto.</p>
+  {/if}
+</div>
 
     </div>
 
     <div class="area-preview">
       <div class="etiqueta-preview"><Eye size={14}/> Vista Previa (A4)</div>
       
-      <div class="hoja-papel">
+      <div class="hoja-papel"> 
         {#if config.usarEncabezado}
           <div class="membrete-preview">
-            <h1 class="p-titulo" style="color: {config.colorTexto};">{config.titulo}</h1>
+            <h1 class="p-titulo" 
+                style="color: {config.colorTexto}; font-size: {config.tamanoTitulo}px; font-weight: 800;">
+              {config.titulo}
+            </h1>
             <p class="p-contacto" style="color: {config.colorTexto}; opacity: 0.85;">
               {@html config.contacto.replace(/\n/g, '<br>')}
             </p>

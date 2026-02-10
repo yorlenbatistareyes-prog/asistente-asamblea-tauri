@@ -4,7 +4,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
 
-// CONFIGURACIÓN
+// CONFIGURACIÓN ACTUALIZADA
 interface MembreteConfig {
     usarEncabezado: boolean;
     usarPiePagina: boolean;
@@ -17,6 +17,7 @@ interface MembreteConfig {
     colorTextoPie: string;
     tamanoTitulo?: number;
     tamanoContacto?: number;
+    tamanoPiePagina?: number;
 }
 
 const DEFAULT_MEMBRETE: MembreteConfig = {
@@ -29,21 +30,22 @@ const DEFAULT_MEMBRETE: MembreteConfig = {
     colorTexto: '#000000',
     colorLineaPie: '#cccccc',
     colorTextoPie: '#666666',
-    tamanoTitulo: 12,
-    tamanoContacto: 8
+    tamanoTitulo: 24,    
+    tamanoContacto: 10,
+    tamanoPiePagina: 8 
 };
 
 export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string) {
     try {
-        // CARGAR CONFIG
         let configMembrete = DEFAULT_MEMBRETE;
         const configGuardada = localStorage.getItem('config_membrete');
         if (configGuardada) {
             configMembrete = { ...DEFAULT_MEMBRETE, ...JSON.parse(configGuardada) };
         }
 
-        const sizeTitulo = configMembrete.tamanoTitulo || 12;
-        const sizeContacto = configMembrete.tamanoContacto || 8;
+        const sizeTitulo = configMembrete.tamanoTitulo || 24;
+        const sizeContacto = configMembrete.tamanoContacto || 10;
+        const sizePie = configMembrete.tamanoPiePagina || 8;
 
         const plantillaData: any = await invoke('obtener_plantilla', { id: idPlantilla });
         let htmlContent = plantillaData?.cuerpo || plantillaData?.contenido;
@@ -53,44 +55,37 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             return;
         }
 
-        // REEMPLAZOS
+        // MAPA DE REEMPLAZOS
         const mapaReemplazo: Record<string, string> = {
             '[[Saludo según sexo]]': datos.saludo,
             '[[Designación del Circuito]]': datos.circuito,
             '[[Fecha Actual Completa]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
             '[[Fecha Actual Mediana]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
-
             '[[Hora]]': datos.hora,
             '[[Tema]]': datos.tema_asignacion,
             '[[Número de Bosquejo]]': datos.num_bosquejo,
             '[[Tipo de asignación]]': datos.tipo_asignacion,
             '[[Enlace(s) del Bosquejo]]': '',
             '[[Notas]]': datos.nota_asignacion,
-
             '[[Nombre]]': datos.nombre_pila,
             '[[Segundo nombre]]': datos.segundo_nombre,
             '[[Apellidos]]': datos.apellidos,
             '[[Nombre Completo]]': datos.nombre_completo,
-
             '[[Nombre del lugar]]': datos.lugar_nombre,
             '[[Dirección]]': datos.lugar_direccion,
             '[[Ciudad]]': datos.ciudad,
-            '[[Estado o Provincia]]': 'Holguín',
-
+            '[[Estado o Provincia]]': 'Holguín', //
             '[[Fecha]]': datos.fecha_evento_texto,
             '[[Tipo de Evento]]': datos.tipo_evento,
             '[[Tema del Evento]]': datos.tema_evento,
-
             '[[Información completa de los ensayos]]': generarInfoEnsayos(datos),
             '[[Lugar de los ensayos]]': construirLugarEnsayo(datos),
             '[[Fecha y hora del ensayo]]': `${datos.ensayo_fecha} a las ${datos.ensayo_hora}`,
             '[[Fecha de ensayos]]': datos.ensayo_fecha,
             '[[Hora de ensayos]]': datos.ensayo_hora,
             '[[Notas para los ensayos]]': datos.ensayo_notas,
-
             '[[Información de orientaciones]]': datos.orientaciones || 'No hay orientaciones específicas.',
             '[[Instrucciones Especiales]]': datos.instrucciones || 'Ninguna.',
-
             '[[correo electrónico jwpub del Presidente de la asamblea]]': datos.email_presidente,
             '[[Teléfono del Presidente de la asamblea]]': datos.tel_presidente
         };
@@ -100,66 +95,49 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             htmlContent = htmlContent.replace(regex, String(valor || ''));
         }
 
-        // LIMPIEZA EXTRA
         htmlContent = htmlContent
             .replace(/<p>\s*<\/p>/g, '')
             .replace(/<p>\s*<br\s*\/?>\s*<\/p>/g, '')
             .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
 
-        // CÁLCULO DE ALTURA DEL ENCABEZADO
         const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
         let inicioTextoY = 15;
 
         if (configMembrete.usarEncabezado) {
+            const alturaTituloMm = sizeTitulo * 0.352;
             docCalc.setFontSize(sizeContacto);
             const lineas = docCalc.splitTextToSize(configMembrete.contacto, 180);
-
             const alturaPorLinea = sizeContacto * 0.352 * 1.2;
             const alturaBloqueContacto = lineas.length * alturaPorLinea;
 
-            const lineaNegraY = 21 + alturaBloqueContacto;
-            inicioTextoY = lineaNegraY + 3;
+            const lineaNegraY = 14 + alturaTituloMm + alturaBloqueContacto + 2;
+            inicioTextoY = lineaNegraY + 5;
         }
 
-        // CONTENEDOR HTML
         const container = document.createElement('div');
         const estilosReset = `
             <style>
                 * { box-sizing: border-box; }
                 body { margin: 0; padding: 0; }
-                p { margin: 0 0 3mm 0; line-height: 1.25; }
-                .pdf-content > *:first-child {
-                    margin-top: 0 !important;
-                    padding-top: 0 !important;
-                }
+                p { margin: 0 0 3mm 0; line-height: 1.25; text-align: justify; }
+                .pdf-content > *:first-child { margin-top: 0 !important; padding-top: 0 !important; }
             </style>
         `;
 
         container.innerHTML = `${estilosReset}<div class="pdf-content">${htmlContent}</div>`;
 
         Object.assign(container.style, {
-            position: 'absolute',
-            top: '0',
-            left: '0',
-            width: '186mm',
-            padding: '0',
-            margin: '0',
-            backgroundColor: 'white',
-            color: 'black',
-            zIndex: '-9999',
-            fontFamily: '"Times New Roman", Times, serif',
-            fontSize: '11pt',
-            lineHeight: '1.25',
-            textAlign: 'justify'
+            position: 'absolute', top: '0', left: '0', width: '186mm', 
+            padding: '0', margin: '0', backgroundColor: 'white', color: 'black',
+            zIndex: '-9999', fontFamily: '"Times New Roman", Times, serif',
+            fontSize: '11pt', lineHeight: '1.25'
         });
 
         document.body.appendChild(container);
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // PDF
-        const margenSide = 8;
+        const margenSide = 8; 
         const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
-
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
         const dibujarMembrete = (pdf: jsPDF) => {
@@ -179,8 +157,8 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
                 const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
                 const alturaPorLinea = sizeContacto * 0.352 * 1.2;
+                let cursorY = 14 + (sizeTitulo * 0.352) + 1;
 
-                let cursorY = 19;
                 lineas.forEach((line: string) => {
                     pdf.text(line, cx, cursorY, { align: 'center' });
                     cursorY += alturaPorLinea;
@@ -197,7 +175,8 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                 pdf.setDrawColor(configMembrete.colorLineaPie);
                 pdf.setLineWidth(0.2);
                 pdf.line(margenSide, fY, w - margenSide, fY);
-                pdf.setFontSize(7);
+                
+                pdf.setFontSize(sizePie); 
                 pdf.setTextColor(configMembrete.colorTextoPie);
                 pdf.text(configMembrete.piePagina, cx, fY + 5, { align: 'center' });
             }
@@ -212,7 +191,6 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                 }
 
                 document.body.removeChild(container);
-
                 const pdfData = pdf.output('arraybuffer');
                 const binary = new Uint8Array(pdfData);
                 const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
@@ -230,11 +208,10 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                     console.log("Cancelado", e);
                 }
             },
-
-            // USAMOS SOLO inicioTextoY — SIN margen superior adicional
-            x: margenSide,
+            // TUS VALORES FINALES AJUSTADOS
+            x: 4, 
             y: inicioTextoY,
-            width: 204,
+            width: 208, 
             windowWidth: 800,
             margin: [0, margenSide, margenBottom, margenSide],
             autoPaging: 'text'
