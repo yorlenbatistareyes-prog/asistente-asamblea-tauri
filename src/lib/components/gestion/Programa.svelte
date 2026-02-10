@@ -259,22 +259,49 @@
     }
   }
 
-  // --- ASIGNAR ORADOR ---
+// --- FUNCIÓN CORREGIDA Y CON DEPURACIÓN ---
   async function asignarOrador(oradorId: number | null, esVideo: boolean) {
-    const bsq = parteEditando?.numero_bosquejo?.trim() || "";
     
-    try {
-      await invoke('asignar_parte', { 
-        idParte: parteEditando.id, 
-        oradorId: oradorId, 
-        esVideo: esVideo,
-        numeroBosquejo: bsq || null
-      });
-      
-      cerrarModales();
-      await cargarDatos(); 
-    } catch (e) {
-      alert("Error al guardar: " + e);
+    // CASO 1: OFICINA (Presidente, Oración, etc.)
+    if (rolOficinaEditando) {
+        console.log("Intento asignar oficina:", rolOficinaEditando, oradorId); // DEBUG
+
+        if (!oradorId) return alert("Por favor, selecciona un hermano.");
+
+        try {
+            // NOTA: 'tipoAsignacion' en JS -> se convierte a 'tipo_asignacion' en Rust
+            await invoke('guardar_asignacion_especial', { 
+                asambleaId: asambleaId, 
+                dia: diaSeleccionado,
+                tipoAsignacion: rolOficinaEditando, 
+                personaId: oradorId 
+            });
+            
+            console.log("¡Asignación exitosa en Rust!"); // DEBUG
+            cerrarModales();
+            await cargarDatos(); 
+        } catch (e) {
+            console.error("Error Rust Oficina:", e); // DEBUG
+            alert("Error al guardar en oficina: " + e);
+        }
+        return; // IMPORTANTE: Detenemos aquí.
+    }
+
+    // CASO 2: PROGRAMA (Discursos)
+    if (parteEditando) {
+        const bsq = parteEditando?.numero_bosquejo?.trim() || "";
+        try {
+          await invoke('asignar_parte', { 
+            idParte: parteEditando.id, 
+            oradorId: oradorId, 
+            esVideo: esVideo,
+            numeroBosquejo: bsq || null
+          });
+          cerrarModales();
+          await cargarDatos(); 
+        } catch (e) {
+          alert("Error al guardar parte: " + e);
+        }
     }
   }
 
@@ -887,49 +914,58 @@
   </div>
 {/if}
 
-{#if mostrarModalAsignar && parteEditando}
+{#if mostrarModalAsignar && (parteEditando || rolOficinaEditando)}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={cerrarModales} 
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header">
-        <h3>Asignar</h3>
+        <h3>
+            {#if rolOficinaEditando}
+                Asignar {rolOficinaEditando.replace('_', ' ').toUpperCase()}
+            {:else}
+                Asignar Orador
+            {/if}
+        </h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body">
         
-        <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-          <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-            Número de Bosquejo
-          </label>
-          <div class="input-icon" style="margin-top: 8px; position: relative; display: flex; align-items: center;">
-            <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
-            <input 
-              id="edit_bosquejo" 
-              type="text" 
-              placeholder="Ej: 178" 
-              bind:value={parteEditando.numero_bosquejo} 
-              style="padding-left: 35px; width: 100%; height: 38px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
-            />
-          </div>
-          <div style="display: flex; gap: 10px; margin-top: 10px;">
-            <button 
-              class="btn-guardar-bosquejo" 
-              style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;"
-              on:click={() => actualizarBosquejo(parteEditando.id, parteEditando.numero_bosquejo || '')}
-            >
-              Guardar Solo Bosquejo
-            </button>
-            <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; flex: 1;">
-              * El número se guardará independientemente de asignar orador
-            </small>
-          </div>
-        </div>
+        {#if parteEditando}
+            <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+              <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+                Número de Bosquejo
+              </label>
+              <div class="input-icon" style="margin-top: 8px; position: relative; display: flex; align-items: center;">
+                <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
+                <input 
+                  id="edit_bosquejo" 
+                  type="text" 
+                  placeholder="Ej: 178" 
+                  bind:value={parteEditando.numero_bosquejo} 
+                  style="padding-left: 35px; width: 100%; height: 38px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
+                />
+              </div>
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button 
+                  class="btn-guardar-bosquejo" 
+                  style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;"
+                  on:click={() => actualizarBosquejo(parteEditando.id, parteEditando.numero_bosquejo || '')}
+                >
+                  Guardar Solo Bosquejo
+                </button>
+                <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; flex: 1;">
+                  * El número se guardará independientemente de asignar orador
+                </small>
+              </div>
+            </div>
+        {/if}
 
         <div class="buscador">
           <Search size={16} color="var(--text-secondary)"/>
           <input type="text" placeholder="Buscar hermano..." bind:value={terminoBusqueda} />
         </div>
+        
         <div class="lista-opciones">
           {#if !rolOficinaEditando}
             <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
@@ -937,6 +973,7 @@
               <span>Video</span>
             </button>
           {/if}
+          
           {#each hermanosFiltrados as h}
             <button class="item-opcion" on:click={() => asignarOrador(h.id, false)}>
               <div class="avatar">{h.nombre_completo.charAt(0)}</div>

@@ -1,6 +1,10 @@
+// src-tauri/src/lib.rs
+
 pub mod database;
 pub mod models;
 
+// Declaración de módulos de comandos
+// Asegúrate de que los archivos existan en la carpeta src-tauri/src/commands/
 pub mod commands {
     pub mod asambleas;
     pub mod congregaciones;
@@ -8,7 +12,7 @@ pub mod commands {
     pub mod importar;
     pub mod locales;
     pub mod mensajeria;
-    pub mod oficina;
+    pub mod oficina;    // <--- IMPORTANTE: Este archivo debe existir como oficina.rs
     pub mod personas;
     pub mod programa;
     pub mod impresion; 
@@ -17,20 +21,24 @@ pub mod commands {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // --- PLUGINS ---
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        // ✅ PLUGIN FS: Esencial para que writeFile funcione en el frontend
         .plugin(tauri_plugin_fs::init()) 
+        
+        // --- BASE DE DATOS ---
         .setup(|app| {
             match database::initialize_database(app.handle()) {
-                Ok(_) => println!("✅ Base de datos OK"),
-                Err(e) => println!("❌ Error DB: {}", e),
+                Ok(_) => println!("✅ Base de datos inicializada correctamente"),
+                Err(e) => println!("❌ Error inicializando DB: {}", e),
             }
             Ok(())
         })
+
+        // --- REGISTRO DE COMANDOS (INVOKE HANDLER) ---
         .invoke_handler(tauri::generate_handler![
-            // LOCALES (SALONES)
+            // LOCALES
             commands::locales::crear_local,
             commands::locales::obtener_locales,
             commands::locales::eliminar_local,
@@ -62,10 +70,10 @@ pub fn run() {
             commands::importar::importar_congregaciones_csv,
             commands::importar::importar_programa_jw,
             
-            // PROGRAMA - AQUÍ AGREGAMOS EL NUEVO COMANDO
+            // PROGRAMA
             commands::programa::obtener_programa_dia,
             commands::programa::asignar_parte,
-            commands::programa::actualizar_numero_bosquejo,  // <-- NUEVO COMANDO AGREGADO
+            commands::programa::actualizar_numero_bosquejo,
             commands::programa::obtener_oficina_dia,
             commands::programa::generar_programa_base,
             commands::programa::limpiar_programa,
@@ -73,12 +81,12 @@ pub fn run() {
             commands::programa::eliminar_parte,
             commands::programa::alternar_estado_parte,
             
-            // OFICINA
+            // --- OFICINA (Aquí estaba el problema antes) ---
             commands::oficina::obtener_asignaciones_especiales,
-            commands::oficina::guardar_asignacion_especial,
+            commands::oficina::guardar_asignacion_especial,  // <--- ¡ESTE ES EL QUE FALTABA!
             commands::oficina::eliminar_asignacion_especial,
             
-            // CORRESPONDENCIA (Aseguramos registro)
+            // CORRESPONDENCIA
             commands::correspondencia::obtener_plantilla,
             commands::correspondencia::guardar_plantilla,
 
@@ -86,7 +94,7 @@ pub fn run() {
             commands::mensajeria::obtener_plantilla_mensaje,
             commands::mensajeria::guardar_plantilla_mensaje,
 
-            // IMPRESIÓN (Aseguramos registro)
+            // IMPRESIÓN
             commands::impresion::obtener_datos_para_impresion,
         ])
         .run(tauri::generate_context!())
