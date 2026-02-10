@@ -17,14 +17,13 @@
     colorTextoPie: '#666666'    
   };
 
-  // Estado reactivo (comienza con los valores por defecto)
+  // Estado reactivo
   let config = { ...DEFAULT_CONFIG };
 
   onMount(() => {
     const guardado = localStorage.getItem('config_membrete');
     if (guardado) {
       const datosCargados = JSON.parse(guardado);
-      // Fusionamos para asegurar que no se rompa si faltan campos nuevos
       config = { ...config, ...datosCargados };
     }
   });
@@ -38,8 +37,6 @@
   function restaurarValores() {
     if (confirm("¿Seguro que quieres borrar tus cambios y volver al diseño original?")) {
       config = { ...DEFAULT_CONFIG };
-      // Opcional: Si quieres que también se guarde el reset automáticamente en localStorage:
-      // localStorage.setItem('config_membrete', JSON.stringify(config));
     }
   }
 </script>
@@ -126,7 +123,7 @@
         {#if config.usarPiePagina}
           <div class="inputs-group">
             <label>
-              <span class="sub-label">Texto Legal / Informativo</span>
+              <span class="sub-label">Texto Informativo</span>
               <input type="text" bind:value={config.piePagina} class="input-pie">
             </label>
             
@@ -154,7 +151,6 @@
       <div class="hoja-papel">
         {#if config.usarEncabezado}
           <div class="membrete-preview">
-            
             <h1 class="p-titulo" style="color: {config.colorTexto};">{config.titulo}</h1>
             
             <p class="p-contacto" style="color: {config.colorTexto}; opacity: 0.85;">
@@ -162,7 +158,6 @@
             </p>
             
             <div class="linea-separadora" style="background-color: {config.colorLinea};"></div>
-            
           </div>
         {:else}
           <div class="espacio-vacio">Sin Encabezado</div>
@@ -214,24 +209,25 @@
 
   .acciones-header { display: flex; gap: 10px; }
 
-  /* BOTÓN RESTAURAR */
+  /* BOTÓN RESTAURAR - ESTILO ALERTA/ROJO */
   .btn-reset {
     background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
+    border: 1px solid #ef4444; /* Borde rojo */
+    color: #ef4444;            /* Texto rojo */
     padding: 8px 14px;
     border-radius: 6px;
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     display: flex; align-items: center; gap: 8px;
     transition: all 0.2s;
   }
   .btn-reset:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-main);
-    border-color: var(--text-secondary);
+    background: rgba(239, 68, 68, 0.1); /* Fondo rojo suave al pasar mouse */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(239, 68, 68, 0.2);
   }
+  .btn-reset:active { transform: translateY(0); }
 
   /* BOTÓN GUARDAR */
   .btn-guardar-main {
@@ -292,11 +288,10 @@
 
   .hoja-papel {
     background: white; width: 100%; max-width: 340px; aspect-ratio: 210/297;
-    padding: 25px; /* Compacto */
+    padding: 25px; 
     box-shadow: 0 8px 25px rgba(0,0,0,0.25);
     display: flex; flex-direction: column; justify-content: space-between;
     
-    /* Fuente del Sistema para consistencia */
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: #111;
   }
