@@ -12,6 +12,8 @@
     ChevronUp, ChevronDown, X 
   } from 'lucide-svelte';
 
+  import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
+
   const dispatch = createEventDispatcher();
   let configSeccion = 'general'; 
   
@@ -144,6 +146,8 @@
                         </div>
                     </div>
                 {/if}
+
+                <MembreteConfig />
 
             {:else if configSeccion === 'correos'}
                 <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
