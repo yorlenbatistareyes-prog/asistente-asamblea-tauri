@@ -201,26 +201,73 @@
       actualizarVistaOficina(objeto);
   }
 
-  async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
-      if (!objeto || !asambleaId) return alert("⚠️ Datos incompletos.");
-      try {
-          const infoEvento: any = await invoke('obtener_info_extra_evento', { asambleaId });
-          const datosCombinados = {
-              nombre: (objeto.nombre_orador || objeto.nombre_completo || 'Hermano').trim(),
-              tema: objeto.tema || (esPartePrograma ? 'Discurso' : 'Asignación Especial'),
-              numero_bosquejo: objeto.numero_bosquejo || '',
-              fecha_asignacion: objeto.fecha || diaSeleccionado,
-              hora_asignacion: objeto.hora_inicio || objeto.hora || '---',
-              congregacion: objeto.congregacion_orador || objeto.nombre_congregacion || objeto.congregacion_visual || '',
-              lugar: infoEvento?.lugar || 'Salón de Asambleas',
-              direccion: infoEvento?.direccion || '',
-              fecha_ensayo: infoEvento?.fecha_ensayo || '---',
-              hora_ensayo: infoEvento?.hora_ensayo || '---'
-          };
-          let plantillaId = esPartePrograma ? 'oradores' : 'oficina'; 
-          await generarCartaPDF(datosCombinados, plantillaId);
-      } catch (e) { alert("Error: " + e); }
-  }
+  // En src/lib/components/gestion/Programa.svelte
+
+async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
+    if (!objeto || !asambleaId) return alert("⚠️ Datos incompletos.");
+    
+    try {
+        // 1. OBTENER DATOS DE VARIAS FUENTES PARA ASEGURAR QUE TENGAMOS TODO
+        // Fuente A: Datos del salón y ensayos (Dirección física)
+        const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
+        // Fuente B: Datos de texto (Tema, Orientaciones, Instrucciones - La que usa InformacionEvento.svelte)
+        const infoAsamblea: any = await invoke('obtener_asamblea_activa') || {};
+
+        console.log("INFO EXTRA:", infoExtra);
+        console.log("INFO ASAMBLEA:", infoAsamblea);
+
+        // 2. COMBINAR DATOS (Priorizando los que tengan valor)
+        const datosCombinados = {
+            // --- PERSONAL ---
+            saludo: objeto.sexo === 'F' ? 'Estimada hermana' : 'Estimado hermano',
+            nombre: (objeto.nombre_orador || objeto.nombre_completo || objeto.nombre || 'Hermano').trim(),
+            nombre_completo: (objeto.nombre_orador || objeto.nombre_completo || '').trim(),
+            apellidos: objeto.apellidos || '',
+
+            // --- ASIGNACIÓN ---
+            numero_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '',
+            tema: objeto.tema || (esPartePrograma ? 'Discurso' : 'Asignación Especial'),
+            tipo_asignacion: esPartePrograma ? 'Discurso' : (objeto.tipo_asignacion || 'Asignación'),
+            hora_asignacion: objeto.hora_inicio || objeto.hora || '---',
+            // Fecha del día que discursa (ej. Viernes)
+            dia_asignacion: objeto.fecha || diaSeleccionado || '---',
+
+            // --- EVENTO (Aquí cruzamos los datos) ---
+            // El tema viene de infoAsamblea.tema
+            tema_evento: infoAsamblea.tema || 'Asamblea Regional',
+            // La fecha texto (10-12 Oct) viene de infoAsamblea.fecha
+            fecha_evento_texto: infoAsamblea.fecha || 'Fecha por definir',
+            
+            // --- LUGAR ---
+            // Lugar nombre viene de infoExtra (ej. SAN RAFAEL) o infoAsamblea
+            lugar: infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
+            // Dirección viene de infoExtra (que hace el join con locales)
+            direccion: infoExtra.direccion || '', 
+            ciudad: 'Holguín',
+
+            // --- ENSAYOS ---
+            // Usamos lo que venga de cualquiera de las dos fuentes
+            fecha_ensayo: infoExtra.fecha_ensayo || infoAsamblea.ensayo_fecha || '---',
+            hora_ensayo: infoExtra.hora_ensayo || infoAsamblea.ensayo_hora || '---',
+            lugar_ensayo: infoExtra.lugar || infoAsamblea.ensayo_lugar || '', 
+            // Notas HTML
+            notas_ensayo: infoAsamblea.ensayo_notas || '',
+            
+            // --- INSTRUCCIONES Y ORIENTACIONES (CRÍTICO) ---
+            // Estos vienen de infoAsamblea (recorridos_info / instrucciones_esp)
+            orientaciones: infoAsamblea.recorridos_info || '',
+            instrucciones: infoAsamblea.instrucciones_esp || ''
+        };
+
+        // 3. IMPRIMIR
+        let plantillaId = esPartePrograma ? 'oradores' : 'oficina'; 
+        await generarCartaPDF(datosCombinados, plantillaId);
+
+    } catch (e) { 
+        console.error(e);
+        alert("Error al procesar: " + e); 
+    }
+}
 
   function clickEnOficina(key: string, asignacion: any) {
       if (asignacion) {
