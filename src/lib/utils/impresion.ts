@@ -37,6 +37,7 @@ const DEFAULT_MEMBRETE: MembreteConfig = {
 
 export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string) {
     try {
+        // 1. CARGAR CONFIGURACIÓN
         let configMembrete = DEFAULT_MEMBRETE;
         const configGuardada = localStorage.getItem('config_membrete');
         if (configGuardada) {
@@ -47,6 +48,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         const sizeContacto = configMembrete.tamanoContacto || 10;
         const sizePie = configMembrete.tamanoPiePagina || 8;
 
+        // 2. OBTENER PLANTILLA
         const plantillaData: any = await invoke('obtener_plantilla', { id: idPlantilla });
         let htmlContent = plantillaData?.cuerpo || plantillaData?.contenido;
 
@@ -74,7 +76,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             '[[Nombre del lugar]]': datos.lugar_nombre,
             '[[Dirección]]': datos.lugar_direccion,
             '[[Ciudad]]': datos.ciudad,
-            '[[Estado o Provincia]]': 'Holguín', //
+            '[[Estado o Provincia]]': 'Holguín',
             '[[Fecha]]': datos.fecha_evento_texto,
             '[[Tipo de Evento]]': datos.tipo_evento,
             '[[Tema del Evento]]': datos.tema_evento,
@@ -100,6 +102,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             .replace(/<p>\s*<br\s*\/?>\s*<\/p>/g, '')
             .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
 
+        // 4. CÁLCULO DINÁMICO DE ALTURA DEL ENCABEZADO
         const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
         let inicioTextoY = 15;
 
@@ -140,54 +143,71 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-        const dibujarMembrete = (pdf: jsPDF) => {
+        // --- FUNCIONES DE DIBUJO SEPARADAS ---
+
+        const dibujarEncabezadoP1 = (pdf: jsPDF) => {
+            if (!configMembrete.usarEncabezado) return;
+            const w = pdf.internal.pageSize.getWidth();
+            const cx = w / 2;
+
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(sizeTitulo);
+            pdf.setTextColor(configMembrete.colorTexto);
+            pdf.text(configMembrete.titulo.toUpperCase(), cx, 14, { align: 'center' });
+
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(sizeContacto);
+            pdf.setTextColor(configMembrete.colorTexto);
+
+            const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
+            const alturaPorLinea = sizeContacto * 0.352 * 1.2;
+            let cursorY = 14 + (sizeTitulo * 0.352) + 1;
+
+            lineas.forEach((line: string) => {
+                pdf.text(line, cx, cursorY, { align: 'center' });
+                cursorY += alturaPorLinea;
+            });
+
+            pdf.setDrawColor(configMembrete.colorLinea);
+            pdf.setLineWidth(0.5);
+            const lineaY = cursorY + 1;
+            pdf.line(margenSide, lineaY, w - margenSide, lineaY);
+        };
+
+        const dibujarPieUltimaPagina = (pdf: jsPDF) => {
+            if (!configMembrete.usarPiePagina) return;
             const w = pdf.internal.pageSize.getWidth();
             const h = pdf.internal.pageSize.getHeight();
             const cx = w / 2;
 
-            if (configMembrete.usarEncabezado) {
-                pdf.setFont("helvetica", "bold");
-                pdf.setFontSize(sizeTitulo);
-                pdf.setTextColor(configMembrete.colorTexto);
-                pdf.text(configMembrete.titulo.toUpperCase(), cx, 14, { align: 'center' });
-
-                pdf.setFont("helvetica", "normal");
-                pdf.setFontSize(sizeContacto);
-                pdf.setTextColor(configMembrete.colorTexto);
-
-                const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
-                const alturaPorLinea = sizeContacto * 0.352 * 1.2;
-                let cursorY = 14 + (sizeTitulo * 0.352) + 1;
-
-                lineas.forEach((line: string) => {
-                    pdf.text(line, cx, cursorY, { align: 'center' });
-                    cursorY += alturaPorLinea;
-                });
-
-                pdf.setDrawColor(configMembrete.colorLinea);
-                pdf.setLineWidth(0.5);
-                const lineaY = cursorY + 1;
-                pdf.line(margenSide, lineaY, w - margenSide, lineaY);
-            }
-
-            if (configMembrete.usarPiePagina) {
-                const fY = h - 15;
-                pdf.setDrawColor(configMembrete.colorLineaPie);
-                pdf.setLineWidth(0.2);
-                pdf.line(margenSide, fY, w - margenSide, fY);
-                
-                pdf.setFontSize(sizePie); 
-                pdf.setTextColor(configMembrete.colorTextoPie);
-                pdf.text(configMembrete.piePagina, cx, fY + 5, { align: 'center' });
-            }
+            const fY = h - 15;
+            pdf.setDrawColor(configMembrete.colorLineaPie);
+            pdf.setLineWidth(0.2);
+            pdf.line(margenSide, fY, w - margenSide, fY);
+            
+            pdf.setFontSize(sizePie); 
+            pdf.setTextColor(configMembrete.colorTextoPie);
+            pdf.text(configMembrete.piePagina, cx, fY + 5, { align: 'center' });
         };
+
+        // --- RENDERIZADO DEL HTML ---
 
         await doc.html(container, {
             callback: async function (pdf) {
                 const totalPages = pdf.getNumberOfPages();
+                
                 for (let i = 1; i <= totalPages; i++) {
                     pdf.setPage(i);
-                    dibujarMembrete(pdf);
+                    
+                    // Solo en la primera página
+                    if (i === 1) {
+                        dibujarEncabezadoP1(pdf);
+                    }
+                    
+                    // Solo en la última página
+                    if (i === totalPages) {
+                        dibujarPieUltimaPagina(pdf);
+                    }
                 }
 
                 document.body.removeChild(container);
@@ -208,7 +228,6 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                     console.log("Cancelado", e);
                 }
             },
-            // TUS VALORES FINALES AJUSTADOS
             x: 4, 
             y: inicioTextoY,
             width: 208, 
