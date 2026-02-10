@@ -1331,4 +1331,12 @@
 .btn-tool:hover { color: var(--primary); text-decoration: underline; }
 .btn-tool.delete:hover { color: #ef4444; }
 .col-tema { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Forzar que los iconos pequeños de estado (Oficina) se vean horizontales */
+.indicadores-mini {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
 </style>
