@@ -4,7 +4,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
 
-// CONFIGURACIÓN ACTUALIZADA
+// CONFIGURACIÓN DE TIPOS
 interface MembreteConfig {
     usarEncabezado: boolean;
     usarPiePagina: boolean;
@@ -97,33 +97,50 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             htmlContent = htmlContent.replace(regex, String(valor || ''));
         }
 
+        // LIMPIEZA DE ESPACIOS VACÍOS AL INICIO DEL HTML
         htmlContent = htmlContent
-            .replace(/<p>\s*<\/p>/g, '')
-            .replace(/<p>\s*<br\s*\/?>\s*<\/p>/g, '')
+            .replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/gi, '') // Elimina párrafos vacíos al inicio
+            .replace(/^\s*(<br\s*\/?>\s*)+/gi, '') // Elimina br sueltos al inicio
+            .replace(/<p>\s*<\/p>/g, '') // Elimina párrafos vacíos en el medio
             .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
 
-        // 4. CÁLCULO DINÁMICO DE ALTURA DEL ENCABEZADO
+        // 4. CÁLCULO DE POSICIÓN Y
         const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
-        let inicioTextoY = 15;
+        // Posición base por defecto (si no hay encabezado)
+        let inicioTextoY = 15; 
 
         if (configMembrete.usarEncabezado) {
+            // Factor de conversión de Puntos a Milímetros (aprox 0.352)
             const alturaTituloMm = sizeTitulo * 0.352;
+            
             docCalc.setFontSize(sizeContacto);
             const lineas = docCalc.splitTextToSize(configMembrete.contacto, 180);
-            const alturaPorLinea = sizeContacto * 0.352 * 1.2;
+            
+            // AJUSTE: Quitamos el multiplicador 1.2 para que sea más "apretado" y real
+            const alturaPorLinea = sizeContacto * 0.352; 
             const alturaBloqueContacto = lineas.length * alturaPorLinea;
 
+            // La línea negra está en: Base (14) + Título + Contacto + Pequeño respiro (2)
             const lineaNegraY = 14 + alturaTituloMm + alturaBloqueContacto + 2;
-            inicioTextoY = lineaNegraY + 5;
+            
+            // AJUSTE FINAL: Solo 1mm de separación entre línea y texto.
+            inicioTextoY = lineaNegraY -10;
         }
 
         const container = document.createElement('div');
+        
+        // CSS RESET: Importante para evitar márgenes fantasma
         const estilosReset = `
             <style>
                 * { box-sizing: border-box; }
                 body { margin: 0; padding: 0; }
                 p { margin: 0 0 3mm 0; line-height: 1.25; text-align: justify; }
-                .pdf-content > *:first-child { margin-top: 0 !important; padding-top: 0 !important; }
+                
+                /* FUERZA AL PRIMER ELEMENTO A PEGARSE ARRIBA */
+                .pdf-content > *:first-child { 
+                    margin-top: 0 !important; 
+                    padding-top: 0 !important; 
+                }
             </style>
         `;
 
@@ -139,11 +156,15 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         document.body.appendChild(container);
         await new Promise(resolve => setTimeout(resolve, 300));
 
+        // MÁRGENES
         const margenSide = 8; 
         const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
+        // Margen superior para páginas 2, 3, etc.
+        const margenTopSegundasPaginas = 15; 
+
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-        // --- FUNCIONES DE DIBUJO SEPARADAS ---
+        // --- FUNCIONES DE DIBUJO ---
 
         const dibujarEncabezadoP1 = (pdf: jsPDF) => {
             if (!configMembrete.usarEncabezado) return;
@@ -160,7 +181,8 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             pdf.setTextColor(configMembrete.colorTexto);
 
             const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
-            const alturaPorLinea = sizeContacto * 0.352 * 1.2;
+            // Usamos el mismo cálculo de altura que arriba para que coincida visualmente
+            const alturaPorLinea = sizeContacto * 0.352; 
             let cursorY = 14 + (sizeTitulo * 0.352) + 1;
 
             lineas.forEach((line: string) => {
@@ -170,6 +192,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
             pdf.setDrawColor(configMembrete.colorLinea);
             pdf.setLineWidth(0.5);
+            // La línea se dibuja 1mm después del último texto
             const lineaY = cursorY + 1;
             pdf.line(margenSide, lineaY, w - margenSide, lineaY);
         };
@@ -199,15 +222,8 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                 for (let i = 1; i <= totalPages; i++) {
                     pdf.setPage(i);
                     
-                    // Solo en la primera página
-                    if (i === 1) {
-                        dibujarEncabezadoP1(pdf);
-                    }
-                    
-                    // Solo en la última página
-                    if (i === totalPages) {
-                        dibujarPieUltimaPagina(pdf);
-                    }
+                    if (i === 1) dibujarEncabezadoP1(pdf);
+                    if (i === totalPages) dibujarPieUltimaPagina(pdf);
                 }
 
                 document.body.removeChild(container);
@@ -229,10 +245,11 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                 }
             },
             x: 4, 
-            y: inicioTextoY,
+            y: inicioTextoY, // Posición calculada ajustada
             width: 208, 
             windowWidth: 800,
-            margin: [0, margenSide, margenBottom, margenSide],
+            // Margen superior 'margenTopSegundasPaginas' aplica desde la pág 2 en adelante
+            margin: [margenTopSegundasPaginas, margenSide, margenBottom, margenSide],
             autoPaging: 'text'
         });
 
@@ -242,6 +259,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
     }
 }
 
+// Helpers
 function generarInfoEnsayos(d: ContextoDocumento): string {
     if (!d.ensayo_fecha || d.ensayo_fecha === '---') return "No se requiere ensayo.";
     let lugar = construirLugarEnsayo(d);
