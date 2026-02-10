@@ -873,9 +873,10 @@
         <div class="campo">
           <label for="tipo_select">Tipo</label>
           <select id="tipo_select" bind:value={nuevaParte.tipo}>
-            <option>Cántico</option>
+            <option>Música</option>
+            <option>Oración</option>
+            <option>Presidente</option>
             <option>Discurso</option>
-            <option>Simposio</option>
             <option>Video</option>
           </select>
         </div>
