@@ -41,28 +41,82 @@ export interface ContextoDocumento {
 
 export async function generarContexto(objeto: any, asambleaId: number, esPartePrograma: boolean): Promise<ContextoDocumento> {
     
+    // 1. OBTENER DATOS GLOBALES DE LA ASAMBLEA
     const infoAsamblea: any = await invoke('obtener_asamblea_activa') || {};
     const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
 
-    // NORMALIZACIÓN DE NOMBRES
-    let nombreCompleto = (objeto.nombre_orador || objeto.nombre_completo || objeto.nombre || 'Hermano').trim();
+    // 2. DETECCIÓN INTELEGENTE DEL NOMBRE
+    // Busca en todos los posibles campos que usa tu app (oradores vs oficina)
+    let nombreCompleto = (
+        objeto.nombre_orador || 
+        objeto.nombre_completo || 
+        objeto.nombre_presidente || 
+        objeto.nombre || 
+        'Hermano'
+    ).trim();
+
     let nombrePila = '';
     let apellidos = objeto.apellidos || '';
     let segundoNombre = '';
 
-    if (nombreCompleto) {
-        const partes = nombreCompleto.split(' ');
+    if (nombreCompleto && nombreCompleto !== 'Hermano') {
+        const partes = nombreCompleto.replace(/\s+/g, ' ').split(' ');
         if (partes.length > 0) {
             nombrePila = partes[0];
-            if (!apellidos && partes.length > 1) {
-                apellidos = partes.slice(1).join(' ');
+            if (partes.length > 1) {
+                if (!apellidos) apellidos = partes.slice(1).join(' '); // Deducir apellidos si no existen
+                if (partes.length > 2) segundoNombre = partes[1];
             }
-            if (partes.length > 2) segundoNombre = partes[1];
         }
     }
 
-    // --- LÓGICA INTELIGENTE DE EVENTO ---
-    // Si la BD dice "Asamblea" (a secas), nosotros lo mejoramos a "Asamblea Regional"
+    // 3. LÓGICA DE ASIGNACIÓN (EL CEREBRO DEL SISTEMA)
+    // Aquí decidimos qué texto va en "Asunto" y "Tema" según quién sea.
+    
+    let tipoAsignacionFinal = 'Asignación';
+    let temaFinal = objeto.tema || '';
+
+    if (esPartePrograma) {
+        // --- LÓGICA PARA ORADORES (INTACTA) ---
+        if (objeto.numero_bosquejo) {
+            tipoAsignacionFinal = 'Discurso';
+            if (!temaFinal) temaFinal = 'Discurso de Asamblea';
+        } else if (objeto.tipo === 'Video') {
+            tipoAsignacionFinal = 'Video';
+        } else {
+            tipoAsignacionFinal = objeto.tipo || 'Parte del Programa';
+        }
+    } else {
+        // --- LÓGICA PARA OFICINA (NUEVA) ---
+        // Usamos rol_key (ej: 'presidente_manana') o tipo_asignacion
+        const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
+
+        if (rol.includes('presidente')) {
+            tipoAsignacionFinal = 'Presidencia';
+            temaFinal = 'Presidente de la sesión';
+        } else if (rol.includes('oracion') || rol.includes('oración')) {
+            tipoAsignacionFinal = 'Oración';
+            // Detectar si es apertura o conclusión
+            if (rol.includes('apertura')) temaFinal = 'Oración de apertura';
+            else if (rol.includes('conclusion') || rol.includes('conclusión')) temaFinal = 'Oración de conclusión';
+            else temaFinal = 'Oración';
+        } else if (rol.includes('plataforma')) {
+            tipoAsignacionFinal = 'Plataforma';
+            temaFinal = 'Superintendente de Plataforma';
+        } else if (rol.includes('bosquejo')) {
+            tipoAsignacionFinal = 'Discurso'; // Rara vez pasa en oficina, pero por si acaso
+        } else if (rol.includes('personal') || objeto.es_personal) {
+            tipoAsignacionFinal = 'Personal de Oficina';
+            temaFinal = objeto.tarea || 'Asignación en la Oficina';
+        } else {
+            tipoAsignacionFinal = 'Asignación Especial';
+        }
+    }
+
+    // 4. DATOS DE CONTACTO (Priorizamos los datos visuales del modal)
+    const congregacionFinal = objeto.congregacion_visual || objeto.congregacion_orador || objeto.nombre_congregacion || '';
+
+    // 5. EVENTO
     let tipoEventoMejorado = infoAsamblea.tipo || 'Asamblea';
     if (tipoEventoMejorado.trim().toLowerCase() === 'asamblea') {
         tipoEventoMejorado = 'Asamblea Regional';
@@ -70,8 +124,7 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
 
     return {
         // --- PERSONAL ---
-        // CAMBIO AQUÍ: Ya no ponemos "Estimado", solo la palabra clave.
-        saludo: objeto.sexo === 'F' ? 'hermana' : 'hermano',
+        saludo: (objeto.sexo === 'F' || objeto.genero === 'F') ? 'hermana' : 'hermano',
         nombre_pila: nombrePila,
         segundo_nombre: segundoNombre,
         apellidos: apellidos,
@@ -80,17 +133,19 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         circuito: 'HG-06',
 
         // --- ASIGNACIÓN ---
-        tema_asignacion: objeto.tema || (esPartePrograma ? 'Discurso' : 'Asignación Especial'),
-        tipo_asignacion: esPartePrograma ? 'Discurso' : (objeto.tipo_asignacion || 'Asignación'),
-        num_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '',
+        tema_asignacion: temaFinal,
+        tipo_asignacion: tipoAsignacionFinal,
+        // En oficina no hay bosquejo, devolvemos vacío para que no salga "undefined"
+        num_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '', 
+        
         hora: objeto.hora_inicio || objeto.hora || '---',
-        fecha_asignacion: objeto.fecha || '---',
-        congregacion: objeto.congregacion_orador || objeto.nombre_congregacion || '',
-        nota_asignacion: objeto.notas || '',
+        fecha_asignacion: objeto.dia || objeto.fecha || infoAsamblea.fecha || '---',
+        congregacion: congregacionFinal,
+        nota_asignacion: objeto.notas || objeto.nota || '',
 
         // --- EVENTO ---
         tema_evento: infoAsamblea.tema || 'Asamblea Regional',
-        tipo_evento: tipoEventoMejorado, // Aquí va el nombre corregido
+        tipo_evento: tipoEventoMejorado,
         fecha_evento_texto: infoAsamblea.fecha || infoExtra.fecha_texto || 'Fecha por definir',
         
         // --- LUGAR ---
@@ -110,7 +165,7 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         orientaciones: infoAsamblea.recorridos_info || infoExtra.recorridos_info || '',
         instrucciones: infoAsamblea.instrucciones_esp || infoExtra.instrucciones_esp || '',
 
-        // --- PRESIDENTE ---
+        // --- PRESIDENTE (Datos para el pie de página o contacto) ---
         email_presidente: infoAsamblea.email_presidente || '',
         tel_presidente: infoAsamblea.telefono_presidente || ''
     };

@@ -48,16 +48,33 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         const sizeContacto = configMembrete.tamanoContacto || 10;
         const sizePie = configMembrete.tamanoPiePagina || 8;
 
-        // 2. OBTENER PLANTILLA
+        // 2. OBTENER PLANTILLA (DIAGNÓSTICO)
+        console.log(`🔍 Buscando plantilla ID: "${idPlantilla}"`);
         const plantillaData: any = await invoke('obtener_plantilla', { id: idPlantilla });
-        let htmlContent = plantillaData?.cuerpo || plantillaData?.contenido;
-
-        if (!htmlContent) {
-            alert("Error: Plantilla vacía.");
+        
+        if (!plantillaData) {
+            alert(`⛔ ERROR: No se encontró la plantilla con ID "${idPlantilla}" en la base de datos.`);
             return;
         }
 
-        // MAPA DE REEMPLAZOS
+        // --- EXTRACCIÓN ROBUSTA DE CONTENIDO ---
+        // Buscamos en todas las variantes posibles por si la BD cambió el nombre del campo
+        let htmlContent = 
+            plantillaData.cuerpo || 
+            plantillaData.contenido || 
+            plantillaData.body || 
+            plantillaData.html || 
+            plantillaData.text || 
+            '';
+
+        // Si sigue vacío, mostramos alerta de depuración para que veas qué llegó
+        if (!htmlContent || htmlContent.trim() === '') {
+            console.error("Objeto recibido:", plantillaData);
+            alert(`⚠️ LA PLANTILLA ESTÁ VACÍA.\n\nEl sistema encontró la plantilla "${idPlantilla}", pero no tiene texto.\nDatos recibidos de la BD:\n${JSON.stringify(plantillaData)}`);
+            return;
+        }
+
+        // 3. REEMPLAZO DE MARCADORES
         const mapaReemplazo: Record<string, string> = {
             '[[Saludo según sexo]]': datos.saludo,
             '[[Designación del Circuito]]': datos.circuito,
@@ -97,46 +114,40 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             htmlContent = htmlContent.replace(regex, String(valor || ''));
         }
 
-        // LIMPIEZA DE ESPACIOS VACÍOS AL INICIO DEL HTML
+        // LIMPIEZA HTML
         htmlContent = htmlContent
-            .replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/gi, '') // Elimina párrafos vacíos al inicio
-            .replace(/^\s*(<br\s*\/?>\s*)+/gi, '') // Elimina br sueltos al inicio
-            .replace(/<p>\s*<\/p>/g, '') // Elimina párrafos vacíos en el medio
+            .replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/gi, '') 
+            .replace(/^\s*(<br\s*\/?>\s*)+/gi, '')
+            .replace(/<p>\s*<\/p>/g, '')
             .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
 
-        // 4. CÁLCULO DE POSICIÓN Y
+        // 4. CÁLCULO DE POSICIONES
         const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
-        // Posición base por defecto (si no hay encabezado)
         let inicioTextoY = 15; 
 
         if (configMembrete.usarEncabezado) {
-            // Factor de conversión de Puntos a Milímetros (aprox 0.352)
             const alturaTituloMm = sizeTitulo * 0.352;
-            
             docCalc.setFontSize(sizeContacto);
             const lineas = docCalc.splitTextToSize(configMembrete.contacto, 180);
             
-            // AJUSTE: Quitamos el multiplicador 1.2 para que sea más "apretado" y real
+            // Factor ajustado
             const alturaPorLinea = sizeContacto * 0.352; 
             const alturaBloqueContacto = lineas.length * alturaPorLinea;
 
-            // La línea negra está en: Base (14) + Título + Contacto + Pequeño respiro (2)
             const lineaNegraY = 14 + alturaTituloMm + alturaBloqueContacto + 2;
             
-            // AJUSTE FINAL: Solo 1mm de separación entre línea y texto.
-            inicioTextoY = lineaNegraY -10;
+            // TU AJUSTE MANUAL (-10mm)
+            inicioTextoY = lineaNegraY - 10;
         }
 
         const container = document.createElement('div');
         
-        // CSS RESET: Importante para evitar márgenes fantasma
+        // CSS RESET
         const estilosReset = `
             <style>
                 * { box-sizing: border-box; }
                 body { margin: 0; padding: 0; }
                 p { margin: 0 0 3mm 0; line-height: 1.25; text-align: justify; }
-                
-                /* FUERZA AL PRIMER ELEMENTO A PEGARSE ARRIBA */
                 .pdf-content > *:first-child { 
                     margin-top: 0 !important; 
                     padding-top: 0 !important; 
@@ -159,13 +170,12 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         // MÁRGENES
         const margenSide = 8; 
         const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
-        // Margen superior para páginas 2, 3, etc.
+        // TU AJUSTE MANUAL (15mm)
         const margenTopSegundasPaginas = 15; 
 
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
         // --- FUNCIONES DE DIBUJO ---
-
         const dibujarEncabezadoP1 = (pdf: jsPDF) => {
             if (!configMembrete.usarEncabezado) return;
             const w = pdf.internal.pageSize.getWidth();
@@ -181,8 +191,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             pdf.setTextColor(configMembrete.colorTexto);
 
             const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
-            // Usamos el mismo cálculo de altura que arriba para que coincida visualmente
-            const alturaPorLinea = sizeContacto * 0.352; 
+            const alturaPorLinea = sizeContacto * 0.352;
             let cursorY = 14 + (sizeTitulo * 0.352) + 1;
 
             lineas.forEach((line: string) => {
@@ -192,7 +201,6 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
             pdf.setDrawColor(configMembrete.colorLinea);
             pdf.setLineWidth(0.5);
-            // La línea se dibuja 1mm después del último texto
             const lineaY = cursorY + 1;
             pdf.line(margenSide, lineaY, w - margenSide, lineaY);
         };
@@ -213,20 +221,17 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             pdf.text(configMembrete.piePagina, cx, fY + 5, { align: 'center' });
         };
 
-        // --- RENDERIZADO DEL HTML ---
-
+        // --- GENERACIÓN PDF ---
         await doc.html(container, {
             callback: async function (pdf) {
                 const totalPages = pdf.getNumberOfPages();
-                
                 for (let i = 1; i <= totalPages; i++) {
                     pdf.setPage(i);
-                    
                     if (i === 1) dibujarEncabezadoP1(pdf);
                     if (i === totalPages) dibujarPieUltimaPagina(pdf);
                 }
-
                 document.body.removeChild(container);
+                
                 const pdfData = pdf.output('arraybuffer');
                 const binary = new Uint8Array(pdfData);
                 const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
@@ -240,15 +245,12 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
                         await writeFile(path, binary);
                         alert("✅ Carta generada correctamente.");
                     }
-                } catch (e) {
-                    console.log("Cancelado", e);
-                }
+                } catch (e) { console.log("Cancelado", e); }
             },
             x: 4, 
-            y: inicioTextoY, // Posición calculada ajustada
+            y: inicioTextoY, 
             width: 208, 
             windowWidth: 800,
-            // Margen superior 'margenTopSegundasPaginas' aplica desde la pág 2 en adelante
             margin: [margenTopSegundasPaginas, margenSide, margenBottom, margenSide],
             autoPaging: 'text'
         });
