@@ -205,64 +205,68 @@
 
   // En src/lib/components/gestion/Programa.svelte
 
-// Función optimizada que usa el Hub de Datos (Contexto)
- // --- CONFIGURACIÓN INTELIGENTE DE PLANTILLAS ---
-  // Aquí defines qué ID de plantilla de tu base de datos corresponde a cada rol.
-  // Si mañana creas una plantilla específica para presidentes, solo cambias 'oficina' por 'carta_presidente' aquí.
+// --- CONFIGURACIÓN DE PLANTILLAS ---
+  // Las claves de la derecha ('presidentes', 'oraciones') coinciden con 
+  // los nombres de las tarjetas donde guardaste el texto en el Editor.
   const MAPA_PLANTILLAS: Record<string, string> = {
-      'programa': 'oradores',      // ID para Discursos normales
-      'presidente': 'oficina',     // ID para Presidentes (cámbialo si creas una específica)
-      'oracion': 'oficina',        // ID para Oraciones
-      'plataforma': 'oficina',     // ID para Plataforma
-      'personal': 'oficina',       // ID para Personal diverso
-      'default': 'oficina'         // ID por defecto si no detecta el rol
+      'programa': 'oradores',       // Para discursos normales
+      'presidente': 'presidentes',  // <--- AQUÍ ESTÁ LA MAGIA
+      'oracion': 'oraciones',       // <--- Y AQUÍ
+      'plataforma': 'oradores',     // (O usa una genérica si no tienes esta)
+      'personal': 'oradores',       // (O usa una genérica)
+      'default': 'oradores'         
   };
 
-  // Función optimizada con Selector Inteligente y Diagnóstico
+  // --- FUNCIÓN DE IMPRESIÓN (Con Mapa) ---
   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
-      if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila y asegúrese de que hay una asamblea activa.");
+      if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila.");
       
       try {
-          // 1. GENERAR CONTEXTO (Datos listos y limpios)
+          // 1. Preparamos los datos
           const contexto = await generarContexto(objeto, asambleaId, esPartePrograma);
 
-          // 2. SELECCIONAR PLANTILLA SEGÚN EL ROL
+          // 2. Elegimos qué plantilla usar usando el Mapa
           let plantillaId = '';
 
           if (esPartePrograma) {
               plantillaId = MAPA_PLANTILLAS['programa'];
           } else {
-              // Detectamos el rol buscando palabras clave en rol_key o tipo_asignacion
+              // Detectamos el rol del hermano
               const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
               
-              if (rol.includes('presidente')) plantillaId = MAPA_PLANTILLAS['presidente'];
-              else if (rol.includes('oracion') || rol.includes('oración')) plantillaId = MAPA_PLANTILLAS['oracion'];
-              else if (rol.includes('plataforma')) plantillaId = MAPA_PLANTILLAS['plataforma'];
-              else if (rol.includes('personal') || objeto.es_personal) plantillaId = MAPA_PLANTILLAS['personal'];
-              else plantillaId = MAPA_PLANTILLAS['default'];
+              if (rol.includes('presidente')) {
+                  plantillaId = MAPA_PLANTILLAS['presidente']; 
+              } 
+              else if (rol.includes('oracion') || rol.includes('oración')) {
+                  plantillaId = MAPA_PLANTILLAS['oracion'];
+              } 
+              else if (rol.includes('plataforma')) {
+                  plantillaId = MAPA_PLANTILLAS['plataforma'];
+              }
+              else {
+                  plantillaId = MAPA_PLANTILLAS['default'];
+              }
           }
 
-          // 3. DIAGNÓSTICO DE SEGURIDAD (Evita imprimir hojas en blanco)
-          // Verificamos si la plantilla realmente existe en la BD antes de mandar al PDF
+          console.log(`🖨️ Rol: "${contexto.tipo_asignacion}" -> Buscando plantilla ID: "${plantillaId}"`);
+
+          // 3. Verificamos que la plantilla exista antes de imprimir
           const existe = await invoke('obtener_plantilla', { id: plantillaId });
           
           if (!existe) {
-              // Si no existe, buscamos cuáles SÍ existen para avisarte
+              // Si falla, mostramos qué plantillas SÍ existen para ayudarte
               const disponibles: any[] = await invoke('obtener_todas_plantillas');
-              const idsDisponibles = disponibles.map(p => p.id).join(', ');
-
-              alert(`⛔ ERROR DE PLANTILLA:\n\nEl sistema intentó usar la plantilla con ID "${plantillaId}" para la asignación de "${contexto.tipo_asignacion}", pero esa plantilla NO EXISTE en tu base de datos.\n\nPlantillas disponibles actualmente: [ ${idsDisponibles} ]\n\nSOLUCIÓN: Ve a la sección Correspondencia y crea una plantilla cuyo ID sea exactamente "${plantillaId}".`);
+              const ids = disponibles.map(p => p.id).join(', ');
+              alert(`⛔ ERROR: No se encuentra la plantilla con ID "${plantillaId}".\n\nEl sistema intentó usar "${plantillaId}" para este hermano, pero no existe en la base de datos.\n\nIDs disponibles: [ ${ids} ]`);
               return;
           }
 
-          console.log(`🖨️ Imprimiendo carta. Asignación: ${contexto.tipo_asignacion} -> Usando Plantilla: ${plantillaId}`);
-
-          // 4. IMPRIMIR
+          // 4. Imprimimos
           await generarCartaPDF(contexto, plantillaId);
 
       } catch (e) { 
-          console.error("Error en impresión:", e);
-          alert("Error al preparar el documento: " + e); 
+          console.error("Error impresión:", e);
+          alert("Error al procesar: " + e); 
       }
   }
 
