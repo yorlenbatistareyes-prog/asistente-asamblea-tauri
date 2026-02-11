@@ -214,20 +214,25 @@
             <div class="empty-state"><p>No tienes ninguna asamblea creada.</p><button on:click={abrirCrearAsamblea}>Crear la primera ahora</button></div>
         {:else}
             <div class="grid-asambleas">
-                {#each listaAsambleas as item (item.id)}
+                {#each listaAsambleas as item, i (item.id)}
                     <div class="card-hero" on:click={() => irAGestionar(item)} on:keydown role="button" tabindex="0">
+      
                       <button class="btn-trash" on:click={(e) => eliminarAsamblea(item.id, e)} title="Eliminar"><Trash2 size={16} /></button>
+      
                       <div class="hero-content">
-                        <span class="status-pill">#{item.id}</span>
+                        <span class="status-pill">Asamblea {i + 1}</span>
+        
                         <h2>{item.tema}</h2>
                         <div class="hero-details"><span><Calendar size={14} /> {item.fecha}</span>{#if item.lugar}<span><MapPin size={14} /> {item.lugar}</span>{/if}</div>
                       </div>
+      
                       <button class="btn-manage">Gestionar Datos &rarr;</button>
+      
                       <div class="card-logo-bg">
-                           <Lectern size={120} strokeWidth={0.9} />
+                            <Lectern size={120} strokeWidth={0.9} />
                       </div>
                     </div>
-                {/each}
+               {/each}
             </div>
         {/if}
       </section>
@@ -400,14 +405,42 @@
   .grid-asambleas { display: flex; flex-direction: column; gap: 20px; }
   
   /* Tarjetas y Elementos */
-  .card-hero { background: linear-gradient(135deg, var(--primary) 0%, #005a9e 100%); padding: 30px; border-radius: 20px; color: white; cursor: pointer; box-shadow: 0 20px 25px -5px rgba(0, 120, 212, 0.2); transition: transform 0.2s; position: relative; overflow: hidden; }
+  .card-hero { 
+    background: linear-gradient(135deg, var(--primary) 0%, #005a9e 100%); 
+    
+    /* CAMBIO 1: Padding asimétrico. 
+       50px arriba (espacio para el botón) y 30px en el resto */
+    padding: 50px 30px 30px 30px; 
+    
+    border-radius: 20px; 
+    color: white; 
+    cursor: pointer; 
+    box-shadow: 0 20px 25px -5px rgba(0, 120, 212, 0.2); 
+    transition: transform 0.2s; 
+    position: relative; 
+    overflow: hidden; 
+}
   .card-hero:hover { transform: translateY(-5px); }
   .status-pill { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
   .card-hero h2 { font-size: 24px; margin: 10px 0 15px 0; line-height: 1.2; }
   .hero-details { display: flex; flex-direction: column; gap: 8px; opacity: 0.9; font-size: 14px; }
   .hero-details span { display: flex; align-items: center; gap: 8px; }
   .btn-manage { margin-top: 25px; background: white; color: var(--primary); border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; width: 100%; }
-  .btn-trash { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.2); border: none; color: white; padding: 8px; border-radius: 8px; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+  .btn-trash { 
+    position: absolute; 
+    top: 15px;     /* Pegado arriba */
+    right: 15px;   /* Pegado a la derecha */
+    
+    background: rgba(0,0,0,0.2); 
+    border: none; 
+    color: white; 
+    padding: 8px; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    opacity: 0; 
+    transition: all 0.2s; 
+    z-index: 10; 
+}
   .card-hero:hover .btn-trash { opacity: 1; } .btn-trash:hover { background: #ef4444; }
   
   .empty-state { border: 2px dashed var(--border-color); border-radius: 20px; padding: 40px; text-align: center; color: var(--text-secondary); }
