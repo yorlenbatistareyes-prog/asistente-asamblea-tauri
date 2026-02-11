@@ -6,7 +6,7 @@
     Plus, MapPin, Calendar, Briefcase, Trash2,
     Mail, Mic, UserCheck, MessageSquare, ChevronRight, Settings, X, Building, Map, LayoutGrid,
     User, Clock,
-    Sun, Moon, Monitor // Iconos para el tema
+    Sun, Moon, Monitor, Lectern // Iconos para el tema
   } from 'lucide-svelte';
   
   // --- IMPORTACIÓN DE COMPONENTES ---
@@ -209,7 +209,7 @@
 
     <div class="dashboard">
       <section class="asambleas-list">
-        <div class="section-header"><Briefcase size={18} /> <span>MIS ASAMBLEAS</span></div>
+        <div class="section-header"><Lectern size={26} /> <span>MIS ASAMBLEAS</span></div>
         {#if listaAsambleas.length === 0}
             <div class="empty-state"><p>No tienes ninguna asamblea creada.</p><button on:click={abrirCrearAsamblea}>Crear la primera ahora</button></div>
         {:else}
@@ -223,6 +223,9 @@
                         <div class="hero-details"><span><Calendar size={14} /> {item.fecha}</span>{#if item.lugar}<span><MapPin size={14} /> {item.lugar}</span>{/if}</div>
                       </div>
                       <button class="btn-manage">Gestionar Datos &rarr;</button>
+                      <div class="card-logo-bg">
+                           <Lectern size={120} strokeWidth={0.9} />
+                      </div>
                     </div>
                 {/each}
             </div>
@@ -230,7 +233,7 @@
       </section>
 
       <section class="gestion-global">
-        <div class="section-header"><Mail size={18} /> <span>PLANTILLAS GLOBALES</span></div>
+        <div class="section-header"><Mail size={24} /> <span>PLANTILLAS GLOBALES</span></div>
         <div class="grid-cartas">
           <button class="card-action" on:click={() => irACorrespondencia('oradores')}>
             <div class="card-icon oradores"><Mic size={22} /></div>
@@ -397,7 +400,7 @@
   .grid-asambleas { display: flex; flex-direction: column; gap: 20px; }
   
   /* Tarjetas y Elementos */
-  .card-hero { background: linear-gradient(135deg, var(--primary) 0%, #005a9e 100%); padding: 30px; border-radius: 20px; color: white; cursor: pointer; box-shadow: 0 20px 25px -5px rgba(0, 120, 212, 0.2); transition: transform 0.2s; position: relative; }
+  .card-hero { background: linear-gradient(135deg, var(--primary) 0%, #005a9e 100%); padding: 30px; border-radius: 20px; color: white; cursor: pointer; box-shadow: 0 20px 25px -5px rgba(0, 120, 212, 0.2); transition: transform 0.2s; position: relative; overflow: hidden; }
   .card-hero:hover { transform: translateY(-5px); }
   .status-pill { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
   .card-hero h2 { font-size: 24px; margin: 10px 0 15px 0; line-height: 1.2; }
@@ -460,4 +463,20 @@
   .btn-cancel { background: var(--bg-card); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--text-secondary); }
   .btn-confirm { background: var(--primary); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; color: white; display: flex; align-items: center; gap: 5px; }
   .btn-confirm:hover { opacity: 0.9; }
+
+  .card-logo-bg {
+    position: absolute;
+    top: 15px;
+    right: 15px;        /* Un poco hacia afuera para efecto dinámico */
+    color: white;
+    opacity: 0.7;       /* Transparencia sutil */
+    pointer-events: none; /* Inclinado */
+    z-index: 0;
+}
+
+/* Asegura que el contenido quede encima del icono */
+.hero-content, .btn-manage, .btn-trash {
+    position: relative;
+    z-index: 1;
+}
 </style>
