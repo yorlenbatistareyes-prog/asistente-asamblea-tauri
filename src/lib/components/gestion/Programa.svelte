@@ -20,8 +20,12 @@
   } from 'lucide-svelte';
 
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
-// NUEVO: importamos desde plantillasEmail.ts
-import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
+  // NUEVO: importamos desde plantillasEmail.ts
+  import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
+
+  import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
+  import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
+  
   // --- ESTADO ---
   let asambleaId = 0; 
   let diaSeleccionado = 'Viernes';
@@ -59,7 +63,8 @@ import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$l
         await Promise.all([
             cargarDatos(),
             cargarHermanos(),
-            cargarPlantillasEmail()  // AHORA VIENE DEL ARCHIVO CENTRAL
+            cargarPlantillasEmail(),  
+            cargarPlantillasWhatsApp()
         ]);
         
     } else {
@@ -84,7 +89,9 @@ import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$l
             carta_recibida_check: false, 
             jwpub_enviado: false, 
             recordatorio_enviado: false, 
-            ensayo_terminado: false
+            ensayo_terminado: false,
+            whatsapp_enviado: false,               // <--- NUEVO
+            recordatorio_whatsapp_enviado: false   // <--- NUEVO
         }));
     } catch (e) { console.error(e); }
     
@@ -108,6 +115,8 @@ import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$l
               d.esta_presente = d.esta_presente || false;
               d.ensayo_terminado = d.ensayo_terminado || false;
               d.carta_recibida_check = false;
+              d.whatsapp_enviado = false;
+              d.recordatorio_whatsapp_enviado = false;
 
               if (d.tipo_asignacion === 'personal_oficina') {
                   nuevaOficina.personal.push(d);
@@ -184,15 +193,27 @@ import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$l
       actualizarVistaOficina(objeto);
   }
 
-  function enviarWhatsApp(objeto: any) {
-      const tel = objeto.telefono_visual || objeto.telefono_orador || objeto.telefono; 
-      const nombre = objeto.nombre_orador || objeto.nombre_completo;
-      if (!tel) return alert("⚠️ No hay teléfono registrado.");
-      const numero = tel.replace(/\D/g, ''); 
-      const mensaje = `Hola hermano ${nombre}, le escribimos con respecto a su asignación.`;
-      const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-      openUrl(url).catch(e => console.error(e));
-  }
+ // --- BOTÓN 1: WHATSAPP PARA ASIGNACIÓN (CARTA / RECORDATORIO DE ASIGNACIÓN) ---
+async function abrirWhatsAppAsignacion(objeto: any) {
+    const url = await obtenerUrlWhatsApp(objeto, false);
+    if (url) {
+        openUrl(url).catch(e => console.error(e));
+        objeto.whatsapp_enviado = true;
+        partes = partes;
+        actualizarVistaOficina(objeto);
+    }
+}
+
+// --- BOTÓN 2: WHATSAPP PARA RECORDATORIO DE ENSAYO ---
+async function abrirWhatsAppRecordatorio(objeto: any) {
+    const url = await obtenerUrlWhatsApp(objeto, true);
+    if (url) {
+        openUrl(url).catch(e => console.error(e));
+        objeto.recordatorio_whatsapp_enviado = true;
+        partes = partes;
+        actualizarVistaOficina(objeto);
+    }
+}
 
   // --- LÓGICA DE ENVÍO DE CORREOS (Separada e Independiente) ---
 
@@ -234,7 +255,7 @@ async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<s
        `&to=${encodeURIComponent(emailDestino)}` +
        `&subject=${encodeURIComponent(asuntoFinal)}` +
        `&body=${encodeURIComponent(cuerpoFinal)}`;
-    }   
+    }
   // --- BOTÓN 1: ENVIAR CARTA ---
 async function abrirJWPUBCarta(objeto: any) {
     const url = await obtenerUrlCorreo(objeto, false);
@@ -268,6 +289,57 @@ async function abrirJWPUBRecordatorio(objeto: any) {
       'personal': 'oradores',       // (O usa una genérica)
       'default': 'oradores'         
   };
+
+  // --- LÓGICA DE WHATSAPP (CON PLANTILLAS) ---
+// --- LÓGICA DE WHATSAPP CON CARGA DIRECTA DESDE RUST ---
+async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
+    // 1. Validar teléfono
+    const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
+    if (!telefono) {
+        alert("⚠️ No hay teléfono registrado.");
+        return null;
+    }
+
+    // 2. ID de plantilla según rol
+    let idPlantilla = 'oradores';
+    const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
+    if (rol.includes('presidente')) idPlantilla = 'presidentes';
+    else if (rol.includes('oracion')) idPlantilla = 'oraciones';
+    else if (esRecordatorio) idPlantilla = 'ensayo';
+
+    // 3. Intentar obtener del store
+    let plantilla = obtenerPlantillaWhatsAppPorId(idPlantilla);
+    let cuerpoBase = plantilla?.body || "";
+
+    // 4. Si no está en el store, cargar directamente desde Rust
+    if (!cuerpoBase) {
+        console.log(`📱 Plantilla WhatsApp "${idPlantilla}" no encontrada en store, cargando desde Rust...`);
+        try {
+            const res: any = await invoke('obtener_plantilla_mensaje', { id: idPlantilla });
+            if (res && res.cuerpo) {
+                cuerpoBase = res.cuerpo;
+                // Opcional: actualizar el store para futuras ocasiones
+                // (puedes implementar una función para esto si quieres)
+            }
+        } catch (e) {
+            console.error(`Error cargando plantilla WhatsApp ${idPlantilla}:`, e);
+        }
+    }
+
+    // 5. Si sigue vacío, usar texto de respaldo
+    if (!cuerpoBase) {
+        cuerpoBase = "⚠️ No se ha definido una plantilla para WhatsApp.";
+    }
+
+    // 6. Obtener contexto y procesar mensaje
+    const contexto = await generarContexto(objeto, asambleaId, true);
+    let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
+    mensaje = mensaje.substring(0, 4000); // Límite de WhatsApp
+
+    // 7. Construir URL
+    const numero = telefono.replace(/\D/g, '');
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+}
 
   // --- FUNCIÓN DE IMPRESIÓN (Con Mapa) ---
   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
@@ -820,8 +892,8 @@ async function abrirJWPUBRecordatorio(objeto: any) {
                     </label>
                   </div>
                   <div class="grupo-accion center">
-                    <button class="btn-outline-green" on:click={() => enviarWhatsApp(parte)}>
-                      <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
+                    <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
+                       <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
                     </button>
                   </div>
                   <div class="grupo-accion right">
@@ -940,7 +1012,7 @@ async function abrirJWPUBRecordatorio(objeto: any) {
             </label>
           </div>
           <div class="grupo-accion center">
-            <button class="btn-outline-green" on:click={() => enviarWhatsApp(asignacionOficinaActual)}>
+            <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(asignacionOficinaActual)}>
               <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
             </button>
           </div>
