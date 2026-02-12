@@ -512,10 +512,12 @@ async function abrirJWPUBRecordatorio(objeto: any) {
     mostrarSugerencias = false; 
   }
   
-  // --- FILTRADO PARA EL MODAL DE ASIGNACIÓN (BUSCADOR) ---
-  // En lugar de $:, usamos una función que se ejecuta cada vez que se renderiza el {#each}
+ // --- FILTRADO PARA EL MODAL DE ASIGNACIÓN (BUSCADOR) ---
   function getHermanosFiltrados() {
-    if (!terminoBusqueda || terminoBusqueda.length < 2) return [];
+    // CAMBIO: Si la búsqueda está vacía, mostramos a TODOS los hermanos
+    if (!terminoBusqueda) return listaHermanos;
+    
+    // Si escribes algo, entonces filtramos
     return listaHermanos.filter(h => 
       h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase())
     );
