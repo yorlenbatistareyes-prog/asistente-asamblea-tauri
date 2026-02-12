@@ -242,7 +242,14 @@
 .btn-save-config { background: #10b981; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; }
 
 .config-scroll-area { flex: 1; overflow-y: auto; padding: 40px; }
-.config-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 60px; max-width: 1200px; transition: all 0.3s ease; }
+.config-grid { 
+    display: grid; 
+    /* Esta es la línea mágica que evita que se empuje todo a la derecha */
+    grid-template-columns: minmax(0, 60%) minmax(0, 40%); 
+    gap: 60px; 
+    max-width: 1200px; 
+    transition: all 0.3s ease; 
+}
 .config-grid.full-width { grid-template-columns: 1fr; gap: 0; max-width: 100%; }
 
 /* Inputs Generales */
