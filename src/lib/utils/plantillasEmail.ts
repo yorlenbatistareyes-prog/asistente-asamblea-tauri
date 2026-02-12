@@ -14,7 +14,7 @@ export interface PlantillaEmail {
 }
 
 export interface Marcador {
-    code: string;      // Ej: {Nombre}, {Tema}, {FechaAsamblea}
+    code: string;      // Ej: [[Nombre]], [[Tema]], [[FechaAsamblea]]
     label: string;
     desc?: string;
 }
@@ -26,74 +26,84 @@ export interface GrupoMarcadores {
 }
 
 // ------------------------------------------------------------
-// MARCADORES DISPONIBLES (Los que se insertan en el editor)
+// MARCADORES DISPONIBLES (AHORA CON DOBLE CORCHETE)
 // ------------------------------------------------------------
 export const marcadoresEmail: GrupoMarcadores[] = [
     {
         category: 'General',
         isOpen: true,
         items: [
-            { code: '{Nombre}', label: 'Nombre completo del hermano', desc: 'Ej: Juan Pérez' },
-            { code: '{Tema}', label: 'Tema de la asignación', desc: 'Título del discurso o rol' },
-            { code: '{FechaAsamblea}', label: 'Fecha de la asamblea', desc: 'Ej: 12 de febrero de 2026' },
-            { code: '{DiaAsamblea}', label: 'Día de la asamblea', desc: 'Viernes, Sábado o Domingo' },
-            { code: '{Lugar}', label: 'Lugar de la asamblea', desc: 'Nombre del salón' },
-            { code: '{Direccion}', label: 'Dirección del lugar', desc: 'Calle, número, ciudad' },
-            { code: '{Ciudad}', label: 'Ciudad', desc: '' },
-            { code: '{Estado}', label: 'Estado/Provincia', desc: '' },
+            { code: '[[Nombre]]', label: 'Nombre completo del hermano', desc: 'Ej: Juan Pérez' },
+            { code: '[[Tema]]', label: 'Tema de la asignación', desc: 'Título del discurso o rol' },
+            { code: '[[FechaAsamblea]]', label: 'Fecha de la asamblea', desc: 'Ej: 12 de febrero de 2026' },
+            { code: '[[DiaAsamblea]]', label: 'Día de la asamblea', desc: 'Viernes, Sábado o Domingo' },
+            { code: '[[Lugar]]', label: 'Lugar de la asamblea', desc: 'Nombre del salón' },
+            { code: '[[Direccion]]', label: 'Dirección del lugar', desc: 'Calle, número, ciudad' },
+            { code: '[[Ciudad]]', label: 'Ciudad', desc: '' },
+            { code: '[[Estado]]', label: 'Estado/Provincia', desc: '' },
         ]
     },
     {
         category: 'Orador',
         isOpen: false,
         items: [
-            { code: '{Congregacion}', label: 'Congregación', desc: 'Nombre de la congregación' },
-            { code: '{Saludo}', label: 'Saludo (hermano/hermana)', desc: 'Automático según género' },
+            { code: '[[Congregacion]]', label: 'Congregación', desc: 'Nombre de la congregación' },
+            { code: '[[Saludo]]', label: 'Saludo (hermano/hermana)', desc: 'Automático según género' },
+            { code: '[[Saludo según sexo]]', label: 'Saludo según sexo', desc: 'hermano/hermana' },
+            { code: '[[Apellidos]]', label: 'Apellidos', desc: 'Apellidos del hermano' },
         ]
     },
     {
         category: 'Asignación',
         isOpen: false,
         items: [
-            { code: '{Hora}', label: 'Hora', desc: 'HH:MM' },
-            { code: '{NumeroBosquejo}', label: 'Número de bosquejo', desc: 'Ej: 10, 23, 31' },
-            { code: '{Rol}', label: 'Rol', desc: 'Presidente, Oración, Plataforma, etc.' },
-            { code: '{TipoAsignacion}', label: 'Tipo de asignación', desc: 'Discurso, Presidencia, etc.' },
+            { code: '[[Hora]]', label: 'Hora', desc: 'HH:MM' },
+            { code: '[[Número de Bosquejo]]', label: 'Número de bosquejo', desc: 'Ej: 10, 23, 31' },
+            { code: '[[NumeroBosquejo]]', label: 'Número de bosquejo (corto)', desc: 'Ej: 10' },
+            { code: '[[Rol]]', label: 'Rol', desc: 'Presidente, Oración, Plataforma, etc.' },
+            { code: '[[Tipo de asignación]]', label: 'Tipo de asignación', desc: 'Discurso, Presidencia, etc.' },
+            { code: '[[TipoAsignacion]]', label: 'Tipo de asignación (corto)', desc: '' },
         ]
     },
     {
         category: 'Fechas',
         isOpen: false,
         items: [
-            { code: '{FechaActualMediana}', label: 'Fecha actual (corta)', desc: '12/02/2026' },
-            { code: '{FechaActualCompleta}', label: 'Fecha actual (larga)', desc: '12 de febrero de 2026' },
+            { code: '[[Fecha]]', label: 'Fecha del evento', desc: 'Ej: 12 de febrero de 2026' },
+            { code: '[[FechaActualMediana]]', label: 'Fecha actual (corta)', desc: '12/02/2026' },
+            { code: '[[FechaActualCompleta]]', label: 'Fecha actual (larga)', desc: '12 de febrero de 2026' },
         ]
     },
     {
         category: 'Evento',
         isOpen: false,
         items: [
-            { code: '{TemaEvento}', label: 'Tema del evento', desc: 'Ej: "Sigan al hombre" (2026)' },
-            { code: '{TipoEvento}', label: 'Tipo de evento', desc: 'Asamblea Regional, Circuito, etc.' },
+            { code: '[[TemaEvento]]', label: 'Tema del evento', desc: 'Ej: "Sigan al hombre" (2026)' },
+            { code: '[[Tipo de Evento]]', label: 'Tipo de evento', desc: 'Asamblea Regional, Circuito, etc.' },
+            { code: '[[TipoEvento]]', label: 'Tipo de evento (corto)', desc: '' },
         ]
     },
     {
-        category: 'Ensayos',
+        category: 'Lugar y Ensayos',
         isOpen: false,
         items: [
-            { code: '{EnsayoFecha}', label: 'Fecha del ensayo', desc: '' },
-            { code: '{EnsayoHora}', label: 'Hora del ensayo', desc: '' },
-            { code: '{EnsayoLugar}', label: 'Lugar del ensayo', desc: '' },
-            { code: '{EnsayoDireccion}', label: 'Dirección del ensayo', desc: '' },
-            { code: '{EnsayoNotas}', label: 'Notas del ensayo', desc: '' },
+            { code: '[[Nombre del lugar]]', label: 'Nombre del lugar', desc: 'Salón de Asambleas' },
+            { code: '[[Lugar de los ensayos]]', label: 'Lugar de los ensayos', desc: '' },
+            { code: '[[EnsayoFecha]]', label: 'Fecha del ensayo', desc: '' },
+            { code: '[[EnsayoHora]]', label: 'Hora del ensayo', desc: '' },
+            { code: '[[EnsayoDireccion]]', label: 'Dirección del ensayo', desc: '' },
+            { code: '[[EnsayoNotas]]', label: 'Notas para los ensayos', desc: '' },
+            { code: '[[Notas para los ensayos]]', label: 'Notas para los ensayos', desc: '' },
         ]
     },
     {
         category: 'Contacto',
         isOpen: false,
         items: [
-            { code: '{EmailPresidente}', label: 'Email del presidente', desc: '' },
-            { code: '{TelPresidente}', label: 'Teléfono del presidente', desc: '' },
+            { code: '[[EmailPresidente]]', label: 'Email del presidente', desc: '' },
+            { code: '[[TelPresidente]]', label: 'Teléfono del presidente', desc: '' },
+            { code: '[[Orientaciones]]', label: 'Orientaciones', desc: '' },
+            { code: '[[Instrucciones]]', label: 'Instrucciones', desc: '' },
         ]
     }
 ];
@@ -110,11 +120,6 @@ export const emailTemplates = writable<PlantillaEmail[]>([
 // ------------------------------------------------------------
 // FUNCIONES DE CARGA / GUARDADO
 // ------------------------------------------------------------
-
-/**
- * Carga TODAS las plantillas desde la BD y actualiza el store.
- * Debe ejecutarse al iniciar la app (ej: en layout o en onMount de página principal).
- */
 export async function cargarPlantillasEmail(): Promise<void> {
     const plantillas = get(emailTemplates);
     const promesas = plantillas.map(async (p) => {
@@ -132,9 +137,6 @@ export async function cargarPlantillasEmail(): Promise<void> {
     emailTemplates.set(resultados);
 }
 
-/**
- * Guarda UNA plantilla en la BD y actualiza el store.
- */
 export async function guardarPlantillaEmail(id: string, asunto: string, cuerpo: string): Promise<void> {
     try {
         await invoke('guardar_plantilla_email', { id, asunto, cuerpo });
@@ -148,16 +150,10 @@ export async function guardarPlantillaEmail(id: string, asunto: string, cuerpo: 
     }
 }
 
-/**
- * Obtiene una plantilla del store por su ID (síncrono).
- */
 export function obtenerPlantillaPorId(id: string): PlantillaEmail | undefined {
     return get(emailTemplates).find(p => p.id === id);
 }
 
-/**
- * Resetea una plantilla a valores vacíos.
- */
 export async function resetearPlantillaEmail(id: string): Promise<void> {
     await guardarPlantillaEmail(id, '', '');
 }
