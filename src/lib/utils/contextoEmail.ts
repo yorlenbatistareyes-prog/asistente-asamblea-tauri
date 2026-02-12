@@ -1,75 +1,82 @@
 // src/lib/utils/contextoEmail.ts
 import type { ContextoDocumento } from './contexto_impresion';
 
-const MAPA_MARCADORES: Record<string, keyof ContextoDocumento | ((ctx: ContextoDocumento) => string)> = {
-    // --- GENERAL ---
-    '[[Nombre]]': 'nombre_completo',
-    '[[Tema]]': 'tema_asignacion',
-    '[[FechaAsamblea]]': 'fecha_evento_texto',
-    '[[DiaAsamblea]]': (ctx) => extraerDia(ctx.fecha_evento_texto),
-    '[[Lugar]]': 'lugar_nombre',
-    '[[Direccion]]': 'lugar_direccion',
-    '[[Dirección]]': 'lugar_direccion',          // ✅ NUEVA: con tilde
-    '[[Ciudad]]': 'ciudad',
-    '[[Estado]]': 'estado',
-    '[[Estado o Provincia]]': 'estado',
-
-    // --- ORADOR ---
-    '[[Congregacion]]': 'congregacion',
-    '[[Saludo]]': 'saludo',
-    '[[Saludo según sexo]]': 'saludo',
-    '[[Apellidos]]': 'apellidos',
-
-    // --- ASIGNACIÓN ---
-    '[[Hora]]': 'hora',
-    '[[Número de Bosquejo]]': 'num_bosquejo',    // con tilde y espacio
-    '[[Numero de Bosquejo]]': 'num_bosquejo',    // ✅ NUEVA: sin tilde, con espacio
-    '[[NumeroBosquejo]]': 'num_bosquejo',        // sin tilde, sin espacio
-    '[[Tipo de asignación]]': 'tipo_asignacion', // con tilde
-    '[[Tipo de asignacion]]': 'tipo_asignacion', // ✅ NUEVA: sin tilde
-    '[[TipoAsignacion]]': 'tipo_asignacion',     // sin tilde, sin espacio
-    '[[Fecha]]': 'fecha_evento_texto',
-
-    // --- EVENTO ---
-    '[[Tipo de Evento]]': 'tipo_evento',
-    '[[TipoEvento]]': 'tipo_evento',
-
-    // --- LUGAR Y ENSAYOS ---
-    '[[Nombre del lugar]]': 'lugar_nombre',
-    '[[Lugar de los ensayos]]': 'ensayo_lugar',
-    '[[Notas para los ensayos]]': 'ensayo_notas',
-    '[[EnsayoFecha]]': 'ensayo_fecha',
-    '[[EnsayoHora]]': 'ensayo_hora',
-    '[[EnsayoDireccion]]': 'ensayo_direccion',
-    '[[EnsayoNotas]]': 'ensayo_notas',
-
-    // --- OTROS ---
-    '[[Orientaciones]]': 'orientaciones',
-    '[[Instrucciones]]': 'instrucciones',
-    '[[EmailPresidente]]': 'email_presidente',
-    '[[TelPresidente]]': 'tel_presidente',
-
-    // --- FECHAS ACTUALES ---
-    '[[FechaActualMediana]]': () => new Date().toLocaleDateString('es-ES'),
-    '[[FechaActualCompleta]]': () => new Date().toLocaleDateString('es-ES', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    })
-};
-
-function extraerDia(fechaTexto: string): string {
-    if (!fechaTexto) return '';
-    try {
-        const fecha = new Date(fechaTexto);
-        if (!isNaN(fecha.getTime())) {
-            return fecha.toLocaleDateString('es-ES', { weekday: 'long' });
-        }
-    } catch { /* ignorar */ }
-    return '';
+// ------------------------------------------------------------
+// FUNCIONES AUXILIARES (COPIADAS DE IMPRESION.TS)
+// ------------------------------------------------------------
+function generarInfoEnsayos(datos: ContextoDocumento): string {
+    if (!datos.ensayo_fecha || !datos.ensayo_hora) return 'No hay información de ensayos.';
+    return `Fecha: ${datos.ensayo_fecha} a las ${datos.ensayo_hora}. Lugar: ${datos.ensayo_lugar || 'Por definir'}. Dirección: ${datos.ensayo_direccion || 'Por definir'}. Notas: ${datos.ensayo_notas || 'Ninguna.'}`;
 }
 
+function construirLugarEnsayo(datos: ContextoDocumento): string {
+    if (!datos.ensayo_lugar) return 'Por definir';
+    let lugar = datos.ensayo_lugar;
+    if (datos.ensayo_direccion) lugar += ` - ${datos.ensayo_direccion}`;
+    return lugar;
+}
+
+// ------------------------------------------------------------
+// MAPA DE REEMPLAZO DIRECTO (SOLO MARCADORES CON ESPACIOS Y TILDES)
+// ------------------------------------------------------------
+const MAPA_REEMPLAZO: Record<string, (ctx: ContextoDocumento) => string> = {
+    // --- SALUDO Y ORADOR ---
+    '[[Saludo según sexo]]': (ctx) => ctx.saludo,
+    '[[Nombre]]': (ctx) => ctx.nombre_pila,
+    '[[Segundo nombre]]': (ctx) => ctx.segundo_nombre,
+    '[[Apellidos]]': (ctx) => ctx.apellidos,
+    '[[Nombre Completo]]': (ctx) => ctx.nombre_completo,
+
+    // --- CIRCUITO ---
+    '[[Designación del Circuito]]': (ctx) => ctx.circuito,
+
+    // --- FECHAS ACTUALES ---
+    '[[Fecha Actual Completa]]': () => new Date().toLocaleDateString('es-ES', {
+        day: 'numeric', month: 'long', year: 'numeric'
+    }),
+    '[[Fecha Actual Mediana]]': () => new Date().toLocaleDateString('es-ES', {
+        day: 'numeric', month: 'short', year: 'numeric'
+    }),
+
+    // --- ASIGNACIÓN ---
+    '[[Hora]]': (ctx) => ctx.hora,
+    '[[Tema]]': (ctx) => ctx.tema_asignacion,
+    '[[Número de Bosquejo]]': (ctx) => ctx.num_bosquejo,
+    '[[Tipo de asignación]]': (ctx) => ctx.tipo_asignacion,
+    '[[Enlace(s) del Bosquejo]]': () => '',
+    '[[Notas]]': (ctx) => ctx.nota_asignacion,
+
+    // --- LUGAR DEL EVENTO ---
+    '[[Nombre del lugar]]': (ctx) => ctx.lugar_nombre,
+    '[[Dirección]]': (ctx) => ctx.lugar_direccion,
+    '[[Ciudad]]': (ctx) => ctx.ciudad,
+    '[[Estado o Provincia]]': () => 'Holguín',
+
+    // --- EVENTO ---
+    '[[Fecha]]': (ctx) => ctx.fecha_evento_texto,
+    '[[Tipo de Evento]]': (ctx) => ctx.tipo_evento,
+    '[[Tema del Evento]]': (ctx) => ctx.tema_evento,
+
+    // --- ENSAYOS ---
+    '[[Información completa de los ensayos]]': (ctx) => generarInfoEnsayos(ctx),
+    '[[Lugar de los ensayos]]': (ctx) => construirLugarEnsayo(ctx),
+    '[[Fecha y hora del ensayo]]': (ctx) => `${ctx.ensayo_fecha} a las ${ctx.ensayo_hora}`,
+    '[[Fecha de ensayos]]': (ctx) => ctx.ensayo_fecha,
+    '[[Hora de ensayos]]': (ctx) => ctx.ensayo_hora,
+    '[[Notas para los ensayos]]': (ctx) => ctx.ensayo_notas,
+
+    // --- ORIENTACIONES E INSTRUCCIONES ---
+    '[[Información de orientaciones]]': (ctx) => ctx.orientaciones || 'No hay orientaciones específicas.',
+    '[[Instrucciones Especiales]]': (ctx) => ctx.instrucciones || 'Ninguna.',
+
+    // --- CONTACTO PRESIDENTE ---
+    '[[correo electrónico jwpub del Presidente de la asamblea]]': (ctx) => ctx.email_presidente,
+    '[[Teléfono del Presidente de la asamblea]]': (ctx) => ctx.tel_presidente,
+};
+
+// ------------------------------------------------------------
+// PROCESAR CONTENIDO HTML DEL EMAIL
+// ------------------------------------------------------------
 export function prepararContenidoEmail(htmlTiptap: string, contexto: ContextoDocumento): string {
     if (!htmlTiptap) return '';
 
@@ -93,49 +100,45 @@ export function prepararContenidoEmail(htmlTiptap: string, contexto: ContextoDoc
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'");
 
-    // 3. Normalizar marcadores: eliminar espacios y unificar acentos
-    texto = texto.replace(/\[\s*\[([^\]]+)\]\s*\]/g, (match, contenido) => {
-        const limpio = contenido.trim();
-        // Eliminar tildes comunes para que coincida con el mapa
-        const sinTildes = limpio
-            .replace(/á/g, 'a')
-            .replace(/é/g, 'e')
-            .replace(/í/g, 'i')
-            .replace(/ó/g, 'o')
-            .replace(/ú/g, 'u')
-            .replace(/ñ/g, 'n');
-        return `[[${sinTildes}]]`;
-    });
-
-    // 4. Reemplazar marcadores
-    Object.entries(MAPA_MARCADORES).forEach(([marcador, valor]) => {
-        const reemplazo = typeof valor === 'function' ? valor(contexto) : (contexto[valor] as string) || '';
-        const regex = new RegExp(marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    // 3. Reemplazar marcadores (SOLO LOS DEL MAPA, SIN NORMALIZACIÓN)
+    Object.entries(MAPA_REEMPLAZO).forEach(([marcador, fn]) => {
+        const reemplazo = fn(contexto);
+        const marcadorEscapado = marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(marcadorEscapado, 'g');
         texto = texto.replace(regex, reemplazo);
     });
 
     return texto.trim();
 }
 
+// ------------------------------------------------------------
+// PROCESAR ASUNTO (TEXTO PLANO)
+// ------------------------------------------------------------
 export function prepararAsuntoEmail(plantillaAsunto: string, contexto: ContextoDocumento): string {
     if (!plantillaAsunto) return '';
+
     let asunto = plantillaAsunto;
-    // Normalizar acentos en marcadores
-    asunto = asunto.replace(/\[\s*\[([^\]]+)\]\s*\]/g, (match, contenido) => {
-        const limpio = contenido.trim();
-        const sinTildes = limpio
-            .replace(/á/g, 'a')
-            .replace(/é/g, 'e')
-            .replace(/í/g, 'i')
-            .replace(/ó/g, 'o')
-            .replace(/ú/g, 'u')
-            .replace(/ñ/g, 'n');
-        return `[[${sinTildes}]]`;
-    });
-    Object.entries(MAPA_MARCADORES).forEach(([marcador, valor]) => {
-        const reemplazo = typeof valor === 'function' ? valor(contexto) : (contexto[valor] as string) || '';
-        const regex = new RegExp(marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+
+    // Decodificar entidades (por si acaso)
+    asunto = asunto
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&aacute;/g, 'á')
+        .replace(/&eacute;/g, 'é')
+        .replace(/&iacute;/g, 'í')
+        .replace(/&oacute;/g, 'ó')
+        .replace(/&uacute;/g, 'ú')
+        .replace(/&ntilde;/g, 'ñ')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+
+    // Reemplazar marcadores
+    Object.entries(MAPA_REEMPLAZO).forEach(([marcador, fn]) => {
+        const reemplazo = fn(contexto);
+        const marcadorEscapado = marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(marcadorEscapado, 'g');
         asunto = asunto.replace(regex, reemplazo);
     });
+
     return asunto;
 }
