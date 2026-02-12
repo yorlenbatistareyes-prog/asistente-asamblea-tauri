@@ -822,10 +822,34 @@
   .paper-zoom-wrapper { display: flex; justify-content: center; }
   .paper-sheet { width: 21.59cm; min-height: 27.94cm; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: text; margin-bottom: 20px; }
   
-  /* FORCE BLACK TEXT ON EDITOR ALWAYS (Paper is always white) */
-  .editor-content { outline: none; font-size: 16px; line-height: 1.5; color: #000000 !important; min-height: 100%; }
-  :global(.ProseMirror) { color: #000000 !important; }
-  :global(.ProseMirror p, .ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror li, .ProseMirror span) { color: #000000 !important; }
+/* 1. Definimos el color BASE en el contenedor principal */
+  /* Esto hace que todo el texto sea negro por defecto */
+  .editor-content { 
+      outline: none; 
+      font-size: 16px; 
+      line-height: 1.5; 
+      color: #000000; 
+      min-height: 100%; 
+  }
+
+  /* 2. Aseguramos que el editor base sea negro */
+  :global(.ProseMirror) { 
+      color: #000000; 
+  }
+
+  /* 3. REGLA LIMPIA PARA PÁRRAFOS */
+  /* Quitamos la propiedad 'color' de aquí. */
+  /* Al no forzar color aquí, el párrafo hereda el negro del padre (.editor-content) */
+  /* Pero permite que los spans internos tengan sus propios colores */
+  :global(.ProseMirror p), 
+  :global(.ProseMirror h1), 
+  :global(.ProseMirror h2), 
+  :global(.ProseMirror h3), 
+  :global(.ProseMirror li) { 
+      /* color: #000000;  <-- BORRADO: Ya no forzamos esto */
+      margin-bottom: 0em; 
+      margin-top: 0;
+  }
 
   /* STATUS BAR */
   .status-bar { height: 26px; background: var(--bg-body); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
