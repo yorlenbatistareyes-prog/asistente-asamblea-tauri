@@ -116,7 +116,12 @@ export const whatsAppTemplates = writable<PlantillaWhatsApp[]>([
     { id: 'oradores', title: 'Oradores (Discursos)', body: '', isOpen: false },
     { id: 'presidentes', title: 'Presidentes de sesión', body: '', isOpen: false },
     { id: 'oraciones', title: 'Oraciones (Apertura/Conclusión)', body: '', isOpen: false },
-    { id: 'ensayo', title: 'Recordatorio de ensayo', body: '', isOpen: false }
+    { id: 'ensayo', title: 'Recordatorio de ensayo', body: '', isOpen: false },
+    { id: 'plataforma', title: 'Plataforma', body: '', isOpen: false },
+    { id: 'comite', title: 'Comité de Asamblea', body: '', isOpen: false },
+    { id: 'superintendente', title: 'Sup. de Programa', body: '', isOpen: false },
+    { id: 'audiovideo', title: 'Audio y Video', body: '', isOpen: false },
+    { id: 'oficina', title: 'Personal de Oficina', body: '', isOpen: false }
 ]);
 
 // ------------------------------------------------------------
