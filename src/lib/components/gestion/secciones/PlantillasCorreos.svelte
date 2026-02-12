@@ -31,6 +31,7 @@
   // --- EDITOR ---
   let editor: Editor | null = null;
   let element: HTMLElement; 
+  let asuntoInput: HTMLInputElement;
   let saveStatus: 'saved' | 'saving' | 'unsaved' = 'saved';
   let autosaveTimer: any;
   
@@ -133,11 +134,34 @@
   }
 
   function insertarMarcador(code: string) {
-      if (editor) {
-          editor.chain().focus().insertContent(` ${code} `).run();
-          triggerAutosave();
-      }
-  }
+    // 1. Verificar si el foco está en el input de asunto
+    if (document.activeElement === asuntoInput && asuntoInput) {
+        // Obtener posición del cursor (manejar null)
+        const inicio = asuntoInput.selectionStart ?? 0;
+        const fin = asuntoInput.selectionEnd ?? 0;
+        const valorActual = asuntoInput.value;
+        const nuevoValor = valorActual.substring(0, inicio) + ` ${code} ` + valorActual.substring(fin);
+        
+        // Actualizar input y store
+        asuntoInput.value = nuevoValor;
+        if (plantillaActual) {
+            plantillaActual.subject = nuevoValor;
+        }
+        
+        // Disparar evento input para activar autosave
+        asuntoInput.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Restaurar cursor después del marcador insertado
+        asuntoInput.focus();
+        const nuevaPosicion = inicio + code.length + 2;
+        asuntoInput.setSelectionRange(nuevaPosicion, nuevaPosicion);
+    } 
+    // 2. Si no, insertar en el editor (cuerpo)
+    else if (editor) {
+        editor.chain().focus().insertContent(` ${code} `).run();
+        triggerAutosave();
+    }
+}
 
     async function guardar(cerrarAlTerminar = false) {
       if (!plantillaActual) return;
@@ -260,7 +284,7 @@
             <div class="editor-form-area">
                 <div class="input-group-top">
                     <label>Asunto</label>
-                    <input type="text" class="input-subject" bind:value={plantillaActual.subject} on:input={triggerAutosave} />
+                    <input type="text" class="input-subject" bind:this={asuntoInput} bind:value={plantillaActual.subject} on:input={triggerAutosave} />
                 </div>
 
                 <div class="editor-wrapper-box">
@@ -321,7 +345,7 @@
                         {#if group.isOpen}
                             <div class="marker-content">
                                 {#each group.items as item}
-                                    <button class="marker-pill" on:click={() => insertarMarcador(item.code)} title={item.label}>
+                                    <button class="marker-pill" on:click={() => insertarMarcador(item.code)} on:mousedown|preventDefault={() => {}} title={item.label}>
                                         <div class="marker-content-row"><span class="m-label">{item.label}</span></div>
                                         {#if item.desc}
                                             <div class="marker-row-desc">{item.desc}</div>
