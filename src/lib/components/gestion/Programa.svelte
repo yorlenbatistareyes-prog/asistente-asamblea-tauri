@@ -19,6 +19,9 @@
     FileText, Download 
   } from 'lucide-svelte';
 
+  import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
+// NUEVO: importamos desde plantillasEmail.ts
+import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
   // --- ESTADO ---
   let asambleaId = 0; 
   let diaSeleccionado = 'Viernes';
@@ -46,16 +49,24 @@
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
 
-  onMount(() => {
+  // --- onMount MEJORADO ---
+  onMount(async () => {
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
         asambleaId = JSON.parse(datosGuardados).id;
-        cargarDatos();
-        cargarHermanos();
+        
+        // Cargamos todo en paralelo
+        await Promise.all([
+            cargarDatos(),
+            cargarHermanos(),
+            cargarPlantillasEmail()  // AHORA VIENE DEL ARCHIVO CENTRAL
+        ]);
+        
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
     }
-  });
+});
+
 
   async function cargarDatos() {
     if (!asambleaId) return;
@@ -183,27 +194,68 @@
       openUrl(url).catch(e => console.error(e));
   }
 
-  function abrirJWPUBCarta(objeto: any) {
-      const email = objeto.email_visual || objeto.email_orador || objeto.email;
-      if (!email) return alert("⚠️ No hay correo registrado.");
-      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(email)}`;
-      openUrl(url).catch(e => console.error(e));
-      objeto.jwpub_enviado = true;
-      partes = partes;
-      actualizarVistaOficina(objeto);
-  }
+  // --- LÓGICA DE ENVÍO DE CORREOS (Separada e Independiente) ---
 
-  function abrirJWPUBRecordatorio(objeto: any) {
-      const email = objeto.email_visual || objeto.email_orador || objeto.email;
-      if (!email) return alert("⚠️ No hay correo registrado.");
-      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(email)}`;
-      openUrl(url).catch(e => console.error(e));
-      objeto.recordatorio_enviado = true;
-      partes = partes;
-      actualizarVistaOficina(objeto);
-  }
+// --- FUNCIÓN MEJORADA: OBTENER URL DE CORREO (CON MARCADORES COMPLETOS) ---
+// --- FUNCIÓN DEFINITIVA (SIN MAPEO MANUAL, SIN ERRORES TS) ---
+async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<string | null> {
+    // 1. Validar correo
+    const emailDestino = (objeto.email_visual || objeto.email_orador || objeto.email || "").trim();
+    if (!emailDestino) {
+        alert("⚠️ No hay correo registrado.");
+        return null;
+    }
 
-  // En src/lib/components/gestion/Programa.svelte
+    // 2. ID de plantilla según rol
+    let idPlantilla = 'oradores';
+    const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
+    if (rol.includes('presidente')) idPlantilla = 'presidentes';
+    else if (rol.includes('oracion')) idPlantilla = 'oraciones';
+
+    // 3. Obtener plantilla (síncrono, del store)
+    const plantilla = obtenerPlantillaPorId(idPlantilla);
+    const asuntoBase = plantilla?.subject || "Asignación JWPUB";
+    const cuerpoBase = plantilla?.body || "⚠️ No se ha definido una plantilla para este tipo de asignación.";
+
+    // 4. Obtener contexto COMPLETO (¡ya tiene todo!)
+    const contexto = await generarContexto(objeto, asambleaId, true);
+
+    // 5. Procesar asunto y cuerpo con las funciones NUEVAS (pasando contexto directamente)
+    let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+    let cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+    // 6. Si es recordatorio, prefijo
+    if (esRecordatorio) {
+        asuntoFinal = "RECORDATORIO: " + asuntoFinal;
+    }
+
+    // 7. Construir URL de JWPUB (con # en lugar de ?)
+    return `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+       `&to=${encodeURIComponent(emailDestino)}` +
+       `&subject=${encodeURIComponent(asuntoFinal)}` +
+       `&body=${encodeURIComponent(cuerpoFinal)}`;
+    }   
+  // --- BOTÓN 1: ENVIAR CARTA ---
+async function abrirJWPUBCarta(objeto: any) {
+    const url = await obtenerUrlCorreo(objeto, false);
+    if (url) {
+        openUrl(url).catch(e => console.error(e));
+        objeto.jwpub_enviado = true;
+        partes = partes; 
+        actualizarVistaOficina(objeto);
+    }
+}
+
+// --- BOTÓN 2: ENVIAR RECORDATORIO ---
+async function abrirJWPUBRecordatorio(objeto: any) {
+    const url = await obtenerUrlCorreo(objeto, true);
+    if (url) {
+        openUrl(url).catch(e => console.error(e));
+        objeto.recordatorio_enviado = true;
+        partes = partes;
+        actualizarVistaOficina(objeto);
+    }
+}
 
 // --- CONFIGURACIÓN DE PLANTILLAS ---
   // Las claves de la derecha ('presidentes', 'oraciones') coinciden con 
@@ -438,10 +490,17 @@
       });
   }
 
+    // --- FILTRADO PARA SUGERENCIAS (CUANDO ESCRIBES NUEVA PARTE) ---
   function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase(); 
-    if(t.length<2){sugerenciasOradores=[];mostrarSugerencias=false;return;} 
-    sugerenciasOradores = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t)); 
+    if (t.length < 2) {
+      sugerenciasOradores = [];
+      mostrarSugerencias = false;
+      return;
+    } 
+    sugerenciasOradores = listaHermanos.filter(h => 
+      h.nombre_completo.toLowerCase().includes(t)
+    ); 
     mostrarSugerencias = sugerenciasOradores.length > 0; 
   }
 
@@ -453,9 +512,18 @@
     mostrarSugerencias = false; 
   }
   
-  $: hermanosFiltrados = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
+  // --- FILTRADO PARA EL MODAL DE ASIGNACIÓN (BUSCADOR) ---
+  // En lugar de $:, usamos una función que se ejecuta cada vez que se renderiza el {#each}
+  function getHermanosFiltrados() {
+    if (!terminoBusqueda || terminoBusqueda.length < 2) return [];
+    return listaHermanos.filter(h => 
+      h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase())
+    );
+  }
+
+  // --- FUNCIÓN AUXILIAR (sin cambios) ---
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
-</script>
+ </script>
 
 <div class="layout-programa">
   <aside class="panel-oficina dark-theme">
@@ -1052,7 +1120,7 @@
             </button>
           {/if}
           
-          {#each hermanosFiltrados as h}
+         {#each getHermanosFiltrados() as h}
             <button class="item-opcion" on:click={() => asignarOrador(h.id, false)}>
               <div class="avatar">{h.nombre_completo.charAt(0)}</div>
               <div class="datos-opcion">

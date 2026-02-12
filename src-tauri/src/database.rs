@@ -2,8 +2,13 @@ use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
+use std::sync::Mutex;
 
 const DB_NAME: &str = "asamblea_db_v7.sqlite";
+
+pub struct DbState {
+    pub conn: Mutex<Connection>,
+}
 
 pub fn obtener_ruta_db(app: &AppHandle) -> PathBuf {
     let app_dir = app
@@ -17,7 +22,7 @@ pub fn obtener_ruta_db(app: &AppHandle) -> PathBuf {
     app_dir.join(DB_NAME)
 }
 
-pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::error::Error>> {
     let db_path = obtener_ruta_db(app);
     let conn = Connection::open(db_path)?;
 
@@ -125,6 +130,16 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
 
     // --- 7. PLANTILLAS ---
     conn.execute("CREATE TABLE IF NOT EXISTS plantillas_cartas (id TEXT PRIMARY KEY, contenido_html TEXT NOT NULL)", [])?;
+    
+    // --- 8. PLANTILLAS EMAIL ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS plantillas_email (
+            id TEXT PRIMARY KEY, 
+            asunto TEXT DEFAULT '', 
+            cuerpo TEXT DEFAULT ''
+        )",
+        [],
+    )?;
 
     // --- MIGRACIONES PREVENTIVAS (Para bases de datos existentes) ---
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN sexo TEXT DEFAULT 'M'", []);
@@ -132,5 +147,5 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
-    Ok(())
+   Ok(conn)
 }

@@ -15,8 +15,13 @@ pub mod commands {
     pub mod oficina;    // <--- IMPORTANTE: Este archivo debe existir como oficina.rs
     pub mod personas;
     pub mod programa;
-    pub mod impresion; 
+    pub mod impresion;
+    pub mod emails; 
 }
+
+use std::sync::Mutex;
+use crate::database::DbState;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -30,11 +35,22 @@ pub fn run() {
         // --- BASE DE DATOS ---
         .setup(|app| {
             match database::initialize_database(app.handle()) {
-                Ok(_) => println!("✅ Base de datos inicializada correctamente"),
-                Err(e) => println!("❌ Error inicializando DB: {}", e),
+               Ok(conn) => {
+                   println!("✅ Base de datos inicializada correctamente");
+        
+               // ESTA ES LA MAGIA QUE FALTABA:
+                  app.manage(DbState {
+                       conn: Mutex::new(conn),
+               });
             }
-            Ok(())
-        })
+            Err(e) => {
+                println!("❌ Error inicializando DB: {}", e);
+                    // Opcional: return Err(e.into());
+            }
+        }
+            // --- ¡ESTO ES LO QUE FALTABA! ---
+        Ok(()) 
+    })
 
         // --- REGISTRO DE COMANDOS (INVOKE HANDLER) ---
         .invoke_handler(tauri::generate_handler![
@@ -93,6 +109,10 @@ pub fn run() {
             // MENSAJERÍA
             commands::mensajeria::obtener_plantilla_mensaje,
             commands::mensajeria::guardar_plantilla_mensaje,
+
+            // --- EMAILS (NUEVO Y SEPARADO) ---
+            commands::emails::obtener_plantilla_email,
+            commands::emails::guardar_plantilla_email,
 
             // IMPRESIÓN
             commands::impresion::obtener_datos_para_impresion,

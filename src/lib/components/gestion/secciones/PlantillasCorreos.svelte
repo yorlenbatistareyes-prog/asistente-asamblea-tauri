@@ -1,10 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
   import { createEventDispatcher } from 'svelte';
-  
-  // --- STORE DE DATOS ---
-  import { emailTemplates, type Plantilla, marcadoresGlobales } from '$lib/stores/plantillas';
+  // --- STORE DE DATOS Y UTILIDADES PARA EMAIL ---
+  import { emailTemplates, marcadoresEmail, cargarPlantillasEmail, guardarPlantillaEmail, type PlantillaEmail as Plantilla } from '$lib/utils/plantillasEmail';
 
   // --- TIPTAP ---
   import { Editor } from '@tiptap/core';
@@ -55,22 +53,12 @@
 
   // --- ABRIR EDITOR ---
   async function abrirEditor(plantilla: Plantilla) {
+      // Hacemos una copia del objeto para no mutar el store directamente
       plantillaActual = JSON.parse(JSON.stringify(plantilla));
       
-      if (plantillaActual) {
-          try {
-              const res: any = await invoke('obtener_plantilla_mensaje', { id: plantillaActual.id });
-              if (res && (res.cuerpo || res.asunto)) {
-                  if (plantillaActual) {
-                      plantillaActual.body = res.cuerpo;
-                      plantillaActual.subject = res.asunto;
-                  }
-              }
-          } catch (e) {
-              console.error("Error cargando DB:", e);
-          }
-      }
-
+      // Ya no necesitamos cargar desde Rust porque el store ya tiene los datos actualizados.
+      // Sin embargo, por si acaso, podemos dejar un comentario.
+      
       setModoEdicion(true);
       setTimeout(() => initEditor(), 50);
   }
@@ -137,7 +125,7 @@
   const redo = () => editor?.chain().focus().redo().run();
 
   // Marcadores
-  let marcadoresUI = marcadoresGlobales.map(grp => ({ ...grp }));
+  let marcadoresUI = marcadoresEmail.map(grp => ({ ...grp }));
   
   function toggleMarcadorGroup(i: number) {
       marcadoresUI[i].isOpen = !marcadoresUI[i].isOpen;
@@ -151,19 +139,31 @@
       }
   }
 
-  async function guardar(cerrarAlTerminar = false) {
+    async function guardar(cerrarAlTerminar = false) {
       if (!plantillaActual) return;
+      
+      // 1. FORZAMOS QUE COJA EL TEXTO DEL EDITOR
+      if (editor) {
+          plantillaActual.body = editor.getHTML();
+      }
+
+      console.log("🚀 ENVIANDO A RUST:", plantillaActual);
       saveStatus = 'saving';
 
       try {
-          await invoke('guardar_plantilla_mensaje', {
-              id: plantillaActual.id,
-              asunto: plantillaActual.subject,
-              cuerpo: plantillaActual.body
-          });
+          // 2. USAR LA FUNCIÓN CENTRALIZADA guardarPlantillaEmail
+          await guardarPlantillaEmail(
+              plantillaActual.id,
+              plantillaActual.subject || '',
+              plantillaActual.body || ''
+          );
 
+          // 3. La función guardarPlantillaEmail ya actualiza el store, 
+          //    pero necesitamos forzar la apertura (isOpen = true) y mantener el estado visual.
           emailTemplates.update(items => items.map(p => 
-              p.id === plantillaActual!.id ? { ...plantillaActual!, isOpen: true } : p
+              p.id === plantillaActual!.id 
+                  ? { ...p, isOpen: true } // Mantenemos el isOpen = true después de guardar
+                  : p
           ));
 
           saveStatus = 'saved';
@@ -171,8 +171,10 @@
           if (cerrarAlTerminar) {
               cerrarEditor();
           }
-      } catch (e) {
-          console.error("Error guardando:", e);
+
+      } catch (error) {
+          console.error("❌ ERROR FATAL:", error);
+          alert("ERROR AL GUARDAR:\n" + error); 
           saveStatus = 'unsaved';
       }
   }
@@ -190,28 +192,9 @@
       setModoEdicion(false);
   }
 
-  // --- CARGA INICIAL (RECUPERAR DATOS AL ABRIR LA APP) ---
+    // --- CARGA INICIAL (RECUPERAR DATOS AL ABRIR LA APP) ---
   onMount(async () => {
-      // Obtenemos la lista actual de plantillas
-      const templates = $emailTemplates;
-      
-      // Recorremos todas y buscamos sus datos en la BD
-      const promesas = templates.map(async (p) => {
-          try {
-              const res: any = await invoke('obtener_plantilla_mensaje', { id: p.id });
-              // Si hay datos guardados, actualizamos la vista previa
-              if (res && (res.asunto || res.cuerpo)) {
-                  return { ...p, subject: res.asunto, body: res.cuerpo };
-              }
-          } catch (e) {
-              console.error("Error recuperando plantilla " + p.id, e);
-          }
-          return p; // Si falla o no hay datos, devolvemos la original
-      });
-
-      // Esperamos a que todas se carguen y actualizamos el Store
-      const resultados = await Promise.all(promesas);
-      emailTemplates.set(resultados);
+      await cargarPlantillasEmail();
   });
 
   onDestroy(() => {
