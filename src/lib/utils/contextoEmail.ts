@@ -41,7 +41,7 @@ const MAPA_MARCADORES: Record<string, keyof ContextoDocumento | ((ctx: ContextoD
         day: 'numeric'
     }),
 
-    // Campos de impresión adicionales (por si acaso)
+    // Campos de impresión adicionales
     '{NombrePila}': 'nombre_pila',
     '{Apellidos}': 'apellidos',
     '{Circuito}': 'circuito',
@@ -74,7 +74,19 @@ function extraerDia(fechaTexto: string): string {
 }
 
 // ------------------------------------------------------------
-// FUNCIÓN PRINCIPAL: PROCESAR CONTENIDO HTML DEL EMAIL
+// NORMALIZADOR DE MARCADORES (convierte cualquier variante a {Nombre} etc.)
+// ------------------------------------------------------------
+function normalizarMarcadores(texto: string): string {
+    return texto.replace(/\{\s*([^}]+)\s*\}/g, (match, contenido) => {
+        const limpio = contenido.trim();
+        // Capitalizar primera letra, resto minúsculas (Ej: nombre -> Nombre)
+        const capitalizado = limpio.charAt(0).toUpperCase() + limpio.slice(1).toLowerCase();
+        return `{${capitalizado}}`;
+    });
+}
+
+// ------------------------------------------------------------
+// FUNCIÓN PRINCIPAL: PROCESAR CONTENIDO HTML DEL EMAIL (CON LOGS)
 // ------------------------------------------------------------
 export function prepararContenidoEmail(
     htmlTiptap: string,
@@ -82,14 +94,26 @@ export function prepararContenidoEmail(
 ): string {
     if (!htmlTiptap) return '';
 
-    // 1. Convertir HTML a texto plano (respetando saltos de línea)
+    console.log('📨 [prepararContenidoEmail] ==========');
+    console.log('📄 HTML original:', htmlTiptap);
+
+    // 1. Convertir HTML a texto plano
     let texto = htmlTiptap
-        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
         .replace(/<p>/gi, '')
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/<[^>]+>/g, '');
 
-    // 2. Reemplazar TODOS los marcadores del mapa
+    console.log('🧹 Texto sin HTML:', JSON.stringify(texto));
+
+    // 2. NORMALIZAR marcadores
+    const textoNormalizado = normalizarMarcadores(texto);
+    if (textoNormalizado !== texto) {
+        console.log('✨ Marcadores normalizados:', textoNormalizado);
+        texto = textoNormalizado;
+    }
+
+    // 3. Reemplazar TODOS los marcadores del mapa
     Object.entries(MAPA_MARCADORES).forEach(([marcador, valor]) => {
         let reemplazo: string;
 
@@ -99,17 +123,28 @@ export function prepararContenidoEmail(
             reemplazo = (contexto[valor] as string) || '';
         }
 
-        // Escape de caracteres especiales para regex
-        const marcadorEscapado = marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(marcadorEscapado, 'g');
+        const regex = new RegExp(marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const antes = texto;
         texto = texto.replace(regex, reemplazo);
+
+        if (antes !== texto) {
+            console.log(`✅ Reemplazado ${marcador} → "${reemplazo}"`);
+        }
     });
 
+    // 4. Buscar marcadores que NO se reemplazaron (posible error)
+    const marcadoresRestantes = texto.match(/\{[^}]+\}/g);
+    if (marcadoresRestantes) {
+        console.warn('⚠️ Marcadores no reemplazados:', marcadoresRestantes);
+    }
+
+    console.log('📨 Resultado final:', texto);
+    console.log('=====================================\n');
     return texto.trim();
 }
 
 // ------------------------------------------------------------
-// FUNCIÓN PARA PROCESAR EL ASUNTO (TEXTO PLANO)
+// FUNCIÓN PARA PROCESAR EL ASUNTO (TEXTO PLANO) CON LOGS
 // ------------------------------------------------------------
 export function prepararAsuntoEmail(
     plantillaAsunto: string,
@@ -117,7 +152,17 @@ export function prepararAsuntoEmail(
 ): string {
     if (!plantillaAsunto) return '';
 
+    console.log('📨 [prepararAsuntoEmail] ==========');
+    console.log('📄 Asunto original:', plantillaAsunto);
+
     let asunto = plantillaAsunto;
+
+    // Normalizar
+    const asuntoNormalizado = normalizarMarcadores(asunto);
+    if (asuntoNormalizado !== asunto) {
+        console.log('✨ Asunto normalizado:', asuntoNormalizado);
+        asunto = asuntoNormalizado;
+    }
 
     Object.entries(MAPA_MARCADORES).forEach(([marcador, valor]) => {
         let reemplazo: string;
@@ -126,10 +171,15 @@ export function prepararAsuntoEmail(
         } else {
             reemplazo = (contexto[valor] as string) || '';
         }
-        const marcadorEscapado = marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(marcadorEscapado, 'g');
+        const regex = new RegExp(marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const antes = asunto;
         asunto = asunto.replace(regex, reemplazo);
+        if (antes !== asunto) {
+            console.log(`✅ Reemplazado ${marcador} → "${reemplazo}"`);
+        }
     });
 
+    console.log('📨 Asunto final:', asunto);
+    console.log('=====================================\n');
     return asunto;
 }
