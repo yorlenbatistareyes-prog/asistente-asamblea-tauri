@@ -117,12 +117,73 @@ export const marcadoresEmail: GrupoMarcadores[] = [
 ];
 
 // ------------------------------------------------------------
-// STORE REACTIVO (SIN CAMBIOS)
+// STORE REACTIVO (LISTA COMPLETA DE PLANTILLAS)
 // ------------------------------------------------------------
 export const emailTemplates = writable<PlantillaEmail[]>([
-    { id: 'oradores', title: 'Oradores (Discursos)', subject: '', body: '', isOpen: false },
-    { id: 'presidentes', title: 'Presidentes de sesión', subject: '', body: '', isOpen: false },
-    { id: 'oraciones', title: 'Oraciones (Apertura/Conclusión)', subject: '', body: '', isOpen: false }
+    // 1. Oradores (Ya la tienes)
+    { 
+        id: 'oradores', 
+        title: 'Oradores (Discursos)', 
+        subject: 'Asignación de Discurso', 
+        body: '', 
+        isOpen: false 
+    },
+    // 2. Presidentes (Ya la tienes)
+    { 
+        id: 'presidentes', 
+        title: 'Presidentes de Sesión', 
+        subject: 'Asignación de Presidencia', 
+        body: '', 
+        isOpen: false 
+    },
+    // 3. Oraciones (Ya la tienes)
+    { 
+        id: 'oraciones', 
+        title: 'Oraciones (Apertura/Conclusión)', 
+        subject: 'Asignación de Oración', 
+        body: '', 
+        isOpen: false 
+    },
+    // 4. Plataforma (NUEVA)
+    { 
+        id: 'plataforma', 
+        title: 'Plataforma', 
+        subject: 'Asignación de Plataforma', 
+        body: '', 
+        isOpen: false 
+    },
+    // 5. Comité (NUEVA)
+    { 
+        id: 'comite', 
+        title: 'Comité de Asamblea', 
+        subject: 'Información para el Comité', 
+        body: '', 
+        isOpen: false 
+    },
+    // 6. Superintendente (NUEVA)
+    { 
+        id: 'superintendente', 
+        title: 'Sup. de Programa', 
+        subject: 'Asuntos del Programa', 
+        body: '', 
+        isOpen: false 
+    },
+    // 7. Audio y Video (NUEVA)
+    { 
+        id: 'audiovideo', 
+        title: 'Audio y Video', 
+        subject: 'Asignación A/V', 
+        body: '', 
+        isOpen: false 
+    },
+    // 8. Personal de Oficina (NUEVA)
+    { 
+        id: 'oficina', 
+        title: 'Personal de Oficina', 
+        subject: 'Asignación en Oficina', 
+        body: '', 
+        isOpen: false 
+    }
 ]);
 
 // ------------------------------------------------------------
