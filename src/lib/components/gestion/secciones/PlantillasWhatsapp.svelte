@@ -348,7 +348,41 @@
   .accordion-body-template { padding: 25px; background: var(--bg-body); border-top: 1px solid var(--border-color); }
   .preview-group { margin-bottom: 15px; }
   .preview-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
-  .preview-textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-main); min-height: 80px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+  /* Reemplaza tu clase .preview-textarea por esta completa */
+.preview-textarea {
+    /* 1. Dimensiones y Caja */
+    display: block;        /* Asegura que sea un bloque sólido */
+    width: 100%;           /* Ocupa todo el ancho disponible */
+    box-sizing: border-box; /* CRUCIAL: El padding no suma al ancho total */
+    padding: 15px;
+    
+    /* 2. Scroll Vertical (para leer hacia abajo) */
+    max-height: 300px;
+    overflow-y: auto;      /* Scroll vertical SI */
+    overflow-x: hidden;    /* Scroll horizontal NO */
+
+    /* 3. Estética */
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 13px;
+    line-height: 1.5;
+
+    /* 4. LA MAGIA DEL WRAPPING (Romper líneas) */
+    white-space: pre-wrap;      /* Respeta los 'Enter' del editor */
+    word-wrap: break-word;      /* Comando estándar para romper palabras */
+    overflow-wrap: anywhere;    /* Comando moderno agresivo: rompe donde sea si no cabe */
+}
+
+/* 5. Aseguradora para el HTML interno */
+/* Esto obliga a cualquier <p> o <div> hijo a obedecer también */
+.preview-textarea :global(*) {
+    max-width: 100% !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: anywhere !important;
+}
   .btn-template-action { background: #5f1d22; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-size: 12px; transition: background 0.2s; }
   .btn-template-action:hover { background: #7a2a30; }
   .group-center { display: flex; gap: 10px; }
