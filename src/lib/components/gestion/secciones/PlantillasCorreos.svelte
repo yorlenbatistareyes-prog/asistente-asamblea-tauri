@@ -369,7 +369,65 @@
   .accordion-header { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: var(--bg-card); border: none; cursor: pointer; color: var(--text-main); }
   .acc-title { display: flex; align-items: center; gap: 10px; }
   .accordion-body-template { padding: 25px; background: var(--bg-body); border-top: 1px solid var(--border-color); }
-  .preview-input, .preview-textarea { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-card); color: var(--text-secondary); margin-bottom: 10px; }
+  /* 1. Estilo simple para el INPUT (Asunto) */
+  .preview-input { 
+      width: 100%; 
+      padding: 10px; 
+      border: 1px solid var(--border-color); 
+      border-radius: 4px; 
+      background: var(--bg-card); 
+      color: var(--text-main); 
+      margin-bottom: 10px; 
+      box-sizing: border-box;
+  }
+
+  /* 2. Estilo ROBUSTO para el TEXTAREA (Cuerpo del correo) */
+  .preview-textarea {
+      /* Estructura */
+      display: block;
+      width: 100%;
+      box-sizing: border-box; /* Clave para que no se desborde */
+      padding: 15px;
+      margin-bottom: 15px;
+      
+      /* Scroll y tamaño */
+      min-height: 100px;
+      max-height: 400px;
+      overflow-y: auto;
+      overflow-x: hidden !important; /* Prohibido scroll horizontal */
+
+      /* Apariencia */
+      background: #ffffff; /* Los correos se ven mejor en fondo blanco (o usa var(--bg-card) si prefieres) */
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: #1e293b; /* Texto oscuro para legibilidad */
+      font-size: 14px;
+      line-height: 1.6;
+
+      /* MAGIA DE AJUSTE DE TEXTO */
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+  }
+
+  /* 3. Reglas para el contenido HTML interno (Párrafos, Listas, etc.) */
+  .preview-textarea :global(*) {
+      max-width: 100% !important;
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+  }
+
+  /* Arreglo extra para que las listas no pierdan los puntos */
+  .preview-textarea :global(ul), 
+  .preview-textarea :global(ol) {
+      padding-left: 20px;
+      margin: 10px 0;
+  }
+  
+  .preview-textarea :global(p) {
+      margin-bottom: 0.8em;
+  }
   .btn-template-action { background: #5f1d22; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; display: flex; gap: 5px; }
   .group-center { display: flex; gap: 10px; }
   .template-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
