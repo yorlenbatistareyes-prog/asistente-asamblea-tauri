@@ -5,7 +5,7 @@
   import { 
     Plus, MapPin, Calendar, Briefcase, Trash2,
     Mail, Mic, UserCheck, MessageSquare, ChevronRight, Settings, X, Building, Map, LayoutGrid,
-    User, Clock,
+    User, Users, Clock,
     Sun, Moon, Monitor, Lectern // Iconos para el tema
   } from 'lucide-svelte';
   
@@ -315,13 +315,15 @@
                             <div class="detalle-fila" style="display: flex; align-items: center; gap: 15px; font-size: 12px; color: var(--text-secondary, #6b7280);">
                                 {#if l.ciudad || l.estado}
                                     <span>
-                                        🏙️ {l.ciudad || ''}{l.ciudad && l.estado ? ', ' : ''}{l.estado || ''}
+                                      <Map size={13} class="icon-gris"/>
+                                        {l.ciudad || ''}{l.ciudad && l.estado ? ', ' : ''}{l.estado || ''}
                                     </span>
                                 {/if}
                                 
                                 {#if l.capacidad && l.capacidad > 0}
-                                    <span>
-                                        👥 Capacidad: <strong>{l.capacidad}</strong>
+                                    <span> 
+                                      <Users size={13} class="icon-gris"/>
+                                        Capacidad: <strong>{l.capacidad}</strong>
                                     </span>
                                 {/if}
                             </div>
