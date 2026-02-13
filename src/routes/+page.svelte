@@ -278,34 +278,67 @@
     {/if}
 
     {#if mostrarModalLocales}
-      <div class="modal-backdrop" on:click|self={() => mostrarModalLocales = false}>
-        <div class="modal-content large">
-          <div class="modal-header"><h3><Building size={20} style="margin-right:8px"/> Gestionar Salones</h3><button class="btn-close" on:click={() => mostrarModalLocales = false}><X size={20}/></button></div>
-          <div class="modal-body">
-            <div class="form-local-grid">
-                <div class="input-group full-width"><label>Nombre del Lugar</label><input type="text" bind:value={nuevoLocal.nombre}/></div>
-                <div class="input-group full-width"><label>Dirección</label><input type="text" bind:value={nuevoLocal.direccion}/></div>
-                <div class="input-group"><label>Ciudad</label><input type="text" bind:value={nuevoLocal.ciudad}/></div>
-                <div class="input-group"><label>Estado / Provincia</label><input type="text" bind:value={nuevoLocal.estado}/></div>
-                <div class="input-group"><label>Capacidad</label><input type="number" bind:value={nuevoLocal.capacidad} min="0"/></div>
-                <div class="action-area"><button class="btn-confirm-small" on:click={guardarLocal}><Plus size={16}/> Guardar Salón</button></div>
-            </div>
-            <div class="separador"></div>
-            <div class="lista-locales-scroll">
-                {#each listaLocales as l}
-                    <div class="item-local">
-                        <div class="icon-box"><Building size={20}/></div>
-                        <div class="info-local"><strong class="nombre-local">{l.nombre}</strong><div class="grid-detalles-local"><div class="detalle-fila"><MapPin size={13} class="icon-gris"/> <span>{l.direccion || 'Sin dirección'}</span></div></div></div>
-                        <button class="btn-trash-mini" on:click={() => eliminarLocal(l.id)}><Trash2 size={16}/></button>
-                    </div>
-                {:else}
-                    <div class="empty-locales"><LayoutGrid size={32} /><p>No hay salones registrados aún.</p></div>
-                {/each}
-            </div>
-          </div>
-        </div>
+  <div class="modal-backdrop" on:click|self={() => mostrarModalLocales = false}>
+    <div class="modal-content large">
+      
+      <div class="modal-header">
+        <h3><Building size={20} style="margin-right:8px"/> Gestionar Salones</h3>
+        <button class="btn-close" on:click={() => mostrarModalLocales = false}><X size={20}/></button>
       </div>
-    {/if}
+      
+      <div class="modal-body">
+        <div class="form-local-grid">
+            <div class="input-group full-width"><label>Nombre del Lugar</label><input type="text" bind:value={nuevoLocal.nombre}/></div>
+            <div class="input-group full-width"><label>Dirección</label><input type="text" bind:value={nuevoLocal.direccion}/></div>
+            <div class="input-group"><label>Ciudad</label><input type="text" bind:value={nuevoLocal.ciudad}/></div>
+            <div class="input-group"><label>Estado / Provincia</label><input type="text" bind:value={nuevoLocal.estado}/></div>
+            <div class="input-group"><label>Capacidad</label><input type="number" bind:value={nuevoLocal.capacidad} min="0"/></div>
+            <div class="action-area"><button class="btn-confirm-small" on:click={guardarLocal}><Plus size={16}/> Guardar Salón</button></div>
+        </div>
+        
+        <div class="separador"></div>
+        
+        <div class="lista-locales-scroll">
+            {#each listaLocales as l}
+                <div class="item-local">
+                    <div class="icon-box"><Building size={20}/></div>
+                    <div class="info-local">
+                        <strong class="nombre-local">{l.nombre}</strong>
+                        
+                        <div class="grid-detalles-local" style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                            
+                            <div class="detalle-fila" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary, #6b7280);">
+                                <MapPin size={13} class="icon-gris"/> 
+                                <span>{l.direccion || 'Sin dirección'}</span>
+                            </div>
+
+                            <div class="detalle-fila" style="display: flex; align-items: center; gap: 15px; font-size: 12px; color: var(--text-secondary, #6b7280);">
+                                {#if l.ciudad || l.estado}
+                                    <span>
+                                        🏙️ {l.ciudad || ''}{l.ciudad && l.estado ? ', ' : ''}{l.estado || ''}
+                                    </span>
+                                {/if}
+                                
+                                {#if l.capacidad && l.capacidad > 0}
+                                    <span>
+                                        👥 Capacidad: <strong>{l.capacidad}</strong>
+                                    </span>
+                                {/if}
+                            </div>
+
+                        </div>
+                    </div>
+                    <button class="btn-trash-mini" on:click={() => eliminarLocal(l.id)}><Trash2 size={16}/></button>
+                </div>
+            {:else}
+                <div class="empty-locales"><LayoutGrid size={32} /><p>No hay salones registrados aún.</p></div>
+            {/each}
+        </div>
+
+      </div>
+    </div>
+  </div>
+{/if}
 
   {:else if vistaActual === 'correspondencia'}
     <Correspondencia seccionInicial={seccionCorrespondencia} on:close={volverAlInicio} />
