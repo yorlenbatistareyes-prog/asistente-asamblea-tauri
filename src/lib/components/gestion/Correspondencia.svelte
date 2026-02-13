@@ -32,7 +32,7 @@
     Type, Scissors, Copy, ArrowUpDown,
     ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine,
     ChevronDown, ChevronUp, Braces,
-    Check, Loader2, Cloud 
+    Check, Loader2, Cloud, ChevronsLeft, ChevronsRight,
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
@@ -587,27 +587,44 @@
                     <button class="ribbon-btn small" class:active={isBulletList} on:click={() => editor.chain().focus().toggleBulletList().run()} title="Viñetas"><List size={18}/></button>
                     <button class="ribbon-btn small" class:active={isOrderedList} on:click={() => editor.chain().focus().toggleOrderedList().run()} title="Numeración"><ListOrdered size={18}/></button>
                     <div class="divider-v"></div>
-                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().liftListItem('listItem').run()} title="Disminuir Sangría"><IndentDecrease size={18}/></button>
-                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().sinkListItem('listItem').run()} title="Aumentar Sangría"><IndentIncrease size={18}/></button>
-
-                    <!-- ⭐ SANGRÍA DE PÁRRAFO (NO LISTAS) -->
-                    <button class="ribbon-btn small"
-                        on:click={() => editor.chain().focus().increaseIndent().run()}
-                        title="Aumentar sangría de párrafo">
-                        <IndentIncrease size={18}/>
+                    <div class="group-row centered">
+                    <button class="ribbon-btn small" 
+                       on:click={() => editor.chain().focus().liftListItem('listItem').run()} 
+                       title="Disminuir nivel de lista"
+                       disabled={!editor?.isActive('bulletList') && !editor?.isActive('orderedList')}>
+                       <IndentDecrease size={18}/>
                     </button>
+                    <button class="ribbon-btn small" 
+                       on:click={() => editor.chain().focus().sinkListItem('listItem').run()} 
+                       title="Aumentar nivel de lista"
+                       disabled={!editor?.isActive('bulletList') && !editor?.isActive('orderedList')}>
+                       <IndentIncrease size={18}/>
+                    </button>
+                </div>
+
+                <div class="divider-v"></div>
+
+                <div class="group-row centered">
+                    <button class="ribbon-btn small"
+                       on:click={() => (editor.chain().focus() as any).decreaseIndent().run()}
+                       title="Disminuir margen de párrafo">
+                       <ChevronsLeft size={18}/> </button>
 
                     <button class="ribbon-btn small"
-                        on:click={() => editor.chain().focus().decreaseIndent().run()}
-                        title="Disminuir sangría de párrafo">
-                        <IndentDecrease size={18}/>
-                    </button>
+                       on:click={() => (editor.chain().focus() as any).increaseIndent().run()}
+                       title="Aumentar margen de párrafo">
+                       <ChevronsRight size={18}/> </button>
+                </div>
 
+                <div class="divider-v"></div>
+
+                <div class="group-row centered">
                     <button class="ribbon-btn small"
-                        on:click={() => editor.chain().focus().toggleFirstLineIndent().run()}
-                        title="Sangría de primera línea">
-                        <ArrowRightToLine size={18}/>
+                       on:click={() => (editor.chain().focus() as any).toggleFirstLine().run()}
+                       title="Sangría de primera línea">
+                       <ArrowRightToLine size={18}/>
                     </button>
+                </div>
                 </div>
                 <div class="controls-row spacing">
                     <button class="ribbon-btn small" class:active={textAlignLeft} on:click={() => editor.chain().focus().setTextAlign('left').run()} title="Izquierda"><AlignLeft size={18}/></button>
