@@ -36,7 +36,20 @@
       } 
   }
 
-  let config = { accionPdf: "abrir", idioma: "es", email_asignaciones: true, email_general_clase: true, email_recordatorios_clase: true, email_conclusion_clase: true, email_foto_clase: true, email_emergencia: false, usar_cliente_sistema: false, no_precompletar: false };
+  let config = { 
+    accionPdf: "abrir", 
+    idioma: "es", 
+    email_oradores: true, 
+    email_presidente: true, 
+    email_oraciones: true, 
+    email_oficina: true, 
+    email_comite: true, 
+    email_audio_video: true, 
+    email_emergencia: false, 
+    usar_cliente_sistema: false, 
+    no_precompletar: false 
+  };
+
   let usuario = { nombre: "Yorlen", segundoNombre: "", apellido: "Batista Reyes", sufijo: "", email: "yorlenbatistareyes@gmail.com", emailJw: "batistareyyorlen7@jwpub.org", movil: "54891111", id: "7164622", fechaCreacion: "4/11/2025" };
   
   let mostrarModalUsuario = false;
@@ -104,14 +117,22 @@
                             <div class="config-group">
                                 <label class="group-label">Opciones de Correo</label>
                                 <div class="toggle-list">
-                                    <div class="toggle-item"><span>Correos de asignaciones</span><label class="switch"><input type="checkbox" bind:checked={config.email_asignaciones}><span class="slider round"></span></label></div>
-                                    <div class="toggle-item"><span>Correo general de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_general_clase}><span class="slider round"></span></label></div>
-                                    <div class="toggle-item"><span>Recordatorios de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_recordatorios_clase}><span class="slider round"></span></label></div>
-                                    <div class="toggle-item"><span>Conclusión de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_conclusion_clase}><span class="slider round"></span></label></div>
-                                    <div class="toggle-item"><span>Foto de clase</span><label class="switch"><input type="checkbox" bind:checked={config.email_foto_clase}><span class="slider round"></span></label></div>
+                                    <div class="toggle-item"><span>Correo a oradores</span><label class="switch"><input type="checkbox" bind:checked={config.email_oradores}><span class="slider round"></span></label></div>
+            
+                                    <div class="toggle-item"><span>Correo a presidentes de sesión</span><label class="switch"><input type="checkbox" bind:checked={config.email_presidente}><span class="slider round"></span></label></div>
+            
+                                    <div class="toggle-item"><span>Correo a oraciones</span><label class="switch"><input type="checkbox" bind:checked={config.email_oraciones}><span class="slider round"></span></label></div>
+            
+                                    <div class="toggle-item"><span>Correo a personal de oficina</span><label class="switch"><input type="checkbox" bind:checked={config.email_oficina}><span class="slider round"></span></label></div>
+            
+                                    <div class="toggle-item"><span>Correo al comité de asamblea</span><label class="switch"><input type="checkbox" bind:checked={config.email_comite}><span class="slider round"></span></label></div>
+            
+                                    <div class="toggle-item"><span>Correo a audio y video</span><label class="switch"><input type="checkbox" bind:checked={config.email_audio_video}><span class="slider round"></span></label></div>
+            
                                     <div class="toggle-item"><span>Anuncio de emergencia</span><label class="switch"><input type="checkbox" bind:checked={config.email_emergencia}><span class="slider round"></span></label></div>
                                 </div>
                             </div>
+
                             <div class="config-group mt-large">
                                 <label class="group-label-icon">Utilice el cliente de correo electrónico <HelpCircle size={14}/></label>
                                 <div class="toggle-item description-toggle">
@@ -119,6 +140,7 @@
                                     <div class="desc-text">Utilice Thunderbird, BlueMail u otro cliente compatible</div>
                                 </div>
                             </div>
+
                             <div class="config-group">
                                 <label class="group-label-icon">No complete con texto sin formato <HelpCircle size={14}/></label>
                                 <div class="toggle-item description-toggle">
@@ -320,4 +342,12 @@ input:checked + .slider:before { transform: translateX(20px); }
 .accordion-header { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: var(--bg-card); border: none; cursor: pointer; color: var(--text-main); }
 .acc-title { display: flex; align-items: center; gap: 10px; }
 .accordion-body { padding: 15px; background: var(--bg-body); border-top: 1px solid var(--border-color); }
+.toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Un poco más de espacio entre interruptores */
+    max-height: 400px; /* Por si la lista crece mucho, permite hacer scroll */
+    overflow-y: auto;
+    padding-right: 5px;
+}
 </style>
