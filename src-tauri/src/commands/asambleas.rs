@@ -141,7 +141,7 @@ pub fn guardar_comite(app: AppHandle, presidente_id: Option<i32>) -> Result<Stri
 #[command]
 pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<Asamblea>, String> {
     let conn = conectar_db(&app);
-    let sql = "SELECT a.id, a.tema, a.fecha, a.local_id, a.presidente_id, a.ensayo_lugar, a.ensayo_fecha, a.ensayo_hora, a.ensayo_notas, a.recorridos_info, a.instrucciones_esp, a.jw_stream_studio, l.nombre as nombre_local FROM asambleas a LEFT JOIN locales l ON a.local_id = l.id ORDER BY a.id DESC LIMIT 1";
+    let sql = "SELECT a.id, a.tema, a.fecha, a.local_id, a.presidente_id, a.ensayo_lugar, a.ensayo_fecha, a.ensayo_hora, a.ensayo_notas, a.recorridos_info, a.instrucciones_esp, a.jw_stream_studio, l.nombre as nombre_local, a.identificador FROM asambleas a LEFT JOIN locales l ON a.local_id = l.id ORDER BY a.id DESC LIMIT 1";
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
 
     let result = stmt
@@ -160,6 +160,7 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<Asamblea>, Strin
                 instrucciones_esp: row.get(10).unwrap_or_default(),
                 jw_stream_studio: row.get::<_, i32>(11).unwrap_or(0) == 1,
                 nombre_local: row.get(12).ok(),
+                identificador: row.get(13).ok(),
             })
         })
         .optional()

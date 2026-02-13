@@ -82,6 +82,7 @@
   let asambleaId: number | null = null;
   let tema = "";
   let fecha = "";
+  let identificador = "";
   
   // --- LÓGICA DE SALONES ---
   let locales: any[] = [];
@@ -169,6 +170,7 @@
         asambleaId = asamblea.id;
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
+        identificador = asamblea.identificador || "";
         
         if (asamblea.local_id) {
             idLocal = asamblea.local_id;
@@ -254,7 +256,7 @@
   async function guardar() {
     try {
       await invoke('guardar_info_evento', {
-        id: asambleaId, tema, fecha, localId: idLocal,
+        id: asambleaId, tema, fecha, identificador, localId: idLocal,
         ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
         recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
       });
@@ -272,6 +274,10 @@
     </div>
     
     <div class="formulario grid-2 border-bottom pb-20">
+      <div class="campo">
+        <label><Bookmark size={14}/> Identificador</label>
+        <input type="text" bind:value={identificador} class="input-id" readonly />
+      </div>
       <div class="campo full"><label>Tema de la Asamblea</label><input type="text" bind:value={tema} class="input-big"/></div>
       <div class="campo"><label><Calendar size={14}/> Fecha</label><input type="text" bind:value={fecha} /></div>
       
@@ -677,4 +683,11 @@
   :global(ul[data-type="taskList"] li > label) { display: flex; align-items: center; user-select: none; margin-right: 4px; }
   :global(ul[data-type="taskList"] li > div) { flex: 1; }
   :global(ul[data-type="taskList"] input[type="checkbox"]) { width: 16px; height: 16px; cursor: pointer; margin: 0; }
+  .input-id {
+    background: var(--bg-secondary); /* Color un poco más gris/oscuro */
+    color: var(--text-secondary);
+    border: 1px dashed var(--border-color); /* Borde punteado para indicar que es informativo */
+    cursor: not-allowed; /* Cambia el cursor al pasar por encima */
+    font-weight: 600;
+}
 </style>

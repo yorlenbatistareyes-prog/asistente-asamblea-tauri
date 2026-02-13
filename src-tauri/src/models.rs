@@ -49,6 +49,7 @@ pub struct Asamblea {
     pub instrucciones_esp: String,
     pub jw_stream_studio: bool,
     pub nombre_local: Option<String>,
+    pub identificador: Option<String>,
 }
 
 // ==========================================
