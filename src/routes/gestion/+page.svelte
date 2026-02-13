@@ -10,7 +10,16 @@
     UserCog,    // Para Comité y Admin
     Mic2,       // Para Programa y Oradores
     PanelLeftClose, // Icono para ocultar sidebar
-    PanelLeftOpen   // Icono para mostrar sidebar
+    PanelLeftOpen,
+    IdCard,
+    UserCheck,
+    ListChecks,
+    ClipboardList,
+    Network,
+    Layers,
+    Key,
+    HeartHandshake,
+    Workflow // Icono para mostrar sidebar
   } from 'lucide-svelte';
   
   // --- COMPONENTES ---
@@ -84,8 +93,8 @@
         <BookUser size={20} class="icono-nav" /> <span class="texto-menu">Registro de Personas</span>
       </button>
 
-      <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Comité y Admin.">
-        <UserCog size={20} class="icono-nav" /> <span class="texto-menu">Comité y Admin.</span>
+      <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Responsabilidades">
+        <Network size={20} class="icono-nav" /> <span class="texto-menu">Responsabilidades</span>
       </button>
 
       <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa y Oradores">
@@ -108,7 +117,7 @@
         {#if seccionActiva === 'info_evento'} Información del Evento {/if} 
         {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
         {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
-        {#if seccionActiva === 'comite'} Comité de Asamblea {/if}
+        {#if seccionActiva === 'comite'} Responsabilidades {/if}
         {#if seccionActiva === 'programa'} Programa {/if}
       </h2>
     </header>
@@ -196,7 +205,8 @@
   .menu button { 
       display: flex; align-items: center; width: 100%; 
       padding: 12px 14px; border: none; background: none; 
-      text-align: left; cursor: pointer; 
+      text-align: left; cursor: pointer;
+      gap: 16px; 
       color: var(--text-secondary); 
       border-radius: 8px; font-size: 14px; font-weight: 500; 
       transition: all 0.2s; 
@@ -205,7 +215,7 @@
 
   .icono-nav {
       min-width: 20px; /* Mantiene el icono cuadrado sin aplastarse */
-      margin-right: 12px;
+      margin-right: 16px;
       flex-shrink: 0;
   }
   
