@@ -224,7 +224,14 @@
       font-weight: 600; 
   }
 
-  .footer-sidebar { padding: 20px 10px; border-top: 1px solid var(--border-color); }
+  /* --- FOOTER DEL SIDEBAR (PROFESIONAL) --- */
+  
+  .footer-sidebar {
+      padding: 20px 10px; /* Un poco más de aire */
+      border-top: 1px solid var(--border-color);
+      /* Opcional: un fondo muy sutil para separar el footer */
+      background-color: rgba(0, 0, 0, 0.02); 
+  }
   
   .btn-salir { 
       text-decoration: none; 
@@ -235,12 +242,50 @@
       transition: all 0.2s; 
       white-space: nowrap;
   }
-  .btn-salir:hover { 
-      background-color: var(--hover-bg); 
+  .btn-salir { 
+      display: flex; 
+      align-items: center;
+      justify-content: flex-start;
+      
+      width: 100%;
+      box-sizing: border-box; /* 👈 CORRECCIÓN 2: Evita que el padding desborde el botón hacia la derecha */
+      padding: 12px 14px; /* 👈 CORRECCIÓN 3: Igualamos el padding interno al de los botones del menú */
+      
+      background-color: var(--bg-body); 
+      border: 1px solid var(--border-color); 
+      border-radius: 12px; 
+      
+      text-decoration: none; 
       color: var(--text-main); 
+      font-size: 14px; 
+      font-weight: 600; 
+      
+      transition: all 0.2s ease-in-out; 
+      white-space: nowrap;
+  }
+
+  /* Efecto HOVER (Cuando pasas el ratón) */
+  .btn-salir:hover { 
+      background-color: var(--bg-secondary); 
+      border-color: var(--primary); 
+      color: var(--primary); 
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+  }
+
+  /* Ajuste para que el icono tenga el color correcto en hover */
+  .btn-salir:hover .icono-nav {
+      color: var(--primary);
   }
 
   /* --- ESTILOS CUANDO ESTÁ COLAPSADO --- */
+
+  /* --- AJUSTE PARA CUANDO ESTÁ COLAPSADO --- */
+  .sidebar.colapsado .btn-salir {
+      justify-content: center; 
+      padding-left: 0;  /* Quitamos paddings laterales para centrar el icono perfecto */
+      padding-right: 0;
+  }
   
   .sidebar.colapsado {
       width: 72px; /* Solo espacio para iconos */
@@ -270,7 +315,7 @@
   .sidebar.colapsado .menu button,
   .sidebar.colapsado .btn-salir {
       justify-content: center;
-      padding-left: 0;
+      padding: 12px;
       padding-right: 0; /* Centra el icono en el botón encogido */
   }
 
