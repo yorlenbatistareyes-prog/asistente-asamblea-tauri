@@ -19,7 +19,7 @@
   import FontFamily from '@tiptap/extension-font-family';
   import TaskList from '@tiptap/extension-task-list';
   import TaskItem from '@tiptap/extension-task-item';
-
+  import { SangriaParrafo } from '$lib/extensions/SangriaParrafo';
   // --- ICONOS ---
   import { 
     Save, Mic, UserCheck, MessageSquare, ArrowLeft, FileText,
@@ -65,6 +65,9 @@
   let textAlignJustify = false;
   let isBulletList = false;
   let isOrderedList = false;
+
+  let currentIndent = 0;
+  let firstLineActive = false;
   
   // Estado Popups
   let isColorPickerOpen = false;
@@ -315,6 +318,11 @@
         Placeholder.configure({ placeholder: '' }),
         TaskList,
         TaskItem.configure({ nested: true }),
+        SangriaParrafo.configure({
+        indentStep: 36,
+        maxIndent: 5,
+        firstLineIndent: 36,
+      }),
       ],
       content: '', 
       editorProps: {
@@ -367,6 +375,8 @@
     textAlignJustify = editor.isActive({ textAlign: 'justify' });
     isBulletList = editor.isActive('bulletList');
     isOrderedList = editor.isActive('orderedList');
+    currentIndent = editor.getAttributes('paragraph').indentLevel || 0;
+    firstLineActive = editor.getAttributes('paragraph').firstLine || false;
   }
 
   // --- ACTIONS UI ---
@@ -579,6 +589,25 @@
                     <div class="divider-v"></div>
                     <button class="ribbon-btn small" on:click={() => editor.chain().focus().liftListItem('listItem').run()} title="Disminuir Sangría"><IndentDecrease size={18}/></button>
                     <button class="ribbon-btn small" on:click={() => editor.chain().focus().sinkListItem('listItem').run()} title="Aumentar Sangría"><IndentIncrease size={18}/></button>
+
+                    <!-- ⭐ SANGRÍA DE PÁRRAFO (NO LISTAS) -->
+                    <button class="ribbon-btn small"
+                        on:click={() => editor.chain().focus().increaseIndent().run()}
+                        title="Aumentar sangría de párrafo">
+                        <IndentIncrease size={18}/>
+                    </button>
+
+                    <button class="ribbon-btn small"
+                        on:click={() => editor.chain().focus().decreaseIndent().run()}
+                        title="Disminuir sangría de párrafo">
+                        <IndentDecrease size={18}/>
+                    </button>
+
+                    <button class="ribbon-btn small"
+                        on:click={() => editor.chain().focus().toggleFirstLineIndent().run()}
+                        title="Sangría de primera línea">
+                        <ArrowRightToLine size={18}/>
+                    </button>
                 </div>
                 <div class="controls-row spacing">
                     <button class="ribbon-btn small" class:active={textAlignLeft} on:click={() => editor.chain().focus().setTextAlign('left').run()} title="Izquierda"><AlignLeft size={18}/></button>
