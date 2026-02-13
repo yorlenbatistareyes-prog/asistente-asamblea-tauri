@@ -32,7 +32,7 @@
 
   // --- VARIABLES MODALES ---
   let mostrarModalAsamblea = false;
-  let nuevaAsamblea = { tema: "", fecha: "", local_id: null as number | null, local_nombre: "" };
+  let nuevaAsamblea = { tema: "", fecha: "", local_id: null as number | null, local_nombre: "", identificador: "" };
   let mostrarModalLocales = false;
   let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
@@ -126,22 +126,40 @@
 
   // LÓGICA DE ASAMBLEAS
   function abrirCrearAsamblea() {
-    nuevaAsamblea = { tema: "", fecha: "", local_id: null, local_nombre: "" };
+    // 1. Limpiamos también el identificador al abrir
+    nuevaAsamblea = { tema: "", fecha: "", local_id: null, local_nombre: "", identificador: "" };
     mostrarModalAsamblea = true;
   }
 
   async function guardarNuevaAsamblea() {
     if (!nuevaAsamblea.tema || !nuevaAsamblea.fecha) return alert("Falta Tema o Fecha");
+    
     let nombreLugar = "Sin asignar";
     let idLocalFinal = null;
+    
     if (nuevaAsamblea.local_id) {
         const localObj = listaLocales.find(l => l.id === nuevaAsamblea.local_id);
-        if (localObj) { nombreLugar = localObj.nombre; idLocalFinal = localObj.id; }
+        if (localObj) { 
+            nombreLugar = localObj.nombre; 
+            idLocalFinal = localObj.id; 
+        }
     }
+
     try {
-      await invoke('crear_asamblea', { tema: nuevaAsamblea.tema, fecha: nuevaAsamblea.fecha, lugar: nombreLugar, localId: idLocalFinal });
-      mostrarModalAsamblea = false; cargarDatos();
-    } catch (e) { alert("Error: " + e); }
+      // 2. Enviamos el 'identificador' a Rust junto con los demás datos
+      await invoke('crear_asamblea', { 
+        tema: nuevaAsamblea.tema, 
+        fecha: nuevaAsamblea.fecha, 
+        lugar: nombreLugar, 
+        localId: idLocalFinal,
+        identificador: nuevaAsamblea.identificador // 👈 LA PIEZA CLAVE
+      });
+      
+      mostrarModalAsamblea = false; 
+      cargarDatos();
+    } catch (e) { 
+      alert("Error: " + e); 
+    }
   }
 
   async function eliminarAsamblea(id: number, e: Event) {
@@ -215,23 +233,29 @@
         {:else}
             <div class="grid-asambleas">
                 {#each listaAsambleas as item, i (item.id)}
-                    <div class="card-hero" on:click={() => irAGestionar(item)} on:keydown role="button" tabindex="0">
+                  <div class="card-hero" on:click={() => irAGestionar(item)} on:keydown role="button" tabindex="0">
+
+                    <button class="btn-trash" on:click={(e) => eliminarAsamblea(item.id, e)} title="Eliminar"><Trash2 size={16} /></button>
+
+                  <div class="hero-content">
       
-                      <button class="btn-trash" on:click={(e) => eliminarAsamblea(item.id, e)} title="Eliminar"><Trash2 size={16} /></button>
-      
-                      <div class="hero-content">
-                        <span class="status-pill">Asamblea {i + 1}</span>
-        
-                        <h2>{item.tema}</h2>
-                        <div class="hero-details"><span><Calendar size={14} /> {item.fecha}</span>{#if item.lugar}<span><MapPin size={14} /> {item.lugar}</span>{/if}</div>
-                      </div>
-      
-                      <button class="btn-manage">Gestionar Datos &rarr;</button>
-      
-                      <div class="card-logo-bg">
-                            <Lectern size={120} strokeWidth={0.9} />
-                      </div>
+                    <span class="status-pill">
+                      {item.identificador ? item.identificador : `Asamblea ${i + 1}`}
+                    </span>
+
+                    <h2>{item.tema}</h2>
+                    <div class="hero-details">
+                       <span><Calendar size={14} /> {item.fecha}</span>
+                       {#if item.lugar}<span><MapPin size={14} /> {item.lugar}</span>{/if}
                     </div>
+                  </div>
+
+                  <button class="btn-manage">Gestionar Datos &rarr;</button>
+
+                  <div class="card-logo-bg">
+                       <Lectern size={120} strokeWidth={0.9} />
+                  </div>
+                </div>
                {/each}
             </div>
         {/if}
@@ -261,6 +285,9 @@
         <div class="modal-content">
           <div class="modal-header"><h3>Nueva Asamblea</h3><button class="btn-close" on:click={() => mostrarModalAsamblea = false}><X size={20}/></button></div>
           <div class="modal-body">
+            
+            <label>Identificador</label><input type="text" placeholder="Ej: Holguín 2026" bind:value={nuevaAsamblea.identificador} />
+            
             <label>Tema de la Asamblea</label><input type="text" placeholder="Ej: ¡Prediquemos...!" bind:value={nuevaAsamblea.tema} />
             <label>Fecha</label><input type="text" placeholder="Ej: 25-27 de Julio" bind:value={nuevaAsamblea.fecha} />
             <label>Lugar / Salón</label>

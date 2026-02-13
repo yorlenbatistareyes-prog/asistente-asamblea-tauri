@@ -33,7 +33,8 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         "CREATE TABLE IF NOT EXISTS asambleas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         tema TEXT NOT NULL, 
-        fecha TEXT NOT NULL, 
+        fecha TEXT NOT NULL,
+        identificador TEXT, 
         local_id INTEGER, 
         presidente_id INTEGER, 
         ensayo_lugar TEXT, 
@@ -46,6 +47,8 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     )",
         [],
     )?;
+
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN identificador TEXT", []);
 
     // --- 2. LOCALES ---
     conn.execute(

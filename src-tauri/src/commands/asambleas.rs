@@ -176,24 +176,40 @@ pub fn crear_asamblea(
     fecha: String,
     _lugar: String,
     local_id: Option<i32>,
+    identificador: String,
 ) -> Result<i64, String> {
     let conn = conectar_db(&app);
     conn.execute(
-        "INSERT INTO asambleas (tema, fecha, local_id, ensayo_lugar, jw_stream_studio, ensayo_notas, recorridos_info, ensayo_fecha, ensayo_hora, instrucciones_esp) VALUES (?1, ?2, ?3, '', 0, '', '', '', '', '')",
-        params![tema, fecha, local_id],
+        "INSERT INTO asambleas (
+            tema, fecha, local_id, identificador, 
+            ensayo_lugar, jw_stream_studio, ensayo_notas, 
+            recorridos_info, ensayo_fecha, ensayo_hora, instrucciones_esp
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)", 
+        params![
+            tema,          // ?1
+            fecha,         // ?2
+            local_id,      // ?3
+            identificador, // ?4 (¡Ahora sí lo guardamos!)
+            "",            // ?5 (ensayo_lugar)
+            0,             // ?6 (jw_stream_studio)
+            "",            // ?7 (ensayo_notas)
+            "",            // ?8 (recorridos_info)
+            "",            // ?9 (ensayo_fecha)
+            "",            // ?10 (ensayo_hora)
+            ""             // ?11 (instrucciones_esp)
+        ],
     ).map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
 }
-
 // 6. LISTAR Y ELIMINAR
 #[command]
 pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
     let conn = conectar_db(&app);
     let mut stmt = conn
-        .prepare("SELECT id, tema, fecha FROM asambleas ORDER BY id DESC")
+        .prepare("SELECT id, tema, fecha, identificador FROM asambleas ORDER BY id DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], |row| {
-        Ok(serde_json::json!({ "id": row.get::<_, i64>(0)?, "tema": row.get::<_, String>(1)?, "fecha": row.get::<_, String>(2)? }))
+        Ok(serde_json::json!({ "id": row.get::<_, i64>(0)?, "tema": row.get::<_, String>(1)?, "fecha": row.get::<_, String>(2)?, "identificador": row.get::<_, Option<String>>(3)? }))
     }).map_err(|e| e.to_string())?;
     let mut asambleas = Vec::new();
     for row in rows {
