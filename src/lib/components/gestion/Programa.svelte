@@ -1688,29 +1688,24 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 }
 
 /* ==========================================================================
-   RESPONSIVIDAD: MÓVILES Y TABLETAS (Apilamiento de paneles)
+   RESPONSIVIDAD: MÓVILES Y TABLETAS (Paneles ajustados)
    ========================================================================== */
 @media (max-width: 900px) {
   .layout-programa {
-    /* 1. Pasamos de 2 columnas a 1 sola columna que ocupa todo el ancho */
+    /* Una sola columna que ocupa el 100% del ancho */
     grid-template-columns: 1fr; 
     
-    /* 2. Definimos las filas: El panel de Oficina (arriba) se adapta a su contenido (auto)
-          y el panel de Discursos (abajo) toma el resto del espacio disponible (1fr) */
-    grid-template-rows: auto 1fr; 
+    /* LA MAGIA DEL REPARTO VERTICAL: 
+       - Fila 1 (Oficina): 220px de alto (Suficiente para ver el buscador y 1-2 campos).
+       - Fila 2 (Discursos): 1fr (Se queda con tooooodo el espacio restante). */
+    grid-template-rows: 220px 1fr; 
     
-    /* 3. Cambiamos el comportamiento del scroll */
-    overflow-x: hidden; /* Quitamos el scroll horizontal en móvil */
-    overflow-y: auto;   /* Permitimos que toda la página haga scroll hacia abajo */
-    
-    padding-bottom: 0;
+    gap: 12px; /* Reducimos un poquito el hueco entre los dos paneles para ganar espacio */
   }
 
-  /* 4. Límite de altura para el panel superior (Oficina) */
   .panel-oficina.dark-theme {
-    /* Evita que el panel de arriba sea tan largo que esconda por completo los discursos */
-    max-height: 350px; 
-    margin-bottom: 10px; /* Un poco de aire antes de las tarjetas de discurso */
+    max-height: none; /* Quitamos el 350px, ahora el Grid es quien manda */
+    margin-bottom: 0; 
   }
 }
 </style>
