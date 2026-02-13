@@ -3,7 +3,9 @@
   import { invoke } from '@tauri-apps/api/core';
   import { 
     ShieldCheck, Save, Search, X, MapPin, Phone, Mail, 
-    User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus 
+    User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus, Droplet, BookOpen,
+     Presentation, Mic2, Home, Building, CalendarDays, ScrollText, FileText, ListTodo,
+     ListOrdered, NotepadText, ClipboardList, SlidersHorizontal   
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -151,14 +153,15 @@
 
 <div class="panel-comite">
   <div class="header">
-    <h3><ShieldCheck class="text-blue"/> Estructura Organizativa (Asamblea #{asambleaId})</h3>
+    <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea (Asamblea #{asambleaId})</h3>
     <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
   </div>
 
   <div class="scroll-container">
     
     <div class="seccion">
-      <h4 class="titulo-seccion">PRESIDENCIA</h4>
+       <h4 class="titulo-seccion"><User size={18} />PRESIDENTE</h4>
+     
       <div class="grid-uno">
          <div class="role-wrapper">
             <span class="label-rol">Presidente de la Asamblea</span>
@@ -183,11 +186,13 @@
       </div>
     </div>
 
+    <h3 class="titulo-separador">Miembros del Comité de Asamblea</h3>
+
     <div class="seccion">
-        <h4 class="titulo-seccion"><Users size={16}/> COORDINACIÓN</h4>
+        <h4 class="titulo-seccion"><User size={18}/> COORDINACIÓN</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
-                <span class="label-rol">Coordinador</span>
+                <span class="label-rol">Coordinador del Comité de Asamblea</span>
                 {#if getDetalles(c.coord)}
                     {@const p = getDetalles(c.coord)}
                     <div class="tarjeta">
@@ -205,7 +210,7 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('coord')}>Seleccionar... <ChevronDown size={16}/></button>{/if}
             </div>
             <div class="role-wrapper">
-                <span class="label-rol">Auxiliar</span>
+                <span class="label-rol">Auxiliar del Coordinador del Comité de Asamblea</span>
                 {#if getDetalles(c.coord_a)}
                     {@const p = getDetalles(c.coord_a)}
                     <div class="tarjeta">
@@ -227,10 +232,10 @@
 
     <div class="grid-dos-grande">
         <div class="seccion">
-            <h4 class="titulo-seccion"><Layers size={16}/> PROGRAMA</h4>
+            <h4 class="titulo-seccion"><NotepadText size={16}/> PROGRAMA</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
-                    <span class="label-rol">Superintendente</span>
+                    <span class="label-rol">Superintendente de Programa</span>
                     {#if getDetalles(c.prog)}
                         {@const p = getDetalles(c.prog)}
                         <div class="tarjeta">
@@ -248,7 +253,7 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('prog')}>Seleccionar...</button>{/if}
                 </div>
                 <div class="role-wrapper">
-                    <span class="label-rol">Auxiliar</span>
+                    <span class="label-rol">Auxiliar del Superintendente del Programa</span>
                     {#if getDetalles(c.prog_a)}
                         {@const p = getDetalles(c.prog_a)}
                         <div class="tarjeta">
@@ -269,10 +274,10 @@
         </div>
 
         <div class="seccion">
-            <h4 class="titulo-seccion"><Users size={16}/> ALOJAMIENTO</h4>
+            <h4 class="titulo-seccion"><Home size={16}/> ALOJAMIENTO</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
-                    <span class="label-rol">Superintendente</span>
+                    <span class="label-rol">Superintendente de Alojamiento</span>
                     {#if getDetalles(c.aloj)}
                         {@const p = getDetalles(c.aloj)}
                         <div class="tarjeta">
@@ -290,7 +295,7 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('aloj')}>Seleccionar...</button>{/if}
                 </div>
                 <div class="role-wrapper">
-                    <span class="label-rol">Auxiliar</span>
+                    <span class="label-rol">Auxiliar del Superintendente de Alojamiento</span>
                     {#if getDetalles(c.aloj_a)}
                         {@const p = getDetalles(c.aloj_a)}
                         <div class="tarjeta">
@@ -311,8 +316,10 @@
         </div>
     </div>
 
+    <h3 class="titulo-separador">Otras Responsabilidades</h3>
+
     <div class="seccion">
-        <h4 class="titulo-seccion">SOPORTE TÉCNICO Y PLATAFORMA</h4>
+        <h4 class="titulo-seccion">DEPARTAMENTO DE AUDIO Y VIDEO</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
                 <span class="label-rol"><Radio size={12}/> Superintendente A/V</span>
@@ -369,7 +376,7 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('audio')}>Seleccionar...</button>{/if}
             </div>
             <div class="role-wrapper">
-                <span class="label-rol"><Layers size={12}/> Superintendente de Plataforma</span>
+                <span class="label-rol"><SlidersHorizontal size={12}/> Superintendente de Plataforma</span>
                 {#if getDetalles(c.plat)}
                     {@const p = getDetalles(c.plat)}
                     <div class="tarjeta">
@@ -385,6 +392,49 @@
                         </div>
                     </div>
                 {:else}<button class="btn-select" on:click={() => abrirModal('plat')}>Seleccionar...</button>{/if}
+            </div>
+        </div>
+    </div>
+
+    <div class="seccion">
+        <h4 class="titulo-seccion"><Droplet size={16}/> DEPARTAMENTO DE BAUTISMO</h4>
+        <div class="grid-dos">
+            <div class="role-wrapper">
+                <span class="label-rol">Superintendente de Bautismo</span>
+                {#if getDetalles(c.baut)}
+                    {@const p = getDetalles(c.baut)}
+                    <div class="tarjeta">
+                        <div class="card-top">
+                            <div class="avatar"><User size={20}/></div>
+                            <div class="info"><span class="t-nombre">{p.nombre_completo}</span><span class="t-priv">{p.privilegios || '-'}</span></div>
+                            <button class="btn-x" on:click={() => quitar('baut')}><X size={16}/></button>
+                        </div>
+                        <div class="card-bottom">
+                            <div class="row"><MapPin size={12}/> {p.nombre_congregacion || '-'}</div>
+                            <div class="row"><Phone size={12}/> {p.telefono || '-'}</div>
+                            <div class="row"><Mail size={12}/> {p.email || '-'}</div>
+                        </div>
+                    </div>
+                {:else}<button class="btn-select" on:click={() => abrirModal('baut')}>Seleccionar...</button>{/if}
+            </div>
+            
+            <div class="role-wrapper">
+                <span class="label-rol">Auxiliar del Superintendente de Bautismo</span>
+                {#if getDetalles(c.baut_a)}
+                    {@const p = getDetalles(c.baut_a)}
+                    <div class="tarjeta">
+                        <div class="card-top">
+                            <div class="avatar"><User size={20}/></div>
+                            <div class="info"><span class="t-nombre">{p.nombre_completo}</span><span class="t-priv">{p.privilegios || '-'}</span></div>
+                            <button class="btn-x" on:click={() => quitar('baut_a')}><X size={16}/></button>
+                        </div>
+                        <div class="card-bottom">
+                            <div class="row"><MapPin size={12}/> {p.nombre_congregacion || '-'}</div>
+                            <div class="row"><Phone size={12}/> {p.telefono || '-'}</div>
+                            <div class="row"><Mail size={12}/> {p.email || '-'}</div>
+                        </div>
+                    </div>
+                {:else}<button class="btn-select" on:click={() => abrirModal('baut_a')}>Seleccionar...</button>{/if}
             </div>
         </div>
     </div>
@@ -605,4 +655,13 @@
   .botones-form { display: flex; gap: 10px; margin-top: 5px; }
   .btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
   .btn-cancelar { flex: 1; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .titulo-separador {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main); /* 👈 Ahora usará tu color de texto principal (negro) */
+    margin: 40px 0 20px 0; 
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color); 
+    width: 100%;
+}
 </style>
