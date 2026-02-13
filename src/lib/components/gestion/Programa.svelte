@@ -728,33 +728,32 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
     </div>
 
     <div class="header-sesion">
-      <div class="header-sesion-left">
-        <h2>Programa - {diaSeleccionado}</h2>
-        <button class="btn-header-orange" on:click={enviarJWPUBATodos} title="Enviar a todos los oradores de los 3 días">
-          <FileJson size={18}/> <span>JWPUB a Todos</span>
-        </button>
-      </div>
-      <div class="acciones-header">
+  <div class="header-sesion-left">
+    <h2>Programa - {diaSeleccionado}</h2>
+    
+    <button class="btn-header-orange" on:click={enviarJWPUBATodos} title="Enviar JWPUB a todos los oradores">
+      <FileJson size={18}/> <span>JWPUB a Todos</span>
+    </button>
+  </div>
+  
+  <div class="acciones-header">
+    <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
+      <FileSpreadsheet size={18}/> <span>Importar</span>
+    </button>
 
-        <button class="btn-header-csv" on:click={importarPrograma} title="Importar desde JW (CSV)">
-          <FileSpreadsheet size={18}/> <span>Importar</span>
-        </button>
+    <button class="btn-header-pdf" on:click={() => exportarProgramaPDF(partes, diaSeleccionado)} title="Exportar lista de discursos a PDF">
+        <FileUp size={18}/> <span>PDF</span>
+    </button>
 
-        <button class="btn-header-pdf" 
-                title="Exportar lista de discursos a PDF"
-                on:click={() => exportarProgramaPDF(partes, diaSeleccionado)}>
-            <FileUp size={18}/> 
-            <span>PDF</span>
-        </button>
-
-        <button class="btn-header-delete" on:click={limpiarTodo} title="Borrar todo el programa">
-          <Trash2 size={18}/> <span>Limpiar</span>
-        </button>
-        <button class="btn-primary" on:click={() => mostrarModalCrear = true}>
-          <Plus size={18}/> <span>Agregar</span>
-        </button>
-      </div>
-    </div>
+    <button class="btn-header-delete" on:click={limpiarTodo} title="Borrar todo el programa del día">
+      <Trash2 size={18}/> <span>Limpiar</span>
+    </button>
+    
+    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
+      <Plus size={18}/> <span>Agregar</span>
+    </button>
+  </div>
+</div>
 
     <div class="lista-partes">
       {#if partes.length === 0}
