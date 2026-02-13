@@ -253,7 +253,7 @@
                                     <button class="btn-template-action"><Upload size={14}/> Exportar plantilla</button>
                                     <button class="btn-template-action"><Download size={14}/> Importar plantilla</button>
                                 </div>
-                                <button class="btn-template-action right"><RefreshCw size={14}/> Restablecer a los valores predeterminados</button>
+                                <button class="btn-template-action right"><RefreshCw size={14}/> Restablecer valores </button>
                             </div>
                         </div>
                     {/if}
@@ -428,10 +428,46 @@
   .preview-textarea :global(p) {
       margin-bottom: 0.8em;
   }
-  .btn-template-action { background: #5f1d22; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; display: flex; gap: 5px; }
-  .group-center { display: flex; gap: 10px; }
-  .template-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+  /* --- ESTILOS RESPONSIVOS PARA BOTONES DE PLANTILLA --- */
 
+.template-actions { 
+    display: flex; 
+    flex-wrap: wrap; /* LA CLAVE: Permite que los botones bajen a otra línea si no caben */
+    gap: 15px;       /* Espacio uniforme entre todos los botones/grupos */
+    align-items: center; 
+    margin-top: 20px; 
+    width: 100%;
+}
+
+.group-center { 
+    display: flex; 
+    flex-wrap: wrap; /* Permite que Exportar/Importar también se separen si la pantalla es minúscula */
+    gap: 10px; 
+    flex: 1 1 auto;  /* Permite que el grupo ocupe el espacio flexible del medio */
+    justify-content: center;
+}
+
+.btn-template-action { 
+    background: #5f1d22; 
+    color: white; 
+    border: none; 
+    padding: 8px 16px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; /* Centra el texto y el icono */
+    gap: 8px; 
+    white-space: nowrap; /* Evita que el texto del botón se parta en dos líneas (ej: "Restablecer /n valores") */
+    flex: 1 1 auto;      /* LA MAGIA: Hace que el botón se estire y llene los huecos vacíos */
+}
+  .group-center { 
+    display: flex; 
+    flex-wrap: wrap; /* Permite que Exportar/Importar también se separen si la pantalla es minúscula */
+    gap: 10px; 
+    flex: 1 1 auto;  /* Permite que el grupo ocupe el espacio flexible del medio */
+    justify-content: center;
+}
   /* --- ESTILOS DEL EDITOR (MODO EDICIÓN) --- */
   
   /* Layout Principal más alto para evitar el "amontonado" */
