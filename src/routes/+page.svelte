@@ -464,46 +464,96 @@
   /* DASHBOARD */
   .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
   .section-header { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 20px; text-transform: uppercase; }
-  .grid-asambleas { display: flex; flex-direction: column; gap: 20px; }
+  .grid-asambleas {
+    display: grid;
+    /* Crea dos columnas si hay espacio, o una si la pantalla es pequeña */
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+    gap: 20px;
+    /* Limitamos la altura para que no se pierdan hacia abajo */
+    max-height: 65vh; 
+    overflow-y: auto;
+    padding: 10px 15px 10px 5px; /* Espacio para que no se corte la sombra */
+}
+
+/* Estilo para que el scroll de la lista sea discreto */
+.grid-asambleas::-webkit-scrollbar {
+    width: 6px;
+}
+.grid-asambleas::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
   
   /* Tarjetas y Elementos */
   .card-hero { 
     background: linear-gradient(135deg, var(--primary) 0%, #005a9e 100%); 
-    
-    /* CAMBIO 1: Padding asimétrico. 
-       50px arriba (espacio para el botón) y 30px en el resto */
-    padding: 50px 30px 30px 30px; 
-    
+    padding: 40px 25px 25px 25px; /* Reducimos un poco el padding */
     border-radius: 20px; 
     color: white; 
     cursor: pointer; 
-    box-shadow: 0 20px 25px -5px rgba(0, 120, 212, 0.2); 
-    transition: transform 0.2s; 
+    box-shadow: 0 10px 20px var(--shadow-color); 
+    transition: transform 0.2s, box-shadow 0.2s; 
     position: relative; 
-    overflow: hidden; 
+    overflow: hidden;
+    min-height: 200px; /* Altura controlada */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
+
+.card-hero h2 { 
+    font-size: 20px; /* Bajamos de 24px a 20px para que no rompa en dos columnas */
+    margin: 5px 0 10px 0; 
+    line-height: 1.2; 
+    font-weight: 700;
+}
+
   .card-hero:hover { transform: translateY(-5px); }
-  .status-pill { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
-  .card-hero h2 { font-size: 24px; margin: 10px 0 15px 0; line-height: 1.2; }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    margin-top: 15px; /* 👈 Espacio para que el botón de arriba respire */
+    display: flex;
+    flex-direction: column;
+}
+
+.status-pill { 
+    background: rgba(255,255,255,0.2); 
+    padding: 4px 12px; 
+    border-radius: 20px; 
+    font-size: 11px; 
+    font-weight: 700; 
+    margin-bottom: 5px; 
+    align-self: flex-start; /* Asegura que se alinee a la izquierda */
+}
+  
   .hero-details { display: flex; flex-direction: column; gap: 8px; opacity: 0.9; font-size: 14px; }
   .hero-details span { display: flex; align-items: center; gap: 8px; }
   .btn-manage { margin-top: 25px; background: white; color: var(--primary); border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; width: 100%; }
   .btn-trash { 
     position: absolute; 
-    top: 15px;     /* Pegado arriba */
-    right: 15px;   /* Pegado a la derecha */
+    top: 12px; 
+    left: 12px; /* 👈 Cambiado de 'right' a 'left' */
+    right: auto; 
     
-    background: rgba(0,0,0,0.2); 
+    background: #ef4444; /* Rojo desde el inicio para que se vea claro */
     border: none; 
     color: white; 
-    padding: 8px; 
-    border-radius: 8px; 
+    padding: 6px; 
+    border-radius: 6px; 
     cursor: pointer; 
-    opacity: 0; 
+    opacity: 0.8; 
     transition: all 0.2s; 
     z-index: 10; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-  .card-hero:hover .btn-trash { opacity: 1; } .btn-trash:hover { background: #ef4444; }
+
+.card-hero:hover .btn-trash { 
+    opacity: 1; 
+    transform: scale(1.1); 
+}
   
   .empty-state { border: 2px dashed var(--border-color); border-radius: 20px; padding: 40px; text-align: center; color: var(--text-secondary); }
   .empty-state button { margin-top: 10px; padding: 8px 16px; background: var(--bg-secondary); border: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: var(--text-secondary); }
@@ -561,17 +611,21 @@
 
   .card-logo-bg {
     position: absolute;
-    top: 15px;
-    right: 15px;        /* Un poco hacia afuera para efecto dinámico */
+    top: 15px;    /* 👈 Ubicado arriba */
+    right: 15px;  /* 👈 Ubicado a la derecha */
     color: white;
-    opacity: 0.7;       /* Transparencia sutil */
-    pointer-events: none; /* Inclinado */
+    opacity: 0.70;
+    transform: scale(0.65); 
+    pointer-events: none; 
     z-index: 0;
 }
 
 /* Asegura que el contenido quede encima del icono */
-.hero-content, .btn-manage, .btn-trash {
+.hero-content {
     position: relative;
     z-index: 1;
+    margin-top: 15px; /* 👈 Espacio para que el botón de arriba respire */
+    display: flex;
+    flex-direction: column;
 }
 </style>
