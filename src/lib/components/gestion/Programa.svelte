@@ -1342,12 +1342,28 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 
 .header-sesion { 
   padding: 15px 20px; 
-  display: flex; justify-content: space-between; align-items: center; 
-  border-bottom: 1px solid var(--border-color); gap: 15px; 
-  background: var(--bg-card); /* Fondo tarjeta */
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  flex-wrap: wrap; /* 👈 LA CLAVE 1: Permite bajar de línea */
+  border-bottom: 1px solid var(--border-color); 
+  gap: 15px; 
+  background: var(--bg-card); 
 }
-.header-sesion h2 { margin: 0; font-size: 18px; color: var(--text-main); }
-.header-sesion-left { display: flex; align-items: center; gap: 12px; }
+
+.header-sesion h2 { 
+  margin: 0; 
+  font-size: 18px; 
+  color: var(--text-main); 
+  white-space: nowrap; /* 👈 Evita que el título se parta en dos líneas */
+}
+
+.header-sesion-left { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  flex-wrap: wrap; /* 👈 Permite que el botón JWPUB baje si es necesario */
+}
 
 /* Tabs */
 .tabs { display: flex; background: var(--bg-body); border-bottom: 1px solid var(--border-color); }
@@ -1452,7 +1468,18 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 .badge-dark { background: var(--primary); color: white; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; }
 
 /* Botones Cabecera */
-.acciones-header { display: flex; gap: 10px; }
+.acciones-header { 
+  display: flex; 
+  gap: 10px; 
+  align-items: center;
+  flex-wrap: wrap; /* 👈 LA CLAVE 2: Los botones saltan de línea como Tetris */
+}
+
+/* 👈 Protegemos los textos de TODOS los botones del header para que no se rompan */
+.header-sesion button {
+  white-space: nowrap; 
+}
+
 .btn-header-orange { background: var(--bg-card); border: 1px solid #f97316; color: #f97316; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
 .btn-header-orange:hover { background: rgba(249, 115, 22, 0.1); }
 .btn-header-csv { background: var(--bg-card); border: 1px solid #10b981; color: #10b981; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
@@ -1631,5 +1658,23 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 .btn-header-pdf:active {
   transform: translateY(0);
   background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* ==========================================================================
+   RESPONSIVIDAD: MODO COMPACTO PARA BOTONES DE PROGRAMA
+   ========================================================================== */
+@media (max-width: 850px) {
+  /* Ocultamos las palabras (Importar, Limpiar, PDF, etc.) */
+  .header-sesion-left button span,
+  .acciones-header button span {
+      display: none; 
+  }
+  
+  /* Convertimos los botones en cuadrados perfectos centrando el icono */
+  .header-sesion-left button,
+  .acciones-header button {
+      padding: 8px 10px; 
+      justify-content: center;
+  }
 }
 </style>
