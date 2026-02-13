@@ -1688,24 +1688,61 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 }
 
 /* ==========================================================================
-   RESPONSIVIDAD: MÓVILES Y TABLETAS (Paneles ajustados)
+   RESPONSIVIDAD: MÓVILES Y TABLETAS (Un solo scroll maestro)
    ========================================================================== */
 @media (max-width: 900px) {
+  
+  /* 1. EL CONTENEDOR PRINCIPAL: Le quitamos el límite de altura */
   .layout-programa {
-    /* Una sola columna que ocupa el 100% del ancho */
-    grid-template-columns: 1fr; 
-    
-    /* LA MAGIA DEL REPARTO VERTICAL: 
-       - Fila 1 (Oficina): 220px de alto (Suficiente para ver el buscador y 1-2 campos).
-       - Fila 2 (Discursos): 1fr (Se queda con tooooodo el espacio restante). */
-    grid-template-rows: 220px 1fr; 
-    
-    gap: 12px; /* Reducimos un poquito el hueco entre los dos paneles para ganar espacio */
+    display: flex;
+    flex-direction: column;
+    height: auto;       /* 👈 LA CLAVE: Permite que crezca infinitamente hacia abajo */
+    overflow: visible;  /* 👈 Apaga su scroll interno */
+    gap: 15px;
+    padding-bottom: 20px;
   }
 
+  /* 2. PANEL DE OFICINA: Crecimiento libre y sin scroll */
   .panel-oficina.dark-theme {
-    max-height: none; /* Quitamos el 350px, ahora el Grid es quien manda */
-    margin-bottom: 0; 
+    height: auto;     
+    max-height: none; 
+    overflow: visible; /* 👈 Apaga el scroll de la tarjeta */
+    width: 100%;       
+    margin-bottom: 0;
+  }
+  
+  .contenido-oficina {
+    height: auto;
+    overflow: visible; /* 👈 Apaga el scroll de la lista de oradores */
+  }
+
+  /* 3. PANEL DE DISCURSOS: Crecimiento libre y sin scroll */
+  .panel-discursos {
+    height: auto;
+    overflow: visible; /* 👈 Apaga el scroll de la tarjeta */
+    width: 100%;       
+  }
+  
+  .lista-partes {
+    height: auto;
+    overflow: visible; /* 👈 Apaga el scroll de la lista de discursos */
+    padding-bottom: 20px; 
+  }
+
+  /* 4. PROTECCIÓN HORIZONTAL PARA BOTONES Y PESTAÑAS */
+  .tabs {
+    flex-wrap: wrap; 
+  }
+  
+  .tabs button {
+    padding: 12px 5px; 
+    font-size: 13px;   
+  }
+
+  .btn-select-dark,
+  .item-personal {
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 </style>
