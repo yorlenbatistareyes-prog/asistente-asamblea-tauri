@@ -1214,10 +1214,20 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
    ========================================================================== */
 .layout-programa { 
   display: grid; 
-  grid-template-columns: 280px 1fr; 
+  /* LA MAGIA: La columna izquierda mide 280px, la derecha mide el resto (1fr), 
+     PERO nunca podrá medir menos de 450px. */
+  grid-template-columns: 280px minmax(450px, 1fr); 
   gap: 20px; 
   height: 100%; 
-  overflow: hidden; 
+  
+  /* Permite que aparezca la barra de scroll horizontal abajo si la ventana es muy pequeña */
+  overflow-x: auto; 
+  
+  /* Mantiene oculto el scroll vertical general, ya que cada panel tiene el suyo interno */
+  overflow-y: hidden; 
+  
+  /* Un pequeño padding abajo para que la barra de desplazamiento no tape el borde de las tarjetas */
+  padding-bottom: 8px; 
 }
 
 /* ==========================================================================
