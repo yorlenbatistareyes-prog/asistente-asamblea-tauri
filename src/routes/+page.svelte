@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { ask } from "@tauri-apps/plugin-dialog";
   import { goto } from '$app/navigation';
   import { 
     Plus, MapPin, Calendar, Briefcase, Trash2,
@@ -12,7 +13,7 @@
   // --- IMPORTACIÓN DE COMPONENTES ---
   import Correspondencia from '$lib/components/gestion/Correspondencia.svelte';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
-
+ 
   // --- ESTADO ---
   let vistaActual = 'inicio';
   let seccionCorrespondencia = 'oradores'; 
@@ -163,11 +164,31 @@
   }
 
   async function eliminarAsamblea(id: number, e: Event) {
+    // Evita que se abra la asamblea al intentar borrarla
     e.stopPropagation(); 
-    if (confirm("¿Seguro que quieres eliminar esta asamblea?")) {
-      try { await invoke('eliminar_asamblea', { id }); cargarDatos(); } catch (err) { alert(err); }
+
+    // 1. Llamamos a la ventana nativa (ask)
+    const confirmar = await ask(
+    '¿Estás seguro de que deseas eliminar esta asamblea? Esta acción es permanente.', 
+    { 
+        title: 'Confirmar Eliminación', 
+        kind: 'warning', // 👈 Cambia 'type' por 'kind' aquí
+        okLabel: 'Eliminar',
+        cancelLabel: 'Cancelar'
     }
-  }
+);
+
+    // 2. Si el usuario confirma (da clic en el botón de confirmación)
+    if (confirmar) {
+        try { 
+            await invoke('eliminar_asamblea', { id }); 
+            // Recargamos la lista para que la tarjeta desaparezca
+            await cargarDatos(); 
+        } catch (err) { 
+            alert("Error al eliminar: " + err); 
+        }
+    }
+}
 
   // NAVEGACIÓN
   function irAGestionar(item: any) {
