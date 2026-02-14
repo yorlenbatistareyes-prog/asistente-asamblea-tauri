@@ -7,7 +7,7 @@
     Plus, MapPin, Calendar, Briefcase, Trash2,
     Mail, Mic, UserCheck, MessageSquare, ChevronRight, Settings, X, Building, Map, LayoutGrid,
     User, Users, Clock,
-    Sun, Moon, Monitor, Lectern // Iconos para el tema
+    Sun, Moon, Monitor, Lectern, Activity // Iconos para el tema
   } from 'lucide-svelte';
   
   // --- IMPORTACIÓN DE COMPONENTES ---
@@ -417,24 +417,35 @@ async function cargarDatos() {
     <div class="status-left">
         <div class="connection-status">
             <span class="dot pulse"></span>
-            <span>Sistema Conectado (Rust/Tauri)</span>
+            <span class="status-label">Sistema Conectado <strong class="tech-stack">(Rust/Tauri)</strong></span>
         </div>
+        
         <span class="separator">|</span>
+        
         <div class="user-status">
-            <User size={14} />
+            <User size={18} />
             <span>Usuario: <strong>{nombreUsuario || 'Invitado'}</strong></span>
         </div>
     </div>
 
+    <div class="status-center">
+        <span>Construido y diseñado para Presidentes de Asambleas Regionales</span>
+    </div>
+
     <div class="status-right">
         <div class="stat-item">
-            <Lectern size={14} />
-            <span>Total Asambleas: <strong>{listaAsambleas.length}</strong></span>
+            <Lectern size={18} />
+            <span>Asambleas: <strong>{listaAsambleas.length}</strong></span>
         </div>
+        
         <span class="separator">|</span>
-        <span class="app-version">v1.0.4</span>
+        
+        <div class="version-info">
+             <Activity size={16} />
+             <span class="app-version">v1.0.4</span>
+        </div>
     </div>
-  </footer>
+</footer>
 </div>
 
 <style>
@@ -750,24 +761,52 @@ async function cargarDatos() {
       bottom: 0;
       left: 0;
       right: 0;
-      height: 30px;
-      background: #0f172a; /* Azul marino profundo casi negro */
+      height: 35px;
+      background-color: #1e293b; /* Azul marino profundo casi negro */
       color: #94a3b8;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 25px;
-      font-size: 11px;
+      padding: 0 15px;
+      font-size: 14px;
       z-index: 1000;
       border-top: 1px solid rgba(255, 255, 255, 0.05);
       box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      font-family: system-ui, -apple-system, sans-serif;
   }
+
+  /* Para la versión y etiquetas secundarias */
+.status-bar span {
+  color: rgba(255, 255, 255, 0.9); /* Un blanco más sólido */
+}
 
   .status-left, .status-right {
       display: flex;
       align-items: center;
       gap: 15px;
+      flex: 1.5;
   }
+
+  .status-right {
+    justify-content: flex-end; /* Empuja el reloj y versión a la derecha */
+}
+
+.status-center {
+    flex: 2;
+    text-align: center;
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
+
+  .user-status, .stat-item, .version-info {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Espacio entre icono y texto */
+}
 
   .connection-status {
       display: flex;
@@ -794,11 +833,59 @@ async function cargarDatos() {
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
   }
 
-  .separator { color: #334155; }
-  .status-bar strong { color: #f1f5f9; }
+  .separator {
+    margin: 0 10px;
+    opacity: 0.3;
+    font-weight: 300;
+}
+
+  .status-bar strong {
+  color: #ffffff;
+  font-weight: 700;
+  margin-left: 4px;
+}
 
   /* Ajuste de iconos para que no brillen demasiado */
   :global(.status-bar svg) {
       opacity: 0.7;
   }
+
+  .connection-status strong {
+    color: #4ade80; /* Un verde vibrante pero profesional */
+    font-weight: 600;
+    margin-left: 5px;
+}
+
+.status-center span {
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    /* Al ser un texto largo, un tamaño ligeramente menor ayuda a que no se vea apretado */
+    font-size: 12.5px; 
+}
+
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Espacio entre el grupo de conexión y el de usuario */
+    flex: 1.5;
+}
+
+.connection-group, .user-group {
+    display: flex;
+    flex-direction: row; /* Fuerza a que el texto y el icono estén al lado */
+    align-items: center;
+    white-space: nowrap; /* Prohíbe que el texto salte a una segunda línea */
+    gap: 8px;
+}
+
+.tech-stack {
+    color: #4ade80; /* El verde que ya tienes */
+    margin-left: 6px; /* Separación del texto "Sistema Conectado" */
+    font-weight: 600;
+}
+
+.status-label {
+    display: inline-flex; /* Permite que el contenido se comporte como texto corrido */
+    align-items: center;
+}
 </style>
