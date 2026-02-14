@@ -1,6 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { guiaUsuario } from '$lib/data/ayuda';
+  import { getVersion } from '@tauri-apps/api/app';
+  import { onMount } from 'svelte';
   
   // --- COMPONENTES HIJOS ---
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
@@ -9,7 +11,7 @@
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
     ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, Upload, Download, Trash2, HelpCircle,
-    ChevronUp, ChevronDown, X 
+    ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity 
   } from 'lucide-svelte';
 
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
@@ -19,6 +21,8 @@
   
   // ESTADO: ¿Hay un editor abierto en pantalla completa en alguno de los hijos?
   let editorAbierto = false; 
+
+  let versionReal = "Cargando...";
 
   function cerrar() { dispatch('close'); }
   
@@ -55,12 +59,17 @@
   let mostrarModalUsuario = false;
   let usuarioEditando = { ...usuario }; 
   
+  
   function guardarCambiosConfig() { alert("Configuración guardada"); }
   function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
   function guardarUsuario() { usuario = { ...usuarioEditando }; mostrarModalUsuario = false; }
   async function respaldarDatos() { alert("Respaldando..."); }
   async function restaurarDatos() { alert("Restaurando..."); }
   async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }
+
+  onMount(async () => {
+    versionReal = await getVersion();
+  });
 </script>
 
 <div class="config-layout">
@@ -77,7 +86,31 @@
             <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}><Database size={18}/> Datos</button>
             <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}><CircleHelp size={18}/> Ayuda</button>
         </nav>
-        <div class="config-footer"><span>Versión 2.1.0</span></div>
+
+        <div class="config-footer">
+            <div class="sidebar-about-card">
+                <div class="about-header">
+                    <Info size={16} color="#0f172a" strokeWidth={2.5} /> 
+                    <span>Información del Software</span>
+                </div>
+                
+                <div class="about-row">
+                    <span class="about-label">Versión:</span>
+                    <span class="about-value">v{versionReal}</span>
+                </div>
+                
+                <div class="about-row">
+                    <span class="about-label">Tecnología:</span>
+                    <span class="about-value tech-tag">Rust + Tauri</span>
+                </div>
+
+                <div class="nav-divider-mini"></div>
+                
+                <p class="about-disclaimer">
+                    Construido y diseñado para Presidentes de Asambleas Regionales
+                </p>
+            </div>
+        </div>
     </aside>
 
     <main class="config-content">
@@ -246,7 +279,7 @@
 .config-layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; background: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', sans-serif; }
 
 /* Sidebar y Header */
-.config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; }
+.config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; display: flex; flex-direction: column; height: 100vh;}
 .config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
 .config-header h2 { margin: 15px 0 0; font-size: 1.2rem; }
 .btn-back-config { background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
@@ -255,7 +288,11 @@
 .config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
 .config-nav button:hover { background: var(--hover-bg); color: var(--text-main); }
 .config-nav button.active { background: var(--primary); color: white; font-weight: 600; }
-.config-footer { padding: 20px; font-size: 11px; color: var(--text-secondary); text-align: center; }
+.config-footer {
+    padding: 20px 15px;
+    margin-top: auto; /* Esto lo empuja al fondo del aside */
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
 
 /* Content */
 .config-content { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-body); }
@@ -349,5 +386,143 @@ input:checked + .slider:before { transform: translateX(20px); }
     max-height: 400px; /* Por si la lista crece mucho, permite hacer scroll */
     overflow-y: auto;
     padding-right: 5px;
+}
+
+.about-system-section {
+    margin-top: 50px;
+    padding-bottom: 20px;
+}
+
+.about-card {
+    background: rgba(255, 255, 255, 0.03); /* Fondo muy sutil */
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.about-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Cambiamos a un color más oscuro y sólido */
+    color: #475569; 
+    font-size: 11px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 800; /* Más negrita para que resalte */
+}
+
+.about-header span {
+    color: #1e293b; /* Casi negro para máxima legibilidad */
+}
+
+.about-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.about-label {
+    color: #64748b;
+}
+
+.about-value {
+    color: #f8fafc;
+    font-weight: 600;
+}
+
+.tech-badge {
+    color: #4ade80; /* Verde igual al de la barra de estado */
+}
+
+.about-disclaimer {
+    font-size: 10px;
+    line-height: 1.4; /* Un poco más de espacio entre líneas */
+    color: rgba(255, 255, 255, 0.5); /* Subimos la opacidad para que sea legible en Cuba */
+    text-align: center;
+    margin-top: 8px;
+}
+
+.version-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.build-text {
+    margin-top: 4px;
+    font-size: 10px;
+    color: #4ade80; /* El verde que usamos para el sistema conectado */
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding-left: 22px; /* Alineado con el texto de la versión */
+}
+
+.config-footer {
+    margin-top: auto; /* Empuja todo al final del lateral */
+    padding: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sidebar-about-card {
+    background: rgba(0, 0, 0, 0.06); 
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 12px;
+    padding: 18px;
+    margin: 20px 15px;
+}
+
+.about-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.about-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.about-label { 
+    color: #64748b; /* Gris oscuro para las etiquetas */
+}
+
+.about-value { 
+    color: #1e293b; /* Azul casi negro para que resalte la versión */
+    font-weight: 600; 
+}
+
+.tech-tag { 
+    color: #059669; /* Un verde esmeralda más serio y legible */
+    font-weight: 700;
+}/* El verde que te gusta */
+
+.nav-divider-mini {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 10px 0;
+}
+
+.about-disclaimer {
+    margin-top: 12px;
+    font-size: 11px; /* Un poco más grande para facilitar la lectura */
+    line-height: 1.4;
+    color: #64748b; 
+    text-align: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding-top: 10px;
 }
 </style>
