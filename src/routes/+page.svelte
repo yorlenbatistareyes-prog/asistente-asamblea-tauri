@@ -330,18 +330,18 @@ async function cargarDatos() {
     </div>
 
     {#if mostrarModalAsamblea}
-      <div class="modal-backdrop" on:click|self={() => mostrarModalAsamblea = false}>
-        <div class="modal-content">
+      <div class="modal-backdrop" role="presentation" on:click|self={() => mostrarModalAsamblea = false} on:keydown={(e) => e.key === 'Escape' && (mostrarModalAsamblea = false)}>
+        <div class="modal-content" role="dialog" aria-modal="true">
           <div class="modal-header"><h3>Nueva Asamblea</h3><button class="btn-close" on:click={() => mostrarModalAsamblea = false}><X size={20}/></button></div>
           <div class="modal-body">
             
-            <label>Identificador</label><input type="text" placeholder="Ej: Holguín 2026" bind:value={nuevaAsamblea.identificador} />
+            <label for="input-id">Identificador</label><input id="input-id" type="text" placeholder="Ej: Holguín 2026" bind:value={nuevaAsamblea.identificador} />
             
-            <label>Tema de la Asamblea</label><input type="text" placeholder="Ej: ¡Prediquemos...!" bind:value={nuevaAsamblea.tema} />
-            <label>Fecha</label><input type="text" placeholder="Ej: 25-27 de Julio" bind:value={nuevaAsamblea.fecha} />
-            <label>Lugar / Salón</label>
+            <label for="input-tema">Tema de la Asamblea</label><input id="input-tema" type="text" placeholder="Ej: ¡Prediquemos...!" bind:value={nuevaAsamblea.tema} />
+            <label for="input-fecha">Fecha</label><input id="input-fecha" type="text" placeholder="Ej: 25-27 de Julio" bind:value={nuevaAsamblea.fecha} />
+            <label for="select-local">Lugar / Salón</label>
             <div class="select-wrapper">
-                <select bind:value={nuevaAsamblea.local_id}>
+                <select id="select-local" bind:value={nuevaAsamblea.local_id}>
                     <option value={null}>-- Seleccionar Salón --</option>
                     {#each listaLocales as l}<option value={l.id}>{l.nombre}</option>{/each}
                 </select>
@@ -354,8 +354,8 @@ async function cargarDatos() {
     {/if}
 
     {#if mostrarModalLocales}
-  <div class="modal-backdrop" on:click|self={() => mostrarModalLocales = false}>
-    <div class="modal-content large">
+  <div class="modal-backdrop" role="presentation" on:click|self={() => mostrarModalLocales = false} on:keydown={(e) => e.key === 'Escape' && (mostrarModalLocales = false)}>
+    <div class="modal-content large" role="dialog" aria-modal="true">
       
       <div class="modal-header">
         <h3><Building size={20} style="margin-right:8px"/> Gestionar Salones</h3>
@@ -364,11 +364,11 @@ async function cargarDatos() {
       
       <div class="modal-body">
         <div class="form-local-grid">
-            <div class="input-group full-width"><label>Nombre del Lugar</label><input type="text" bind:value={nuevoLocal.nombre}/></div>
-            <div class="input-group full-width"><label>Dirección</label><input type="text" bind:value={nuevoLocal.direccion}/></div>
-            <div class="input-group"><label>Ciudad</label><input type="text" bind:value={nuevoLocal.ciudad}/></div>
-            <div class="input-group"><label>Estado / Provincia</label><input type="text" bind:value={nuevoLocal.estado}/></div>
-            <div class="input-group"><label>Capacidad</label><input type="number" bind:value={nuevoLocal.capacidad} min="0"/></div>
+            <div class="input-group full-width"><label for="input-nombre">Nombre del Lugar</label><input id="input-nombre" type="text" bind:value={nuevoLocal.nombre}/></div>
+            <div class="input-group full-width"><label for="input-dir">Dirección</label><input id="input-dir" type="text" bind:value={nuevoLocal.direccion}/></div>
+            <div class="input-group"><label for="input-ciudad">Ciudad</label><input id="input-ciudad" type="text" bind:value={nuevoLocal.ciudad}/></div>
+            <div class="input-group"><label for="input-estado">Estado / Provincia</label><input id="input-estado" type="text" bind:value={nuevoLocal.estado}/></div>
+            <div class="input-group"><label for="input-capacidad">Capacidad</label><input id="input-capacidad" type="number" bind:value={nuevoLocal.capacidad} min="0"/></div>
             <div class="action-area"><button class="btn-confirm-small" on:click={guardarLocal}><Plus size={16}/> Guardar Salón</button></div>
         </div>
         
@@ -384,21 +384,21 @@ async function cargarDatos() {
                         <div class="grid-detalles-local" style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
                             
                             <div class="detalle-fila" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary, #6b7280);">
-                                <MapPin size={13} class="icon-gris"/> 
+                                <MapPin size={13} class="icon-detail"/> 
                                 <span>{l.direccion || 'Sin dirección'}</span>
                             </div>
 
                             <div class="detalle-fila" style="display: flex; align-items: center; gap: 15px; font-size: 12px; color: var(--text-secondary, #6b7280);">
                                 {#if l.ciudad || l.estado}
                                     <span>
-                                      <Map size={13} class="icon-gris"/>
+                                      <Map size={13} class="icon-detail"/>
                                         {l.ciudad || ''}{l.ciudad && l.estado ? ', ' : ''}{l.estado || ''}
                                     </span>
                                 {/if}
                                 
                                 {#if l.capacidad && l.capacidad > 0}
                                     <span> 
-                                      <Users size={13} class="icon-gris"/>
+                                      <Users size={13} class="icon-detail"/>
                                         Capacidad: <strong>{l.capacidad}</strong>
                                     </span>
                                 {/if}
@@ -532,8 +532,7 @@ async function cargarDatos() {
       border: 1px solid var(--border-color); 
   }
   .digital-clock { font-size: 20px; font-weight: 700; color: var(--text-main); font-family: 'Segoe UI', monospace; letter-spacing: 1px; }
-  .clock-icon { color: var(--primary); }
-  
+
   .header-actions { display: flex; align-items: center; gap: 10px; }
   
   /* Botones adaptados al tema */
@@ -725,8 +724,6 @@ async function cargarDatos() {
   .icon-box { width: 40px; height: 40px; background: var(--bg-secondary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); flex-shrink: 0; }
   .info-local { flex: 1; display: flex; flex-direction: column; gap: 4px; } .nombre-local { font-size: 15px; color: var(--text-main); margin-bottom: 2px; }
   .detalle-fila { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .icon-gris { color: var(--text-secondary); flex-shrink: 0; }
-  .text-cap { font-weight: 600; color: #0284c7; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
   
   .btn-trash-mini { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 8px; border-radius: 6px; transition: all 0.2s; height: fit-content; } 
   .btn-trash-mini:hover { background: #fee2e2; color: #ef4444; }
@@ -889,14 +886,6 @@ async function cargarDatos() {
     align-items: center;
     gap: 15px; /* Espacio entre el grupo de conexión y el de usuario */
     flex: 1.5;
-}
-
-.connection-group, .user-group {
-    display: flex;
-    flex-direction: row; /* Fuerza a que el texto y el icono estén al lado */
-    align-items: center;
-    white-space: nowrap; /* Prohíbe que el texto salte a una segunda línea */
-    gap: 8px;
 }
 
 .tech-stack {

@@ -1,7 +1,6 @@
 use chrono::Datelike;
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use tauri::{command, AppHandle};
 
@@ -58,6 +57,7 @@ struct FilaProgramaJW {
     #[serde(alias = "Teléfono móvil")]
     movil: Option<String>,
     #[serde(alias = "Teléfono fijo")]
+    #[allow(dead_code)]
     fijo: Option<String>,
     #[serde(alias = "Correo electrónico")]
     email: Option<String>,
