@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { setResumen, addNota, setNotas, totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, notasRapidas } from '$lib/stores/gestion';
   
   // --- TIPTAP Y EXTENSIONES ---
   import { Editor, Extension } from '@tiptap/core';
@@ -96,6 +97,13 @@
   let jwStreamStudio = false;
   let instruccionesEsp = ""; 
 
+  // Campos para Resumen (entrada manual)
+  let resumenTotalAsistencia: number = 0;
+  let resumenBautismos: number = 0;
+  let resumenReportadas: number = 0;
+  let resumenTotalCongregaciones: number = 0;
+  let nuevaNotaTexto = '';
+
   // --- MODAL CREAR SALÓN ---
   let mostrarModalSalon = false;
   let nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
@@ -188,6 +196,26 @@
         
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
+        // Inicializar campos de resumen desde stores o localStorage
+        try {
+          const stored = localStorage.getItem('resumen');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            resumenTotalAsistencia = parsed.totalAsistencia || 0;
+            resumenBautismos = parsed.totalBautismos || 0;
+            resumenReportadas = parsed.congregacionesReportadas || 0;
+            resumenTotalCongregaciones = parsed.totalCongregaciones || 0;
+            if (parsed.notasRapidas) setNotas(parsed.notasRapidas);
+          } else {
+            // valores por defecto si no hay nada
+            resumenTotalAsistencia = 1250;
+            resumenBautismos = 12;
+            resumenReportadas = 8;
+            resumenTotalCongregaciones = 12;
+          }
+        } catch (e) {
+          // ignore
+        }
       }
       
       initEditors();
@@ -260,6 +288,22 @@
         ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
         recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
       });
+      // Actualizar resumen y persistir
+      const resumenPayload = {
+        totalAsistencia: Number(resumenTotalAsistencia) || 0,
+        totalBautismos: Number(resumenBautismos) || 0,
+        congregacionesReportadas: Number(resumenReportadas) || 0,
+        totalCongregaciones: Number(resumenTotalCongregaciones) || 0,
+      };
+      setResumen(resumenPayload);
+      // persistir todo en localStorage (incluye notas si ya existen)
+      const notas = (localStorage.getItem('notasRapidas')) ? JSON.parse(localStorage.getItem('notasRapidas') || '[]') : [];
+      try { localStorage.setItem('resumen', JSON.stringify({ ...resumenPayload, notasRapidas: notas })); } catch(e) {}
+      // Si hay nueva nota en el campo, añadirla
+      if (nuevaNotaTexto && nuevaNotaTexto.trim().length > 0) {
+        addNota(nuevaNotaTexto.trim());
+        nuevaNotaTexto = '';
+      }
       alert("✅ Configuración guardada correctamente");
     } catch (e) { alert("❌ Error al guardar: " + e); }
   }
@@ -278,7 +322,7 @@
         <label><Bookmark size={14}/> Identificador</label>
         <input type="text" bind:value={identificador} class="input-id" readonly />
       </div>
-      <div class="campo full"><label>Tema de la Asamblea</label><input type="text" bind:value={tema} class="input-big"/></div>
+      <div class="campo full"><label for="tema">Tema de la Asamblea</label><input id="tema" type="text" bind:value={tema} class="input-big"/></div>
       <div class="campo"><label><Calendar size={14}/> Fecha</label><input type="text" bind:value={fecha} /></div>
       
       <div class="campo">
@@ -305,6 +349,32 @@
       </div>
     </div>
 
+    <div class="formulario grid-2 border-bottom pb-20" style="margin-top:18px;">
+      <div class="campo">
+        <label for="resAsistencia">Asistencia Total</label>
+        <input id="resAsistencia" type="number" bind:value={resumenTotalAsistencia} min="0" />
+      </div>
+      <div class="campo">
+        <label for="resBautismos">Bautismos</label>
+        <input id="resBautismos" type="number" bind:value={resumenBautismos} min="0" />
+      </div>
+      <div class="campo">
+        <label for="resReportes">Reportes Recibidos</label>
+        <input id="resReportes" type="number" bind:value={resumenReportadas} min="0" />
+      </div>
+      <div class="campo">
+        <label for="resTotalCong">Total Congregaciones</label>
+        <input id="resTotalCong" type="number" bind:value={resumenTotalCongregaciones} min="0" />
+      </div>
+      <div class="campo full">
+        <label for="nuevaNotaTexto">Agregar Nota Rápida</label>
+        <div style="display:flex; gap:8px;">
+          <input id="nuevaNotaTexto" placeholder="Escribe una nota rápida..." bind:value={nuevaNotaTexto} />
+          <button class="btn-sm" on:click={() => { if (nuevaNotaTexto && nuevaNotaTexto.trim()) { addNota(nuevaNotaTexto.trim()); nuevaNotaTexto=''; } }}>Añadir</button>
+        </div>
+      </div>
+    </div>
+
     <div class="seccion-titulo mt-30">
         <Clock size={18} color="var(--primary)"/> 
         <h4>Programación de Ensayos</h4>
@@ -312,16 +382,16 @@
 
     <div class="grid-3 mb-15">
       <div class="campo">
-        <label>Lugar de Ensayo</label>
-        <select bind:value={ensayoLugar}>
+        <label for="ensayoLugar">Lugar de Ensayo</label>
+        <select id="ensayoLugar" bind:value={ensayoLugar}>
             <option value="">-- Seleccionar Lugar --</option>
             {#each locales as l}
                 <option value={l.nombre}>{l.nombre}</option>
             {/each}
         </select>
       </div>
-      <div class="campo"><label>Fecha de Ensayo</label><input type="date" bind:value={ensayoFecha} /></div>
-      <div class="campo"><label>Hora</label><input type="time" bind:value={ensayoHora} /></div>
+      <div class="campo"><label for="ensayoFecha">Fecha de Ensayo</label><input id="ensayoFecha" type="date" bind:value={ensayoFecha} /></div>
+      <div class="campo"><label for="ensayoHora">Hora</label><input id="ensayoHora" type="time" bind:value={ensayoHora} /></div>
     </div>
 
     <div class="editor-block">
@@ -396,7 +466,7 @@
     </div>
 
     <div class="editor-block">
-      <label>Información sobre orientaciones</label>
+      <div id="orientacionesLabel" style="font-weight:700; margin-bottom:8px; color:var(--text-secondary);">Información sobre orientaciones</div>
       <div class="tiptap-frame">
         {#if editorOrientaciones}
           <div class="toolbar">
@@ -457,7 +527,7 @@
              </div>
           </div>
         {/if}
-        <div bind:this={elementOrientaciones} class="editor-content"></div>
+        <div id="orientacionesEditor" aria-labelledby="orientacionesLabel" bind:this={elementOrientaciones} class="editor-content"></div>
       </div>
     </div>
 
@@ -479,9 +549,9 @@
         <div class="modal">
             <div class="modal-header"><h3>Nuevo Salón</h3><button on:click={() => mostrarModalSalon = false}><X size={18}/></button></div>
             <div class="modal-body">
-                <label>Nombre</label><input type="text" bind:value={nuevoSalon.nombre} placeholder="Ej: Salón Cotorro"/>
-                <label>Dirección</label><input type="text" bind:value={nuevoSalon.direccion} placeholder="Calle..."/>
-                <label>Capacidad</label><input type="number" bind:value={nuevoSalon.capacidad}/>
+                <label for="nuevoSalonNombre">Nombre</label><input id="nuevoSalonNombre" type="text" bind:value={nuevoSalon.nombre} placeholder="Ej: Salón Cotorro"/>
+                <label for="nuevoSalonDireccion">Dirección</label><input id="nuevoSalonDireccion" type="text" bind:value={nuevoSalon.direccion} placeholder="Calle..."/>
+                <label for="nuevoSalonCapacidad">Capacidad</label><input id="nuevoSalonCapacidad" type="number" bind:value={nuevoSalon.capacidad}/>
                 <button class="btn-create" on:click={guardarNuevoSalon}>Crear y Asignar</button>
             </div>
         </div>

@@ -29,6 +29,7 @@
   import Comite from '$lib/components/gestion/Comite.svelte';
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
+  import { setResumen } from '$lib/stores/gestion';
 
   // Controla qué sección vemos
   let seccionActiva = 'inicio';
@@ -42,6 +43,20 @@
     const data = localStorage.getItem('asambleaActiva');
     if (data) {
         asambleaActual = JSON.parse(data);
+    }
+    // Intentar inicializar los datos del resumen desde localStorage
+    const resumenRaw = localStorage.getItem('resumen');
+    if (resumenRaw) {
+      try {
+        const parsed = JSON.parse(resumenRaw);
+        setResumen(parsed);
+      } catch (e) {
+        // si falla parsing, cargamos valores por defecto
+        setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12, oradoresPendientes: [{ nombre: 'Hno. Pérez', tema: 'Discurso 1', estado: 'Pendiente' }, { nombre: 'Hno. González', tema: 'Simposio A', estado: 'Pendiente' }] });
+      }
+    } else {
+      // Valores por defecto para la primera carga
+      setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12, oradoresPendientes: [{ nombre: 'Hno. Pérez', tema: 'Discurso 1', estado: 'Pendiente' }, { nombre: 'Hno. González', tema: 'Simposio A', estado: 'Pendiente' }] });
     }
   });
 
@@ -213,11 +228,12 @@
       white-space: nowrap; /* CRUCIAL para el colapso */
   }
 
-  .icono-nav {
+    /* svelte-ignore css-unused-selector */
+    :global(.icono-nav) {
       min-width: 20px; /* Mantiene el icono cuadrado sin aplastarse */
       margin-right: 16px;
       flex-shrink: 0;
-  }
+    }
   
   .texto-menu {
       transition: opacity 0.2s;
@@ -284,9 +300,10 @@
   }
 
   /* Ajuste para que el icono tenga el color correcto en hover */
-  .btn-salir:hover .icono-nav {
+    /* svelte-ignore css-unused-selector */
+    :global(.btn-salir:hover .icono-nav) {
       color: var(--primary);
-  }
+    }
 
   /* --- ESTILOS CUANDO ESTÁ COLAPSADO --- */
 
@@ -318,9 +335,10 @@
       display: none;
   }
 
-  .sidebar.colapsado .icono-nav {
+    /* svelte-ignore css-unused-selector */
+    :global(.sidebar.colapsado .icono-nav) {
       margin-right: 0; /* Quita el margen derecho para que el icono quede en el centro del botón */
-  }
+    }
 
   .sidebar.colapsado .menu button,
   .sidebar.colapsado .btn-salir {
@@ -336,7 +354,8 @@
       .sidebar { width: 72px; }
       .header-acciones { justify-content: center; }
       .texto-logo, .texto-menu { opacity: 0; pointer-events: none; height: 0; }
-      .icono-nav { margin-right: 0; }
+      /* svelte-ignore css-unused-selector */
+      :global(.icono-nav) { margin-right: 0; }
       .menu button, .btn-salir { justify-content: center; }
   }
 

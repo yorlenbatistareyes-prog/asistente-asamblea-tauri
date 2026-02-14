@@ -1,22 +1,17 @@
 <script lang="ts">
   import { Users, Droplets, Mic, CheckCircle, AlertCircle } from 'lucide-svelte';
+  import { totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, oradoresPendientes, notasRapidas, addNota, removeNota } from '$lib/stores/gestion';
 
-  // --- DATOS DE EJEMPLO (Aquí es donde conectarás tus datos reales más adelante) ---
-  
-  // Totales calculados
-  let totalAsistencia = 1250; // Suma de asistencias
-  let totalBautismos = 12;    // Suma de bautizados
-  let congregacionesReportadas = 8; // De un total de 12, por ejemplo
-  let totalCongregaciones = 12;
-  
-  // Lista de oradores pendientes (Simulación)
-  let oradoresPendientes = [
-    { nombre: 'Hno. Pérez', tema: 'Discurso 1', estado: 'Pendiente' },
-    { nombre: 'Hno. González', tema: 'Simposio A', estado: 'Pendiente' }
-  ];
+  let nuevaNota = '';
 
-  // Cálculo de porcentaje para barras de progreso (Opcional, visualmente atractivo)
-  $: porcentajeReportes = (congregacionesReportadas / totalCongregaciones) * 100;
+  // Porcentaje calculado a partir de los stores (evitar división por cero)
+  $: porcentajeReportes = ( ($congregacionesReportadas || 0) / ($totalCongregaciones || 1) ) * 100;
+
+  function agregarNota() {
+    if (!nuevaNota || !nuevaNota.trim()) return;
+    addNota(nuevaNota.trim());
+    nuevaNota = '';
+  }
 </script>
 
 <div class="dashboard-container">
@@ -29,7 +24,7 @@
       </div>
       <div class="stat-info">
         <span class="label">Asistencia Total</span>
-        <span class="value">{totalAsistencia}</span>
+        <span class="value">{$totalAsistencia}</span>
         <span class="subtext">Promedio por sesión</span>
       </div>
     </div>
@@ -40,7 +35,7 @@
       </div>
       <div class="stat-info">
         <span class="label">Bautismos</span>
-        <span class="value">{totalBautismos}</span>
+        <span class="value">{$totalBautismos}</span>
         <span class="subtext">Candidatos aprobados</span>
       </div>
     </div>
@@ -51,7 +46,7 @@
       </div>
       <div class="stat-info">
         <span class="label">Reportes Recibidos</span>
-        <span class="value">{congregacionesReportadas} / {totalCongregaciones}</span>
+        <span class="value">{$congregacionesReportadas} / {$totalCongregaciones}</span>
         <div class="progress-bar">
           <div class="fill" style="width: {porcentajeReportes}%"></div>
         </div>
@@ -64,7 +59,7 @@
       </div>
       <div class="stat-info">
         <span class="label">Oradores Pendientes</span>
-        <span class="value">{oradoresPendientes.length}</span>
+        <span class="value">{$oradoresPendientes.length}</span>
         <span class="subtext text-warning">Requieren confirmación</span>
       </div>
     </div>
@@ -77,7 +72,7 @@
         <h4><AlertCircle size={18} /> Oradores por Confirmar</h4>
       </div>
       <div class="card-body">
-        {#if oradoresPendientes.length > 0}
+        {#if $oradoresPendientes.length > 0}
           <table class="simple-table">
             <thead>
               <tr>
@@ -87,7 +82,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each oradoresPendientes as orador}
+              {#each $oradoresPendientes as orador}
                 <tr>
                   <td>{orador.nombre}</td>
                   <td>{orador.tema}</td>
@@ -107,9 +102,23 @@
         <h4>Notas Rápidas / Recordatorios</h4>
       </div>
       <div class="card-body">
+        <div style="padding:12px 20px; display:flex; gap:8px; align-items:center;">
+          <input placeholder="Agregar nota rápida..." bind:value={nuevaNota} style="flex:1; padding:8px; border:1px solid var(--border-color); border-radius:6px; background:var(--input-bg); color:var(--text-main);" />
+          <button class="btn-sm" on:click={agregarNota}>Agregar</button>
+        </div>
         <ul class="task-list">
-          <li>Revisar audio en sección C</li>
-          <li>Imprimir tarjetas de solapa faltantes</li>
+          {#if $notasRapidas && $notasRapidas.length > 0}
+            {#each $notasRapidas as nota}
+              <li>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                  <span>{nota.texto}</span>
+                  <button class="btn-sm" on:click={() => removeNota(nota.id)}>Eliminar</button>
+                </div>
+              </li>
+            {/each}
+          {:else}
+            <li class="empty-msg">No hay notas rápidas.</li>
+          {/if}
         </ul>
       </div>
     </div>
