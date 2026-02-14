@@ -98,3 +98,14 @@ pub struct AsignacionEspecial {
     pub persona_id: Option<i32>,
     pub nombre_persona: Option<String>,
 }
+
+// ==========================================
+// 4. ESTRUCTURAS DE CONFIGURACIÓN GLOBAL
+// ==========================================
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfiguracionGeneral {
+    pub nombre: Option<String>,
+    pub tema: Option<String>,
+    pub idioma: Option<String>,
+}

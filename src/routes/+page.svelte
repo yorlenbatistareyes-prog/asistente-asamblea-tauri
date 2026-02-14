@@ -37,6 +37,8 @@
   let mostrarModalLocales = false;
   let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
+  let nombreUsuario = ""; // Se llenará cuando cargue la configuración
+
   onMount(() => {
     cargarDatos();
     iniciarReloj(); 
@@ -98,16 +100,30 @@
     else if (hora >= 12 && hora < 20) saludo = "Buenas tardes";
     else saludo = "Buenas noches";
   }
-
-  async function cargarDatos() {
+async function cargarDatos() {
     try {
-      const [asambleas, locales] = await Promise.all([
+      const [asambleas, locales, configData] = await Promise.all([
         invoke('obtener_asambleas'),
-        invoke('obtener_locales')
+        invoke('obtener_locales'),
+        invoke('obtener_configuracion_general')
       ]);
+
       listaAsambleas = asambleas as any[];
       listaLocales = locales as any[];
-    } catch (e) { console.error(e); }
+      
+      // Forzamos la lectura de la configuración
+      if (configData) {
+        const c = configData as any;
+        // IMPORTANTE: Prueba si es .nombre o .nombre_usuario
+        // Ponemos un log para que lo veas en la consola (F12)
+        console.log("Datos de configuración recibidos:", c);
+        
+        nombreUsuario = c.nombre || c.nombre_usuario || "Yorlen";
+      }
+
+    } catch (e) { 
+      console.error("Error crítico en carga:", e); 
+    }
   }
 
   // LÓGICA DE SALONES
@@ -396,6 +412,29 @@
   {:else if vistaActual === 'configuracion'}
     <Configuracion on:close={volverAlInicio} />
   {/if}
+
+  <footer class="status-bar">
+    <div class="status-left">
+        <div class="connection-status">
+            <span class="dot pulse"></span>
+            <span>Sistema Conectado (Rust/Tauri)</span>
+        </div>
+        <span class="separator">|</span>
+        <div class="user-status">
+            <User size={14} />
+            <span>Usuario: <strong>{nombreUsuario || 'Invitado'}</strong></span>
+        </div>
+    </div>
+
+    <div class="status-right">
+        <div class="stat-item">
+            <Lectern size={14} />
+            <span>Total Asambleas: <strong>{listaAsambleas.length}</strong></span>
+        </div>
+        <span class="separator">|</span>
+        <span class="app-version">v1.0.4</span>
+    </div>
+  </footer>
 </div>
 
 <style>
@@ -690,4 +729,76 @@
     display: flex;
     flex-direction: column;
 }
+
+.asambleas-list, .gestion-global {
+    background: rgba(255, 255, 255, 0.5); /* Fondo casi transparente */
+    padding: 25px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+}
+.section-header {
+    background: var(--bg-body);
+    padding: 8px 15px;
+    border-radius: 10px;
+    width: fit-content;
+    margin-bottom: 25px;
+}
+
+/* BARRA DE ESTADO FINAL */
+  .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 30px;
+      background: #0f172a; /* Azul marino profundo casi negro */
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 25px;
+      font-size: 11px;
+      z-index: 1000;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+  }
+
+  .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+
+  /* El punto verde con animación */
+  .dot {
+      width: 7px;
+      height: 7px;
+      background-color: #22c55e;
+      border-radius: 50%;
+  }
+
+  .dot.pulse {
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: pulse-green 2s infinite;
+  }
+
+  @keyframes pulse-green {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  }
+
+  .separator { color: #334155; }
+  .status-bar strong { color: #f1f5f9; }
+
+  /* Ajuste de iconos para que no brillen demasiado */
+  :global(.status-bar svg) {
+      opacity: 0.7;
+  }
 </style>

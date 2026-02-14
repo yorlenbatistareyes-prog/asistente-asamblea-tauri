@@ -150,5 +150,23 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
+    // --- 9. CONFIGURACIÓN GENERAL ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS configuracion (
+            id INTEGER PRIMARY KEY CHECK (id = 1), -- Forzamos a que solo exista una fila
+            nombre TEXT DEFAULT 'Yorlen', 
+            tema TEXT DEFAULT 'claro', 
+            idioma TEXT DEFAULT 'es'
+        )",
+        [],
+    )?;
+
+    // Insertamos el registro inicial si la tabla está vacía
+    conn.execute(
+        "INSERT OR IGNORE INTO configuracion (id, nombre, tema, idioma) 
+         VALUES (1, 'Yorlen', 'claro', 'es')",
+        [],
+    )?;
+    
    Ok(conn)
 }

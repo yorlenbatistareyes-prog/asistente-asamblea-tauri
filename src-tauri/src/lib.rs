@@ -16,7 +16,8 @@ pub mod commands {
     pub mod personas;
     pub mod programa;
     pub mod impresion;
-    pub mod emails; 
+    pub mod emails;
+    pub mod configuracion; 
 }
 
 use std::sync::Mutex;
@@ -102,6 +103,7 @@ pub fn run() {
             commands::oficina::guardar_asignacion_especial,  // <--- ¡ESTE ES EL QUE FALTABA!
             commands::oficina::eliminar_asignacion_especial,
             
+            
             // CORRESPONDENCIA
             commands::correspondencia::obtener_plantilla,
             commands::correspondencia::guardar_plantilla,
@@ -116,6 +118,10 @@ pub fn run() {
 
             // IMPRESIÓN
             commands::impresion::obtener_datos_para_impresion,
+
+            // --- CONFIGURACIÓN ---
+           commands::configuracion::obtener_configuracion_general,
+           commands::configuracion::guardar_configuracion_general,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
