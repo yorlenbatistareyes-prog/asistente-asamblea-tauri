@@ -1,13 +1,16 @@
 use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager}; // Manager es necesario para usar .path()
+use tauri::{AppHandle, Manager};
+use std::sync::Mutex;
 
-// Mantenemos la versión v7 para asegurar que se cree la base de datos con las nuevas columnas
 const DB_NAME: &str = "asamblea_db_v7.sqlite";
 
+pub struct DbState {
+    pub conn: Mutex<Connection>,
+}
+
 pub fn obtener_ruta_db(app: &AppHandle) -> PathBuf {
-    // CORRECCIÓN: En Tauri v2 se usa app.path() gracias al trait Manager
     let app_dir = app
         .path()
         .app_data_dir()
@@ -19,11 +22,10 @@ pub fn obtener_ruta_db(app: &AppHandle) -> PathBuf {
     app_dir.join(DB_NAME)
 }
 
-pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::error::Error>> {
     let db_path = obtener_ruta_db(app);
     let conn = Connection::open(db_path)?;
 
-    // Activar Foreign Keys para mantener la integridad de los datos
     conn.execute("PRAGMA foreign_keys = ON;", [])?;
 
     // --- 1. ASAMBLEAS ---
@@ -31,7 +33,8 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         "CREATE TABLE IF NOT EXISTS asambleas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         tema TEXT NOT NULL, 
-        fecha TEXT NOT NULL, 
+        fecha TEXT NOT NULL,
+        identificador TEXT, 
         local_id INTEGER, 
         presidente_id INTEGER, 
         ensayo_lugar TEXT, 
@@ -45,14 +48,16 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 2. LOCALES (Con Ciudad y Estado) ---
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN identificador TEXT", []);
+
+    // --- 2. LOCALES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS locales (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         nombre TEXT NOT NULL, 
         direccion TEXT, 
-        ciudad TEXT,        -- Columna nueva
-        estado TEXT,        -- Columna nueva
+        ciudad TEXT,
+        estado TEXT,
         capacidad INTEGER
     )",
         [],
@@ -71,15 +76,16 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 4. PERSONAS ---
+    // --- 4. PERSONAS (Aseguramos columna 'sexo') ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS personas (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         asamblea_id INTEGER,
         nombre_completo TEXT NOT NULL, 
-        genero TEXT DEFAULT 'Hombre', 
+        sexo TEXT DEFAULT 'M', 
         privilegios TEXT, 
         id_congregacion INTEGER, 
+        congregacion TEXT, 
         telefono TEXT, 
         email TEXT, 
         FOREIGN KEY(id_congregacion) REFERENCES congregaciones(id) ON DELETE SET NULL,
@@ -88,7 +94,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         [],
     )?;
 
-    // --- 5. PROGRAMA ---
+    // --- 5. PROGRAMA (Unificado a 'orador_id') ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS programa (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -99,10 +105,11 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         tema TEXT NOT NULL, 
         tipo TEXT DEFAULT 'Discurso', 
         duracion INTEGER, 
-        orador_id INTEGER, 
+        orador_id INTEGER, -- <--- CAMBIADO: Antes era persona_id
         es_video BOOLEAN DEFAULT 0, 
         estado TEXT DEFAULT 'Pendiente', 
         esta_presente BOOLEAN DEFAULT 0, 
+        numero_bosquejo TEXT, 
         FOREIGN KEY(orador_id) REFERENCES personas(id),
         FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
     )",
@@ -115,6 +122,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         asamblea_id INTEGER,
         dia TEXT NOT NULL, 
+        fecha TEXT,
         tipo_asignacion TEXT NOT NULL, 
         persona_id INTEGER NOT NULL, 
         FOREIGN KEY(persona_id) REFERENCES personas(id),
@@ -125,36 +133,40 @@ pub fn initialize_database(app: &AppHandle) -> Result<(), Box<dyn std::error::Er
 
     // --- 7. PLANTILLAS ---
     conn.execute("CREATE TABLE IF NOT EXISTS plantillas_cartas (id TEXT PRIMARY KEY, contenido_html TEXT NOT NULL)", [])?;
+    
+    // --- 8. PLANTILLAS EMAIL ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS plantillas_email (
+            id TEXT PRIMARY KEY, 
+            asunto TEXT DEFAULT '', 
+            cuerpo TEXT DEFAULT ''
+        )",
+        [],
+    )?;
 
-    // --- MIGRACIONES DE SEGURIDAD ---
-    // Esto asegura que si por error se carga una BD vieja, se añadan las columnas
-    let _ = conn.execute("ALTER TABLE locales ADD COLUMN ciudad TEXT", []);
-    let _ = conn.execute("ALTER TABLE locales ADD COLUMN estado TEXT", []);
+    // --- MIGRACIONES PREVENTIVAS (Para bases de datos existentes) ---
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN sexo TEXT DEFAULT 'M'", []);
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN congregacion TEXT", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
-    // Otras migraciones preventivas
-    let _ = conn.execute(
-        "ALTER TABLE congregaciones ADD COLUMN asamblea_id INTEGER",
+    // --- 9. CONFIGURACIÓN GENERAL ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS configuracion (
+            id INTEGER PRIMARY KEY CHECK (id = 1), -- Forzamos a que solo exista una fila
+            nombre TEXT DEFAULT 'Yorlen', 
+            tema TEXT DEFAULT 'claro', 
+            idioma TEXT DEFAULT 'es'
+        )",
         [],
-    );
-    let _ = conn.execute("ALTER TABLE personas ADD COLUMN asamblea_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE programa ADD COLUMN asamblea_id INTEGER", []);
-    let _ = conn.execute(
-        "ALTER TABLE asignaciones_especiales ADD COLUMN asamblea_id INTEGER",
-        [],
-    );
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_lugar TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_fecha TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_hora TEXT", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN recorridos_info TEXT", []);
-    let _ = conn.execute(
-        "ALTER TABLE asambleas ADD COLUMN instrucciones_esp TEXT",
-        [],
-    );
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN ensayo_notas TEXT", []);
-    let _ = conn.execute(
-        "ALTER TABLE asambleas ADD COLUMN jw_stream_studio INTEGER DEFAULT 0",
-        [],
-    );
+    )?;
 
-    Ok(())
+    // Insertamos el registro inicial si la tabla está vacía
+    conn.execute(
+        "INSERT OR IGNORE INTO configuracion (id, nombre, tema, idioma) 
+         VALUES (1, 'Yorlen', 'claro', 'es')",
+        [],
+    )?;
+    
+   Ok(conn)
 }

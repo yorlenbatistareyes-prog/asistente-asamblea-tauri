@@ -1,5 +1,6 @@
 use crate::models::Asamblea;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
+use serde::Serialize;
 use tauri::{command, AppHandle};
 
 fn conectar_db(app: &AppHandle) -> Connection {
@@ -7,7 +8,58 @@ fn conectar_db(app: &AppHandle) -> Connection {
     Connection::open(db_path).unwrap()
 }
 
-// 1. GUARDAR INFORMACIÓN
+// --- ESTRUCTURA PARA EL PDF (NUEVO) ---
+#[derive(Serialize)]
+pub struct InfoEvento {
+    lugar: String,
+    direccion: String,
+    fecha_ensayo: String,
+    hora_ensayo: String,
+}
+
+// 1. OBTENER INFO EXTRA PARA IMPRESIÓN (Esta es la función clave)
+#[command]
+pub fn obtener_info_extra_evento(app: AppHandle, asamblea_id: i32) -> Result<InfoEvento, String> {
+    let conn = conectar_db(&app);
+
+    // Buscamos datos de la asamblea y del local asociado
+    let mut stmt = conn
+        .prepare(
+            "
+        SELECT 
+            IFNULL(l.nombre, 'Salón de Asambleas'), 
+            IFNULL(l.direccion, ''), 
+            IFNULL(a.ensayo_fecha, ''), 
+            IFNULL(a.ensayo_hora, '') 
+        FROM asambleas a
+        LEFT JOIN locales l ON a.local_id = l.id
+        WHERE a.id = ?1
+    ",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let info = stmt
+        .query_row(params![asamblea_id], |row| {
+            Ok(InfoEvento {
+                lugar: row.get(0).unwrap_or_default(),
+                direccion: row.get(1).unwrap_or_default(),
+                fecha_ensayo: row.get(2).unwrap_or_default(),
+                hora_ensayo: row.get(3).unwrap_or_default(),
+            })
+        })
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    // Si no encuentra datos, devuelve vacíos para no romper la impresión
+    Ok(info.unwrap_or(InfoEvento {
+        lugar: "".to_string(),
+        direccion: "".to_string(),
+        fecha_ensayo: "".to_string(),
+        hora_ensayo: "".to_string(),
+    }))
+}
+
+// 2. GUARDAR INFORMACIÓN
 #[command]
 pub fn guardar_info_evento(
     app: AppHandle,
@@ -52,10 +104,8 @@ pub fn guardar_info_evento(
     } else {
         conn.execute(
             "INSERT INTO asambleas (
-                tema, fecha, local_id, 
-                ensayo_lugar, ensayo_fecha, ensayo_hora, 
-                ensayo_notas, recorridos_info, instrucciones_esp, 
-                jw_stream_studio
+                tema, fecha, local_id, ensayo_lugar, ensayo_fecha, ensayo_hora, 
+                ensayo_notas, recorridos_info, instrucciones_esp, jw_stream_studio
             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
             params![
                 tema,
@@ -75,7 +125,7 @@ pub fn guardar_info_evento(
     Ok("Información actualizada correctamente".to_string())
 }
 
-// 2. GUARDAR COMITÉ
+// 3. GUARDAR COMITÉ
 #[command]
 pub fn guardar_comite(app: AppHandle, presidente_id: Option<i32>) -> Result<String, String> {
     let conn = conectar_db(&app);
@@ -87,28 +137,15 @@ pub fn guardar_comite(app: AppHandle, presidente_id: Option<i32>) -> Result<Stri
     Ok("Comité guardado".to_string())
 }
 
-// 3. OBTENER ASAMBLEA
+// 4. OBTENER ASAMBLEA
 #[command]
 pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<Asamblea>, String> {
     let conn = conectar_db(&app);
-
-    let sql = "
-        SELECT 
-            a.id, a.tema, a.fecha, a.local_id, a.presidente_id,
-            a.ensayo_lugar, a.ensayo_fecha, a.ensayo_hora, 
-            a.ensayo_notas, a.recorridos_info, a.instrucciones_esp, 
-            a.jw_stream_studio,
-            l.nombre as nombre_local
-        FROM asambleas a
-        LEFT JOIN locales l ON a.local_id = l.id
-        ORDER BY a.id DESC 
-        LIMIT 1
-    ";
-
+    let sql = "SELECT a.id, a.tema, a.fecha, a.local_id, a.presidente_id, a.ensayo_lugar, a.ensayo_fecha, a.ensayo_hora, a.ensayo_notas, a.recorridos_info, a.instrucciones_esp, a.jw_stream_studio, l.nombre as nombre_local, a.identificador FROM asambleas a LEFT JOIN locales l ON a.local_id = l.id ORDER BY a.id DESC LIMIT 1";
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
 
-    let asamblea_iter = stmt
-        .query_map([], |row| {
+    let result = stmt
+        .query_row([], |row| {
             Ok(Asamblea {
                 id: row.get(0)?,
                 tema: row.get(1)?,
@@ -123,20 +160,16 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<Asamblea>, Strin
                 instrucciones_esp: row.get(10).unwrap_or_default(),
                 jw_stream_studio: row.get::<_, i32>(11).unwrap_or(0) == 1,
                 nombre_local: row.get(12).ok(),
+                identificador: row.get(13).ok(),
             })
         })
+        .optional()
         .map_err(|e| e.to_string())?;
 
-    let mut lista = Vec::new();
-    for a in asamblea_iter {
-        if let Ok(item) = a {
-            lista.push(item);
-        }
-    }
-    Ok(lista.into_iter().next())
+    Ok(result)
 }
 
-// 4. CREAR ASAMBLEA (CORREGIDO)
+// 5. CREAR ASAMBLEA
 #[tauri::command]
 pub fn crear_asamblea(
     app: AppHandle,
@@ -144,41 +177,41 @@ pub fn crear_asamblea(
     fecha: String,
     _lugar: String,
     local_id: Option<i32>,
+    identificador: String,
 ) -> Result<i64, String> {
     let conn = conectar_db(&app);
-
     conn.execute(
         "INSERT INTO asambleas (
-            tema, fecha, 
-            local_id, 
-            ensayo_lugar, 
-            jw_stream_studio, ensayo_notas, recorridos_info, ensayo_fecha, ensayo_hora, instrucciones_esp
-        ) VALUES (?1, ?2, ?3, '', 0, '', '', '', '', '')",
-        params![tema, fecha, local_id],
-    )
-    .map_err(|e| e.to_string())?;
-
+            tema, fecha, local_id, identificador, 
+            ensayo_lugar, jw_stream_studio, ensayo_notas, 
+            recorridos_info, ensayo_fecha, ensayo_hora, instrucciones_esp
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)", 
+        params![
+            tema,          // ?1
+            fecha,         // ?2
+            local_id,      // ?3
+            identificador, // ?4 (¡Ahora sí lo guardamos!)
+            "",            // ?5 (ensayo_lugar)
+            0,             // ?6 (jw_stream_studio)
+            "",            // ?7 (ensayo_notas)
+            "",            // ?8 (recorridos_info)
+            "",            // ?9 (ensayo_fecha)
+            "",            // ?10 (ensayo_hora)
+            ""             // ?11 (instrucciones_esp)
+        ],
+    ).map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
 }
-
-// 5. LISTAR
+// 6. LISTAR Y ELIMINAR
 #[command]
 pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
     let conn = conectar_db(&app);
     let mut stmt = conn
-        .prepare("SELECT id, tema, fecha FROM asambleas ORDER BY id DESC")
+        .prepare("SELECT id, tema, fecha, identificador FROM asambleas ORDER BY id DESC")
         .map_err(|e| e.to_string())?;
-
-    let rows = stmt
-        .query_map([], |row| {
-            Ok(serde_json::json!({
-                "id": row.get::<_, i64>(0)?,
-                "tema": row.get::<_, String>(1)?,
-                "fecha": row.get::<_, String>(2)?,
-            }))
-        })
-        .map_err(|e| e.to_string())?;
-
+    let rows = stmt.query_map([], |row| {
+        Ok(serde_json::json!({ "id": row.get::<_, i64>(0)?, "tema": row.get::<_, String>(1)?, "fecha": row.get::<_, String>(2)?, "identificador": row.get::<_, Option<String>>(3)? }))
+    }).map_err(|e| e.to_string())?;
     let mut asambleas = Vec::new();
     for row in rows {
         asambleas.push(row.map_err(|e| e.to_string())?);

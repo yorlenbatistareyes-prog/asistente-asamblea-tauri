@@ -3,7 +3,9 @@
   import { invoke } from '@tauri-apps/api/core';
   import { 
     ShieldCheck, Save, Search, X, MapPin, Phone, Mail, 
-    User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus 
+    User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus, Droplet, BookOpen,
+     Presentation, Mic2, Home, Building, CalendarDays, ScrollText, FileText, ListTodo,
+     ListOrdered, NotepadText, ClipboardList, SlidersHorizontal   
   } from 'lucide-svelte';
 
   // --- ESTADO ---
@@ -151,14 +153,15 @@
 
 <div class="panel-comite">
   <div class="header">
-    <h3><ShieldCheck class="text-blue"/> Estructura Organizativa (Asamblea #{asambleaId})</h3>
+    <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea (Asamblea #{asambleaId})</h3>
     <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
   </div>
 
   <div class="scroll-container">
     
     <div class="seccion">
-      <h4 class="titulo-seccion">PRESIDENCIA</h4>
+       <h4 class="titulo-seccion"><User size={18} />PRESIDENTE</h4>
+     
       <div class="grid-uno">
          <div class="role-wrapper">
             <span class="label-rol">Presidente de la Asamblea</span>
@@ -183,11 +186,13 @@
       </div>
     </div>
 
+    <h3 class="titulo-separador">Miembros del Comité de Asamblea</h3>
+
     <div class="seccion">
-        <h4 class="titulo-seccion"><Users size={16}/> COORDINACIÓN</h4>
+        <h4 class="titulo-seccion"><User size={18}/> COORDINACIÓN</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
-                <span class="label-rol">Coordinador</span>
+                <span class="label-rol">Coordinador del Comité de Asamblea</span>
                 {#if getDetalles(c.coord)}
                     {@const p = getDetalles(c.coord)}
                     <div class="tarjeta">
@@ -205,7 +210,7 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('coord')}>Seleccionar... <ChevronDown size={16}/></button>{/if}
             </div>
             <div class="role-wrapper">
-                <span class="label-rol">Auxiliar</span>
+                <span class="label-rol">Auxiliar del Coordinador del Comité de Asamblea</span>
                 {#if getDetalles(c.coord_a)}
                     {@const p = getDetalles(c.coord_a)}
                     <div class="tarjeta">
@@ -227,10 +232,10 @@
 
     <div class="grid-dos-grande">
         <div class="seccion">
-            <h4 class="titulo-seccion"><Layers size={16}/> PROGRAMA</h4>
+            <h4 class="titulo-seccion"><NotepadText size={16}/> PROGRAMA</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
-                    <span class="label-rol">Superintendente</span>
+                    <span class="label-rol">Superintendente de Programa</span>
                     {#if getDetalles(c.prog)}
                         {@const p = getDetalles(c.prog)}
                         <div class="tarjeta">
@@ -248,7 +253,7 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('prog')}>Seleccionar...</button>{/if}
                 </div>
                 <div class="role-wrapper">
-                    <span class="label-rol">Auxiliar</span>
+                    <span class="label-rol">Auxiliar del Superintendente del Programa</span>
                     {#if getDetalles(c.prog_a)}
                         {@const p = getDetalles(c.prog_a)}
                         <div class="tarjeta">
@@ -269,10 +274,10 @@
         </div>
 
         <div class="seccion">
-            <h4 class="titulo-seccion"><Users size={16}/> ALOJAMIENTO</h4>
+            <h4 class="titulo-seccion"><Home size={16}/> ALOJAMIENTO</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
-                    <span class="label-rol">Superintendente</span>
+                    <span class="label-rol">Superintendente de Alojamiento</span>
                     {#if getDetalles(c.aloj)}
                         {@const p = getDetalles(c.aloj)}
                         <div class="tarjeta">
@@ -290,7 +295,7 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('aloj')}>Seleccionar...</button>{/if}
                 </div>
                 <div class="role-wrapper">
-                    <span class="label-rol">Auxiliar</span>
+                    <span class="label-rol">Auxiliar del Superintendente de Alojamiento</span>
                     {#if getDetalles(c.aloj_a)}
                         {@const p = getDetalles(c.aloj_a)}
                         <div class="tarjeta">
@@ -311,8 +316,10 @@
         </div>
     </div>
 
+    <h3 class="titulo-separador">Otras Responsabilidades</h3>
+
     <div class="seccion">
-        <h4 class="titulo-seccion">SOPORTE TÉCNICO Y PLATAFORMA</h4>
+        <h4 class="titulo-seccion">DEPARTAMENTO DE AUDIO Y VIDEO</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
                 <span class="label-rol"><Radio size={12}/> Superintendente A/V</span>
@@ -369,7 +376,7 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('audio')}>Seleccionar...</button>{/if}
             </div>
             <div class="role-wrapper">
-                <span class="label-rol"><Layers size={12}/> Superintendente de Plataforma</span>
+                <span class="label-rol"><SlidersHorizontal size={12}/> Superintendente de Plataforma</span>
                 {#if getDetalles(c.plat)}
                     {@const p = getDetalles(c.plat)}
                     <div class="tarjeta">
@@ -385,6 +392,49 @@
                         </div>
                     </div>
                 {:else}<button class="btn-select" on:click={() => abrirModal('plat')}>Seleccionar...</button>{/if}
+            </div>
+        </div>
+    </div>
+
+    <div class="seccion">
+        <h4 class="titulo-seccion"><Droplet size={16}/> DEPARTAMENTO DE BAUTISMO</h4>
+        <div class="grid-dos">
+            <div class="role-wrapper">
+                <span class="label-rol">Superintendente de Bautismo</span>
+                {#if getDetalles(c.baut)}
+                    {@const p = getDetalles(c.baut)}
+                    <div class="tarjeta">
+                        <div class="card-top">
+                            <div class="avatar"><User size={20}/></div>
+                            <div class="info"><span class="t-nombre">{p.nombre_completo}</span><span class="t-priv">{p.privilegios || '-'}</span></div>
+                            <button class="btn-x" on:click={() => quitar('baut')}><X size={16}/></button>
+                        </div>
+                        <div class="card-bottom">
+                            <div class="row"><MapPin size={12}/> {p.nombre_congregacion || '-'}</div>
+                            <div class="row"><Phone size={12}/> {p.telefono || '-'}</div>
+                            <div class="row"><Mail size={12}/> {p.email || '-'}</div>
+                        </div>
+                    </div>
+                {:else}<button class="btn-select" on:click={() => abrirModal('baut')}>Seleccionar...</button>{/if}
+            </div>
+            
+            <div class="role-wrapper">
+                <span class="label-rol">Auxiliar del Superintendente de Bautismo</span>
+                {#if getDetalles(c.baut_a)}
+                    {@const p = getDetalles(c.baut_a)}
+                    <div class="tarjeta">
+                        <div class="card-top">
+                            <div class="avatar"><User size={20}/></div>
+                            <div class="info"><span class="t-nombre">{p.nombre_completo}</span><span class="t-priv">{p.privilegios || '-'}</span></div>
+                            <button class="btn-x" on:click={() => quitar('baut_a')}><X size={16}/></button>
+                        </div>
+                        <div class="card-bottom">
+                            <div class="row"><MapPin size={12}/> {p.nombre_congregacion || '-'}</div>
+                            <div class="row"><Phone size={12}/> {p.telefono || '-'}</div>
+                            <div class="row"><Mail size={12}/> {p.email || '-'}</div>
+                        </div>
+                    </div>
+                {:else}<button class="btn-select" on:click={() => abrirModal('baut_a')}>Seleccionar...</button>{/if}
             </div>
         </div>
     </div>
@@ -435,7 +485,7 @@
         </div>
       {:else}
         <div class="search-box">
-            <Search size={16} color="#64748b"/>
+            <Search size={16} color="var(--text-secondary)"/>
             <input type="text" placeholder="Buscar..." bind:value={terminoBusqueda} autofocus/>
         </div>
         
@@ -459,15 +509,40 @@
 {/if}
 
 <style>
-  .panel-comite { display: flex; flex-direction: column; gap: 20px; height: 100%; background: #f8fafc; }
-  .header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 20px; border-bottom: 1px solid #e2e8f0; }
-  .header h3 { margin: 0; color: #1e293b; display: flex; gap: 10px; align-items: center; } .text-blue { color: #2563eb; }
-  .btn-save { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; gap: 6px; font-weight: 600; align-items: center; }
+  /* APLICANDO VARIABLES GLOBALES DE TEMA */
+  .panel-comite { display: flex; flex-direction: column; gap: 20px; height: 100%; background: var(--bg-body); }
+  
+  .header { 
+      display: flex; justify-content: space-between; align-items: center; 
+      background: var(--bg-card); 
+      padding: 15px 20px; 
+      border-bottom: 1px solid var(--border-color); 
+  }
+  .header h3 { margin: 0; color: var(--text-main); display: flex; gap: 10px; align-items: center; } 
+  .text-blue { color: var(--primary); }
+  
+  .btn-save { 
+      background: var(--primary); color: white; border: none; 
+      padding: 8px 16px; border-radius: 6px; cursor: pointer; 
+      display: flex; gap: 6px; font-weight: 600; align-items: center; 
+  }
   
   .scroll-container { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
   
-  .seccion { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; }
-  .titulo-seccion { margin: 0 0 15px 0; color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+  .seccion { 
+      background: var(--bg-card); 
+      border: 1px solid var(--border-color); 
+      border-radius: 10px; padding: 15px; 
+  }
+  
+  .titulo-seccion { 
+      margin: 0 0 15px 0; 
+      color: var(--text-secondary); 
+      font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; 
+      display: flex; gap: 8px; align-items: center; 
+      border-bottom: 1px solid var(--border-color); 
+      padding-bottom: 8px; 
+  }
 
   /* GRIDS */
   .grid-uno { display: grid; grid-template-columns: 1fr; }
@@ -477,46 +552,116 @@
 
   /* TARJETA */
   .role-wrapper { display: flex; flex-direction: column; gap: 5px; }
-  .label-rol { font-size: 11px; font-weight: 700; color: #475569; display: flex; gap: 4px; align-items: center; }
+  .label-rol { font-size: 11px; font-weight: 700; color: var(--text-secondary); display: flex; gap: 4px; align-items: center; }
   
-  .tarjeta { background: white; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s; }
-  .tarjeta:hover { border-color: #94a3b8; box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
+  .tarjeta { 
+      background: var(--bg-card); 
+      border: 1px solid var(--border-color); 
+      border-radius: 8px; overflow: hidden; 
+      box-shadow: 0 2px 4px var(--shadow-color); 
+      transition: all 0.2s; 
+  }
+  .tarjeta:hover { border-color: var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
   
-  .card-top { display: flex; align-items: center; gap: 10px; padding: 10px; background: linear-gradient(to bottom, #fff, #f8fafc); border-bottom: 1px solid #f1f5f9; }
-  .avatar { width: 32px; height: 32px; background: #eff6ff; color: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card-top { 
+      display: flex; align-items: center; gap: 10px; padding: 10px; 
+      background: var(--bg-card); /* Ajustado para consistencia */
+      border-bottom: 1px solid var(--border-color); 
+  }
+  .avatar { 
+      width: 32px; height: 32px; 
+      background: var(--bg-secondary); color: var(--primary); 
+      border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; 
+  }
   
   .info { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .t-nombre { font-weight: 700; color: #1e293b; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .t-priv { font-size: 10px; color: #64748b; background: #f1f5f9; width: fit-content; padding: 1px 4px; border-radius: 3px; }
+  .t-nombre { font-weight: 700; color: var(--text-main); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .t-priv { font-size: 10px; color: var(--text-secondary); background: var(--bg-body); width: fit-content; padding: 1px 4px; border-radius: 3px; }
 
-  .card-bottom { padding: 8px 12px; background: #fafbfc; display: flex; flex-direction: column; gap: 4px; }
-  .row { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 6px; }
+  .card-bottom { padding: 8px 12px; background: var(--bg-body); display: flex; flex-direction: column; gap: 4px; }
+  .row { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
 
-  .btn-x { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 2px; } .btn-x:hover { color: #ef4444; }
-  .btn-select { width: 100%; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; color: #64748b; font-size: 12px; cursor: pointer; display: flex; justify-content: space-between; } 
-  .btn-select:hover { background: #f1f5f9; border-color: #94a3b8; color: #334155; }
+  .btn-x { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 2px; } .btn-x:hover { color: #ef4444; }
+  
+  .btn-select { 
+      width: 100%; padding: 10px; 
+      background: var(--bg-body); 
+      border: 1px dashed var(--border-color); 
+      border-radius: 6px; 
+      color: var(--text-secondary); font-size: 12px; 
+      cursor: pointer; display: flex; justify-content: space-between; 
+  } 
+  .btn-select:hover { background: var(--hover-bg); border-color: var(--text-secondary); color: var(--text-main); }
 
   /* MODAL */
   .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 999; }
-  .modal { background: white; width: 350px; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; max-height: 80vh; }
-  .modal-header { padding: 12px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; }
+  .modal { 
+      background: var(--bg-card); 
+      width: 350px; border-radius: 10px; overflow: hidden; 
+      display: flex; flex-direction: column; max-height: 80vh; 
+      box-shadow: 0 4px 15px var(--shadow-color);
+  }
+  .modal-header { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; }
+  .modal-header h3 { color: var(--text-main); margin: 0; }
+  .btn-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; }
+  .btn-close:hover { color: var(--text-main); }
+
   .modal-body { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-  .search-box { display: flex; align-items: center; gap: 8px; padding: 8px; background: #f1f5f9; border-radius: 6px; } .search-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 13px; }
-  .item-persona { display: flex; align-items: center; gap: 10px; padding: 8px; background: white; border: none; text-align: left; cursor: pointer; border-bottom: 1px solid #f1f5f9; } .item-persona:hover { background: #eff6ff; }
-  .avatar-small { width: 28px; height: 28px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #64748b; font-size: 10px; }
-  .datos { display: flex; flex-direction: column; } .p-nombre { font-weight: 600; font-size: 12px; color: #334155; } .p-cong { font-size: 10px; color: #94a3b8; }
+  
+  .search-box { 
+      display: flex; align-items: center; gap: 8px; padding: 8px; 
+      background: var(--bg-body); 
+      border-radius: 6px; border: 1px solid var(--border-color);
+  } 
+  .search-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 13px; color: var(--text-main); }
+  
+  .item-persona { 
+      display: flex; align-items: center; gap: 10px; padding: 8px; 
+      background: var(--bg-card); 
+      border: none; text-align: left; cursor: pointer; 
+      border-bottom: 1px solid var(--border-color); 
+  } 
+  .item-persona:hover { background: var(--hover-bg); }
+  
+  .avatar-small { width: 28px; height: 28px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-secondary); font-size: 10px; }
+  .datos { display: flex; flex-direction: column; } 
+  .p-nombre { font-weight: 600; font-size: 12px; color: var(--text-main); } 
+  .p-cong { font-size: 10px; color: var(--text-secondary); }
 
   /* ESTILOS CREACION RAPIDA (FORMULARIO) */
-  .item-nuevo { display: flex; align-items: center; gap: 10px; padding: 10px; background: #ecfdf5; border: 1px dashed #10b981; color: #059669; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 5px; }
-  .item-nuevo:hover { background: #d1fae5; }
+  .item-nuevo { 
+      display: flex; align-items: center; gap: 10px; padding: 10px; 
+      background: var(--bg-secondary); 
+      border: 1px dashed var(--primary); 
+      color: var(--primary); 
+      border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 5px; 
+  }
+  .item-nuevo:hover { opacity: 0.8; }
+  
   .form-rapido { display: flex; flex-direction: column; gap: 10px; padding: 5px; }
-  .form-title { margin: 0; color: #334155; font-size: 14px; font-weight: 700; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
+  .form-title { margin: 0; color: var(--text-main); font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
+  
   .campo { display: flex; flex-direction: column; gap: 4px; }
-  .campo label { font-size: 11px; font-weight: 700; color: #64748b; }
-  .input-std { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+  .campo label { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
+  
+  .input-std { 
+      width: 100%; padding: 8px; 
+      border: 1px solid var(--border-color); 
+      border-radius: 6px; font-size: 13px; box-sizing: border-box; 
+      background: var(--input-bg); color: var(--text-main);
+  }
   .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   
   .botones-form { display: flex; gap: 10px; margin-top: 5px; }
-  .btn-confirmar { flex: 1; background: #2563eb; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-  .btn-cancelar { flex: 1; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .btn-cancelar { flex: 1; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  .titulo-separador {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-main); /* 👈 Ahora usará tu color de texto principal (negro) */
+    margin: 40px 0 20px 0; 
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color); 
+    width: 100%;
+}
 </style>

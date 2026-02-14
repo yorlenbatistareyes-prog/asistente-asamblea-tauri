@@ -1,6 +1,6 @@
 [package]
 name = "asistente-asamblea-regional"
-version = "0.0.0"
+version = "0.0.1"
 description = "Asistente para Asambleas Regionales"
 authors = ["Yorlen Batista"]
 edition = "2021"
@@ -29,4 +29,5 @@ chrono = "0.4"
 csv = "1.3"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
 
