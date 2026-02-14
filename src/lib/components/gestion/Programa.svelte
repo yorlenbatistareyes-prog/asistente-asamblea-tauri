@@ -1361,30 +1361,54 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 
         <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
         <div class="opciones-email-grid">
-          <button class="opcion-email" on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}>
+          <button
+            class="opcion-email"
+            on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'mailto'}
+            aria-disabled={metodoSeleccion !== 'mailto'}
+            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail en Método de Envío' : `Enviar emails (${diaFiltroEmail})`}
+          >
             <div class="icon-wrapper azul"><Mail size={24}/></div>
             <span>Email {diaFiltroEmail}</span>
           </button>
 
-          <button class="opcion-email" on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}>
+          <button
+            class="opcion-email"
+            on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'jwpub'}
+            aria-disabled={metodoSeleccion !== 'jwpub'}
+            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB en Método de Envío' : `Enviar JWPUB (${diaFiltroEmail})`}
+          >
             <div class="icon-wrapper morado"><FileJson size={24}/></div>
             <span>JWPUB {diaFiltroEmail}</span>
           </button>
 
-          <button class="opcion-email" on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}>
+          <button
+            class="opcion-email"
+            on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'mailto'}
+            aria-disabled={metodoSeleccion !== 'mailto'}
+            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail para usar esta acción' : 'Enviar recordatorio por email'}
+          >
             <div class="icon-wrapper naranja">
               <Mail size={24}/>
               <div class="mini-badge"><Clock size={10}/></div>
             </div>
-            <span>Recordatorio</span>
+            <span>Recordatorio (Mail)</span>
           </button>
 
-          <button class="opcion-email" on:click={() => { enviarJWPUBRecordatorioADia(); mostrarModalEmails = false; }}>
+          <button
+            class="opcion-email"
+            on:click={() => { enviarJWPUBRecordatorioADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'jwpub'}
+            aria-disabled={metodoSeleccion !== 'jwpub'}
+            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB para usar esta acción' : 'Enviar recordatorio por JWPUB'}
+          >
             <div class="icon-wrapper morado">
               <FileJson size={24}/>
               <div class="mini-badge"><Clock size={10}/></div>
             </div>
-            <span>JWPUB Recordatorio</span>
+            <span>Recordatorio (JWPUB)</span>
           </button>
         </div>
 
@@ -1768,6 +1792,18 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 .grupo-accion.right { align-items: flex-end; }
 .btn-outline-blue { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #2563eb; color: #2563eb; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
 .btn-outline-blue:hover { background: rgba(59, 130, 246, 0.1); }
+/* Visual for disabled quick-action buttons: visible but inactive */
+.opcion-email[disabled], .opcion-email[aria-disabled="true"] {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+  cursor: not-allowed;
+}
+.opcion-email[disabled] .icon-wrapper, .opcion-email[aria-disabled="true"] .icon-wrapper {
+  opacity: 0.7;
+}
+.opcion-email[disabled] .mini-badge, .opcion-email[aria-disabled="true"] .mini-badge {
+  opacity: 0.6;
+}
 .btn-outline-orange { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #ea580c; color: #ea580c; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
 .btn-outline-orange:hover { background: rgba(249, 115, 22, 0.1); }
 .btn-outline-gray { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; text-align: center; }
