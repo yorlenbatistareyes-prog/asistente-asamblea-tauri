@@ -5,6 +5,7 @@
   import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { slide } from 'svelte/transition';
   import { fade } from 'svelte/transition'; 
+  import { onDestroy } from 'svelte'; // Mover import arriba para buenas prácticas
   
   // --- NUEVAS IMPORTACIONES PARA EL SISTEMA MODULAR ---
   import { generarContexto } from '$lib/utils/contexto_impresion';
@@ -26,6 +27,7 @@
 
   import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
+  import { oradoresPendientes } from '$lib/stores/gestion';
   
   // --- ESTADO ---
   let asambleaId = 0; 
@@ -83,19 +85,28 @@
     try { 
         const res = await invoke('obtener_programa_dia', { asambleaId, dia: diaSeleccionado }) as any[]; 
         partes = res.map(p => ({ 
-            ...p, 
-            _expanded: abiertos.has(p.id), 
-            esta_presente: p.esta_presente || false,
-            // Asegurar que numero_bosquejo no sea nulo
-            numero_bosquejo: p.numero_bosquejo || "",
-            email_enviado: false, 
-            carta_recibida_check: false, 
-            jwpub_enviado: false, 
-            recordatorio_enviado: false, 
-            ensayo_terminado: false,
-            whatsapp_enviado: false,               // <--- NUEVO
-            recordatorio_whatsapp_enviado: false   // <--- NUEVO
+          ...p, 
+          _expanded: abiertos.has(p.id), 
+          // UI-only flag: controlar el botón RECIBIDO solo si el usuario lo marca.
+          recibido_manual: false,
+            // No asumir confirmaciones desde el API: iniciar estado en 'Pendiente'
+          estado: (p.estado === 'Confirmado') ? 'Confirmado' : 'Pendiente',
+          esta_presente: p.esta_presente || false,
+          // Asegurar que numero_bosquejo no sea nulo
+          numero_bosquejo: p.numero_bosquejo || "",
+          email_enviado: false, 
+          carta_recibida_check: false, 
+          jwpub_enviado: false, 
+          recordatorio_enviado: false, 
+          ensayo_terminado: false,
+          whatsapp_enviado: false,               // <--- NUEVO
+          recordatorio_whatsapp_enviado: false   // <--- NUEVO
         }));
+        // Actualizar lista global de oradores pendientes (aquellos sin estado 'Confirmado')
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
     } catch (e) { console.error(e); }
     
     try { 
@@ -103,6 +114,27 @@
         organizarOficina(datos); 
     } catch (e) { console.error(e); }
   }
+
+  // Escuchar solicitudes externas de confirmación (desde Resumen u otros)
+  function onSolicitudConfirmar(e: Event) {
+    const parteId = (e as CustomEvent)?.detail?.id;
+    if (!parteId) return;
+    const encontrado = partes.find(p => p.id === parteId);
+    if (encontrado) {
+      (async () => {
+        await toggleConfirmado(encontrado);
+        // volver a propagar pendientes UNA VEZ que el backend haya actualizado
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
+      })();
+    }
+  }
+
+  // registrar listener en mount / cleanup en destroy
+  window.addEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
+  onDestroy(() => { window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener); });
 
   function organizarOficina(datos: any[]) {
       // Reiniciamos con estructura segura
@@ -114,7 +146,10 @@
       
       if (datos && Array.isArray(datos)) {
           datos.forEach(d => {
-              d.estado = d.estado || 'Pendiente';
+              // No asumir confirmación por defecto
+              // Forzar 'Pendiente' al cargar la asignación para evitar que aparezca RECIBIDO por defecto
+              d.estado = 'Pendiente';
+              d.recibido_manual = false;
               d.esta_presente = d.esta_presente || false;
               d.ensayo_terminado = d.ensayo_terminado || false;
               d.carta_recibida_check = false;
@@ -184,16 +219,43 @@
   }
 
   async function toggleConfirmado(objeto: any) {
-      const nuevoEstado = (objeto.estado === 'Confirmado') ? 'Pendiente' : 'Confirmado';
-      objeto.estado = nuevoEstado;
-      partes = partes; 
-      actualizarVistaOficina(objeto);
+      if (!objeto || !objeto.id) return;
+      try {
+        // Usar la bandera UI `recibido_manual` para decidir el valor actual
+        const actualRecibido = !!objeto.recibido_manual;
+        await invoke('alternar_estado_parte', { id: objeto.id, tipo_accion: 'confirmacion', valor_actual: actualRecibido });
+        // Alternar la bandera UI y mantener estado consistente
+        objeto.recibido_manual = !actualRecibido;
+        objeto.estado = objeto.recibido_manual ? 'Confirmado' : 'Pendiente';
+        partes = partes;
+        // Actualizar lista global de pendientes basada en estado
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
+        actualizarVistaOficina(objeto);
+      } catch (e) {
+        console.error('Error al alternar confirmación:', e);
+        alert('Error al actualizar estado: ' + e);
+      }
   }
 
   async function togglePresente(objeto: any) {
-      objeto.esta_presente = !objeto.esta_presente;
-      partes = partes; 
-      actualizarVistaOficina(objeto);
+      if (!objeto || !objeto.id) return;
+      try {
+        await invoke('alternar_estado_parte', { id: objeto.id, tipo_accion: 'presencia', valor_actual: !!objeto.esta_presente });
+        objeto.esta_presente = !objeto.esta_presente;
+        partes = partes;
+        actualizarVistaOficina(objeto);
+        // recomputar pendientes (presence shouldn't affect pending list, but keep consistent)
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
+      } catch (e) {
+        console.error('Error al alternar presencia:', e);
+        alert('Error al actualizar presencia: ' + e);
+      }
   }
 
  // --- BOTÓN 1: WHATSAPP PARA ASIGNACIÓN (CARTA / RECORDATORIO DE ASIGNACIÓN) ---
@@ -745,7 +807,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
               <div class="info-personal">
                 <span class="nombre-p">{p.nombre_completo}</span>
                 <div class="indicadores-mini">
-                  {#if p.estado === 'Confirmado'}
+                  {#if p.recibido_manual}
                     <div class="dot-icon blue" title="Recibido"><FileCheck size={10} strokeWidth={3}/></div>
                   {/if}
                   {#if p.esta_presente}
@@ -782,7 +844,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
                 <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
                 {#if oficina[item.key]}
                   <div class="indicadores-mini">
-                    {#if oficina[item.key].estado === 'Confirmado'}
+                    {#if oficina[item.key].recibido_manual}
                       <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
                     {/if}
                     {#if oficina[item.key].esta_presente}
@@ -816,7 +878,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
                 <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
                 {#if oficina[item.key]}
                   <div class="indicadores-mini">
-                    {#if oficina[item.key].estado === 'Confirmado'}
+                    {#if oficina[item.key].recibido_manual}
                       <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
                     {/if}
                     {#if oficina[item.key].esta_presente}
@@ -883,159 +945,163 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       {/if}
       
       {#each partes as parte}
-        <div class="tarjeta-acordeon" 
-             class:expanded={parte._expanded}
-             class:estado-presente={parte.esta_presente}
-             class:estado-confirmado={parte.estado === 'Confirmado' && !parte.esta_presente}
-             class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && parte.estado !== 'Confirmado'}>
-          
-          <div class="header-parte" role="button" tabindex="0" 
-               on:click={() => toggleExpandir(parte.id)} 
-               on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
-            <div class="col-tiempo">
-              <span class="hora">{parte.hora_inicio}</span>
-              <span class="duracion">({parte.duracion}m)</span>
-            </div>
-            <div class="col-tema">
-              <span class="tema-txt">{parte.tema}</span>
-              {#if parte.es_video}
-                <span class="badge-video"><Video size={12}/> Video</span>
-              {/if}
-              {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
-              {/if}
-            </div>
-            <div class="col-orador-mini">
-              {#if !parte.es_video}
-                <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
+    <div class="tarjeta-acordeon" 
+      class:expanded={parte._expanded}
+      class:estado-presente={parte.esta_presente}
+      class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
+      class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}>
+    
+    <div class="header-parte" role="button" tabindex="0" 
+         on:click={() => toggleExpandir(parte.id)} 
+         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
+      <div class="col-tiempo">
+        <span class="hora">{parte.hora_inicio}</span>
+        <span class="duracion">({parte.duracion}m)</span>
+      </div>
+      <div class="col-tema">
+        <span class="tema-txt">{parte.tema}</span>
+        {#if parte.es_video}
+          <span class="badge-video"><Video size={12}/> Video</span>
+        {/if}
+        {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+          <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
+        {/if}
+      </div>
+      <div class="col-orador-mini">
+        {#if !parte.es_video}
+          <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
+          {#if parte.congregacion_orador}
+            <span class="cong-mini">{parte.congregacion_orador}</span>
+          {/if}
+        {/if}
+      </div>
+      <div class="col-estados-mini">
+        {#if parte.recibido_manual}
+          <div class="icon-indicator blue" title="Asignación Confirmada"><UserCheck size={14}/></div>
+        {/if}
+        {#if parte.esta_presente}
+          <div class="icon-indicator green" title="Presente"><UserCheck size={14}/></div>
+        {/if}
+        {#if parte.ensayo_terminado}
+          <div class="icon-indicator yellow" title="Ensayo"><Mic size={14}/></div>
+        {/if}
+      </div>
+      <div class="col-toggle">
+        {#if parte._expanded}
+          <ChevronUp size={20} color="var(--text-secondary)"/>
+        {:else}
+          <ChevronDown size={20} color="var(--text-secondary)"/>
+        {/if}
+      </div>
+    </div>
+
+    {#if parte._expanded}
+      <div class="body-parte" transition:slide={{ duration: 200 }}>
+        {#if !parte.es_video}
+          <div class="fila-superior-control">
+            <div class="info-orador-full">
+              <span class="label-tiny">ORADOR:</span>
+              <strong>{parte.nombre_orador || "---"}</strong>
+              <div class="detalles-contacto-panel">
                 {#if parte.congregacion_orador}
-                  <span class="cong-mini">{parte.congregacion_orador}</span>
+                  <span class="cong-tag">{parte.congregacion_orador}</span>
                 {/if}
-              {/if}
+                {#if parte.telefono_orador}
+                  <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
+                {/if}
+                {#if parte.email_orador}
+                  <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
+                {/if}
+              </div>
             </div>
-            <div class="col-estados-mini">
-              {#if parte.estado === 'Confirmado'}
-                <div class="icon-indicator blue" title="Asignación Recibida"><FileCheck size={14}/></div>
-              {/if}
-              {#if parte.esta_presente}
-                <div class="icon-indicator green" title="Presente"><UserCheck size={14}/></div>
-              {/if}
-              {#if parte.ensayo_terminado}
-                <div class="icon-indicator yellow" title="Ensayo"><Mic size={14}/></div>
-              {/if}
-            </div>
-            <div class="col-toggle">
-              {#if parte._expanded}
-                <ChevronUp size={20} color="var(--text-secondary)"/>
-              {:else}
-                <ChevronDown size={20} color="var(--text-secondary)"/>
-              {/if}
+            
+            <div class="checks-grandes">
+              <button class="btn-status-toggle blue" 
+                      class:active={parte.recibido_manual} 
+                      on:click={() => toggleConfirmado(parte)}>
+                <UserCheck size={18} /><span>RECIBIDO</span>
+              </button>
+
+              <button class="btn-status-toggle green" 
+                      class:active={parte.esta_presente} 
+                      on:click={() => togglePresente(parte)}>
+                <UserCheck size={18} /><span>PRESENTE</span>
+              </button>
+
+              <button class="btn-status-toggle yellow" 
+                      class:active={parte.ensayo_terminado} 
+                      on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
+                <Mic size={18} /><span>ENSAYO</span>
+              </button>
             </div>
           </div>
 
-          {#if parte._expanded}
-            <div class="body-parte" transition:slide={{ duration: 200 }}>
-              {#if !parte.es_video}
-                <div class="fila-superior-control">
-                  <div class="info-orador-full">
-                    <span class="label-tiny">ORADOR:</span>
-                    <strong>{parte.nombre_orador || "---"}</strong>
-                    <div class="detalles-contacto-panel">
-                      {#if parte.congregacion_orador}
-                        <span class="cong-tag">{parte.congregacion_orador}</span>
-                      {/if}
-                      {#if parte.telefono_orador}
-                        <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
-                      {/if}
-                      {#if parte.email_orador}
-                        <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
-                      {/if}
-                    </div>
-                  </div>
-                  <div class="checks-grandes">
-                    <button class="btn-status-toggle blue" 
-                            class:active={parte.estado === 'Confirmado'} 
-                            on:click={() => toggleConfirmado(parte)}>
-                      <FileCheck size={18} /><span>RECIBIDO</span>
-                    </button>
-                    <button class="btn-status-toggle green" 
-                            class:active={parte.esta_presente} 
-                            on:click={() => togglePresente(parte)}>
-                      <UserCheck size={18} /><span>PRESENTE</span>
-                    </button>
-                    <button class="btn-status-toggle yellow" 
-                            class:active={parte.ensayo_terminado} 
-                            on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
-                      <Mic size={18} /><span>ENSAYO</span>
-                    </button>
-                  </div>
-                </div>
-                <div class="grid-acciones">
-                  <div class="grupo-accion">
-                    <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-                    <div class="checks-row">
-                      <label class="check-inline">
-                        <input type="checkbox" checked={parte.email_enviado} 
-                               on:change={() => toggleStatus(parte, 'email_enviado')}> 
-                        Email enviado
-                      </label>
-                      <label class="check-inline strong-check">
-                        <input type="checkbox" checked={parte.carta_recibida_check} 
-                               on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
-                        Carta Recibida
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <div class="grupo-accion center">
-                    <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
-                      <Printer size={16}/> IMPRIMIR CARTA
-                    </button>
-                  </div>
-
-                  <div class="grupo-accion right">
-                    <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
-                      <FileJson size={16}/> JWPUB ENVIAR CARTA
-                    </button>
-                    <label class="check-inline">
-                      <input type="checkbox" checked={parte.jwpub_enviado} 
-                             on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
-                      Email JWPUB enviado
-                    </label>
-                  </div>
-                  
-                  <div class="grupo-accion">
-                    <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-                    <label class="check-inline">
-                      <input type="checkbox" checked={parte.recordatorio_enviado} 
-                             on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
-                      Recordatorio enviado
-                    </label>
-                  </div>
-                  <div class="grupo-accion center">
-                    <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
-                       <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-                    </button>
-                  </div>
-                  <div class="grupo-accion right">
-                    <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
-                      <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-                    </button>
-                  </div>
-                </div>
-              {/if}
-              <div class="footer-tools">
-                <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
-                  <Edit size={14}/> Editar Datos / Asignar
-                </button>
-                <button class="btn-tool delete" on:click={() => eliminarParte(parte.id)}>
-                  <Trash2 size={14}/> Eliminar Parte
-                </button>
+          <div class="grid-acciones">
+            <div class="grupo-accion">
+              <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
+              <div class="checks-row">
+                <label class="check-inline">
+                  <input type="checkbox" checked={parte.email_enviado} 
+                         on:change={() => toggleStatus(parte, 'email_enviado')}> 
+                  Email enviado
+                </label>
+                <label class="check-inline strong-check">
+                  <input type="checkbox" checked={parte.carta_recibida_check} 
+                         on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
+                  Carta Recibida
+                </label>
               </div>
             </div>
-          {/if}
+            
+            <div class="grupo-accion center">
+              <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
+                <Printer size={16}/> IMPRIMIR CARTA
+              </button>
+            </div>
+
+            <div class="grupo-accion right">
+              <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
+                <FileJson size={16}/> JWPUB ENVIAR CARTA
+              </button>
+              <label class="check-inline">
+                <input type="checkbox" checked={parte.jwpub_enviado} 
+                       on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
+                Email JWPUB enviado
+              </label>
+            </div>
+            
+            <div class="grupo-accion">
+              <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
+              <label class="check-inline">
+                <input type="checkbox" checked={parte.recordatorio_enviado} 
+                       on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
+                Recordatorio enviado
+              </label>
+            </div>
+            <div class="grupo-accion center">
+              <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
+                 <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
+              </button>
+            </div>
+            <div class="grupo-accion right">
+              <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
+                <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
+              </button>
+            </div>
+          </div>
+        {/if}
+        <div class="footer-tools">
+          <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
+            <Edit size={14}/> Editar Datos / Asignar
+          </button>
+          <button class="btn-tool delete" on:click={() => eliminarParte(parte.id)}>
+            <Trash2 size={14}/> Eliminar Parte
+          </button>
         </div>
-      {/each}
+      </div>
+    {/if}
+  </div>
+{/each}
     </div>
   </main>
 </div>
@@ -1072,9 +1138,9 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
             </div>
           </div>
           <div class="checks-grandes">
-            <button class="btn-status-toggle blue" 
-                    class:active={asignacionOficinaActual.estado === 'Confirmado'} 
-                    on:click={() => toggleConfirmado(asignacionOficinaActual)}>
+                <button class="btn-status-toggle blue" 
+                  class:active={asignacionOficinaActual.recibido_manual} 
+                  on:click={() => toggleConfirmado(asignacionOficinaActual)}>
               <FileCheck size={18} /><span>RECIBIDO</span>
             </button>
             <button class="btn-status-toggle green" 

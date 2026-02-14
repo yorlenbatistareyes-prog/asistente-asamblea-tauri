@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { oradoresPendientes } from '$lib/stores/gestion';
   // --- IMPORTAMOS LOS ICONOS ---
   import { 
     Users, 
@@ -52,12 +54,31 @@
         setResumen(parsed);
       } catch (e) {
         // si falla parsing, cargamos valores por defecto
-        setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12, oradoresPendientes: [{ nombre: 'Hno. Pérez', tema: 'Discurso 1', estado: 'Pendiente' }, { nombre: 'Hno. González', tema: 'Simposio A', estado: 'Pendiente' }] });
+        setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12 });
       }
     } else {
       // Valores por defecto para la primera carga
-      setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12, oradoresPendientes: [{ nombre: 'Hno. Pérez', tema: 'Discurso 1', estado: 'Pendiente' }, { nombre: 'Hno. González', tema: 'Simposio A', estado: 'Pendiente' }] });
+      setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12 });
     }
+
+    // Cargar oradores pendientes para el resumen (cargar 3 días)
+    (async () => {
+      try {
+        const dias = ['Viernes', 'Sábado', 'Domingo'];
+        const pendientes: any[] = [];
+        await Promise.all(dias.map(async (dia) => {
+          try {
+            const res = await invoke('obtener_programa_dia', { asambleaId: asambleaActual?.id || (JSON.parse(data || '{}').id), dia }) as any[];
+            res.forEach(p => {
+              if (p.nombre_orador && (!p.estado || p.estado !== 'Confirmado')) {
+                pendientes.push({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' });
+              }
+            });
+          } catch (e) { console.warn('No se pudo cargar programa dia', dia, e); }
+        }));
+        oradoresPendientes.set(pendientes);
+      } catch (e) { console.warn('Error cargando oradores pendientes', e); }
+    })();
   });
 
   function cambiarSeccion(nuevaSeccion: string) {

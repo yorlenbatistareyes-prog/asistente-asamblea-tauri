@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { setResumen, addNota, setNotas, totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, notasRapidas } from '$lib/stores/gestion';
+  import { setResumenValue } from '$lib/stores/gestion';
   
   // --- TIPTAP Y EXTENSIONES ---
   import { Editor, Extension } from '@tiptap/core';
@@ -295,10 +296,7 @@
         congregacionesReportadas: Number(resumenReportadas) || 0,
         totalCongregaciones: Number(resumenTotalCongregaciones) || 0,
       };
-      setResumen(resumenPayload);
-      // persistir todo en localStorage (incluye notas si ya existen)
-      const notas = (localStorage.getItem('notasRapidas')) ? JSON.parse(localStorage.getItem('notasRapidas') || '[]') : [];
-      try { localStorage.setItem('resumen', JSON.stringify({ ...resumenPayload, notasRapidas: notas })); } catch(e) {}
+      setResumenValue(resumenPayload);
       // Si hay nueva nota en el campo, añadirla
       if (nuevaNotaTexto && nuevaNotaTexto.trim().length > 0) {
         addNota(nuevaNotaTexto.trim());

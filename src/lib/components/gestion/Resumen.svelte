@@ -1,8 +1,11 @@
 <script lang="ts">
   import { Users, Droplets, Mic, CheckCircle, AlertCircle } from 'lucide-svelte';
-  import { totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, oradoresPendientes, notasRapidas, addNota, removeNota } from '$lib/stores/gestion';
+  import { totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, oradoresPendientes, notasRapidas, addNota, removeNota, solicitarConfirmacionParte } from '$lib/stores/gestion';
 
   let nuevaNota = '';
+  let editarAsistencia: number | null = null;
+  let editarBautismos: number | null = null;
+  let editarReportes: number | null = null;
 
   // Porcentaje calculado a partir de los stores (evitar división por cero)
   $: porcentajeReportes = ( ($congregacionesReportadas || 0) / ($totalCongregaciones || 1) ) * 100;
@@ -11,6 +14,17 @@
     if (!nuevaNota || !nuevaNota.trim()) return;
     addNota(nuevaNota.trim());
     nuevaNota = '';
+  }
+
+  function aplicarEdiciones() {
+    const payload: any = {};
+    if (editarAsistencia !== null) payload.totalAsistencia = Number(editarAsistencia) || 0;
+    if (editarBautismos !== null) payload.totalBautismos = Number(editarBautismos) || 0;
+    if (editarReportes !== null) payload.congregacionesReportadas = Number(editarReportes) || 0;
+    if (Object.keys(payload).length > 0) {
+      import('$lib/stores/gestion').then(m => m.setResumenValue(payload));
+      editarAsistencia = null; editarBautismos = null; editarReportes = null;
+    }
   }
 </script>
 
@@ -26,6 +40,9 @@
         <span class="label">Asistencia Total</span>
         <span class="value">{$totalAsistencia}</span>
         <span class="subtext">Promedio por sesión</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" min="0" bind:value={editarAsistencia} placeholder="Editar" style="width:90px; padding:6px; border:1px solid var(--border-color); border-radius:6px; background:var(--input-bg); color:var(--text-main);" />
+        </div>
       </div>
     </div>
 
@@ -37,6 +54,9 @@
         <span class="label">Bautismos</span>
         <span class="value">{$totalBautismos}</span>
         <span class="subtext">Candidatos aprobados</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" min="0" bind:value={editarBautismos} placeholder="Editar" style="width:90px; padding:6px; border:1px solid var(--border-color); border-radius:6px; background:var(--input-bg); color:var(--text-main);" />
+        </div>
       </div>
     </div>
 
@@ -49,6 +69,9 @@
         <span class="value">{$congregacionesReportadas} / {$totalCongregaciones}</span>
         <div class="progress-bar">
           <div class="fill" style="width: {porcentajeReportes}%"></div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" min="0" bind:value={editarReportes} placeholder="Editar" style="width:90px; padding:6px; border:1px solid var(--border-color); border-radius:6px; background:var(--input-bg); color:var(--text-main);" />
         </div>
       </div>
     </div>
@@ -86,7 +109,7 @@
                 <tr>
                   <td>{orador.nombre}</td>
                   <td>{orador.tema}</td>
-                  <td><button class="btn-sm">Confirmar</button></td>
+                  <td><button class="btn-sm" on:click={() => solicitarConfirmacionParte(orador.id)}>Confirmar</button></td>
                 </tr>
               {/each}
             </tbody>
@@ -96,6 +119,10 @@
         {/if}
       </div>
     </div>
+
+      <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end; padding-top:8px;">
+        <button class="btn-sm" on:click={aplicarEdiciones}>Aplicar Ediciones</button>
+      </div>
 
     <div class="card list-card">
       <div class="card-header">
