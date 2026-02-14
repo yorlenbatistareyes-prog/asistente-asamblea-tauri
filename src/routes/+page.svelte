@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+ import { getVersion } from '@tauri-apps/api/app';
   import { invoke } from '@tauri-apps/api/core';
   import { ask } from "@tauri-apps/plugin-dialog";
   import { goto } from '$app/navigation';
@@ -38,12 +39,22 @@
   let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
   let nombreUsuario = ""; // Se llenará cuando cargue la configuración
+  let versionReal = "";
 
-  onMount(() => {
+  onMount(async () => { // <--- Añadimos 'async' aquí
+    // 1. Cargamos la versión real de la app
+    try {
+        versionReal = await getVersion();
+    } catch (error) {
+        console.error("No se pudo obtener la versión:", error);
+        versionReal = "1.0.0"; // Valor de respaldo
+    }
+
+    // 2. Ejecutamos tus funciones actuales
     cargarDatos();
     iniciarReloj(); 
-    cargarTemaGuardado(); // Cargar tema al iniciar
-  });
+    cargarTemaGuardado(); 
+});
 
   onDestroy(() => {
     if (intervaloReloj) clearInterval(intervaloReloj); 
@@ -433,18 +444,18 @@ async function cargarDatos() {
     </div>
 
     <div class="status-right">
-        <div class="stat-item">
-            <Lectern size={18} />
-            <span>Asambleas: <strong>{listaAsambleas.length}</strong></span>
-        </div>
-        
-        <span class="separator">|</span>
-        
-        <div class="version-info">
-             <Activity size={16} />
-             <span class="app-version">v1.0.4</span>
-        </div>
+    <div class="stat-item">
+        <Lectern size={18} />
+        <span>Asambleas: <strong>{listaAsambleas.length}</strong></span>
     </div>
+    
+    <span class="separator">|</span>
+    
+    <div class="version-info">
+        <Activity size={16} />
+        <span class="app-version">v{versionReal}</span>
+    </div>
+</div>
 </footer>
 </div>
 
