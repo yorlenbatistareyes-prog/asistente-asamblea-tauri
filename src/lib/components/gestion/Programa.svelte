@@ -42,15 +42,8 @@
   let mostrarModalAsignar = false; 
   let mostrarModalCrear = false;   
   let mostrarModalGestionOficina = false;
-  let mostrarModalEmails = false;
-
-  // --- ESTADO MODAL EMAIL A TODOS ---
-  let emailsATodos: string[] = [];
-  let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
-  let asuntoTodos: string = '';
-  let cuerpoTodos: string = '';
-  let plantillaSeleccionada: string | null = null;
-  let cargandoEmails = false;
+  
+ 
 
   let parteEditando: any = null; 
   let rolOficinaEditando: string | null = null; 
@@ -553,58 +546,127 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       } catch(e) { alert("Error: " + e); } 
   }
 
-  async function obtenerTodosLosEmails() {
-      const emails = new Set<string>();
-      const dias = ['Viernes', 'Sábado', 'Domingo'];
-      for (const dia of dias) {
-          try {
-              const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
-              res.forEach(parte => { if (parte.email_orador && !parte.es_video) emails.add(parte.email_orador.trim()); });
-          } catch (e) { console.error(e); }
-      }
-      return Array.from(emails);
-  }
 
+  // =========================================================
+  // === NUEVO MÓDULO DE EMAILS MASIVOS (CON FILTRO DÍA) ===
+  // =========================================================
+
+  // --- VARIABLES ---
+  let mostrarModalEmails = false;
+  let cargandoEmails = false;
+  
+  // Variables nuevas para el filtro
+  let diaFiltroEmail = 'Viernes'; // Día seleccionado en el modal
+  let todosLosDatosEmails: { email: string, dia: string }[] = []; // Base de datos temporal
+  
+  // Variables del formulario (se mantienen los nombres para compatibilidad)
+  let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
+  let asuntoTodos: string = '';
+  let cuerpoTodos: string = '';
+  let plantillaSeleccionada: string | null = null;
+
+  // --- REACTIVIDAD: FILTRO AUTOMÁTICO ---
+  // Esta línea mágica crea la lista filtrada cada vez que cambias de día
+  $: emailsFiltrados = todosLosDatosEmails
+      .filter(item => item.dia === diaFiltroEmail)
+      .map(item => item.email);
+
+  // --- FUNCIÓN DE CARGA ---
   async function prepararModalEmails() {
     cargandoEmails = true;
-    try {
-      const emails = await obtenerTodosLosEmails();
-      emailsATodos = emails.filter(e => e && e.trim());
-      // Seleccionamos una plantilla por defecto si existe
-      const defecto = emailTemplates && emailTemplates.length ? emailTemplates[0] : null;
-      plantillaSeleccionada = defecto?.id || null;
-      asuntoTodos = defecto?.subject || 'Asignación de asamblea';
-      cuerpoTodos = defecto?.body || 'Estimado hermano,\n\nLe informamos sobre su asignación en la próxima asamblea.';
-    } catch (e) {
-      console.error(e);
-      emailsATodos = [];
-    } finally {
-      cargandoEmails = false;
-    }
+    todosLosDatosEmails = []; // Limpiamos para recargar fresco
+    
+    // Configuramos plantilla por defecto
+    const defecto = $emailTemplates && $emailTemplates.length ? $emailTemplates[0] : null;
+    plantillaSeleccionada = defecto?.id || null;
+    asuntoTodos = defecto?.subject || 'Asignación de asamblea';
+    cuerpoTodos = defecto?.body || 'Estimado hermano,\n\nLe informamos sobre su asignación...';
+
+    const dias = ['Viernes', 'Sábado', 'Domingo'];
+    
+    // Cargamos los 3 días
+    await Promise.all(dias.map(async (dia) => {
+        try {
+            const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+            res.forEach(parte => { 
+                if (parte.email_orador && !parte.es_video) {
+                    todosLosDatosEmails.push({ 
+                        email: parte.email_orador.trim(), 
+                        dia: dia 
+                    });
+                } 
+            });
+        } catch (e) { console.error(e); }
+    }));
+    
+    // Svelte necesita que reasignemos para detectar el cambio
+    todosLosDatosEmails = todosLosDatosEmails;
+    diaFiltroEmail = diaSeleccionado; // Inicia mostrando el día que estás viendo en la app
+    cargandoEmails = false;
+    mostrarModalEmails = true;
   }
 
+  // --- CONTROL DEL FILTRO ---
+  function cambiarDiaFiltro(dia: string) {
+      diaFiltroEmail = dia;
+  }
+
+  // --- UTILIDADES ---
   function copiarEmailsAlPortapapeles() {
-    if (!emailsATodos || emailsATodos.length === 0) return alert('No hay correos para copiar.');
-    const texto = emailsATodos.join(';');
-    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(texto).then(() => alert('Correos copiados al portapapeles.'));
+    if (emailsFiltrados.length === 0) return alert(`No hay correos para copiar del ${diaFiltroEmail}.`);
+    const texto = emailsFiltrados.join(';');
+    
+    if (navigator && navigator.clipboard) {
+        navigator.clipboard.writeText(texto)
+            .then(() => alert(`¡Listo! ${emailsFiltrados.length} correos copiados.`))
+            .catch(() => prompt('Copiar (Ctrl+C):', texto));
     } else {
-      // Fallback
-      prompt('Copiar correos (Ctrl+C):', texto);
+        prompt('Copiar (Ctrl+C):', texto);
     }
   }
 
   function aplicarPlantillaSeleccionada() {
     if (!plantillaSeleccionada) return;
     const p = obtenerPlantillaPorId(plantillaSeleccionada);
-    if (!p) return;
-    asuntoTodos = p.subject || asuntoTodos;
-    cuerpoTodos = p.body || cuerpoTodos;
+    if (p) {
+        asuntoTodos = p.subject || asuntoTodos;
+        cuerpoTodos = p.body || cuerpoTodos;
+    }
   }
 
+  // --- FUNCIONES DE ACCIÓN RÁPIDA (CON FILTRO APLICADO) ---
+  
+  // 1. Botón "Email [Día]"
+  async function enviarEmailADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      openUrl(`mailto:${emailsFiltrados.join(';')}`);
+  }
+
+  // 2. Botón "JWPUB [Día]"
+  async function enviarJWPUBADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}`);
+  }
+
+  // 3. Botón "Recordatorio"
+  async function enviarEmailRecordatorioADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
+      openUrl(`mailto:${emailsFiltrados.join(';')}?subject=${asunto}`);
+  }
+
+  // 4. Botón "JWPUB Recordatorio"
+  async function enviarJWPUBRecordatorioADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
+      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}&subject=${asunto}`);
+  }
+
+  // 5. Botón Grande "Abrir en..."
   async function abrirTodosPorMetodo() {
-    if (!emailsATodos || emailsATodos.length === 0) return alert('⚠️ No hay correos.');
-    const lista = emailsATodos.join(';');
+    if (emailsFiltrados.length === 0) return alert(`⚠️ No hay correos para el ${diaFiltroEmail}.`);
+    const lista = emailsFiltrados.join(';');
+    
     if (metodoSeleccion === 'jwpub') {
       const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}&subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
       openUrl(url);
@@ -613,35 +675,6 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       openUrl(mailto);
     }
     mostrarModalEmails = false;
-  }
-
-  function enviarJWPUBATodos() {
-      obtenerTodosLosEmails().then(emails => {
-          if (emails.length === 0) return alert("⚠️ No hay correos.");
-          openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emails.join(';'))}`);
-      });
-  }
-
-  async function enviarEmailATodos() {
-      obtenerTodosLosEmails().then(emails => {
-          if (emails.length === 0) return alert("⚠️ No hay correos.");
-          openUrl(`mailto:${emails.join(';')}`);
-      });
-  }
-
-  async function enviarJWPUBRecordatorioATodos() {
-      obtenerTodosLosEmails().then(emails => {
-          if (emails.length === 0) return alert("⚠️ No hay correos.");
-          openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emails.join(';'))}&subject=${encodeURIComponent('RECORDATORIO: Asignación de asamblea')}`);
-      });
-  }
-
-  async function enviarEmailRecordatorioATodos() {
-      obtenerTodosLosEmails().then(emails => {
-          if (emails.length === 0) return alert("⚠️ No hay correos.");
-          const asunto = encodeURIComponent('RECORDATORIO: Asignación de asamblea');
-          openUrl(`mailto:${emails.join(';')}?subject=${asunto}`);
-      });
   }
 
     // --- FILTRADO PARA SUGERENCIAS (CUANDO ESCRIBES NUEVA PARTE) ---
@@ -1291,8 +1324,8 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 {/if}
 
 {#if mostrarModalEmails}
-  <div class="modal-backdrop" on:click={() => mostrarModalEmails = false} transition:fade={{ duration: 200 }}>
-    <div class="modal-emails" on:click|stopPropagation>
+  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={() => mostrarModalEmails = false} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && (mostrarModalEmails=false)} transition:fade={{ duration: 200 }}>
+    <div class="modal-emails" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown={(e) => e.key === 'Escape' && (mostrarModalEmails=false)}>
       
       <div class="modal-header">
         <h3><Mail size={20}/> Centro de Comunicaciones</h3>
@@ -1304,7 +1337,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       <div class="modal-contenido">
         
         <div class="filtro-dia-contenedor">
-          <label class="label-titulo">Enviar correos para el día:</label>
+          <div class="label-titulo">Enviar correos para el día:</div>
           <div class="selector-dias">
             {#each ['Viernes', 'Sábado', 'Domingo'] as dia}
               <button 
@@ -1317,7 +1350,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           </div>
         </div>
 
-        <label class="label-titulo">Acciones Rápidas ({diaSeleccionado})</label>
+        <div class="label-titulo">Acciones Rápidas ({diaSeleccionado})</div>
         <div class="opciones-email-grid">
           <button class="opcion-email" on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper azul"><Mail size={24}/></div>
@@ -1348,7 +1381,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 
         <div class="seccion-editor">
           <div class="editor-header">
-            <label class="label-titulo">Personalizar Mensaje</label>
+            <div class="label-titulo">Personalizar Mensaje</div>
             <div class="destinatarios-badge">
               <span class="status-dot"></span>
               {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaSeleccionado}
@@ -1373,7 +1406,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
               <label for="plantilla">Plantilla</label>
               <select id="plantilla" bind:value={plantillaSeleccionada} on:change={aplicarPlantillaSeleccionada}>
                 <option value={null}>-- Texto libre --</option>
-                {#each emailTemplates as tpl}
+                {#each $emailTemplates as tpl}
                   <option value={tpl.id}>{tpl.title || tpl.id}</option>
                 {/each}
               </select>
@@ -1946,204 +1979,6 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   }
 }
 
-.modal-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-  }
-
-  .modal-button {
-    background-color: #0078d4;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .modal-button:hover {
-    background-color: #0064a9;
-  }
-
-  .modal-button:active {
-    background-color: #004d8c;
-  }
-
-  /* Opcional: Agregar estilos para diferentes estados de error o éxito */
-  .modal-button.error {
-    background-color: #ff0000;
-  }
-
-  .modal-button.exito {
-    background-color: #00ff00;
-  }
-
-  .modal-button.info {
-    background-color: #0078d4;
-  }
-
-  .modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .modal-emails {
-    background: var(--bg-card);
-    color: var(--text-main);
-    padding: 20px;
-    border-radius: 12px;
-    max-width: 700px;
-    width: 95%;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 10px 30px rgba(2,6,23,0.2);
-  }
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .modal-header h3 {
-    font-size: 18px;
-    font-weight: bold;
-  }
-
-  .modal-header .btn-close {
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-  }
-
-  .opciones-email {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-  }
-
-  .opcion-email {
-    background-color: #0078d4;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .opcion-email:hover {
-    background-color: #0064a9;
-  }
-
-  .opcion-email:active {
-    background-color: #004d8c;
-  }
-
-  .opcion-email span {
-    font-size: 14px;
-  }
-
-  .opcion-email svg {
-    margin-right: 5px;
-  }
-
-  /* Opcional: Agregar estilos para diferentes estados de error o éxito */
-  .opcion-email.error {
-    background-color: #ff0000;
-  }
-
-  .opcion-email.exito {
-    background-color: #00ff00;
-  }
-
-  .opcion-email.info {
-    background-color: #0078d4;
-  }
-
-  /* Contenedor principal de las opciones */
-.opciones-email {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Dos columnas */
-  gap: 16px;
-  padding: 20px;
-}
-
-/* Estilo base de cada botón */
-.opcion-email {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 24px 16px;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  color: #475569; /* Gris azulado elegante */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-/* Efecto al pasar el mouse (Hover) */
-.opcion-email:hover {
-  background-color: #f8fafc;
-  border-color: #3b82f6; /* Azul primario */
-  transform: translateY(-2px); /* Pequeño salto hacia arriba */
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  color: #1e40af;
-}
-
-/* Estilo para los iconos dentro del botón */
-.opcion-email :global(svg) {
-  transition: transform 0.2s ease;
-}
-
-.opcion-email:hover :global(svg) {
-  transform: scale(1.1); /* Agranda el icono un poquito */
-}
-
-/* Texto debajo del icono */
-.opcion-email span {
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.2;
-}
-
-/* Estilo para el encabezado del Modal */
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background-color: #f1f5f9;
-  border-radius: 12px 12px 0 0;
-}
-
-.modal-header h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 1.1rem;
-  color: #1e293b;
-}
-
 /* --- CONTENEDOR DEL MODAL --- */
 .modal-emails {
   background: white;
@@ -2179,7 +2014,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 }
 
 /* --- SECCIÓN DE ACCIONES RÁPIDAS (TARJETAS) --- */
-.opciones-email {
+.opciones-email-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -2278,13 +2113,13 @@ input:focus, textarea:focus, select:focus {
   background: white;
 }
 
-.modal-button.info {
+.modal-button.primary {
   background: #2563eb;
   color: white;
   border: none;
 }
 
-.modal-button.info:hover {
+.modal-button.primary:hover {
   background: #1d4ed8;
   box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
 }
