@@ -442,12 +442,17 @@
 
   /* HEADER */
   .top-bar-welcome { 
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 45px; 
-      background: var(--bg-card); 
-      padding: 15px 25px; border-radius: 20px; 
-      box-shadow: 0 4px 15px var(--shadow-color); 
-      border: 1px solid var(--border-color); 
-  }
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 40px; 
+    background: var(--bg-card); 
+    padding: 15px 30px; 
+    border-radius: 16px; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color); 
+}
+
   .welcome-left { display: flex; align-items: center; gap: 15px; }
   .avatar-circle { width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), #005a9e); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 10px rgba(0, 120, 212, 0.3); }
   .user-info { display: flex; flex-direction: column; }
@@ -580,8 +585,44 @@
   .empty-state button { margin-top: 10px; padding: 8px 16px; background: var(--bg-secondary); border: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: var(--text-secondary); }
 
   .grid-cartas { display: flex; flex-direction: column; gap: 12px; }
-  .card-action { background: var(--bg-card); border: 1px solid var(--border-color); padding: 15px; border-radius: 16px; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: all 0.2s; width: 100%; text-align: left; }
-  .card-action:hover { border-color: var(--primary); transform: scale(1.01); box-shadow: 0 10px 15px -3px var(--shadow-color); }
+  .card-action { 
+    background: var(--bg-card); 
+    border: 1px solid var(--border-color); 
+    padding: 16px 20px; 
+    border-radius: 12px; 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    cursor: pointer; 
+    transition: all 0.2s ease-in-out; 
+    width: 100%; 
+    text-align: left;
+    position: relative;
+    box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.card-action::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 12px 0 0 12px;
+    background: transparent;
+}
+
+/* Colores por sección */
+.card-action:has(.oradores)::before { background: #22c55e; }
+.card-action:has(.presidentes)::before { background: #3b82f6; }
+.card-action:has(.oraciones)::before { background: #f97316; }
+
+  .card-action:hover { 
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary);
+}
+
   .card-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
   .oradores { background: #f0fdf4; color: #16a34a; } .presidentes { background: #eff6ff; color: #2563eb; } .oraciones { background: #fff7ed; color: #ea580c; }
   .card-text h3 { margin: 0; font-size: 16px; color: var(--text-main); } .card-text p { margin: 2px 0 0; font-size: 12px; color: var(--text-secondary); }
