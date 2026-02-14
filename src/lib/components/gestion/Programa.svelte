@@ -41,6 +41,7 @@
   let mostrarModalAsignar = false; 
   let mostrarModalCrear = false;   
   let mostrarModalGestionOficina = false;
+  let mostrarModalEmails = false;
 
   let parteEditando: any = null; 
   let rolOficinaEditando: string | null = null; 
@@ -562,6 +563,28 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       });
   }
 
+  async function enviarEmailATodos() {
+      obtenerTodosLosEmails().then(emails => {
+          if (emails.length === 0) return alert("⚠️ No hay correos.");
+          openUrl(`mailto:${emails.join(';')}`);
+      });
+  }
+
+  async function enviarJWPUBRecordatorioATodos() {
+      obtenerTodosLosEmails().then(emails => {
+          if (emails.length === 0) return alert("⚠️ No hay correos.");
+          openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emails.join(';'))}&subject=${encodeURIComponent('RECORDATORIO: Asignación de asamblea')}`);
+      });
+  }
+
+  async function enviarEmailRecordatorioATodos() {
+      obtenerTodosLosEmails().then(emails => {
+          if (emails.length === 0) return alert("⚠️ No hay correos.");
+          const asunto = encodeURIComponent('RECORDATORIO: Asignación de asamblea');
+          openUrl(`mailto:${emails.join(';')}?subject=${asunto}`);
+      });
+  }
+
     // --- FILTRADO PARA SUGERENCIAS (CUANDO ESCRIBES NUEVA PARTE) ---
   function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase(); 
@@ -731,8 +754,8 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   <div class="header-sesion-left">
     <h2>Programa - {diaSeleccionado}</h2>
     
-    <button class="btn-header-orange" on:click={enviarJWPUBATodos} title="Enviar JWPUB a todos los oradores">
-      <FileJson size={18}/> <span>JWPUB a Todos</span>
+    <button class="btn-header-orange" on:click={() => mostrarModalEmails = true} title="Enviar emails y JWPUB a todos los oradores">
+      <Mail size={18}/> <span>Email a Todos</span>
     </button>
   </div>
   
@@ -1202,6 +1225,41 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
               </div>
             </button>
           {/each}
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if mostrarModalEmails}
+  <div class="modal-backdrop" on:click={() => mostrarModalEmails = false}>
+    <div class="modal-emails" on:click|stopPropagation>
+      <div class="modal-header">
+        <h3><Mail size={20}/> Enviar Email a Todos los Oradores</h3>
+        <button class="btn-close" on:click={() => mostrarModalEmails = false}><X size={20}/></button>
+      </div>
+      
+      <div class="modal-contenido">
+        <div class="opciones-email">
+          <button class="opcion-email" on:click={() => { enviarEmailATodos(); mostrarModalEmails = false; }}>
+            <Mail size={24}/>
+            <span>Email a todos los oradores</span>
+          </button>
+          
+          <button class="opcion-email" on:click={() => { enviarJWPUBATodos(); mostrarModalEmails = false; }}>
+            <FileJson size={24}/>
+            <span>JWPUB a todos los Oradores</span>
+          </button>
+          
+          <button class="opcion-email" on:click={() => { enviarEmailRecordatorioATodos(); mostrarModalEmails = false; }}>
+            <Clock size={24}/>
+            <span>Email recordatorio a todos los oradores</span>
+          </button>
+          
+          <button class="opcion-email" on:click={() => { enviarJWPUBRecordatorioATodos(); mostrarModalEmails = false; }}>
+            <FileJson size={24}/>
+            <span>JWPUB recordatorio a todos los oradores</span>
+          </button>
         </div>
       </div>
     </div>
