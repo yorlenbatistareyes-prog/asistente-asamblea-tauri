@@ -3,7 +3,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
   import { open as openUrl } from '@tauri-apps/plugin-shell';
-  import { slide } from 'svelte/transition'; 
+  import { slide } from 'svelte/transition';
+  import { fade } from 'svelte/transition'; 
   
   // --- NUEVAS IMPORTACIONES PARA EL SISTEMA MODULAR ---
   import { generarContexto } from '$lib/utils/contexto_impresion';
@@ -1290,7 +1291,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 {/if}
 
 {#if mostrarModalEmails}
-  <div class="modal-backdrop" on:click={() => mostrarModalEmails = false}>
+  <div class="modal-backdrop" on:click={() => mostrarModalEmails = false} transition:fade={{ duration: 200 }}>
     <div class="modal-emails" on:click|stopPropagation>
       
       <div class="modal-header">
@@ -1302,27 +1303,41 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       
       <div class="modal-contenido">
         
-        <label class="label-titulo">Acciones Rápidas</label>
+        <div class="filtro-dia-contenedor">
+          <label class="label-titulo">Enviar correos para el día:</label>
+          <div class="selector-dias">
+            {#each ['Viernes', 'Sábado', 'Domingo'] as dia}
+              <button 
+                class="btn-dia {diaSeleccionado === dia ? 'activo' : ''}" 
+                on:click={() => cambiarDiaFiltro(dia)}
+              >
+                {dia}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <label class="label-titulo">Acciones Rápidas ({diaSeleccionado})</label>
         <div class="opciones-email-grid">
-          <button class="opcion-email" on:click={() => { enviarEmailATodos(); mostrarModalEmails = false; }}>
+          <button class="opcion-email" on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper azul"><Mail size={24}/></div>
-            <span>Email a todos</span>
+            <span>Email {diaSeleccionado}</span>
           </button>
 
-          <button class="opcion-email" on:click={() => { enviarJWPUBATodos(); mostrarModalEmails = false; }}>
+          <button class="opcion-email" on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper morado"><FileJson size={24}/></div>
-            <span>JWPUB a todos</span>
+            <span>JWPUB {diaSeleccionado}</span>
           </button>
 
-          <button class="opcion-email" on:click={() => { enviarEmailRecordatorioATodos(); mostrarModalEmails = false; }}>
+          <button class="opcion-email" on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper naranja">
               <Mail size={24}/>
               <div class="mini-badge"><Clock size={10}/></div>
             </div>
-            <span>Email Recordatorio</span>
+            <span>Recordatorio</span>
           </button>
 
-          <button class="opcion-email" on:click={() => { enviarJWPUBRecordatorioATodos(); mostrarModalEmails = false; }}>
+          <button class="opcion-email" on:click={() => { enviarJWPUBRecordatorioADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper morado">
               <FileJson size={24}/>
               <div class="mini-badge"><Clock size={10}/></div>
@@ -1336,7 +1351,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
             <label class="label-titulo">Personalizar Mensaje</label>
             <div class="destinatarios-badge">
               <span class="status-dot"></span>
-              {cargandoEmails ? 'Cargando...' : emailsATodos.length + ' destinatarios'}
+              {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaSeleccionado}
             </div>
           </div>
 
@@ -1354,7 +1369,6 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
                 </label>
               </div>
             </div>
-
             <div class="form-group">
               <label for="plantilla">Plantilla</label>
               <select id="plantilla" bind:value={plantillaSeleccionada} on:change={aplicarPlantillaSeleccionada}>
@@ -1367,29 +1381,28 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           </div>
 
           <div class="form-group">
-            <label for="asunto">Asunto del correo</label>
-            <input type="text" id="asunto" bind:value={asuntoTodos} placeholder="Escribe el asunto aquí..." />
+            <label for="asunto">Asunto</label>
+            <input type="text" id="asunto" bind:value={asuntoTodos} placeholder="Asunto..." />
           </div>
 
           <div class="form-group">
-            <label for="cuerpo">Cuerpo del mensaje</label>
-            <textarea id="cuerpo" rows="6" bind:value={cuerpoTodos} placeholder="Escribe tu mensaje..."></textarea>
+            <label for="cuerpo">Cuerpo</label>
+            <textarea id="cuerpo" rows="6" bind:value={cuerpoTodos}></textarea>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsATodos.length===0}>
+          <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsFiltrados.length===0}>
             Copiar correos
           </button>
           <div class="flex-spacer"></div>
           <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
             Cancelar
           </button>
-          <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsATodos.length===0}>
-            🚀 Abrir en {metodoSeleccion === 'jwpub' ? 'JWPUB' : 'Cliente'}
+          <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsFiltrados.length===0}>
+            🚀 Enviar a {emailsFiltrados.length} oradores
           </button>
         </div>
-
       </div>
     </div>
   </div>
@@ -2546,4 +2559,31 @@ input:focus, textarea:focus, select:focus {
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  /* --- ANIMACIONES --- */
+.modal-backdrop {
+  /* ... tu código anterior ... */
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-emails {
+  /* ... tu código anterior ... */
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-30px) scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
 </style>
