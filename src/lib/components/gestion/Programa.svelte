@@ -43,6 +43,14 @@
   let mostrarModalGestionOficina = false;
   let mostrarModalEmails = false;
 
+  // --- ESTADO MODAL EMAIL A TODOS ---
+  let emailsATodos: string[] = [];
+  let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
+  let asuntoTodos: string = '';
+  let cuerpoTodos: string = '';
+  let plantillaSeleccionada: string | null = null;
+  let cargandoEmails = false;
+
   let parteEditando: any = null; 
   let rolOficinaEditando: string | null = null; 
   let asignacionOficinaActual: any = null; 
@@ -556,6 +564,56 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       return Array.from(emails);
   }
 
+  async function prepararModalEmails() {
+    cargandoEmails = true;
+    try {
+      const emails = await obtenerTodosLosEmails();
+      emailsATodos = emails.filter(e => e && e.trim());
+      // Seleccionamos una plantilla por defecto si existe
+      const defecto = emailTemplates && emailTemplates.length ? emailTemplates[0] : null;
+      plantillaSeleccionada = defecto?.id || null;
+      asuntoTodos = defecto?.subject || 'Asignación de asamblea';
+      cuerpoTodos = defecto?.body || 'Estimado hermano,\n\nLe informamos sobre su asignación en la próxima asamblea.';
+    } catch (e) {
+      console.error(e);
+      emailsATodos = [];
+    } finally {
+      cargandoEmails = false;
+    }
+  }
+
+  function copiarEmailsAlPortapapeles() {
+    if (!emailsATodos || emailsATodos.length === 0) return alert('No hay correos para copiar.');
+    const texto = emailsATodos.join(';');
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(() => alert('Correos copiados al portapapeles.'));
+    } else {
+      // Fallback
+      prompt('Copiar correos (Ctrl+C):', texto);
+    }
+  }
+
+  function aplicarPlantillaSeleccionada() {
+    if (!plantillaSeleccionada) return;
+    const p = obtenerPlantillaPorId(plantillaSeleccionada);
+    if (!p) return;
+    asuntoTodos = p.subject || asuntoTodos;
+    cuerpoTodos = p.body || cuerpoTodos;
+  }
+
+  async function abrirTodosPorMetodo() {
+    if (!emailsATodos || emailsATodos.length === 0) return alert('⚠️ No hay correos.');
+    const lista = emailsATodos.join(';');
+    if (metodoSeleccion === 'jwpub') {
+      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}&subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
+      openUrl(url);
+    } else {
+      const mailto = `mailto:${lista}?subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
+      openUrl(mailto);
+    }
+    mostrarModalEmails = false;
+  }
+
   function enviarJWPUBATodos() {
       obtenerTodosLosEmails().then(emails => {
           if (emails.length === 0) return alert("⚠️ No hay correos.");
@@ -754,7 +812,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   <div class="header-sesion-left">
     <h2>Programa - {diaSeleccionado}</h2>
     
-    <button class="btn-header-orange" on:click={() => mostrarModalEmails = true} title="Enviar emails y JWPUB a todos los oradores">
+    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }} title="Enviar emails y JWPUB a todos los oradores">
       <Mail size={18}/> <span>Email a Todos</span>
     </button>
   </div>
@@ -1234,33 +1292,104 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 {#if mostrarModalEmails}
   <div class="modal-backdrop" on:click={() => mostrarModalEmails = false}>
     <div class="modal-emails" on:click|stopPropagation>
+      
       <div class="modal-header">
-        <h3><Mail size={20}/> Enviar Email a Todos los Oradores</h3>
-        <button class="btn-close" on:click={() => mostrarModalEmails = false}><X size={20}/></button>
+        <h3><Mail size={20}/> Centro de Comunicaciones</h3>
+        <button class="btn-close" on:click={() => mostrarModalEmails = false} aria-label="Cerrar">
+          <X size={20}/>
+        </button>
       </div>
       
       <div class="modal-contenido">
-        <div class="opciones-email">
+        
+        <label class="label-titulo">Acciones Rápidas</label>
+        <div class="opciones-email-grid">
           <button class="opcion-email" on:click={() => { enviarEmailATodos(); mostrarModalEmails = false; }}>
-            <Mail size={24}/>
-            <span>Email a todos los oradores</span>
+            <div class="icon-wrapper azul"><Mail size={24}/></div>
+            <span>Email a todos</span>
           </button>
-          
+
           <button class="opcion-email" on:click={() => { enviarJWPUBATodos(); mostrarModalEmails = false; }}>
-            <FileJson size={24}/>
-            <span>JWPUB a todos los Oradores</span>
+            <div class="icon-wrapper morado"><FileJson size={24}/></div>
+            <span>JWPUB a todos</span>
           </button>
-          
+
           <button class="opcion-email" on:click={() => { enviarEmailRecordatorioATodos(); mostrarModalEmails = false; }}>
-            <Clock size={24}/>
-            <span>Email recordatorio a todos los oradores</span>
+            <div class="icon-wrapper naranja">
+              <Mail size={24}/>
+              <div class="mini-badge"><Clock size={10}/></div>
+            </div>
+            <span>Email Recordatorio</span>
           </button>
-          
+
           <button class="opcion-email" on:click={() => { enviarJWPUBRecordatorioATodos(); mostrarModalEmails = false; }}>
-            <FileJson size={24}/>
-            <span>JWPUB recordatorio a todos los oradores</span>
+            <div class="icon-wrapper morado">
+              <FileJson size={24}/>
+              <div class="mini-badge"><Clock size={10}/></div>
+            </div>
+            <span>JWPUB Recordatorio</span>
           </button>
         </div>
+
+        <div class="seccion-editor">
+          <div class="editor-header">
+            <label class="label-titulo">Personalizar Mensaje</label>
+            <div class="destinatarios-badge">
+              <span class="status-dot"></span>
+              {cargandoEmails ? 'Cargando...' : emailsATodos.length + ' destinatarios'}
+            </div>
+          </div>
+
+          <div class="grid-form">
+            <div class="form-group">
+              <label for="metodo">Método de Envío</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" bind:group={metodoSeleccion} value="mailto"> 
+                  <span>Gmail/Mail</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" bind:group={metodoSeleccion} value="jwpub"> 
+                  <span>JWPUB</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="plantilla">Plantilla</label>
+              <select id="plantilla" bind:value={plantillaSeleccionada} on:change={aplicarPlantillaSeleccionada}>
+                <option value={null}>-- Texto libre --</option>
+                {#each emailTemplates as tpl}
+                  <option value={tpl.id}>{tpl.title || tpl.id}</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="asunto">Asunto del correo</label>
+            <input type="text" id="asunto" bind:value={asuntoTodos} placeholder="Escribe el asunto aquí..." />
+          </div>
+
+          <div class="form-group">
+            <label for="cuerpo">Cuerpo del mensaje</label>
+            <textarea id="cuerpo" rows="6" bind:value={cuerpoTodos} placeholder="Escribe tu mensaje..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsATodos.length===0}>
+            Copiar correos
+          </button>
+          <div class="flex-spacer"></div>
+          <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
+            Cancelar
+          </button>
+          <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsATodos.length===0}>
+            🚀 Abrir en {metodoSeleccion === 'jwpub' ? 'JWPUB' : 'Cliente'}
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1855,14 +1984,17 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   }
 
   .modal-emails {
-    background-color: white;
+    background: var(--bg-card);
+    color: var(--text-main);
     padding: 20px;
-    border-radius: 4px;
-    max-width: 500px;
-    width: 90%;
+    border-radius: 12px;
+    max-width: 700px;
+    width: 95%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 30px rgba(2,6,23,0.2);
   }
 
   .modal-header {
@@ -1998,4 +2130,420 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   font-size: 1.1rem;
   color: #1e293b;
 }
+
+/* --- CONTENEDOR DEL MODAL --- */
+.modal-emails {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+}
+
+/* --- ENCABEZADO --- */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+/* --- SECCIÓN DE ACCIONES RÁPIDAS (TARJETAS) --- */
+.opciones-email {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 20px;
+  background: #ffffff;
+}
+
+.opcion-email {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #475569;
+  text-align: left;
+}
+
+.opcion-email:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.opcion-email span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* --- SECCIÓN AVANZADA (FORMULARIO) --- */
+.modal-contenido {
+  padding: 0 24px 24px 24px;
+}
+
+.seccion-editor {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 10px;
+}
+
+.label-titulo {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* --- INPUTS Y FORMULARIO --- */
+input[type="text"], select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* --- BADGE DE DESTINATARIOS --- */
+.destinatarios-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* --- BOTONES DE ACCIÓN --- */
+.modal-button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #e2e8f0;
+  background: white;
+}
+
+.modal-button.info {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+.modal-button.info:hover {
+  background: #1d4ed8;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- ICONOS --- */
+:global(.lucide) {
+  stroke-width: 2.5px;
+}
+
+/* FONDO OSCURO */
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  /* CAJA DEL MODAL */
+  .modal-emails {
+    background: white;
+    width: 95%;
+    max-width: 700px;
+    max-height: 90vh;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* HEADER */
+  .modal-header {
+    padding: 18px 24px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #1e293b;
+  }
+
+  .btn-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+
+  .btn-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+  }
+
+  /* CONTENIDO */
+  .modal-contenido {
+    padding: 24px;
+    overflow-y: auto;
+  }
+
+  .label-titulo {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  /* GRID DE TARJETAS RÁPIDAS */
+  .opciones-email-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .opcion-email {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .opcion-email:hover {
+    background: white;
+    border-color: #3b82f6;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+
+  .icon-wrapper {
+    position: relative;
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .icon-wrapper.azul { background: #dbeafe; color: #2563eb; }
+  .icon-wrapper.morado { background: #f3e8ff; color: #9333ea; }
+  .icon-wrapper.naranja { background: #ffedd5; color: #ea580c; }
+
+  .mini-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #ea580c;
+    color: white;
+    border-radius: 50%;
+    padding: 3px;
+    border: 2px solid white;
+  }
+
+  .opcion-email span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    text-align: center;
+  }
+
+  /* SECCIÓN EDITOR */
+  .seccion-editor {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .destinatarios-badge {
+    background: #dcfce7;
+    color: #166534;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(0.95); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.7; }
+  }
+
+  /* FORMULARIO */
+  .grid-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 15px;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .radio-group {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  input[type="text"], select, textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* FOOTER */
+  .modal-footer {
+    display: flex;
+    gap: 12px;
+    padding-top: 20px;
+    align-items: center;
+  }
+
+  .flex-spacer { flex: 1; }
+
+  .modal-button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: #334155;
+  }
+
+  .modal-button:hover:not(:disabled) { background: #f1f5f9; }
+
+  .modal-button.primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+  }
+
+  .modal-button.primary:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: scale(1.02);
+  }
+
+  .modal-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 </style>
