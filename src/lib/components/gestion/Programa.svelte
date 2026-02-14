@@ -567,9 +567,16 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 
   // --- REACTIVIDAD: FILTRO AUTOMÁTICO ---
   // Esta línea mágica crea la lista filtrada cada vez que cambias de día
-  $: emailsFiltrados = todosLosDatosEmails
-      .filter(item => item.dia === diaFiltroEmail)
-      .map(item => item.email);
+    $: emailsFiltrados = (() => {
+      if (!todosLosDatosEmails || todosLosDatosEmails.length === 0) return [];
+      if (diaFiltroEmail === 'Todos') {
+        // devolver lista única de emails de los 3 días
+        const s = new Set<string>();
+        todosLosDatosEmails.forEach(i => { if (i.email && i.email.trim()) s.add(i.email.trim()); });
+        return Array.from(s);
+      }
+      return todosLosDatosEmails.filter(item => item.dia === diaFiltroEmail).map(item => item.email);
+    })();
 
   // --- FUNCIÓN DE CARGA ---
   async function prepararModalEmails() {
@@ -1339,10 +1346,12 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
         <div class="filtro-dia-contenedor">
           <div class="label-titulo">Enviar correos para el día:</div>
           <div class="selector-dias">
-            {#each ['Viernes', 'Sábado', 'Domingo'] as dia}
+            {#each ['Viernes', 'Sábado', 'Domingo', 'Todos'] as dia}
               <button 
-                class="btn-dia {diaSeleccionado === dia ? 'activo' : ''}" 
+                class="btn-dia {diaFiltroEmail === dia ? 'activo' : ''} " 
                 on:click={() => cambiarDiaFiltro(dia)}
+                type="button"
+                aria-pressed={diaFiltroEmail === dia}
               >
                 {dia}
               </button>
@@ -1350,16 +1359,16 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           </div>
         </div>
 
-        <div class="label-titulo">Acciones Rápidas ({diaSeleccionado})</div>
+        <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
         <div class="opciones-email-grid">
           <button class="opcion-email" on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper azul"><Mail size={24}/></div>
-            <span>Email {diaSeleccionado}</span>
+            <span>Email {diaFiltroEmail}</span>
           </button>
 
           <button class="opcion-email" on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}>
             <div class="icon-wrapper morado"><FileJson size={24}/></div>
-            <span>JWPUB {diaSeleccionado}</span>
+            <span>JWPUB {diaFiltroEmail}</span>
           </button>
 
           <button class="opcion-email" on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}>
@@ -1379,12 +1388,12 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           </button>
         </div>
 
-        <div class="seccion-editor">
+          <div class="seccion-editor">
           <div class="editor-header">
             <div class="label-titulo">Personalizar Mensaje</div>
             <div class="destinatarios-badge">
               <span class="status-dot"></span>
-              {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaSeleccionado}
+              {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaFiltroEmail}
             </div>
           </div>
 
@@ -2257,6 +2266,33 @@ input:focus, textarea:focus, select:focus {
     border-radius: 50%;
     padding: 3px;
     border: 2px solid white;
+  }
+
+  /* Selector de días (Viernes / Sábado / Domingo / Todos) */
+  .selector-dias {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .btn-dia {
+    background: transparent;
+    border: 1px solid #e6eef8;
+    padding: 8px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: #1e293b;
+    font-weight: 700;
+    transition: all 0.15s ease;
+  }
+
+  .btn-dia:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(2,6,23,0.06); }
+
+  .btn-dia.activo {
+    background: #2563eb;
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 10px 30px rgba(37,99,235,0.14);
   }
 
   .opcion-email span {
