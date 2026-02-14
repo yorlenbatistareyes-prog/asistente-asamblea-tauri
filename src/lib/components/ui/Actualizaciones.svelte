@@ -47,7 +47,7 @@
     title="Buscar actualizaciones"
   >
     <span class:rotando={buscando}>
-      <RefreshCw size={18} />
+      <RefreshCw size={14} />
     </span>
     <span>{buscando ? 'Buscando...' : 'Actualizar'}</span>
   </button>
@@ -67,15 +67,17 @@
   .btn-actualizar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
+    gap: 4px;
+    padding: 6px 12px;
     background-color: var(--primary, #0078d4);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .btn-actualizar:hover:not(:disabled) {

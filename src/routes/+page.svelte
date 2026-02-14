@@ -435,7 +435,7 @@ async function cargarDatos() {
         <span class="separator">|</span>
         
         <div class="user-status">
-            <User size={18} />
+            <User size={16} />
             <span>Usuario: <strong>{nombreUsuario || 'Invitado'}</strong></span>
         </div>
     </div>
@@ -446,14 +446,14 @@ async function cargarDatos() {
 
     <div class="status-right">
     <div class="stat-item">
-        <Lectern size={18} />
+        <Lectern size={16} />
         <span>Asambleas: <strong>{listaAsambleas.length}</strong></span>
     </div>
     
     <span class="separator">|</span>
     
     <div class="version-info">
-        <Activity size={16} />
+        <Activity size={14} />
         <span class="app-version">v{versionReal}</span>
     </div>
 
@@ -806,9 +806,14 @@ async function cargarDatos() {
       flex: 1.5;
   }
 
+  .status-left {
+    flex: 1.5;
+  }
+
   .status-right {
-    justify-content: flex-end; /* Empuja el reloj y versión a la derecha */
-}
+    justify-content: flex-end;
+    flex: 1.5;
+  }
 
 .status-center {
     flex: 2;
