@@ -14,6 +14,7 @@
   // --- IMPORTACIÓN DE COMPONENTES ---
   import Correspondencia from '$lib/components/gestion/Correspondencia.svelte';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
+  import Actualizaciones from '$lib/components/ui/Actualizaciones.svelte';
  
   // --- ESTADO ---
   let vistaActual = 'inicio';
@@ -455,6 +456,10 @@ async function cargarDatos() {
         <Activity size={16} />
         <span class="app-version">v{versionReal}</span>
     </div>
+
+    <span class="separator">|</span>
+
+    <Actualizaciones />
 </div>
 </footer>
 </div>

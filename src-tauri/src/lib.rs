@@ -17,7 +17,8 @@ pub mod commands {
     pub mod programa;
     pub mod impresion;
     pub mod emails;
-    pub mod configuracion; 
+    pub mod configuracion;
+    pub mod actualizaciones;
 }
 
 use std::sync::Mutex;
@@ -122,6 +123,9 @@ pub fn run() {
             // --- CONFIGURACIÓN ---
            commands::configuracion::obtener_configuracion_general,
            commands::configuracion::guardar_configuracion_general,
+
+            // --- ACTUALIZACIONES ---
+            commands::actualizaciones::check_for_updates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
