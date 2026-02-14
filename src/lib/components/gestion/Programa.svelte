@@ -1803,4 +1803,199 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
     box-sizing: border-box;
   }
 }
+
+.modal-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .modal-button {
+    background-color: #0078d4;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .modal-button:hover {
+    background-color: #0064a9;
+  }
+
+  .modal-button:active {
+    background-color: #004d8c;
+  }
+
+  /* Opcional: Agregar estilos para diferentes estados de error o éxito */
+  .modal-button.error {
+    background-color: #ff0000;
+  }
+
+  .modal-button.exito {
+    background-color: #00ff00;
+  }
+
+  .modal-button.info {
+    background-color: #0078d4;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-emails {
+    background-color: white;
+    padding: 20px;
+    border-radius: 4px;
+    max-width: 500px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  .modal-header .btn-close {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .opciones-email {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .opcion-email {
+    background-color: #0078d4;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .opcion-email:hover {
+    background-color: #0064a9;
+  }
+
+  .opcion-email:active {
+    background-color: #004d8c;
+  }
+
+  .opcion-email span {
+    font-size: 14px;
+  }
+
+  .opcion-email svg {
+    margin-right: 5px;
+  }
+
+  /* Opcional: Agregar estilos para diferentes estados de error o éxito */
+  .opcion-email.error {
+    background-color: #ff0000;
+  }
+
+  .opcion-email.exito {
+    background-color: #00ff00;
+  }
+
+  .opcion-email.info {
+    background-color: #0078d4;
+  }
+
+  /* Contenedor principal de las opciones */
+.opciones-email {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Dos columnas */
+  gap: 16px;
+  padding: 20px;
+}
+
+/* Estilo base de cada botón */
+.opcion-email {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  color: #475569; /* Gris azulado elegante */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Efecto al pasar el mouse (Hover) */
+.opcion-email:hover {
+  background-color: #f8fafc;
+  border-color: #3b82f6; /* Azul primario */
+  transform: translateY(-2px); /* Pequeño salto hacia arriba */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  color: #1e40af;
+}
+
+/* Estilo para los iconos dentro del botón */
+.opcion-email :global(svg) {
+  transition: transform 0.2s ease;
+}
+
+.opcion-email:hover :global(svg) {
+  transform: scale(1.1); /* Agranda el icono un poquito */
+}
+
+/* Texto debajo del icono */
+.opcion-email span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Estilo para el encabezado del Modal */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f1f5f9;
+  border-radius: 12px 12px 0 0;
+}
+
+.modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
 </style>
