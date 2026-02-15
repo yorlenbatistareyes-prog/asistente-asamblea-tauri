@@ -220,41 +220,65 @@
 
   async function toggleConfirmado(objeto: any) {
       if (!objeto || !objeto.id) return;
+
+      // 1. Respaldo
+      const estadoAnterior = objeto.estado;
+      const nuevoEstado = (estadoAnterior === 'Confirmado') ? 'Pendiente' : 'Confirmado';
+
       try {
-        // Usar la bandera UI `recibido_manual` para decidir el valor actual
-        const actualRecibido = !!objeto.recibido_manual;
-        await invoke('alternar_estado_parte', { id: objeto.id, tipo_accion: 'confirmacion', valor_actual: actualRecibido });
-        // Alternar la bandera UI y mantener estado consistente
-        objeto.recibido_manual = !actualRecibido;
-        objeto.estado = objeto.recibido_manual ? 'Confirmado' : 'Pendiente';
-        partes = partes;
-        // Actualizar lista global de pendientes basada en estado
-        const pendientes = partes
-          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
-          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
-        oradoresPendientes.set(pendientes);
-        actualizarVistaOficina(objeto);
+          // 2. Cambio Visual
+          objeto.estado = nuevoEstado;
+          partes = partes; 
+
+          // 3. Llamada al Backend (CORREGIDA)
+          await invoke('alternar_estado_parte', { 
+              id: objeto.id, 
+              tipoAccion: 'confirmacion', // camelCase (Correcto)
+              valorActual: (estadoAnterior === 'Confirmado') // camelCase (AQUÍ ESTABA EL ERROR)
+          });
+
+          // 4. Actualizar listas
+          actualizarVistaOficina(objeto);
+          const pendientes = partes
+            .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+            .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+          oradoresPendientes.set(pendientes);
+
       } catch (e) {
-        console.error('Error al alternar confirmación:', e);
-        alert('Error al actualizar estado: ' + e);
+          console.error('Error toggleConfirmado:', e);
+          alert('Error: ' + e);
+          // Revertir
+          objeto.estado = estadoAnterior;
+          partes = partes;
       }
   }
 
   async function togglePresente(objeto: any) {
       if (!objeto || !objeto.id) return;
+
+      // 1. Respaldo
+      const valorAnterior = objeto.esta_presente;
+
       try {
-        await invoke('alternar_estado_parte', { id: objeto.id, tipo_accion: 'presencia', valor_actual: !!objeto.esta_presente });
-        objeto.esta_presente = !objeto.esta_presente;
-        partes = partes;
-        actualizarVistaOficina(objeto);
-        // recomputar pendientes (presence shouldn't affect pending list, but keep consistent)
-        const pendientes = partes
-          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
-          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
-        oradoresPendientes.set(pendientes);
+          // 2. Cambio Visual
+          objeto.esta_presente = !objeto.esta_presente;
+          partes = partes; 
+
+          // 3. Llamada al Backend (CORREGIDA)
+          await invoke('alternar_estado_parte', { 
+              id: objeto.id, 
+              tipoAccion: 'presencia',     // camelCase (Correcto)
+              valorActual: !!valorAnterior // camelCase (AQUÍ ESTABA EL ERROR)
+          });
+
+          actualizarVistaOficina(objeto);
+
       } catch (e) {
-        console.error('Error al alternar presencia:', e);
-        alert('Error al actualizar presencia: ' + e);
+          console.error('Error togglePresente:', e);
+          alert('Error: ' + e);
+          // Revertir
+          objeto.esta_presente = valorAnterior;
+          partes = partes;
       }
   }
 
