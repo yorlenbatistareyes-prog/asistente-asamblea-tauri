@@ -68,7 +68,9 @@
           av: asamblea.audio_video_super_id || 0,
           video: asamblea.video_super_id || 0,
           audio: asamblea.audio_super_id || 0,
-          plat: asamblea.plataforma_super_id || 0
+          plat: asamblea.plataforma_super_id || 0,
+          baut: asamblea.bautismo_super_id || 0,
+          baut_a: asamblea.bautismo_aux_id || 0
         };
       }
     } catch (e) { 
