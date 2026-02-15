@@ -15,7 +15,7 @@
   import Correspondencia from '$lib/components/gestion/Correspondencia.svelte';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Actualizaciones from '$lib/components/ui/Actualizaciones.svelte';
- 
+  import { cargarDatosGlobales } from '$lib/stores/appStore';
   // --- ESTADO ---
   let vistaActual = 'inicio';
   let seccionCorrespondencia = 'oradores'; 
@@ -186,6 +186,7 @@ async function cargarDatos() {
       
       mostrarModalAsamblea = false; 
       cargarDatos();
+      await cargarDatosGlobales();
     } catch (e) { 
       alert("Error: " + e); 
     }
@@ -211,7 +212,8 @@ async function cargarDatos() {
         try { 
             await invoke('eliminar_asamblea', { id }); 
             // Recargamos la lista para que la tarjeta desaparezca
-            await cargarDatos(); 
+            await cargarDatos();
+            await cargarDatosGlobales(); 
         } catch (err) { 
             alert("Error al eliminar: " + err); 
         }

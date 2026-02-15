@@ -106,6 +106,14 @@ pub struct AsignacionEspecial {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConfiguracionGeneral {
     pub nombre: Option<String>,
+    pub segundo_nombre: Option<String>,
+    pub apellido: Option<String>,
+    pub sufijo: Option<String>,
+    pub email: Option<String>,
+    pub email_jwpub: Option<String>,
+    pub movil: Option<String>,
+    pub identificador: Option<String>,
+    pub fecha_creacion: Option<String>,
     pub tema: Option<String>,
     pub idioma: Option<String>,
 }

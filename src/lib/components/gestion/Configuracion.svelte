@@ -3,6 +3,9 @@
   import { guiaUsuario } from '$lib/data/ayuda';
   import { getVersion } from '@tauri-apps/api/app';
   import { onMount } from 'svelte';
+
+  import { invoke } from '@tauri-apps/api/core';
+  import { cargarDatosGlobales } from '$lib/stores/appStore';
   
   // --- COMPONENTES HIJOS ---
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
@@ -62,7 +65,42 @@
   
   function guardarCambiosConfig() { alert("Configuración guardada"); }
   function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
-  function guardarUsuario() { usuario = { ...usuarioEditando }; mostrarModalUsuario = false; }
+  
+  async function guardarUsuario() {
+  try {
+    // Obtener la configuración actual para conservar tema e idioma
+    const configActual = await invoke('obtener_configuracion_general') as any;
+
+    // Construir el objeto con todos los campos del formulario
+    const datosConfig = {
+      nombre: usuarioEditando.nombre || null,
+      segundo_nombre: usuarioEditando.segundoNombre || null,
+      apellido: usuarioEditando.apellido || null,
+      sufijo: usuarioEditando.sufijo || null,
+      email: usuarioEditando.email || null,
+      email_jwpub: usuarioEditando.emailJw || null,
+      movil: usuarioEditando.movil || null,
+      identificador: usuarioEditando.id || null,
+      fecha_creacion: usuarioEditando.fechaCreacion || null,
+      tema: configActual.tema,
+      idioma: configActual.idioma,
+    };
+
+    // Guardar en la base de datos usando el comando Rust
+    await invoke('guardar_configuracion_general', { config: datosConfig });
+
+    // Actualizar la variable local del usuario
+    usuario = { ...usuarioEditando };
+    mostrarModalUsuario = false;
+
+    // Actualizar el store global para que la barra de estado refleje el cambio
+    await cargarDatosGlobales();
+
+  } catch (e) {
+    alert('Error al guardar usuario: ' + e);
+  }
+}
+
   async function respaldarDatos() { alert("Respaldando..."); }
   async function restaurarDatos() { alert("Restaurando..."); }
   async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }

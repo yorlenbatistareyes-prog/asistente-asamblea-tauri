@@ -151,15 +151,34 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
     // --- 9. CONFIGURACIÓN GENERAL ---
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS configuracion (
-            id INTEGER PRIMARY KEY CHECK (id = 1), -- Forzamos a que solo exista una fila
-            nombre TEXT DEFAULT 'Yorlen', 
-            tema TEXT DEFAULT 'claro', 
-            idioma TEXT DEFAULT 'es'
-        )",
-        [],
-    )?;
+    // --- 9. CONFIGURACIÓN GENERAL ---
+conn.execute(
+    "CREATE TABLE IF NOT EXISTS configuracion (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        nombre TEXT DEFAULT 'Yorlen',
+        segundo_nombre TEXT,
+        apellido TEXT,
+        sufijo TEXT,
+        email TEXT,
+        email_jwpub TEXT,
+        movil TEXT,
+        identificador TEXT,
+        fecha_creacion TEXT,
+        tema TEXT DEFAULT 'claro',
+        idioma TEXT DEFAULT 'es'
+    )",
+    [],
+)?;
+
+// Migraciones para configuracion (agregar columnas faltantes)
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN segundo_nombre TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN apellido TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN sufijo TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email_jwpub TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN movil TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN identificador TEXT", []);
+let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN fecha_creacion TEXT", []);
 
     // Insertamos el registro inicial si la tabla está vacía
     conn.execute(
