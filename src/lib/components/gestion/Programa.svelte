@@ -636,6 +636,14 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       } catch(e) { alert("Error: " + e); } 
   }
 
+  async function handleExportarOficina() {
+  await exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado);
+}
+
+  async function handleExportarPrograma() {
+  await exportarProgramaPDF(partes, diaSeleccionado);
+}
+
 
   // =========================================================
   // === NUEVO MÓDULO DE EMAILS MASIVOS (CON FILTRO DÍA) ===
@@ -817,9 +825,10 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       <h3><Users size={20}/> Oficina</h3>
       
       <button class="btn-icon-pdf" 
-              title="Exportar Oficina a PDF"
-              on:click={() => exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado)}>
-        <FileUp size={18}/> </button>
+        title="Exportar Oficina a PDF"
+        on:click={handleExportarOficina}>
+        <FileUp size={18}/>
+      </button>
 
       <span class="badge-dark">{diaSeleccionado}</span>
     </div>
@@ -953,7 +962,9 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       <FileSpreadsheet size={18}/> <span>Importar</span>
     </button>
 
-    <button class="btn-header-pdf" on:click={() => exportarProgramaPDF(partes, diaSeleccionado)} title="Exportar lista de discursos a PDF">
+    <button class="btn-header-pdf" 
+        title="Exportar lista de discursos a PDF"
+        on:click={handleExportarPrograma}>
         <FileUp size={18}/> <span>PDF</span>
     </button>
 
