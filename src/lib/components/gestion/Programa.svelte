@@ -830,8 +830,8 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
         <div class="lista-personal">
           {#each oficina.personal as p}
            <div class="item-personal clickable" class:ocupado={true} role="button" tabindex="0" 
-     on:click={() => clickEnPersonal(p)} 
-     on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
+           on:click={() => clickEnPersonal(p)} 
+           on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
               <div class="info-personal">
                 <span class="nombre-p">{p.nombre_completo}</span>
                 <div class="indicadores-mini">
@@ -1983,29 +1983,27 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 
 /* Botón PDF Oficina: Estilo "Ghost" (Fantasma/Limpio) */
 .btn-icon-pdf {
-  background: transparent;      /* Sin fondo feo */
-  border: none;                 /* Sin borde */
-  color: var(--text-secondary); /* Color gris suave */
-  
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;           /* Bordes redondeados */
-  
+  background: rgba(128, 128, 128, 0.1);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  
-  margin-left: auto;            /* Empuja el botón a la derecha */
-  margin-right: 8px;            /* Un poco de aire con la etiqueta del día */
   transition: all 0.2s ease;
+  margin-left: auto;
+  margin-right: 8px;
 }
 
-/* Efecto al pasar el mouse */
 .btn-icon-pdf:hover {
-  background-color: var(--hover-bg); /* Fondo sutil al tocar */
-  color: var(--primary);             /* El icono se pone azul (o tu color primario) */
-  transform: translateY(-1px);       /* Efecto visual de "clic" */
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px var(--shadow-color);
 }
 
 /* Efecto al hacer clic */
@@ -2620,5 +2618,36 @@ input:focus, textarea:focus, select:focus {
 .item-personal.ocupado {
   background: #dbeafe; /* azul muy claro sólido */
   border-color: #3b82f6;
+}
+
+/* Estilo común para botones ocupados y items de personal */
+.btn-select-dark.ocupado,
+.item-personal.ocupado {
+  background: rgba(59, 130, 246, 0.15); /* azul suave */
+  border-color: #3b82f6;                /* borde azul */
+}
+
+/* Si quieres un azul más intenso, aumenta la opacidad o usa un color sólido */
+.btn-select-dark.ocupado,
+.item-personal.ocupado {
+  background: #dbeafe;  /* azul claro sólido */
+  border-color: #3b82f6;
+}
+
+/* Hover común con sombra y ligera elevación */
+.btn-select-dark:hover,
+.item-personal.clickable:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  transition: all 0.2s;
+}
+
+/* Mantener el cambio de fondo específico de cada uno si ya lo tienen */
+.btn-select-dark:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+}
+.item-personal.clickable:hover {
+  background: var(--hover-bg);
 }
 </style>
