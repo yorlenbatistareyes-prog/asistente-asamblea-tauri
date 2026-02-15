@@ -2661,4 +2661,41 @@ input:focus, textarea:focus, select:focus {
 .item-personal.clickable:hover {
   background: var(--hover-bg);
 }
+
+/* Para los botones de selección (Presidente, Oración, etc.) */
+.btn-select-dark {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  color: var(--text-main) !important; /* Fuerza color claro en modo oscuro */
+}
+
+/* Cuando están ocupados (asignados) */
+.btn-select-dark.ocupado {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: var(--text-main) !important;
+}
+
+/* Para los items de personal */
+.item-personal {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  color: var(--text-main) !important;
+}
+
+.item-personal.ocupado {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: var(--text-main) !important;
+}
+
+/* Para los textos dentro de los items */
+.nombre-p, .text-truncate {
+  color: var(--text-main) !important;
+}
+
+/* Texto secundario (puede ser un poco más suave) */
+.cong-mini, .detalle, .label-tiny {
+  color: var(--text-secondary);
+}
 </style>
