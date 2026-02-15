@@ -622,12 +622,20 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   }
 }
 
-  async function eliminarParte(id: number) { 
-    if(confirm("¿Eliminar esta parte?")) { 
-        await invoke('eliminar_parte', { id }); 
-        cargarDatos(); 
-    } 
-  }
+let mostrarModalEliminar = false;
+let idParteAEliminar: number | null = null;
+
+  async function confirmarEliminarParte() {
+    if (!idParteAEliminar) return;
+    mostrarModalEliminar = false;
+    try {
+        await invoke('eliminar_parte', { id: idParteAEliminar });
+        await cargarDatos();
+        idParteAEliminar = null;
+    } catch (e) {
+        alert('Error al eliminar: ' + e);
+    }
+}
   
   async function importarPrograma() { 
       try { 
@@ -1150,8 +1158,8 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
             <Edit size={14}/> Editar Datos / Asignar
           </button>
-          <button class="btn-tool delete" on:click={() => eliminarParte(parte.id)}>
-            <Trash2 size={14}/> Eliminar Parte
+          <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
+           <Trash2 size={14}/> Eliminar Parte
           </button>
         </div>
       </div>
@@ -1614,6 +1622,26 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       <div class="modal-footer">
         <button class="btn-cancel" on:click={() => mostrarModalLimpiar = false}>Cancelar</button>
         <button class="btn-delete" on:click={limpiarTodoConfirmado}>Sí, borrar</button>
+      </div>
+    </div>
+  </div>
+  {/if}
+
+  {#if mostrarModalEliminar}
+  <div class="modal-backdrop" role="button" tabindex="0" 
+       on:click|self={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}
+       on:keydown={(e) => e.key === 'Escape' && (mostrarModalEliminar = false) && (idParteAEliminar = null)}>
+    <div class="modal modal-confirm">
+      <div class="modal-header">
+        <h3>Eliminar parte</h3>
+        <button class="btn-close" on:click={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}><X size={20}/></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de que deseas eliminar esta parte?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" on:click={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}>Cancelar</button>
+        <button class="btn-delete" on:click={confirmarEliminarParte}>Eliminar</button>
       </div>
     </div>
   </div>
