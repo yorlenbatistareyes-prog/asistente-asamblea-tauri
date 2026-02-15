@@ -829,9 +829,9 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
         <h4 class="titulo-seccion">PERSONAL</h4>
         <div class="lista-personal">
           {#each oficina.personal as p}
-            <div class="item-personal clickable" role="button" tabindex="0" 
-                 on:click={() => clickEnPersonal(p)} 
-                 on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
+           <div class="item-personal clickable" class:ocupado={true} role="button" tabindex="0" 
+     on:click={() => clickEnPersonal(p)} 
+     on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
               <div class="info-personal">
                 <span class="nombre-p">{p.nombre_completo}</span>
                 <div class="indicadores-mini">
@@ -2610,5 +2610,15 @@ input:focus, textarea:focus, select:focus {
 .icon-indicator.orange {
   background: rgba(249, 115, 22, 0.2);
   color: #f97316;
+}
+
+.item-personal.asignado {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+}
+
+.item-personal.ocupado {
+  background: #dbeafe; /* azul muy claro sólido */
+  border-color: #3b82f6;
 }
 </style>
