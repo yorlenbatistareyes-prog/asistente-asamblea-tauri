@@ -2600,4 +2600,15 @@ input:focus, textarea:focus, select:focus {
     transform: translateY(0) scale(1); 
   }
 }
+
+.btn-status-toggle.orange.active {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.icon-indicator.orange {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
 </style>
