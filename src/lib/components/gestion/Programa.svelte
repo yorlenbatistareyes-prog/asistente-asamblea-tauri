@@ -221,37 +221,38 @@
   async function toggleConfirmado(objeto: any) {
     if (!objeto || !objeto.id) return;
 
-    // 1. Respaldo
-    const estadoAnterior = objeto.estado;
-    const nuevoEstado = (estadoAnterior === 'Confirmado') ? 'Pendiente' : 'Confirmado';
+    // Respaldo del valor anterior
+    const valorAnterior = objeto.recibido_manual;
 
     try {
-        // 2. Cambio Visual (Ahora sí se verá porque el HTML mira 'estado')
-        objeto.estado = nuevoEstado;
-        partes = partes; // Refrescar
+        // Cambio visual inmediato
+        objeto.recibido_manual = !objeto.recibido_manual;
+        // Sincronizar campo 'estado' por compatibilidad (si es necesario)
+        objeto.estado = objeto.recibido_manual ? 'Confirmado' : 'Pendiente';
+        partes = partes; // forzar actualización
 
-        // 3. Backend
-        // Nota: Si 'presencia' funcionó, su pareja lógica suele ser 'confirmacion'
-        await invoke('alternar_estado_parte', { 
-            id: objeto.id, 
-            tipoAccion: 'confirmacion', 
-            valorActual: (estadoAnterior === 'Confirmado') // true si ya estaba confirmado
+        // Llamada al backend con el nuevo valor
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'confirmacion',
+            valorActual: objeto.recibido_manual // true/false
         });
 
-        // 4. Actualizar oficinas y pendientes
         actualizarVistaOficina(objeto);
-        const pendientes = partes
-          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
-          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
-        oradoresPendientes.set(pendientes);
 
+        // Actualizar lista de pendientes si existe
+        if (typeof oradoresPendientes !== 'undefined') {
+            const pendientes = partes
+                .filter(p => p.nombre_orador && (!p.recibido_manual))
+                .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.recibido_manual ? 'Confirmado' : 'Pendiente' }));
+            oradoresPendientes.set(pendientes);
+        }
     } catch (e) {
         console.error('Error toggleConfirmado:', e);
-        // Si sale este error, es que el nombre en Rust no es 'confirmacion'
         alert('Error backend: ' + e);
-        
-        // Revertir visualmente
-        objeto.estado = estadoAnterior;
+        // Revertir cambios
+        objeto.recibido_manual = valorAnterior;
+        objeto.estado = valorAnterior ? 'Confirmado' : 'Pendiente';
         partes = partes;
     }
 }
@@ -1004,22 +1005,24 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       </div>
 
       <div class="col-estados-mini">
-  
-  {#if parte.estado !== 'Confirmado'} 
-    <div class="icon-indicator orange" title="Pendiente de recibir">
-      <UserCheck size={14}/>
+  {#if parte.recibido_manual}
+    <div class="icon-indicator blue" title="Recibido">
+      <FileCheck size={14} />
     </div>
   {/if}
-  
   {#if parte.esta_presente}
     <div class="icon-indicator green" title="Presente">
-      <UserCheck size={14}/>
+      <UserCheck size={14} />
     </div>
   {/if}
-  
   {#if parte.ensayo_terminado}
-    <div class="icon-indicator yellow" title="Ensayo terminado">
-      <Mic size={14}/>
+    <div class="icon-indicator orange" title="Ensayo terminado">
+      <Mic size={14} />
+    </div>
+  {/if}
+  {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
+    <div class="icon-indicator gray" title="Pendiente">
+      <Clock size={14} />
     </div>
   {/if}
 </div>
@@ -1054,24 +1057,24 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
             </div>
             
             <div class="checks-grandes">
-              <button class="btn-status-toggle blue" 
-                      class:active={parte.recibido_manual} 
-                      on:click={() => toggleConfirmado(parte)}>
-                <UserCheck size={18} /><span>RECIBIDO</span>
-              </button>
+  <button class="btn-status-toggle blue" 
+          class:active={parte.recibido_manual} 
+          on:click={() => toggleConfirmado(parte)}>
+    <FileCheck size={18} /><span>RECIBIDO</span>
+  </button>
 
-              <button class="btn-status-toggle green" 
-                      class:active={parte.esta_presente} 
-                      on:click={() => togglePresente(parte)}>
-                <UserCheck size={18} /><span>PRESENTE</span>
-              </button>
+  <button class="btn-status-toggle green" 
+          class:active={parte.esta_presente} 
+          on:click={() => togglePresente(parte)}>
+    <UserCheck size={18} /><span>PRESENTE</span>
+  </button>
 
-              <button class="btn-status-toggle yellow" 
-                      class:active={parte.ensayo_terminado} 
-                      on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
-                <Mic size={18} /><span>ENSAYO</span>
-              </button>
-            </div>
+  <button class="btn-status-toggle orange" 
+          class:active={parte.ensayo_terminado} 
+          on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
+    <Mic size={18} /><span>ENSAYO</span>
+  </button>
+</div>
           </div>
 
           <div class="grid-acciones">
