@@ -219,39 +219,42 @@
   }
 
   async function toggleConfirmado(objeto: any) {
-      if (!objeto || !objeto.id) return;
+    if (!objeto || !objeto.id) return;
 
-      // 1. Respaldo
-      const estadoAnterior = objeto.estado;
-      const nuevoEstado = (estadoAnterior === 'Confirmado') ? 'Pendiente' : 'Confirmado';
+    // 1. Respaldo
+    const estadoAnterior = objeto.estado;
+    const nuevoEstado = (estadoAnterior === 'Confirmado') ? 'Pendiente' : 'Confirmado';
 
-      try {
-          // 2. Cambio Visual
-          objeto.estado = nuevoEstado;
-          partes = partes; 
+    try {
+        // 2. Cambio Visual (Ahora sí se verá porque el HTML mira 'estado')
+        objeto.estado = nuevoEstado;
+        partes = partes; // Refrescar
 
-          // 3. Llamada al Backend (CORREGIDA)
-          await invoke('alternar_estado_parte', { 
-              id: objeto.id, 
-              tipoAccion: 'confirmacion', // camelCase (Correcto)
-              valorActual: (estadoAnterior === 'Confirmado') // camelCase (AQUÍ ESTABA EL ERROR)
-          });
+        // 3. Backend
+        // Nota: Si 'presencia' funcionó, su pareja lógica suele ser 'confirmacion'
+        await invoke('alternar_estado_parte', { 
+            id: objeto.id, 
+            tipoAccion: 'confirmacion', 
+            valorActual: (estadoAnterior === 'Confirmado') // true si ya estaba confirmado
+        });
 
-          // 4. Actualizar listas
-          actualizarVistaOficina(objeto);
-          const pendientes = partes
-            .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
-            .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
-          oradoresPendientes.set(pendientes);
+        // 4. Actualizar oficinas y pendientes
+        actualizarVistaOficina(objeto);
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
 
-      } catch (e) {
-          console.error('Error toggleConfirmado:', e);
-          alert('Error: ' + e);
-          // Revertir
-          objeto.estado = estadoAnterior;
-          partes = partes;
-      }
-  }
+    } catch (e) {
+        console.error('Error toggleConfirmado:', e);
+        // Si sale este error, es que el nombre en Rust no es 'confirmacion'
+        alert('Error backend: ' + e);
+        
+        // Revertir visualmente
+        objeto.estado = estadoAnterior;
+        partes = partes;
+    }
+}
 
   async function togglePresente(objeto: any) {
       if (!objeto || !objeto.id) return;
@@ -999,17 +1002,28 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           {/if}
         {/if}
       </div>
+
       <div class="col-estados-mini">
-        {#if parte.recibido_manual}
-          <div class="icon-indicator blue" title="Asignación Confirmada"><UserCheck size={14}/></div>
-        {/if}
-        {#if parte.esta_presente}
-          <div class="icon-indicator green" title="Presente"><UserCheck size={14}/></div>
-        {/if}
-        {#if parte.ensayo_terminado}
-          <div class="icon-indicator yellow" title="Ensayo"><Mic size={14}/></div>
-        {/if}
-      </div>
+  
+  {#if parte.estado !== 'Confirmado'} 
+    <div class="icon-indicator orange" title="Pendiente de recibir">
+      <UserCheck size={14}/>
+    </div>
+  {/if}
+  
+  {#if parte.esta_presente}
+    <div class="icon-indicator green" title="Presente">
+      <UserCheck size={14}/>
+    </div>
+  {/if}
+  
+  {#if parte.ensayo_terminado}
+    <div class="icon-indicator yellow" title="Ensayo terminado">
+      <Mic size={14}/>
+    </div>
+  {/if}
+</div>
+
       <div class="col-toggle">
         {#if parte._expanded}
           <ChevronUp size={20} color="var(--text-secondary)"/>
