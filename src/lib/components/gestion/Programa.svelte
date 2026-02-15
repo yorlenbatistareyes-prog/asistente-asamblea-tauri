@@ -1840,7 +1840,6 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 .icon-indicator { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; }
 .icon-indicator.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .icon-indicator.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.icon-indicator.yellow { background: rgba(234, 179, 8, 0.2); color: #eab308; }
 
 .dot-icon { display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; }
 .dot-icon.blue { background: #3b82f6; color: white; }
@@ -2619,11 +2618,6 @@ input:focus, textarea:focus, select:focus {
 .icon-indicator.orange {
   background: rgba(249, 115, 22, 0.2);
   color: #f97316;
-}
-
-.item-personal.asignado {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: #3b82f6;
 }
 
 .item-personal.ocupado {

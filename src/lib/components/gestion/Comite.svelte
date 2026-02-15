@@ -519,7 +519,6 @@
       border-bottom: 1px solid var(--border-color); 
   }
   .header h3 { margin: 0; color: var(--text-main); display: flex; gap: 10px; align-items: center; } 
-  .text-blue { color: var(--primary); }
   
   .btn-save { 
       background: var(--primary); color: white; border: none; 

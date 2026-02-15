@@ -767,10 +767,10 @@
   /* HEADER */
   .app-header { background: var(--primary); color: white; height: 52px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; flex-shrink: 0; }
   .left-section { display: flex; align-items: center; gap: 12px; }
-  .header-icon { opacity: 0.9; }
+  
   .doc-info { display: flex; flex-direction: column; justify-content: center; }
   .doc-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: white; text-transform: uppercase; }
-  .doc-status { font-size: 11px; opacity: 0.8; font-weight: 400; }
+ 
   .save-btn { background: var(--bg-card); color: var(--primary); border: none; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
   .save-btn:hover { background: var(--hover-bg); }
 
@@ -816,7 +816,7 @@
   .size-select { width: 45px; border: 1px solid var(--border-color); background: var(--bg-card); height: 24px; margin-left: 2px; text-align: center; }
   .line-height-wrapper { display: flex; align-items: center; border: 1px solid transparent; padding-left: 2px; border-radius: 3px; }
   .line-height-wrapper:hover { border-color: var(--border-color); background: var(--bg-secondary); }
-  .icon-lh { margin-right: 0px; color: var(--text-secondary); pointer-events: none; }
+  
   .line-height-select { width: 35px; border: none; background: transparent; }
   
   /* COLOR PICKER STYLES */

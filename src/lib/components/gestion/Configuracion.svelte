@@ -388,19 +388,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     padding-right: 5px;
 }
 
-.about-system-section {
-    margin-top: 50px;
-    padding-bottom: 20px;
-}
-
-.about-card {
-    background: rgba(255, 255, 255, 0.03); /* Fondo muy sutil */
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 20px;
-    max-width: 600px;
-    margin: 0 auto;
-}
 
 .about-header {
     display: flex;
@@ -419,12 +406,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: #1e293b; /* Casi negro para máxima legibilidad */
 }
 
-.about-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
 
 .about-label {
     color: #64748b;
@@ -435,9 +416,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-weight: 600;
 }
 
-.tech-badge {
-    color: #4ade80; /* Verde igual al de la barra de estado */
-}
 
 .about-disclaimer {
     font-size: 10px;
@@ -447,23 +425,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     margin-top: 8px;
 }
 
-.version-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
-    font-weight: 500;
-}
 
-.build-text {
-    margin-top: 4px;
-    font-size: 10px;
-    color: #4ade80; /* El verde que usamos para el sistema conectado */
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    padding-left: 22px; /* Alineado con el texto de la versión */
-}
 
 .config-footer {
     margin-top: auto; /* Empuja todo al final del lateral */
