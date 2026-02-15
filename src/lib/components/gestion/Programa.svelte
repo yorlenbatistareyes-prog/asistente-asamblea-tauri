@@ -608,15 +608,19 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       alert("Error al crear parte: " + e); 
     }
   }
+  
+  let mostrarModalLimpiar = false;
 
-  async function limpiarTodo() {
-    if(confirm("¿Borrar todo el programa de este día?")) { 
-        try {
-            await invoke('limpiar_programa', { asambleaId }); 
-            await cargarDatos(); 
-        } catch (e) { alert(e); }
-    } 
+  async function limpiarTodoConfirmado() {
+  mostrarModalLimpiar = false; // cerrar modal
+  try {
+    await invoke('limpiar_programa', { asambleaId });
+    await cargarDatos();
+    // Opcional: mostrar notificación de éxito
+  } catch (e) {
+    alert('Error al limpiar: ' + e);
   }
+}
 
   async function eliminarParte(id: number) { 
     if(confirm("¿Eliminar esta parte?")) { 
@@ -968,7 +972,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
         <FileUp size={18}/> <span>PDF</span>
     </button>
 
-    <button class="btn-header-delete" on:click={limpiarTodo} title="Borrar todo el programa del día">
+    <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
       <Trash2 size={18}/> <span>Limpiar</span>
     </button>
     
@@ -1477,6 +1481,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
           </div>
         </div>
 
+
         <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
         <div class="opciones-email-grid">
           <button
@@ -1587,6 +1592,28 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
             🚀 Enviar a {emailsFiltrados.length} oradores
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+{/if}
+  
+
+    {#if mostrarModalLimpiar}
+  <div class="modal-backdrop" role="button" tabindex="0" 
+       on:click|self={() => mostrarModalLimpiar = false} 
+       on:keydown={(e) => e.key === 'Escape' && (mostrarModalLimpiar = false)}>
+    <div class="modal modal-confirm">
+      <div class="modal-header">
+        <h3>¿Borrar todo el programa?</h3>
+        <button class="btn-close" on:click={() => mostrarModalLimpiar = false}><X size={20}/></button>
+      </div>
+      <div class="modal-body">
+        <p>Esta acción eliminará todas las partes del día <strong>{diaSeleccionado}</strong>.</p>
+        <p>¿Estás seguro?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" on:click={() => mostrarModalLimpiar = false}>Cancelar</button>
+        <button class="btn-delete" on:click={limpiarTodoConfirmado}>Sí, borrar</button>
       </div>
     </div>
   </div>
@@ -2691,5 +2718,41 @@ input:focus, textarea:focus, select:focus {
 /* Texto secundario (puede ser un poco más suave) */
 .cong-mini, .detalle, .label-tiny {
   color: var(--text-secondary);
+}
+
+.modal-confirm {
+  width: 400px;
+  max-width: 90vw;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+}
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-delete:hover {
+  background: #dc2626;
+}
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-cancel:hover {
+  background: var(--hover-bg);
 }
 </style>
