@@ -40,7 +40,22 @@ pub struct Asamblea {
     pub tema: String,
     pub fecha: String,
     pub local_id: Option<i32>,
+    pub identificador: Option<String>,
+    // --- Campos del comité ---
     pub presidente_id: Option<i32>,
+    pub coordinador_id: Option<i32>,
+    pub coordinador_aux_id: Option<i32>,
+    pub prog_super_id: Option<i32>,
+    pub prog_aux_id: Option<i32>,
+    pub aloj_super_id: Option<i32>,
+    pub aloj_aux_id: Option<i32>,
+    pub audio_video_super_id: Option<i32>,
+    pub video_super_id: Option<i32>,
+    pub audio_super_id: Option<i32>,
+    pub plataforma_super_id: Option<i32>,
+    pub bautismo_super_id: Option<i32>,
+    pub bautismo_aux_id: Option<i32>,
+    // --- Otros campos existentes ---
     pub ensayo_lugar: String,
     pub ensayo_fecha: String,
     pub ensayo_hora: String,
@@ -49,7 +64,6 @@ pub struct Asamblea {
     pub instrucciones_esp: String,
     pub jw_stream_studio: bool,
     pub nombre_local: Option<String>,
-    pub identificador: Option<String>,
 }
 
 // ==========================================

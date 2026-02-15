@@ -50,6 +50,23 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
 
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN identificador TEXT", []);
 
+    // --- CORRECCIÓN: AGREGAR COLUMNAS FALTANTES DEL COMITÉ ---
+    // Usamos 'let _ =' para ignorar el error si la columna ya existe
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN coordinador_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN coordinador_aux_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN prog_super_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN prog_aux_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN aloj_super_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN aloj_aux_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN audio_video_super_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN video_super_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN audio_super_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN plataforma_super_id INTEGER", []);
+    // Agregamos también Bautismo que implementaste
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN bautismo_super_id INTEGER", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN bautismo_aux_id INTEGER", []);
+
+    
     // --- 2. LOCALES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS locales (
@@ -151,7 +168,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
     // --- 9. CONFIGURACIÓN GENERAL ---
-    // --- 9. CONFIGURACIÓN GENERAL ---
+    
 conn.execute(
     "CREATE TABLE IF NOT EXISTS configuracion (
         id INTEGER PRIMARY KEY CHECK (id = 1),

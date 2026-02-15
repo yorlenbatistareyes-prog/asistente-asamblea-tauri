@@ -78,6 +78,7 @@ pub fn run() {
             commands::asambleas::guardar_info_evento,
             commands::asambleas::guardar_comite,
             commands::asambleas::obtener_asamblea_activa,
+            commands::asambleas::obtener_asamblea_por_id,
             commands::asambleas::crear_asamblea,
             commands::asambleas::obtener_asambleas,
             commands::asambleas::eliminar_asamblea,
