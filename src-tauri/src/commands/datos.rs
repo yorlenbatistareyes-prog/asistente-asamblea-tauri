@@ -27,12 +27,14 @@ pub fn exportar_base_datos(app: AppHandle, ruta_destino: String) -> Result<Strin
 #[command]
 pub fn importar_base_datos(app: AppHandle, ruta_origen: String) -> Result<String, String> {
     let ruta_db_actual = obtener_ruta_db(&app);
-    
-    // En lugar de chocar con la DB abierta, guardamos el archivo nuevo
-    // con un nombre temporal "pendiente".
     let ruta_pendiente = ruta_db_actual.with_file_name("restaurar_pendiente.sqlite");
 
-    // Copiamos el archivo elegido por el usuario a la carpeta de la app
+    // Forzamos cierre limpio del WAL antes de copiar
+    if let Ok(conn) = Connection::open(&ruta_db_actual) {
+        let _ = conn.execute("PRAGMA wal_checkpoint(TRUNCATE);", []);
+        let _ = conn.execute("PRAGMA journal_mode=DELETE;", []);
+    }
+
     match fs::copy(&ruta_origen, &ruta_pendiente) {
         Ok(_) => Ok("Datos preparados. La aplicación se reiniciará para aplicar los cambios.".to_string()),
         Err(e) => Err(format!("Error al preparar la restauración: {}", e)),

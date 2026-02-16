@@ -38,11 +38,14 @@
             });
 
             if (!ruta) return;
+               await invoke('importar_base_datos', { rutaOrigen: ruta });
+               await message('Datos restaurados correctamente. La aplicación se reiniciará ahora.', { title: 'Éxito' });
+               localStorage.clear();
 
-            await invoke('importar_base_datos', { rutaOrigen: ruta });
-            
-            await message('Datos restaurados correctamente. La aplicación se reiniciará ahora.', { title: 'Éxito' });
-            await relaunch(); // Reinicia la app
+               // Esperamos 1.5 segundos para que Rust cierre bien la conexión
+               await new Promise(resolve => setTimeout(resolve, 5000));
+
+               await relaunch(); // Reinicia la app
 
         } catch (error) {
             await message(`Error al restaurar: ${error}`, { title: 'Error', kind: 'error' });
