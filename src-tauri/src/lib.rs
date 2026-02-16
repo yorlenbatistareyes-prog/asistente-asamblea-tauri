@@ -25,6 +25,7 @@ pub mod commands {
 use crate::database::DbState;
 use std::sync::Mutex;
 use tauri::Manager;
+use std::fs; // Necesario para mover archivos
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -38,23 +39,76 @@ pub fn run() {
         // Si usas el reinicio automático en Restaurar, necesitas este plugin:
         .plugin(tauri_plugin_process::init())
         // --- BASE DE DATOS ---
+        // --- AQUÍ ESTÁ EL CAMBIO: LÓGICA DE INICIO ---
         .setup(|app| {
-            match database::initialize_database(app.handle()) {
-                Ok(conn) => {
-                    println!("✅ Base de datos inicializada correctamente");
+            let app_handle = app.handle();
+            let app_dir = app_handle.path().app_data_dir().unwrap();
+            
+            // Crea la carpeta si no existe
+            if !app_dir.exists() { let _ = fs::create_dir_all(&app_dir); }
 
-                    // ESTA ES LA MAGIA QUE FALTABA:
-                    app.manage(DbState {
-                        conn: Mutex::new(conn),
-                    });
-                }
-                Err(e) => {
-                    println!("❌ Error inicializando DB: {}", e);
-                    // Opcional: return Err(e.into());
-                }
+            // IMPORTANTE: Este nombre debe ser IGUAL al que usas en database.rs
+            // --- CORRECCIÓN AQUÍ ---
+            // Usamos la constante que definiste en database.rs
+            // Así siempre coincidirán los nombres.
+            let nombre_db = database::DB_NAME;
+            
+            let ruta_db_real = app_dir.join(nombre_db);
+            let ruta_pendiente = app_dir.join("restaurar_pendiente.sqlite");
+
+           // 1. REVISAR SI HAY UNA RESTAURACIÓN PENDIENTE
+if ruta_pendiente.exists() {
+    println!("♻️ Restauración detectada. Iniciando limpieza...");
+
+    // Definir rutas de archivos temporales (WAL y SHM)
+    let ruta_wal = app_dir.join(format!("{}-wal", nombre_db));
+    let ruta_shm = app_dir.join(format!("{}-shm", nombre_db));
+
+    // Borrar archivos viejos para evitar Error 500
+    if ruta_wal.exists() { let _ = fs::remove_file(&ruta_wal); }
+    if ruta_shm.exists() { let _ = fs::remove_file(&ruta_shm); }
+    
+    // Borrar la DB vieja
+    if ruta_db_real.exists() { let _ = fs::remove_file(&ruta_db_real); }
+
+    // Poner la nueva en su lugar
+    match fs::rename(&ruta_pendiente, &ruta_db_real) {
+        Ok(_) => println!("✅ Base de datos restaurada correctamente."),
+        Err(_) => {
+            // Plan B: Copiar y borrar si rename falla
+            let _ = fs::copy(&ruta_pendiente, &ruta_db_real);
+            let _ = fs::remove_file(&ruta_pendiente);
+        }
+    }
+
+    // --- NUEVO: Verificar y optimizar la base de datos restaurada ---
+    if let Ok(temp_conn) = rusqlite::Connection::open(&ruta_db_real) {
+        // Ejecutar VACUUM para compactar y asegurar integridad
+        if let Err(e) = temp_conn.execute("VACUUM;", []) {
+            eprintln!("❌ Error al ejecutar VACUUM en base restaurada: {}", e);
+        } else {
+            println!("✅ VACUUM completado en base restaurada");
+        }
+        // Verificar integridad (opcional, pero útil para depurar)
+        let integrity: Result<String, _> = temp_conn.query_row("PRAGMA integrity_check;", [], |row| row.get(0));
+        match integrity {
+            Ok(msg) => println!("✅ Integridad de base restaurada: {}", msg),
+            Err(e) => eprintln!("❌ Error en integridad de base restaurada: {}", e),
+        }
+    } else {
+        eprintln!("❌ No se pudo abrir la base restaurada para verificación");
+    }
+}
+
+            // 2. INICIAR LA BASE DE DATOS (Igual que siempre)
+            match database::initialize_database(app.handle()) {
+               Ok(conn) => {
+                   println!("✅ Base de datos conectada y lista");
+                   app.manage(DbState { conn: Mutex::new(conn) });
+               }
+               Err(e) => println!("❌ Error inicializando DB: {}", e),
             }
-            // --- ¡ESTO ES LO QUE FALTABA! ---
-            Ok(())
+            Ok(()) 
         })
         // --- REGISTRO DE COMANDOS (INVOKE HANDLER) ---
         .invoke_handler(tauri::generate_handler![
@@ -116,7 +170,8 @@ pub fn run() {
             commands::configuracion::guardar_configuracion_general,
             // --- ACTUALIZACIONES ---
             commands::actualizaciones::check_for_updates,
-            // --- 2. COMANDOS DE DATOS (NUEVO) ---
+            
+            // DATOS (Lo nuevo)
             commands::datos::exportar_base_datos,
             commands::datos::importar_base_datos,
             commands::datos::limpiar_datos,

@@ -1,45 +1,51 @@
 use crate::database::obtener_ruta_db;
-use rusqlite::Connection;
-use std::fs;
 use tauri::{command, AppHandle};
+use std::fs;
+use rusqlite::Connection;
 
-// 1. EXPORTAR (RESPALDO)
+// --- 1. EXPORTAR (RESPALDO SEGURO) ---
 #[command]
 pub fn exportar_base_datos(app: AppHandle, ruta_destino: String) -> Result<String, String> {
     let ruta_db_actual = obtener_ruta_db(&app);
-    match fs::copy(&ruta_db_actual, &ruta_destino) {
-        Ok(_) => Ok("Respaldo creado correctamente".to_string()),
-        Err(e) => Err(format!("Error: {}", e)),
+    
+    // Usamos la conexión para hacer un backup "en caliente" seguro
+    let conn = Connection::open(&ruta_db_actual).map_err(|e| e.to_string())?;
+
+    // Si el archivo destino ya existe, lo borramos primero para evitar error de SQL
+    if std::path::Path::new(&ruta_destino).exists() {
+        let _ = fs::remove_file(&ruta_destino);
+    }
+
+    // VACUUM INTO crea una copia compactada y sin archivos temporales basura
+    match conn.execute("VACUUM INTO ?", [ruta_destino]) {
+        Ok(_) => Ok("Respaldo creado correctamente.".to_string()),
+        Err(e) => Err(format!("Error al generar respaldo: {}", e)),
     }
 }
 
-// 2. IMPORTAR (RESTAURAR)
+// --- 2. IMPORTAR (PREPARAR PARA REINICIO) ---
 #[command]
 pub fn importar_base_datos(app: AppHandle, ruta_origen: String) -> Result<String, String> {
     let ruta_db_actual = obtener_ruta_db(&app);
+    
+    // En lugar de chocar con la DB abierta, guardamos el archivo nuevo
+    // con un nombre temporal "pendiente".
+    let ruta_pendiente = ruta_db_actual.with_file_name("restaurar_pendiente.sqlite");
 
-    // Backup temporal por seguridad
-    let ruta_backup = ruta_db_actual.with_extension("bak");
-    if ruta_db_actual.exists() {
-        let _ = fs::copy(&ruta_db_actual, &ruta_backup);
-    }
-
-    match fs::copy(&ruta_origen, &ruta_db_actual) {
-        Ok(_) => Ok("Restauración completada".to_string()),
-        Err(e) => {
-            let _ = fs::rename(&ruta_backup, &ruta_db_actual); // Restaurar backup si falla
-            Err(format!("Error: {}", e))
-        }
+    // Copiamos el archivo elegido por el usuario a la carpeta de la app
+    match fs::copy(&ruta_origen, &ruta_pendiente) {
+        Ok(_) => Ok("Datos preparados. La aplicación se reiniciará para aplicar los cambios.".to_string()),
+        Err(e) => Err(format!("Error al preparar la restauración: {}", e)),
     }
 }
 
-// 3. LIMPIAR TODO
+// --- 3. LIMPIAR TODO (BORRADO PROFUNDO) ---
 #[command]
 pub fn limpiar_datos(app: AppHandle) -> Result<String, String> {
     let db_path = obtener_ruta_db(&app);
-    let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
 
-    // Borramos todo EXCEPTO la tabla 'configuracion'
+    // Borramos datos pero mantenemos la estructura
     let sql = r#"
         PRAGMA foreign_keys = OFF;
         DELETE FROM asignaciones_especiales;
@@ -50,10 +56,15 @@ pub fn limpiar_datos(app: AppHandle) -> Result<String, String> {
         DELETE FROM locales;
         DELETE FROM plantillas_cartas;
         DELETE FROM plantillas_email;
+        -- Reiniciar contadores, excepto configuración
         DELETE FROM sqlite_sequence WHERE name != 'configuracion';
         PRAGMA foreign_keys = ON;
     "#;
 
     conn.execute_batch(sql).map_err(|e| e.to_string())?;
-    Ok("Base de datos vaciada".to_string())
+
+    // Forzamos limpieza de archivo WAL
+    let _ = conn.execute("VACUUM", []); 
+
+    Ok("Base de datos vaciada correctamente.".to_string())
 }

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
-const DB_NAME: &str = "asamblea_db_v7.sqlite";
+pub const DB_NAME: &str = "asamblea_db_v7.sqlite";
 
 pub struct DbState {
     pub conn: Mutex<Connection>,
