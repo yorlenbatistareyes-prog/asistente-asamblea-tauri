@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
-  import { Lectern, Activity, User, Wifi } from 'lucide-svelte'; // Agregué Wifi por si acaso, opcional
+  import { Lectern, Activity, User } from 'lucide-svelte';
   import Actualizaciones from '$lib/components/ui/Actualizaciones.svelte';
 
   onMount(async () => {
@@ -71,7 +71,9 @@
     
     <span class="separator">|</span>
     
-    <Actualizaciones />
+    <div class="update-box">
+      <Actualizaciones />
+    </div>
   </div>
 </footer>
 
@@ -117,7 +119,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 32px; /* Reduje un poco la altura para que sea más elegante */
+    height: 32px;
     background-color: #1e293b;
     color: #94a3b8;
     display: flex;
@@ -129,15 +131,15 @@
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
     font-weight: 500;
-    white-space: nowrap; /* Evita que el texto salte de línea */
-    overflow: hidden;    /* Evita desbordes */
+    white-space: nowrap;
+    overflow: hidden;
   }
 
   .status-left, .status-right {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex: 1; /* Distribución equitativa */
+    flex: 1; 
   }
 
   .status-right {
@@ -192,7 +194,6 @@
     color: #4ade80;
   }
 
-  /* Para nombres de usuario muy largos, ponemos puntos suspensivos */
   .text-truncate {
     max-width: 120px;
     overflow: hidden;
@@ -201,32 +202,71 @@
     vertical-align: bottom;
   }
 
-  /* === RESPONSIVE (LA MAGIA) === */
+  /* === RESPONSIVE === */
   
-  /* 1. Si la pantalla es menor a 900px, ocultamos el texto del centro */
+  /* 1. Ocultar texto central en pantallas medianas */
   @media (max-width: 900px) {
-    .status-center {
-      display: none;
-    }
+    .status-center { display: none; }
   }
 
-  /* 2. Si la pantalla es menor a 650px (Ventana pequeña), ocultamos textos descriptivos */
-  @media (max-width: 650px) {
-    .hide-mobile {
-      display: none;
-    }
-    
-    .status-bar {
-      padding: 0 8px; /* Menos padding */
-    }
+ /* 2. MODO MÓVIL (Pantallas Pequeñas) */
+@media (max-width: 650px) {
+  .hide-mobile { display: none; }
+  
+  .status-bar { padding: 0 8px; }
+  .status-left, .status-right { gap: 8px; }
+  .text-truncate { max-width: 80px; }
 
-    .status-left, .status-right {
-      gap: 8px; /* Menos espacio entre iconos */
-    }
-
-    /* Ajuste para el nombre de usuario en pantallas muy pequeñas */
-    .text-truncate {
-      max-width: 80px; 
-    }
+  /* Botón de actualizar */
+  .update-box :global(button) {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    background-color: var(--primary) !important;
+    border: none !important;
+    border-radius: 4px !important;
+    font-size: 0 !important;
   }
+
+  /* El span que envuelve al SVG también debe centrar */
+  .update-box :global(button span) {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+
+  /* El SVG dentro del botón */
+  .update-box :global(button svg) {
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    color: white !important;
+    stroke: white !important;
+    stroke-width: 2.5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Para pantallas extremadamente pequeñas (menos de 400px) */
+@media (max-width: 400px) {
+  .update-box :global(button) {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .update-box :global(button svg) {
+    width: 14px !important;
+    height: 14px !important;
+    stroke-width: 2 !important;
+  }
+}
+
 </style>
