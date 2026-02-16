@@ -40,12 +40,29 @@
   // NUEVO: Controla si el sidebar está encogido
   let colapsado = false;
 
-  onMount(() => {
+  onMount(async () => {
+
     // Recuperar el nombre de la asamblea activa para mostrarlo en el menú
     const data = localStorage.getItem('asambleaActiva');
     if (data) {
         asambleaActual = JSON.parse(data);
     }
+
+    // PASO 8: Validar si la asamblea guardada existe realmente en la base
+if (asambleaActual?.id) {
+    try {
+        const existe = await invoke('obtener_asamblea_por_id', { id: asambleaActual.id });
+        if (!existe) {
+            console.warn("Asamblea guardada ya no existe. Limpiando localStorage...");
+            localStorage.removeItem('asambleaActiva');
+            asambleaActual = null;
+        }
+    } catch (e) {
+        console.warn("Error validando asamblea activa:", e);
+        localStorage.removeItem('asambleaActiva');
+        asambleaActual = null;
+    }
+}
     // Intentar inicializar los datos del resumen desde localStorage
     const resumenRaw = localStorage.getItem('resumen');
     if (resumenRaw) {

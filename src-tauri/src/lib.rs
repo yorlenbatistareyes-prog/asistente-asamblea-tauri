@@ -36,8 +36,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        // Si usas el reinicio automático en Restaurar, necesitas este plugin:
-        .plugin(tauri_plugin_process::init())
+        
+        // Si usas el reinicio automático en Restaurar, necesitas este plugin
         // --- BASE DE DATOS ---
         // --- AQUÍ ESTÁ EL CAMBIO: LÓGICA DE INICIO ---
         .setup(|app| {
