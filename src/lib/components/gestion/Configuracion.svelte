@@ -3,6 +3,7 @@
   import { guiaUsuario } from '$lib/data/ayuda';
   import { getVersion } from '@tauri-apps/api/app';
   import { onMount } from 'svelte';
+  import Datos from '$lib/components/gestion/Datos.svelte';
 
   import { invoke } from '@tauri-apps/api/core';
   import { cargarDatosGlobales } from '$lib/stores/appStore';
@@ -13,9 +14,9 @@
 
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
-    ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, Upload, Download, Trash2, HelpCircle,
+    ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
     ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity 
-  } from 'lucide-svelte';
+} from 'lucide-svelte';
 
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
 
@@ -101,13 +102,10 @@
   }
 }
 
-  async function respaldarDatos() { alert("Respaldando..."); }
-  async function restaurarDatos() { alert("Restaurando..."); }
-  async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }
-
   onMount(async () => {
     versionReal = await getVersion();
   });
+  
 </script>
 
 <div class="config-layout">
@@ -244,25 +242,9 @@
 
             {:else if configSeccion === 'correos'}
                 <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
-
+            
             {:else if configSeccion === 'datos'}
-                <div class="data-management-container">
-                    <div class="data-card">
-                        <div class="data-icon-wrapper blue"><Upload size={24} /></div>
-                        <div class="data-content"><h3>Respaldar Datos</h3><p>Guardar copia de seguridad.</p></div>
-                        <button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button>
-                    </div>
-                    <div class="data-card">
-                        <div class="data-icon-wrapper green"><Download size={24} /></div>
-                        <div class="data-content"><h3>Restaurar Datos</h3><p>Cargar copia de seguridad.</p></div>
-                        <button class="btn-data-action secondary" on:click={restaurarDatos}>Restaurar</button>
-                    </div>
-                    <div class="data-card danger-zone">
-                        <div class="data-icon-wrapper red"><Trash2 size={24} /></div>
-                        <div class="data-content"><h3>Limpiar Todo</h3><p>Borrar base de datos.</p></div>
-                        <button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button>
-                    </div>
-                </div>
+                <Datos />
 
             {:else if configSeccion === 'ayuda'}
                 <div class="help-container">
@@ -394,20 +376,6 @@ input:checked + .slider:before { transform: translateX(20px); }
 .modal-footer-user { padding: 20px 30px; display: flex; justify-content: flex-end; gap: 15px; background: var(--bg-card); }
 .btn-cancel-user { background: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; }
 .btn-save-user { background: #ea580c; border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; }
-
-/* Cards de Datos */
-.data-management-container { max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
-.data-card { display: flex; align-items: center; gap: 20px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; }
-.data-content h3 { margin: 0; color: var(--text-main); } 
-.data-content p { margin: 0; color: var(--text-secondary); font-size: 13px; }
-.data-icon-wrapper { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.data-icon-wrapper.blue { background: #eff6ff; color: #2563eb; } 
-.data-icon-wrapper.green { background: #f0fdf4; color: #16a34a; } 
-.data-icon-wrapper.red { background: #fef2f2; color: #dc2626; }
-.btn-data-action { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; }
-.btn-data-action.primary { background: var(--primary); color: white; } 
-.btn-data-action.secondary { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); } 
-.btn-data-action.danger { background: #fee2e2; color: #dc2626; }
 
 /* Acordeones (Ayuda) */
 .help-container { max-width: 1000px; margin: 0 auto; }

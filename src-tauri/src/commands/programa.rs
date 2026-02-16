@@ -67,26 +67,22 @@ pub fn asignar_parte(
     numero_bosquejo: Option<String>,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
-    
-    let bosquejo_actual = if es_video {
-        None
-    } else {
-        numero_bosquejo
-    };
-    
+
+    let bosquejo_actual = if es_video { None } else { numero_bosquejo };
+
     let params = params![
-        orador_id, 
-        es_video, 
+        orador_id,
+        es_video,
         "Confirmado",
         bosquejo_actual.as_deref(),
         id_parte
     ];
-    
+
     conn.execute(
         "UPDATE programa SET orador_id = ?1, es_video = ?2, estado = ?3, numero_bosquejo = ?4 WHERE id = ?5", 
         params
     ).map_err(|e| e.to_string())?;
-    
+
     Ok("Ok".to_string())
 }
 
@@ -104,7 +100,7 @@ pub fn crear_parte(
     congregacion: Option<String>,
     email: Option<String>,
     telefono: Option<String>,
-    numero_bosquejo: Option<String>, 
+    numero_bosquejo: Option<String>,
 ) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -133,9 +129,9 @@ pub fn crear_parte(
                             params![asamblea_id, c], 
                             |row| row.get(0)
                         ).optional().unwrap_or(None);
-                        
-                        if let Some(id) = c_id { 
-                            id_cong = id; 
+
+                        if let Some(id) = c_id {
+                            id_cong = id;
                         } else {
                             tx.execute(
                                 "INSERT INTO congregaciones (asamblea_id, nombre, numero_congregacion) VALUES (?1, ?2, '')", 
@@ -144,7 +140,7 @@ pub fn crear_parte(
                             id_cong = tx.last_insert_rowid() as i32;
                         }
                     }
-                    
+
                     tx.execute(
                         "INSERT INTO personas (asamblea_id, nombre_completo, sexo, id_congregacion, email, telefono) VALUES (?1, ?2, 'M', ?3, ?4, ?5)", 
                         params![
@@ -155,7 +151,7 @@ pub fn crear_parte(
                             telefono.unwrap_or_default()
                         ]
                     ).map_err(|e| e.to_string())?;
-                    
+
                     orador_id_final = Some(tx.last_insert_rowid() as i32);
                 }
                 estado = "Confirmado".to_string();
@@ -197,24 +193,32 @@ pub fn actualizar_numero_bosquejo(
     numero_bosquejo: Option<String>,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
-    
+
     conn.execute(
-        "UPDATE programa SET numero_bosquejo = ?1 WHERE id = ?2", 
-        params![numero_bosquejo.as_deref(), id_parte]
-    ).map_err(|e| e.to_string())?;
-    
+        "UPDATE programa SET numero_bosquejo = ?1 WHERE id = ?2",
+        params![numero_bosquejo.as_deref(), id_parte],
+    )
+    .map_err(|e| e.to_string())?;
+
     Ok("Número de bosquejo actualizado".to_string())
 }
 
 #[command]
-pub fn alternar_estado_parte(app: AppHandle, id: i32, tipo_accion: String, valor_actual: bool) -> Result<String, String> {
+pub fn alternar_estado_parte(
+    app: AppHandle,
+    id: i32,
+    tipo_accion: String,
+    valor_actual: bool,
+) -> Result<String, String> {
     let conn = conectar_db(&app);
     let sql = match tipo_accion.as_str() {
-        "confirmacion" => if valor_actual { 
-            "UPDATE programa SET estado = 'Pendiente' WHERE id = ?1" 
-        } else { 
-            "UPDATE programa SET estado = 'Confirmado' WHERE id = ?1" 
-        },
+        "confirmacion" => {
+            if valor_actual {
+                "UPDATE programa SET estado = 'Pendiente' WHERE id = ?1"
+            } else {
+                "UPDATE programa SET estado = 'Confirmado' WHERE id = ?1"
+            }
+        }
         "presencia" => "UPDATE programa SET esta_presente = NOT esta_presente WHERE id = ?1",
         _ => return Err("Acción desconocida".to_string()),
     };
@@ -224,22 +228,32 @@ pub fn alternar_estado_parte(app: AppHandle, id: i32, tipo_accion: String, valor
 
 #[command]
 pub fn eliminar_parte(app: AppHandle, id: i32) -> Result<String, String> {
-    conectar_db(&app).execute("DELETE FROM programa WHERE id = ?1", params![id]).map_err(|e| e.to_string())?;
+    conectar_db(&app)
+        .execute("DELETE FROM programa WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
     Ok("Eliminado".to_string())
 }
 
 #[command]
 pub fn limpiar_programa(app: AppHandle, asamblea_id: i32) -> Result<String, String> {
-    conectar_db(&app).execute("DELETE FROM programa WHERE asamblea_id = ?1", params![asamblea_id]).map_err(|e| e.to_string())?;
+    conectar_db(&app)
+        .execute(
+            "DELETE FROM programa WHERE asamblea_id = ?1",
+            params![asamblea_id],
+        )
+        .map_err(|e| e.to_string())?;
     Ok("Limpiado".to_string())
 }
 
-#[command] 
-pub fn generar_programa_base(_app: AppHandle) -> Result<String, String> { 
-    Ok("".to_string()) 
+#[command]
+pub fn generar_programa_base(_app: AppHandle) -> Result<String, String> {
+    Ok("".to_string())
 }
 
-#[command] 
-pub fn obtener_oficina_dia(_app: AppHandle, _dia: String) -> Result<Vec<AsignacionEspecial>, String> { 
-    Ok(vec![]) 
+#[command]
+pub fn obtener_oficina_dia(
+    _app: AppHandle,
+    _dia: String,
+) -> Result<Vec<AsignacionEspecial>, String> {
+    Ok(vec![])
 }

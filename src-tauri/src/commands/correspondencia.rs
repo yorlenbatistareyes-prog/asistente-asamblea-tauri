@@ -1,7 +1,7 @@
-use tauri::{command, AppHandle};
+use crate::database;
 use rusqlite::{params, Connection};
 use serde::Serialize;
-use crate::database;
+use tauri::{command, AppHandle};
 
 #[derive(Serialize)]
 pub struct PlantillaCarta {
@@ -20,7 +20,8 @@ pub fn obtener_plantilla(app: AppHandle, id: String) -> Result<PlantillaCarta, S
             contenido_html TEXT
         )",
         [],
-    ).map_err(|e| format!("Error al verificar tabla: {}", e))?;
+    )
+    .map_err(|e| format!("Error al verificar tabla: {}", e))?;
 
     // Usamos trim() en el ID para evitar errores por espacios invisibles
     let id_limpio = id.trim();
@@ -29,9 +30,7 @@ pub fn obtener_plantilla(app: AppHandle, id: String) -> Result<PlantillaCarta, S
         .prepare("SELECT contenido_html FROM plantillas_cartas WHERE id = ?1")
         .map_err(|e| format!("Error al preparar consulta: {}", e))?;
 
-    let result = stmt.query_row(params![id_limpio], |row| {
-        row.get::<_, String>(0)
-    });
+    let result = stmt.query_row(params![id_limpio], |row| row.get::<_, String>(0));
 
     match result {
         Ok(contenido) => Ok(PlantillaCarta { cuerpo: contenido }),
@@ -40,7 +39,7 @@ pub fn obtener_plantilla(app: AppHandle, id: String) -> Result<PlantillaCarta, S
             Ok(PlantillaCarta {
                 cuerpo: "<p>Estimado hermano [[Nombre]]:</p><p>Escriba aquí el contenido de la carta...</p>".to_string()
             })
-        },
+        }
         Err(e) => Err(format!("Error al leer plantilla: {}", e)),
     }
 }
@@ -56,7 +55,8 @@ pub fn guardar_plantilla(app: AppHandle, id: String, contenido: String) -> Resul
             contenido_html TEXT
         )",
         [],
-    ).map_err(|e| format!("Error creando tabla: {}", e))?;
+    )
+    .map_err(|e| format!("Error creando tabla: {}", e))?;
 
     let id_limpio = id.trim();
 
@@ -64,7 +64,8 @@ pub fn guardar_plantilla(app: AppHandle, id: String, contenido: String) -> Resul
     conn.execute(
         "INSERT OR REPLACE INTO plantillas_cartas (id, contenido_html) VALUES (?1, ?2)",
         params![id_limpio, contenido],
-    ).map_err(|e| format!("Error al guardar permanentemente: {}", e))?;
+    )
+    .map_err(|e| format!("Error al guardar permanentemente: {}", e))?;
 
     Ok(())
 }

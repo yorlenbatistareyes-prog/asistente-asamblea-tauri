@@ -20,7 +20,11 @@ pub fn crear_persona(
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
-    let id_cong_final = if id_congregacion == 0 { None } else { Some(id_congregacion) };
+    let id_cong_final = if id_congregacion == 0 {
+        None
+    } else {
+        Some(id_congregacion)
+    };
 
     match conn.execute(
         "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -79,7 +83,11 @@ pub fn actualizar_persona(
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
-    let id_cong_final = if id_congregacion == 0 { None } else { Some(id_congregacion) };
+    let id_cong_final = if id_congregacion == 0 {
+        None
+    } else {
+        Some(id_congregacion)
+    };
 
     match conn.execute(
         "UPDATE personas SET nombre_completo = ?1, sexo = ?2, privilegios = ?3, id_congregacion = ?4, telefono = ?5, email = ?6 WHERE id = ?7",
@@ -95,10 +103,23 @@ pub fn actualizar_persona(
 pub fn eliminar_persona(app: AppHandle, id: i32) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    tx.execute("UPDATE programa SET orador_id = NULL WHERE orador_id = ?1", params![id]).ok();
-    tx.execute("UPDATE asambleas SET presidente_id = NULL WHERE presidente_id = ?1", params![id]).ok();
-    tx.execute("DELETE FROM asignaciones_especiales WHERE persona_id = ?1", params![id]).ok();
-    tx.execute("DELETE FROM personas WHERE id = ?1", params![id]).map_err(|e| e.to_string())?;
+    tx.execute(
+        "UPDATE programa SET orador_id = NULL WHERE orador_id = ?1",
+        params![id],
+    )
+    .ok();
+    tx.execute(
+        "UPDATE asambleas SET presidente_id = NULL WHERE presidente_id = ?1",
+        params![id],
+    )
+    .ok();
+    tx.execute(
+        "DELETE FROM asignaciones_especiales WHERE persona_id = ?1",
+        params![id],
+    )
+    .ok();
+    tx.execute("DELETE FROM personas WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok("Persona eliminada".to_string())
 }
@@ -108,7 +129,11 @@ pub fn limpiar_personas(app: AppHandle, asamblea_id: i32) -> Result<String, Stri
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     tx.execute("UPDATE programa SET orador_id = NULL WHERE orador_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)", params![asamblea_id]).ok();
-    tx.execute("DELETE FROM personas WHERE asamblea_id = ?1", params![asamblea_id]).map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM personas WHERE asamblea_id = ?1",
+        params![asamblea_id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok("Lista vaciada".to_string())
 }

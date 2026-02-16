@@ -1,8 +1,8 @@
 use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager};
 use std::sync::Mutex;
+use tauri::{AppHandle, Manager};
 
 const DB_NAME: &str = "asamblea_db_v7.sqlite";
 
@@ -52,21 +52,44 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
 
     // --- CORRECCIÓN: AGREGAR COLUMNAS FALTANTES DEL COMITÉ ---
     // Usamos 'let _ =' para ignorar el error si la columna ya existe
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN coordinador_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN coordinador_aux_id INTEGER", []);
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN coordinador_id INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN coordinador_aux_id INTEGER",
+        [],
+    );
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN prog_super_id INTEGER", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN prog_aux_id INTEGER", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN aloj_super_id INTEGER", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN aloj_aux_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN audio_video_super_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN video_super_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN audio_super_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN plataforma_super_id INTEGER", []);
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN audio_video_super_id INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN video_super_id INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN audio_super_id INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN plataforma_super_id INTEGER",
+        [],
+    );
     // Agregamos también Bautismo que implementaste
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN bautismo_super_id INTEGER", []);
-    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN bautismo_aux_id INTEGER", []);
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN bautismo_super_id INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE asambleas ADD COLUMN bautismo_aux_id INTEGER",
+        [],
+    );
 
-    
     // --- 2. LOCALES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS locales (
@@ -150,7 +173,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
 
     // --- 7. PLANTILLAS ---
     conn.execute("CREATE TABLE IF NOT EXISTS plantillas_cartas (id TEXT PRIMARY KEY, contenido_html TEXT NOT NULL)", [])?;
-    
+
     // --- 8. PLANTILLAS EMAIL ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS plantillas_email (
@@ -168,9 +191,9 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
 
     // --- 9. CONFIGURACIÓN GENERAL ---
-    
-conn.execute(
-    "CREATE TABLE IF NOT EXISTS configuracion (
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS configuracion (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         nombre TEXT DEFAULT 'Yorlen',
         segundo_nombre TEXT,
@@ -184,18 +207,27 @@ conn.execute(
         tema TEXT DEFAULT 'claro',
         idioma TEXT DEFAULT 'es'
     )",
-    [],
-)?;
+        [],
+    )?;
 
-// Migraciones para configuracion (agregar columnas faltantes)
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN segundo_nombre TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN apellido TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN sufijo TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email_jwpub TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN movil TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN identificador TEXT", []);
-let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN fecha_creacion TEXT", []);
+    // Migraciones para configuracion (agregar columnas faltantes)
+    let _ = conn.execute(
+        "ALTER TABLE configuracion ADD COLUMN segundo_nombre TEXT",
+        [],
+    );
+    let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN apellido TEXT", []);
+    let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN sufijo TEXT", []);
+    let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email TEXT", []);
+    let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email_jwpub TEXT", []);
+    let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN movil TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE configuracion ADD COLUMN identificador TEXT",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE configuracion ADD COLUMN fecha_creacion TEXT",
+        [],
+    );
 
     // Insertamos el registro inicial si la tabla está vacía
     conn.execute(
@@ -203,6 +235,6 @@ let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN fecha_creacion TEXT",
          VALUES (1, 'Yorlen', 'claro', 'es')",
         [],
     )?;
-    
-   Ok(conn)
+
+    Ok(conn)
 }

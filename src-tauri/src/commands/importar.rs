@@ -30,11 +30,18 @@ struct FilaPersonaJWHub {
     apellidos: Option<String>,
     #[serde(alias = "Congregación")]
     congregacion: Option<String>,
-    #[serde(alias = "Teléfono (Celular)", alias = "Teléfono móvil", alias = "Móvil")]
+    #[serde(
+        alias = "Teléfono (Celular)",
+        alias = "Teléfono móvil",
+        alias = "Móvil"
+    )]
     celular: Option<String>,
     #[serde(alias = "Teléfono", alias = "Teléfono fijo")]
     fijo: Option<String>,
-    #[serde(alias = "Correo electrónico (Correo electrónico (jw.org))", alias = "Correo electrónico")]
+    #[serde(
+        alias = "Correo electrónico (Correo electrónico (jw.org))",
+        alias = "Correo electrónico"
+    )]
     email: Option<String>,
     #[serde(alias = "Tipo de privilegio", alias = "Privilegios")]
     privilegio: Option<String>,
@@ -90,36 +97,75 @@ pub fn importar_personas_csv(
     {
         let mut stmt_find_cong = tx.prepare("SELECT id FROM congregaciones WHERE asamblea_id = ?1 AND LOWER(TRIM(nombre)) = LOWER(TRIM(?2))").map_err(|e| e.to_string())?;
         let mut stmt_ins_cong = tx.prepare("INSERT INTO congregaciones (asamblea_id, nombre, numero_congregacion) VALUES (?1, ?2, '')").map_err(|e| e.to_string())?;
-        let mut stmt_check_pers = tx.prepare("SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2").map_err(|e| e.to_string())?;
+        let mut stmt_check_pers = tx
+            .prepare("SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2")
+            .map_err(|e| e.to_string())?;
         let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, 'M', ?3, ?4, ?5, ?6)").map_err(|e| e.to_string())?;
         let mut stmt_upd_pers = tx.prepare("UPDATE personas SET id_congregacion = ?1, privilegios = ?2, telefono = ?3, email = ?4 WHERE id = ?5").map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
-            let fila: FilaPersonaJWHub = match result { Ok(f) => f, Err(_) => continue };
+            let fila: FilaPersonaJWHub = match result {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
             let mut partes = Vec::new();
-            if let Some(n) = fila.nombre { if !n.trim().is_empty() { partes.push(n); } }
-            if let Some(s) = fila.segundo_nombre { if !s.trim().is_empty() { partes.push(s); } }
-            if let Some(a) = fila.apellidos { if !a.trim().is_empty() { partes.push(a); } }
+            if let Some(n) = fila.nombre {
+                if !n.trim().is_empty() {
+                    partes.push(n);
+                }
+            }
+            if let Some(s) = fila.segundo_nombre {
+                if !s.trim().is_empty() {
+                    partes.push(s);
+                }
+            }
+            if let Some(a) = fila.apellidos {
+                if !a.trim().is_empty() {
+                    partes.push(a);
+                }
+            }
             let nombre_final = partes.join(" ");
-            if nombre_final.trim().is_empty() { continue; }
+            if nombre_final.trim().is_empty() {
+                continue;
+            }
 
             let mut id_cong = 0;
             if let Some(cong) = &fila.congregacion {
-                let existe_c: Option<i32> = stmt_find_cong.query_row(params![asamblea_id, cong.trim()], |row| row.get(0)).optional().unwrap_or(None);
-                if let Some(cid) = existe_c { id_cong = cid; }
-                else {
-                    stmt_ins_cong.execute(params![asamblea_id, cong.trim()]).unwrap_or(0);
+                let existe_c: Option<i32> = stmt_find_cong
+                    .query_row(params![asamblea_id, cong.trim()], |row| row.get(0))
+                    .optional()
+                    .unwrap_or(None);
+                if let Some(cid) = existe_c {
+                    id_cong = cid;
+                } else {
+                    stmt_ins_cong
+                        .execute(params![asamblea_id, cong.trim()])
+                        .unwrap_or(0);
                     id_cong = tx.last_insert_rowid() as i32;
                 }
             }
             let tel = fila.celular.or(fila.fijo).unwrap_or_default();
             let email = fila.email.unwrap_or_default();
             let privi = fila.privilegio.unwrap_or_default();
-            let existe_p: Option<i32> = stmt_check_pers.query_row(params![asamblea_id, &nombre_final], |row| row.get(0)).optional().unwrap_or(None);
+            let existe_p: Option<i32> = stmt_check_pers
+                .query_row(params![asamblea_id, &nombre_final], |row| row.get(0))
+                .optional()
+                .unwrap_or(None);
             if let Some(pid) = existe_p {
-                stmt_upd_pers.execute(params![id_cong, privi, tel, email, pid]).unwrap_or(0);
+                stmt_upd_pers
+                    .execute(params![id_cong, privi, tel, email, pid])
+                    .unwrap_or(0);
             } else {
-                stmt_ins_pers.execute(params![asamblea_id, nombre_final, privi, id_cong, tel, email]).unwrap_or(0);
+                stmt_ins_pers
+                    .execute(params![
+                        asamblea_id,
+                        nombre_final,
+                        privi,
+                        id_cong,
+                        tel,
+                        email
+                    ])
+                    .unwrap_or(0);
             }
             contador += 1;
         }
@@ -141,11 +187,26 @@ pub fn importar_congregaciones_csv(
         let mut stmt_check = tx.prepare("SELECT id FROM congregaciones WHERE asamblea_id = ?1 AND LOWER(TRIM(nombre)) = LOWER(TRIM(?2))").map_err(|e| e.to_string())?;
         let mut stmt_insert = tx.prepare("INSERT INTO congregaciones (asamblea_id, nombre, numero_congregacion, circuito) VALUES (?1, ?2, ?3, ?4)").map_err(|e| e.to_string())?;
         for result in rdr.deserialize() {
-            let fila: FilaCongregacionMaster = match result { Ok(f) => f, Err(_) => continue };
-            if fila.nombre.trim().is_empty() { continue; }
-            let existe: Option<i32> = stmt_check.query_row(params![asamblea_id, fila.nombre.trim()], |row| row.get(0)).optional().unwrap_or(None);
+            let fila: FilaCongregacionMaster = match result {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            if fila.nombre.trim().is_empty() {
+                continue;
+            }
+            let existe: Option<i32> = stmt_check
+                .query_row(params![asamblea_id, fila.nombre.trim()], |row| row.get(0))
+                .optional()
+                .unwrap_or(None);
             if existe.is_none() {
-                stmt_insert.execute(params![asamblea_id, fila.nombre.trim(), fila.numero.unwrap_or_default(), fila.circuito.unwrap_or_default()]).unwrap_or(0);
+                stmt_insert
+                    .execute(params![
+                        asamblea_id,
+                        fila.nombre.trim(),
+                        fila.numero.unwrap_or_default(),
+                        fila.circuito.unwrap_or_default()
+                    ])
+                    .unwrap_or(0);
             }
         }
     }
@@ -165,15 +226,20 @@ pub fn importar_programa_jw(
     {
         let mut stmt_find_cong = tx.prepare("SELECT id FROM congregaciones WHERE asamblea_id = ?1 AND LOWER(TRIM(nombre)) = LOWER(TRIM(?2))").map_err(|e| e.to_string())?;
         let mut stmt_ins_cong = tx.prepare("INSERT INTO congregaciones (asamblea_id, nombre, numero_congregacion) VALUES (?1, ?2, '')").map_err(|e| e.to_string())?;
-        let mut stmt_find_pers = tx.prepare("SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2").map_err(|e| e.to_string())?;
-        
+        let mut stmt_find_pers = tx
+            .prepare("SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2")
+            .map_err(|e| e.to_string())?;
+
         // 👇 CORRECCIÓN AQUÍ: Se añade 'sexo' y se ajustan los parámetros (?1 a ?7)
         let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5)").map_err(|e| e.to_string())?;
-        
+
         let mut stmt_ins_prog = tx.prepare("INSERT INTO programa (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, orador_id, es_video, estado, esta_presente) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 10, ?7, ?8, 'Confirmado', 0)").map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
-            let fila: FilaProgramaJW = match result { Ok(f) => f, Err(_) => continue };
+            let fila: FilaProgramaJW = match result {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
             let dia_semana = match chrono::NaiveDate::parse_from_str(&fila.fecha, "%Y-%m-%d") {
                 Ok(d) => match d.weekday() {
                     chrono::Weekday::Fri => "Viernes",
@@ -184,8 +250,16 @@ pub fn importar_programa_jw(
                 Err(_) => "Viernes",
             };
             let partes_hora: Vec<&str> = fila.hora.split(':').collect();
-            let hora_limpia = if partes_hora.len() >= 2 { format!("{:0>2}:{:0>2}", partes_hora[0], partes_hora[1]) } else { fila.hora.clone() };
-            let sesion = if hora_limpia < "13:00".to_string() { "Mañana" } else { "Tarde" };
+            let hora_limpia = if partes_hora.len() >= 2 {
+                format!("{:0>2}:{:0>2}", partes_hora[0], partes_hora[1])
+            } else {
+                fila.hora.clone()
+            };
+            let sesion = if hora_limpia < "13:00".to_string() {
+                "Mañana"
+            } else {
+                "Tarde"
+            };
             let fuente = fila.fuente.unwrap_or_default();
             let es_video = fuente == "Video" || fila.titulo.contains("Producción audiovisual");
             let tipo = if es_video { "Video" } else { "Discurso" };
@@ -193,26 +267,59 @@ pub fn importar_programa_jw(
             let mut orador_id: Option<i32> = None;
             if !es_video {
                 if let Some(raw_orador) = fila.orador {
-                    let nombre_final = if let Some((ap, nom)) = raw_orador.split_once(',') { format!("{} {}", nom.trim(), ap.trim()) } else { raw_orador.clone() };
-                    let existe_p: Option<i32> = stmt_find_pers.query_row(params![asamblea_id, &nombre_final], |row| row.get(0)).optional().unwrap_or(None);
-                    if let Some(pid) = existe_p { orador_id = Some(pid); }
-                    else {
+                    let nombre_final = if let Some((ap, nom)) = raw_orador.split_once(',') {
+                        format!("{} {}", nom.trim(), ap.trim())
+                    } else {
+                        raw_orador.clone()
+                    };
+                    let existe_p: Option<i32> = stmt_find_pers
+                        .query_row(params![asamblea_id, &nombre_final], |row| row.get(0))
+                        .optional()
+                        .unwrap_or(None);
+                    if let Some(pid) = existe_p {
+                        orador_id = Some(pid);
+                    } else {
                         let mut id_cong = 0;
                         if let Some(c) = fila.congregacion {
-                            let ex_c: Option<i32> = stmt_find_cong.query_row(params![asamblea_id, c.trim()], |row| row.get(0)).optional().unwrap_or(None);
-                            if let Some(cid) = ex_c { id_cong = cid; }
-                            else {
-                                stmt_ins_cong.execute(params![asamblea_id, c.trim()]).unwrap_or(0);
+                            let ex_c: Option<i32> = stmt_find_cong
+                                .query_row(params![asamblea_id, c.trim()], |row| row.get(0))
+                                .optional()
+                                .unwrap_or(None);
+                            if let Some(cid) = ex_c {
+                                id_cong = cid;
+                            } else {
+                                stmt_ins_cong
+                                    .execute(params![asamblea_id, c.trim()])
+                                    .unwrap_or(0);
                                 id_cong = tx.last_insert_rowid() as i32;
                             }
                         }
                         // 👇 Ajustado para enviar el número correcto de parámetros a stmt_ins_pers
-                        stmt_ins_pers.execute(params![asamblea_id, nombre_final, id_cong, fila.movil.unwrap_or_default(), fila.email.unwrap_or_default()]).unwrap_or(0);
+                        stmt_ins_pers
+                            .execute(params![
+                                asamblea_id,
+                                nombre_final,
+                                id_cong,
+                                fila.movil.unwrap_or_default(),
+                                fila.email.unwrap_or_default()
+                            ])
+                            .unwrap_or(0);
                         orador_id = Some(tx.last_insert_rowid() as i32);
                     }
                 }
             }
-            stmt_ins_prog.execute(params![asamblea_id, dia_semana, sesion, hora_limpia, fila.titulo, tipo, orador_id, es_video]).unwrap_or(0);
+            stmt_ins_prog
+                .execute(params![
+                    asamblea_id,
+                    dia_semana,
+                    sesion,
+                    hora_limpia,
+                    fila.titulo,
+                    tipo,
+                    orador_id,
+                    es_video
+                ])
+                .unwrap_or(0);
         }
     }
     tx.commit().map_err(|e| e.to_string())?;

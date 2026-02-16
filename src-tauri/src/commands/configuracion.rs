@@ -1,7 +1,7 @@
 use crate::database::DbState;
 use crate::models::ConfiguracionGeneral; // Asegúrate de tener este modelo en models.rs
-use tauri::State;
 use rusqlite::params;
+use tauri::State;
 
 // 1. COMANDO PARA OBTENER LA CONFIGURACIÓN
 #[tauri::command]
@@ -9,7 +9,7 @@ pub async fn obtener_configuracion_general(
     state: State<'_, DbState>,
 ) -> Result<ConfiguracionGeneral, String> {
     let conn = state.conn.lock().unwrap();
-    
+
     // Seleccionamos todas las columnas ahora
     let mut stmt = conn
         .prepare(
@@ -18,36 +18,38 @@ pub async fn obtener_configuracion_general(
         )
         .map_err(|e| e.to_string())?;
 
-    let config = stmt.query_row([], |row| {
-        Ok(ConfiguracionGeneral {
-            nombre: row.get(0)?,
-            segundo_nombre: row.get(1)?,
-            apellido: row.get(2)?,
-            sufijo: row.get(3)?,
-            email: row.get(4)?,
-            email_jwpub: row.get(5)?,
-            movil: row.get(6)?,
-            identificador: row.get(7)?,
-            fecha_creacion: row.get(8)?,
-            tema: row.get(9)?,
-            idioma: row.get(10)?,
+    let config = stmt
+        .query_row([], |row| {
+            Ok(ConfiguracionGeneral {
+                nombre: row.get(0)?,
+                segundo_nombre: row.get(1)?,
+                apellido: row.get(2)?,
+                sufijo: row.get(3)?,
+                email: row.get(4)?,
+                email_jwpub: row.get(5)?,
+                movil: row.get(6)?,
+                identificador: row.get(7)?,
+                fecha_creacion: row.get(8)?,
+                tema: row.get(9)?,
+                idioma: row.get(10)?,
+            })
         })
-    }).unwrap_or_else(|_| {
-        // Valores por defecto si no existe registro
-        ConfiguracionGeneral {
-            nombre: Some("Yorlen".to_string()),
-            segundo_nombre: None,
-            apellido: None,
-            sufijo: None,
-            email: None,
-            email_jwpub: None,
-            movil: None,
-            identificador: None,
-            fecha_creacion: None,
-            tema: Some("light".to_string()),
-            idioma: Some("es".to_string()),
-        }
-    });
+        .unwrap_or_else(|_| {
+            // Valores por defecto si no existe registro
+            ConfiguracionGeneral {
+                nombre: Some("Yorlen".to_string()),
+                segundo_nombre: None,
+                apellido: None,
+                sufijo: None,
+                email: None,
+                email_jwpub: None,
+                movil: None,
+                identificador: None,
+                fecha_creacion: None,
+                tema: Some("light".to_string()),
+                idioma: Some("es".to_string()),
+            }
+        });
 
     Ok(config)
 }

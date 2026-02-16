@@ -1,8 +1,8 @@
 use crate::models::Asamblea;
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::Serialize;
-use tauri::{command, AppHandle};
 use serde_json::json;
+use tauri::{command, AppHandle};
 
 fn conectar_db(app: &AppHandle) -> Connection {
     let db_path = crate::database::obtener_ruta_db(app);
@@ -130,7 +130,7 @@ pub fn guardar_info_evento(
 #[command]
 pub fn guardar_comite(
     app: AppHandle,
-    id: i32, 
+    id: i32,
     presidente_id: Option<i32>,
     coordinador_id: Option<i32>,
     coordinador_aux_id: Option<i32>,
@@ -138,12 +138,12 @@ pub fn guardar_comite(
     prog_aux_id: Option<i32>,
     aloj_super_id: Option<i32>,
     aloj_aux_id: Option<i32>,
-    audio_video_id: Option<i32>, 
+    audio_video_id: Option<i32>,
     video_id: Option<i32>,
     audio_id: Option<i32>,
     plataforma_id: Option<i32>,
     bautismo_super_id: Option<i32>,
-    bautismo_aux_id: Option<i32>
+    bautismo_aux_id: Option<i32>,
 ) -> Result<String, String> {
     println!("=== Guardando comité ===");
     println!("ID de asamblea: {}", id);
@@ -162,9 +162,10 @@ pub fn guardar_comite(
     println!("bautismo_aux_id: {:?}", bautismo_aux_id);
 
     let conn = conectar_db(&app);
-    
-    let rows_affected = conn.execute(
-        "UPDATE asambleas SET 
+
+    let rows_affected = conn
+        .execute(
+            "UPDATE asambleas SET 
             presidente_id = ?1,
             coordinador_id = ?2,
             coordinador_aux_id = ?3,
@@ -179,31 +180,41 @@ pub fn guardar_comite(
             bautismo_super_id = ?12,
             bautismo_aux_id = ?13
          WHERE id = ?14",
-        params![
-            presidente_id,
-            coordinador_id, coordinador_aux_id,
-            prog_super_id, prog_aux_id,
-            aloj_super_id, aloj_aux_id,
-            audio_video_id, video_id, audio_id, plataforma_id,
-            bautismo_super_id, bautismo_aux_id,
-            id 
-        ],
-    ).map_err(|e| e.to_string())?;
+            params![
+                presidente_id,
+                coordinador_id,
+                coordinador_aux_id,
+                prog_super_id,
+                prog_aux_id,
+                aloj_super_id,
+                aloj_aux_id,
+                audio_video_id,
+                video_id,
+                audio_id,
+                plataforma_id,
+                bautismo_super_id,
+                bautismo_aux_id,
+                id
+            ],
+        )
+        .map_err(|e| e.to_string())?;
 
     println!("Filas actualizadas: {}", rows_affected);
     if rows_affected == 0 {
-        println!("⚠️ No se actualizó ninguna fila. Verifica que el ID {} exista.", id);
+        println!(
+            "⚠️ No se actualizó ninguna fila. Verifica que el ID {} exista.",
+            id
+        );
     }
 
     Ok("Comité guardado correctamente".to_string())
 }
 
-
 // 4. OBTENER ASAMBLEA
 #[command]
 pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Value>, String> {
     let conn = conectar_db(&app);
-    
+
     let sql = "
         SELECT 
             a.id, a.tema, a.fecha, a.local_id, a.identificador,
@@ -223,37 +234,40 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Valu
 
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
 
-    let result = stmt.query_row([], |row| {
-        Ok(json!({
-            "id": row.get::<_, i32>(0)?,
-            "tema": row.get::<_, String>(1)?,
-            "fecha": row.get::<_, String>(2)?,
-            "local_id": row.get::<_, Option<i32>>(3).ok(),
-            "identificador": row.get::<_, Option<String>>(4).ok(),
-            "ensayo_lugar": row.get::<_, String>(5).unwrap_or_default(),
-            "ensayo_fecha": row.get::<_, String>(6).unwrap_or_default(),
-            "ensayo_hora": row.get::<_, String>(7).unwrap_or_default(),
-            "ensayo_notas": row.get::<_, String>(8).unwrap_or_default(),
-            "recorridos_info": row.get::<_, String>(9).unwrap_or_default(),
-            "instrucciones_esp": row.get::<_, String>(10).unwrap_or_default(),
-            "jw_stream_studio": row.get::<_, i32>(11).unwrap_or(0) == 1,
-            "nombre_local": row.get::<_, Option<String>>(12).ok(),
-            // Comité
-            "presidente_id": row.get::<_, Option<i32>>(13).ok(),
-            "coordinador_id": row.get::<_, Option<i32>>(14).ok(),
-            "coordinador_aux_id": row.get::<_, Option<i32>>(15).ok(),
-            "prog_super_id": row.get::<_, Option<i32>>(16).ok(),
-            "prog_aux_id": row.get::<_, Option<i32>>(17).ok(),
-            "aloj_super_id": row.get::<_, Option<i32>>(18).ok(),
-            "aloj_aux_id": row.get::<_, Option<i32>>(19).ok(),
-            "audio_video_super_id": row.get::<_, Option<i32>>(20).ok(),
-            "video_super_id": row.get::<_, Option<i32>>(21).ok(),
-            "audio_super_id": row.get::<_, Option<i32>>(22).ok(),
-            "plataforma_super_id": row.get::<_, Option<i32>>(23).ok(),
-            "bautismo_super_id": row.get::<_, Option<i32>>(24).ok(),
-            "bautismo_aux_id": row.get::<_, Option<i32>>(25).ok(),
-        }))
-    }).optional().map_err(|e| e.to_string())?;
+    let result = stmt
+        .query_row([], |row| {
+            Ok(json!({
+                "id": row.get::<_, i32>(0)?,
+                "tema": row.get::<_, String>(1)?,
+                "fecha": row.get::<_, String>(2)?,
+                "local_id": row.get::<_, Option<i32>>(3).ok(),
+                "identificador": row.get::<_, Option<String>>(4).ok(),
+                "ensayo_lugar": row.get::<_, String>(5).unwrap_or_default(),
+                "ensayo_fecha": row.get::<_, String>(6).unwrap_or_default(),
+                "ensayo_hora": row.get::<_, String>(7).unwrap_or_default(),
+                "ensayo_notas": row.get::<_, String>(8).unwrap_or_default(),
+                "recorridos_info": row.get::<_, String>(9).unwrap_or_default(),
+                "instrucciones_esp": row.get::<_, String>(10).unwrap_or_default(),
+                "jw_stream_studio": row.get::<_, i32>(11).unwrap_or(0) == 1,
+                "nombre_local": row.get::<_, Option<String>>(12).ok(),
+                // Comité
+                "presidente_id": row.get::<_, Option<i32>>(13).ok(),
+                "coordinador_id": row.get::<_, Option<i32>>(14).ok(),
+                "coordinador_aux_id": row.get::<_, Option<i32>>(15).ok(),
+                "prog_super_id": row.get::<_, Option<i32>>(16).ok(),
+                "prog_aux_id": row.get::<_, Option<i32>>(17).ok(),
+                "aloj_super_id": row.get::<_, Option<i32>>(18).ok(),
+                "aloj_aux_id": row.get::<_, Option<i32>>(19).ok(),
+                "audio_video_super_id": row.get::<_, Option<i32>>(20).ok(),
+                "video_super_id": row.get::<_, Option<i32>>(21).ok(),
+                "audio_super_id": row.get::<_, Option<i32>>(22).ok(),
+                "plataforma_super_id": row.get::<_, Option<i32>>(23).ok(),
+                "bautismo_super_id": row.get::<_, Option<i32>>(24).ok(),
+                "bautismo_aux_id": row.get::<_, Option<i32>>(25).ok(),
+            }))
+        })
+        .optional()
+        .map_err(|e| e.to_string())?;
 
     println!("=== Asamblea obtenida ===");
     println!("{:?}", result);
@@ -262,9 +276,12 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Valu
 }
 
 #[command]
-pub fn obtener_asamblea_por_id(app: AppHandle, id: i32) -> Result<Option<serde_json::Value>, String> {
+pub fn obtener_asamblea_por_id(
+    app: AppHandle,
+    id: i32,
+) -> Result<Option<serde_json::Value>, String> {
     let conn = conectar_db(&app);
-    
+
     let sql = "
         SELECT 
             a.id, a.tema, a.fecha, a.local_id, a.identificador,
@@ -283,36 +300,39 @@ pub fn obtener_asamblea_por_id(app: AppHandle, id: i32) -> Result<Option<serde_j
 
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
 
-    let result = stmt.query_row([id], |row| {
-        Ok(json!({
-            "id": row.get::<_, i32>(0)?,
-            "tema": row.get::<_, String>(1)?,
-            "fecha": row.get::<_, String>(2)?,
-            "local_id": row.get::<_, Option<i32>>(3).ok(),
-            "identificador": row.get::<_, Option<String>>(4).ok(),
-            "ensayo_lugar": row.get::<_, String>(5).unwrap_or_default(),
-            "ensayo_fecha": row.get::<_, String>(6).unwrap_or_default(),
-            "ensayo_hora": row.get::<_, String>(7).unwrap_or_default(),
-            "ensayo_notas": row.get::<_, String>(8).unwrap_or_default(),
-            "recorridos_info": row.get::<_, String>(9).unwrap_or_default(),
-            "instrucciones_esp": row.get::<_, String>(10).unwrap_or_default(),
-            "jw_stream_studio": row.get::<_, i32>(11).unwrap_or(0) == 1,
-            "nombre_local": row.get::<_, Option<String>>(12).ok(),
-            "presidente_id": row.get::<_, Option<i32>>(13).ok(),
-            "coordinador_id": row.get::<_, Option<i32>>(14).ok(),
-            "coordinador_aux_id": row.get::<_, Option<i32>>(15).ok(),
-            "prog_super_id": row.get::<_, Option<i32>>(16).ok(),
-            "prog_aux_id": row.get::<_, Option<i32>>(17).ok(),
-            "aloj_super_id": row.get::<_, Option<i32>>(18).ok(),
-            "aloj_aux_id": row.get::<_, Option<i32>>(19).ok(),
-            "audio_video_super_id": row.get::<_, Option<i32>>(20).ok(),
-            "video_super_id": row.get::<_, Option<i32>>(21).ok(),
-            "audio_super_id": row.get::<_, Option<i32>>(22).ok(),
-            "plataforma_super_id": row.get::<_, Option<i32>>(23).ok(),
-            "bautismo_super_id": row.get::<_, Option<i32>>(24).ok(),
-            "bautismo_aux_id": row.get::<_, Option<i32>>(25).ok(),
-        }))
-    }).optional().map_err(|e| e.to_string())?;
+    let result = stmt
+        .query_row([id], |row| {
+            Ok(json!({
+                "id": row.get::<_, i32>(0)?,
+                "tema": row.get::<_, String>(1)?,
+                "fecha": row.get::<_, String>(2)?,
+                "local_id": row.get::<_, Option<i32>>(3).ok(),
+                "identificador": row.get::<_, Option<String>>(4).ok(),
+                "ensayo_lugar": row.get::<_, String>(5).unwrap_or_default(),
+                "ensayo_fecha": row.get::<_, String>(6).unwrap_or_default(),
+                "ensayo_hora": row.get::<_, String>(7).unwrap_or_default(),
+                "ensayo_notas": row.get::<_, String>(8).unwrap_or_default(),
+                "recorridos_info": row.get::<_, String>(9).unwrap_or_default(),
+                "instrucciones_esp": row.get::<_, String>(10).unwrap_or_default(),
+                "jw_stream_studio": row.get::<_, i32>(11).unwrap_or(0) == 1,
+                "nombre_local": row.get::<_, Option<String>>(12).ok(),
+                "presidente_id": row.get::<_, Option<i32>>(13).ok(),
+                "coordinador_id": row.get::<_, Option<i32>>(14).ok(),
+                "coordinador_aux_id": row.get::<_, Option<i32>>(15).ok(),
+                "prog_super_id": row.get::<_, Option<i32>>(16).ok(),
+                "prog_aux_id": row.get::<_, Option<i32>>(17).ok(),
+                "aloj_super_id": row.get::<_, Option<i32>>(18).ok(),
+                "aloj_aux_id": row.get::<_, Option<i32>>(19).ok(),
+                "audio_video_super_id": row.get::<_, Option<i32>>(20).ok(),
+                "video_super_id": row.get::<_, Option<i32>>(21).ok(),
+                "audio_super_id": row.get::<_, Option<i32>>(22).ok(),
+                "plataforma_super_id": row.get::<_, Option<i32>>(23).ok(),
+                "bautismo_super_id": row.get::<_, Option<i32>>(24).ok(),
+                "bautismo_aux_id": row.get::<_, Option<i32>>(25).ok(),
+            }))
+        })
+        .optional()
+        .map_err(|e| e.to_string())?;
 
     println!("=== Asamblea obtenida por ID {} ===", id);
     println!("{:?}", result);
@@ -336,7 +356,7 @@ pub fn crear_asamblea(
             tema, fecha, local_id, identificador, 
             ensayo_lugar, jw_stream_studio, ensayo_notas, 
             recorridos_info, ensayo_fecha, ensayo_hora, instrucciones_esp
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)", 
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             tema,          // ?1
             fecha,         // ?2
@@ -350,7 +370,8 @@ pub fn crear_asamblea(
             "",            // ?10 (ensayo_hora)
             ""             // ?11 (instrucciones_esp)
         ],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
 }
 // 6. LISTAR Y ELIMINAR
@@ -377,5 +398,3 @@ pub fn eliminar_asamblea(app: AppHandle, id: i64) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
-
-
