@@ -42,7 +42,10 @@
                await message('Datos restaurados correctamente. La aplicación se reiniciará ahora.', { title: 'Éxito' });
                localStorage.clear();
 
-               // Esperamos 1.5 segundos para que Rust cierre bien la conexión
+               // Opcional: Cambiar el cursor a "esperando"
+               document.body.style.cursor = 'wait';
+
+               // Esperamos 5 segundos (es seguro) para que Rust cierre bien la conexión
                await new Promise(resolve => setTimeout(resolve, 5000));
 
                await relaunch(); // Reinicia la app
