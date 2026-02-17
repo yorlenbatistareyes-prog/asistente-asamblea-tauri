@@ -98,13 +98,6 @@
   let jwStreamStudio = false;
   let instruccionesEsp = ""; 
 
-  // Campos para Resumen (entrada manual)
-  let resumenTotalAsistencia: number = 0;
-  let resumenBautismos: number = 0;
-  let resumenReportadas: number = 0;
-  let resumenTotalCongregaciones: number = 0;
-  let nuevaNotaTexto = '';
-
   // --- MODAL CREAR SALÓN ---
   let mostrarModalSalon = false;
   let nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
@@ -169,18 +162,21 @@
     else { editor.chain().focus().liftListItem('listItem').run(); }
   }
 
-  // --- CICLO DE VIDA ---
+// --- CICLO DE VIDA ---
   onMount(async () => {
     try {
+      // 1. Obtener datos de la base de datos
       locales = await invoke('obtener_locales') as any[];
       const asamblea = await invoke('obtener_asamblea_activa') as any;
       
+      // 2. Si hay asamblea activa, llenar las variables
       if (asamblea) {
         asambleaId = asamblea.id;
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
         identificador = asamblea.identificador || "";
         
+        // Lógica del Salón
         if (asamblea.local_id) {
             idLocal = asamblea.local_id;
             localDetalle = locales.find(l => l.id == idLocal);
@@ -189,40 +185,26 @@
             localDetalle = null;
         }
 
+        // Lógica de Ensayos
         ensayoLugar = asamblea.ensayo_lugar || ""; 
         ensayoFecha = asamblea.ensayo_fecha || "";
         ensayoHora = asamblea.ensayo_hora || "";
         instruccionesEsp = asamblea.instrucciones_esp || "";
         jwStreamStudio = asamblea.jw_stream_studio === true || asamblea.jw_stream_studio === 1;
         
+        // Contenido de los Editores
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
-        // Inicializar campos de resumen desde stores o localStorage
-        try {
-          const stored = localStorage.getItem('resumen');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            resumenTotalAsistencia = parsed.totalAsistencia || 0;
-            resumenBautismos = parsed.totalBautismos || 0;
-            resumenReportadas = parsed.congregacionesReportadas || 0;
-            resumenTotalCongregaciones = parsed.totalCongregaciones || 0;
-            if (parsed.notasRapidas) setNotas(parsed.notasRapidas);
-          } else {
-            // valores por defecto si no hay nada
-            resumenTotalAsistencia = 1250;
-            resumenBautismos = 12;
-            resumenReportadas = 8;
-            resumenTotalCongregaciones = 12;
-          }
-        } catch (e) {
-          // ignore
-        }
       }
       
+      // 3. Iniciar los editores (TipTap)
       initEditors();
-    } catch (error) { console.error(error); }
-  });
 
+    } catch (error) { 
+        console.error("Error al cargar InfoEvento:", error); 
+    }
+  });
+  
   $: if (idLocal && locales.length > 0) {
       const encontrado = locales.find(l => l.id == idLocal);
       if (encontrado) localDetalle = encontrado;
@@ -289,19 +271,7 @@
         ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
         recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
       });
-      // Actualizar resumen y persistir
-      const resumenPayload = {
-        totalAsistencia: Number(resumenTotalAsistencia) || 0,
-        totalBautismos: Number(resumenBautismos) || 0,
-        congregacionesReportadas: Number(resumenReportadas) || 0,
-        totalCongregaciones: Number(resumenTotalCongregaciones) || 0,
-      };
-      setResumenValue(resumenPayload);
-      // Si hay nueva nota en el campo, añadirla
-      if (nuevaNotaTexto && nuevaNotaTexto.trim().length > 0) {
-        addNota(nuevaNotaTexto.trim());
-        nuevaNotaTexto = '';
-      }
+      
       alert("✅ Configuración guardada correctamente");
     } catch (e) { alert("❌ Error al guardar: " + e); }
   }
@@ -344,32 +314,6 @@
                 <button class="btn-plus" on:click={() => mostrarModalSalon = true} data-tooltip="Nuevo Salón"><Plus size={16}/></button>
             </div>
         {/if}
-      </div>
-    </div>
-
-    <div class="formulario grid-2 border-bottom pb-20" style="margin-top:18px;">
-      <div class="campo">
-        <label for="resAsistencia">Asistencia Total</label>
-        <input id="resAsistencia" type="number" bind:value={resumenTotalAsistencia} min="0" />
-      </div>
-      <div class="campo">
-        <label for="resBautismos">Bautismos</label>
-        <input id="resBautismos" type="number" bind:value={resumenBautismos} min="0" />
-      </div>
-      <div class="campo">
-        <label for="resReportes">Reportes Recibidos</label>
-        <input id="resReportes" type="number" bind:value={resumenReportadas} min="0" />
-      </div>
-      <div class="campo">
-        <label for="resTotalCong">Total Congregaciones</label>
-        <input id="resTotalCong" type="number" bind:value={resumenTotalCongregaciones} min="0" />
-      </div>
-      <div class="campo full">
-        <label for="nuevaNotaTexto">Agregar Nota Rápida</label>
-        <div style="display:flex; gap:8px;">
-          <input id="nuevaNotaTexto" placeholder="Escribe una nota rápida..." bind:value={nuevaNotaTexto} />
-          <button class="btn-sm" on:click={() => { if (nuevaNotaTexto && nuevaNotaTexto.trim()) { addNota(nuevaNotaTexto.trim()); nuevaNotaTexto=''; } }}>Añadir</button>
-        </div>
       </div>
     </div>
 
