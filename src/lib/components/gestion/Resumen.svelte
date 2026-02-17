@@ -5,20 +5,21 @@
   // Iconos
   import { 
     Users, Droplets, Mic, CheckCircle, AlertCircle, 
-    Clock, Calendar, Activity, ArrowRight 
+    Clock, Activity, ArrowRight 
   } from 'lucide-svelte';
 
-  // Importamos el Store Global que acabamos de crear
+  // Importamos el Store Global (asegúrate que la ruta sea correcta)
   import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
 
   // --- VARIABLES DE ESTADO ---
   let horaActual = '';
+  let asambleaIdActual = 0; // Iniciamos en 0 para detectar si cargó
   
-  // Datos Manuales (Se guardan en el navegador)
+  // Datos Manuales (Se guardan en localStorage por ID)
   let asistenciaTotal = 0;
   let bautismosTotal = 0;
   let reportesRecibidos = 0;
-  let totalCongregaciones = 12; // Ajusta este número según tu circuito
+  let totalCongregaciones = 12;
 
   // Datos Automáticos (Vienen de la Base de Datos SQLite)
   let oradoresPendientesLista: any[] = [];
@@ -31,16 +32,27 @@
 
   // --- INICIO ---
   onMount(async () => {
-    // 1. Cargar identidad (Nombre y Versión)
+    // 1. OBTENER ID DE LA ASAMBLEA ACTIVA
+    const datosGuardados = localStorage.getItem('asambleaActiva');
+    if (datosGuardados) {
+        const data = JSON.parse(datosGuardados);
+        asambleaIdActual = data.id;
+        console.log("📂 Cargando Resumen para Asamblea ID:", asambleaIdActual);
+    } else {
+        console.error("⚠️ No hay asamblea activa. Redirigiendo o usando ID 1 por defecto.");
+        asambleaIdActual = 1; // Fallback de seguridad
+    }
+
+    // 2. Cargar identidad (Usuario y Versión)
     await cargarDatosGlobales();
 
-    // 2. Cargar datos manuales (memoria local)
+    // 3. Cargar datos manuales (Asistencia/Bautismos específicos de este ID)
     cargarDatosLocales();
 
-    // 3. Cargar datos automáticos (DB)
+    // 4. Cargar datos automáticos (DB filtrada por ID)
     await cargarDatosDB();
 
-    // 4. Iniciar reloj y monitor
+    // 5. Iniciar reloj
     actualizarReloj();
     setInterval(actualizarReloj, 30000); // Actualizar cada 30 seg
   });
@@ -53,36 +65,48 @@
   }
 
   function calcularParteEnVivo(ahora: Date) {
-    if (programaCompletoCache.length === 0) return;
+    if (!programaCompletoCache || programaCompletoCache.length === 0) return;
     
+    // Convertimos hora actual a minutos (0 a 1440)
     const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
     
     // Buscar qué está pasando AHORA
     const actual = programaCompletoCache.find((p: any) => {
         if (!p.hora_inicio) return false;
-        const [h, m] = p.hora_inicio.split(':').map(Number);
+        
+        const [hStr, mStr] = p.hora_inicio.split(':');
+        const h = parseInt(hStr);
+        const m = parseInt(mStr);
+        
         const inicio = h * 60 + m;
-        const fin = inicio + (p.duracion || 10);
+        const duracion = Number(p.duracion) || 10; 
+        const fin = inicio + duracion;
+
+        // Comprobamos si estamos dentro del intervalo
         return minutosAhora >= inicio && minutosAhora < fin;
     });
 
     if (actual) {
         parteActual = actual;
+        // Buscar el siguiente en la lista
         const idx = programaCompletoCache.findIndex(p => p.id === actual.id);
         siguienteParte = programaCompletoCache[idx + 1] || null;
     } else {
         parteActual = null;
-        // Buscar el próximo más cercano
+        // Buscar el PRÓXIMO más cercano
         siguienteParte = programaCompletoCache.find((p: any) => {
             if (!p.hora_inicio) return false;
-            const [h, m] = p.hora_inicio.split(':').map(Number);
-            return (h * 60 + m) > minutosAhora;
+            const [hStr, mStr] = p.hora_inicio.split(':');
+            const inicio = parseInt(hStr) * 60 + parseInt(mStr);
+            return inicio > minutosAhora;
         });
     }
   }
 
-  // --- LÓGICA DE BASE DE DATOS (AUTOMÁTICA) ---
+  // --- LÓGICA DE BASE DE DATOS (FILTRADA POR ID) ---
   async function cargarDatosDB() {
+    if (!asambleaIdActual) return;
+
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     let pendientes = [];
     let confirmadosCount = 0;
@@ -90,61 +114,71 @@
 
     for (const dia of dias) {
         try {
-            const partes: any[] = await invoke('obtener_programa_dia', { asambleaId: 1, dia }); // Asumiendo ID 1
+            // ¡AQUÍ ES DONDE FILTRAMOS POR ID!
+            const partes: any[] = await invoke('obtener_programa_dia', { 
+                asambleaId: asambleaIdActual, 
+                dia: dia 
+            }); 
             
             partes.forEach(p => {
                 programaCompletoCache.push({ ...p, dia }); // Guardamos para el monitor
                 
-                // Solo nos interesan oradores humanos para las estadísticas
+                // Estadísticas: Solo discursos humanos
                 if (!p.es_video && p.nombre_orador) {
-                    // Lógica corregida: Si está 'Confirmado' en DB, está listo.
-                    if (p.estado === 'Confirmado') {
+                    if (p.estado === 'Confirmado' || p.recibido_manual) {
                         confirmadosCount++;
                     } else {
                         pendientes.push({ ...p, dia });
                     }
                 }
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error(`Error cargando ${dia} para asamblea ${asambleaIdActual}:`, e); 
+        }
     }
     
-    // Ordenar programa por hora para el monitor
-    programaCompletoCache.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+    // Ordenar programa cronológicamente para el monitor
+    programaCompletoCache.sort((a, b) => {
+       return a.hora_inicio.localeCompare(b.hora_inicio);
+    });
 
     estadisticasPrograma.confirmados = confirmadosCount;
     estadisticasPrograma.pendientes = pendientes.length;
     oradoresPendientesLista = pendientes;
     
-    actualizarReloj(); // Recalcular monitor con datos nuevos
+    actualizarReloj(); // Refrescar monitor con los datos cargados
   }
 
   async function confirmarOradorDesdeResumen(parte: any) {
       if(!confirm(`¿Confirmar a ${parte.nombre_orador}?`)) return;
-      
       try {
           await invoke('alternar_estado_parte', { 
               id: parte.id, 
               tipoAccion: 'confirmacion', 
-              valorNuevo: true // Enviamos TRUE para confirmar
+              valorNuevo: true 
           });
-          // Recargamos datos para quitarlo de la lista
+          // Recargamos datos para actualizar la lista
           await cargarDatosDB();
       } catch(e) { alert("Error: " + e); }
   }
 
-  // --- LÓGICA MANUAL (LOCALSTORAGE) ---
+  // --- LÓGICA MANUAL (LOCALSTORAGE POR ID) ---
   function cargarDatosLocales() {
-    asistenciaTotal = Number(localStorage.getItem('dash_asistencia')) || 0;
-    bautismosTotal = Number(localStorage.getItem('dash_bautismos')) || 0;
-    reportesRecibidos = Number(localStorage.getItem('dash_reportes')) || 0;
+    if (!asambleaIdActual) return;
+    // Usamos el ID como sufijo en la clave para no mezclar asambleas
+    asistenciaTotal = Number(localStorage.getItem(`dash_asistencia_${asambleaIdActual}`)) || 0;
+    bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
+    reportesRecibidos = Number(localStorage.getItem(`dash_reportes_${asambleaIdActual}`)) || 0;
   }
 
-  function guardarDato(clave: string, valor: number) {
-    localStorage.setItem(clave, valor.toString());
+  function guardarDato(tipo: string, valor: number) {
+    if (!asambleaIdActual) return;
+    // Guardamos: 'dash_asistencia_2', 'dash_asistencia_3', etc.
+    localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
   }
 
-  // Calcular porcentaje de reportes
-  $: porcentajeReportes = (reportesRecibidos / totalCongregaciones) * 100;
+  // Cálculo reactivo
+  $: porcentajeReportes = totalCongregaciones > 0 ? (reportesRecibidos / totalCongregaciones) * 100 : 0;
 
 </script>
 
@@ -154,7 +188,7 @@
     <div>
         <h2>Hola, {$appStore.usuario} 👋</h2>
         <span class="subtitulo-header">
-            Panel de Control • v{$appStore.version}
+            Panel de Control • Asamblea #{asambleaIdActual} • v{$appStore.version}
         </span>
     </div>
     <div class="reloj-badge">
@@ -173,7 +207,7 @@
                     <span class="label">Asistencia</span>
                     <input type="number" class="editable-num" 
                            bind:value={asistenciaTotal} 
-                           on:input={() => guardarDato('dash_asistencia', asistenciaTotal)}>
+                           on:input={() => guardarDato('asistencia', asistenciaTotal)}>
                     <span class="subtext">Editable</span>
                 </div>
             </div>
@@ -184,7 +218,7 @@
                     <span class="label">Bautismos</span>
                     <input type="number" class="editable-num" 
                            bind:value={bautismosTotal} 
-                           on:input={() => guardarDato('dash_bautismos', bautismosTotal)}>
+                           on:input={() => guardarDato('bautismos', bautismosTotal)}>
                 </div>
             </div>
             
@@ -193,7 +227,9 @@
                 <div class="stat-info">
                     <span class="label">Reportes ({Math.round(porcentajeReportes)}%)</span>
                     <div class="input-group">
-                        <input type="number" class="editable-num small" bind:value={reportesRecibidos} on:input={() => guardarDato('dash_reportes', reportesRecibidos)}>
+                        <input type="number" class="editable-num small" 
+                               bind:value={reportesRecibidos} 
+                               on:input={() => guardarDato('reportes', reportesRecibidos)}>
                         <span class="sep">/</span>
                         <span class="static-val">{totalCongregaciones}</span>
                     </div>
@@ -303,7 +339,7 @@
 </div>
 
 <style>
-  /* --- ESTILOS GENERALES --- */
+  /* --- ESTILOS --- */
   .dashboard-container {
     display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;
     padding-bottom: 20px;
@@ -329,7 +365,7 @@
 
   .col-left, .col-right { display: flex; flex-direction: column; gap: 20px; }
 
-  /* --- TARJETAS PEQUEÑAS (ASISTENCIA/BAUTISMO) --- */
+  /* --- TARJETAS STATS --- */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .stat-card {
     background: var(--bg-card); border: 1px solid var(--border-color);
