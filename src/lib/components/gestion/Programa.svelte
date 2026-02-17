@@ -213,30 +213,32 @@
   async function toggleStatus(objeto: any, campo: string) {
     if (!objeto || !objeto.id) return;
 
-    // Guardar estado anterior por si hay error
     const estadoAnterior = objeto[campo];
+    const nuevoEstado = !objeto[campo];
+    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
-        // Nuevo estado (toggle)
-        const nuevoEstado = !objeto[campo];
-
-        // Actualización visual optimista
         objeto[campo] = nuevoEstado;
-        partes = partes; // forzar reactividad
+        partes = partes;
 
-        // Llamada al backend (el campo 'ensayo_terminado' se pasa como tipoAccion)
-        await invoke('alternar_estado_parte', {
-            id: objeto.id,
-            tipoAccion: campo,      // 'ensayo_terminado', 'email_enviado', etc.
-            valorNuevo: nuevoEstado
-        });
+        if (esOficina) {
+            await invoke('alternar_estado_oficina', {
+                id: objeto.id,
+                tipoAccion: campo,
+                valorNuevo: nuevoEstado
+            });
+        } else {
+            await invoke('alternar_estado_parte', {
+                id: objeto.id,
+                tipoAccion: campo,
+                valorNuevo: nuevoEstado
+            });
+        }
 
         actualizarVistaOficina(objeto);
-
     } catch (e) {
         console.error('Error en toggleStatus:', e);
         alert('Error al guardar: ' + e);
-        // Revertir cambios visuales si falla
         objeto[campo] = estadoAnterior;
         partes = partes;
     }
@@ -245,39 +247,40 @@
   async function toggleConfirmado(objeto: any) {
     if (!objeto || !objeto.id) return;
 
-    // 1. Guardamos el estado anterior por si hay error
     const estadoAnterior = objeto.recibido_manual;
+    const nuevoEstado = !objeto.recibido_manual;
+    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
-        // 2. Calculamos el NUEVO estado deseado
-        const nuevoEstado = !objeto.recibido_manual;
-
-        // 3. Actualizamos visualmente primero (Optimistic UI)
         objeto.recibido_manual = nuevoEstado;
         objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
-        partes = partes; // Reactividad Svelte
+        partes = partes;
 
-        // 4. Enviamos a Rust el NUEVO estado
-        await invoke('alternar_estado_parte', {
-            id: objeto.id,
-            tipoAccion: 'confirmacion', // Se convierte a tipo_accion en Rust
-            valorNuevo: nuevoEstado     // Se convierte a valor_nuevo en Rust
-        });
+        if (esOficina) {
+            await invoke('alternar_estado_oficina', {
+                id: objeto.id,
+                tipoAccion: 'confirmacion',
+                valorNuevo: nuevoEstado
+            });
+        } else {
+            await invoke('alternar_estado_parte', {
+                id: objeto.id,
+                tipoAccion: 'confirmacion',
+                valorNuevo: nuevoEstado
+            });
+        }
 
         actualizarVistaOficina(objeto);
 
-        // Actualizar store de pendientes si existe
-        if (typeof oradoresPendientes !== 'undefined') {
+        if (typeof oradoresPendientes !== 'undefined' && !esOficina) {
             const pendientes = partes
                 .filter(p => p.nombre_orador && (!p.recibido_manual))
                 .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: 'Pendiente' }));
             oradoresPendientes.set(pendientes);
         }
-
     } catch (e) {
         console.error('Error toggleConfirmado:', e);
         alert('Error backend: ' + e);
-        // Revertir cambios visuales si falla
         objeto.recibido_manual = estadoAnterior;
         objeto.estado = estadoAnterior ? 'Confirmado' : 'Pendiente';
         partes = partes;
@@ -288,27 +291,31 @@
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto.esta_presente;
+    const nuevoEstado = !objeto.esta_presente;
+    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
-        const nuevoEstado = !objeto.esta_presente;
-
-        // Actualización Visual
         objeto.esta_presente = nuevoEstado;
         partes = partes;
 
-        // Llamada al Backend
-        await invoke('alternar_estado_parte', {
-            id: objeto.id,
-            tipoAccion: 'presencia',
-            valorNuevo: nuevoEstado // Enviamos explícitamente true o false
-        });
+        if (esOficina) {
+            await invoke('alternar_estado_oficina', {
+                id: objeto.id,
+                tipoAccion: 'presencia',
+                valorNuevo: nuevoEstado
+            });
+        } else {
+            await invoke('alternar_estado_parte', {
+                id: objeto.id,
+                tipoAccion: 'presencia',
+                valorNuevo: nuevoEstado
+            });
+        }
 
         actualizarVistaOficina(objeto);
-
     } catch (e) {
         console.error('Error togglePresente:', e);
         alert('Error: ' + e);
-        // Revertir
         objeto.esta_presente = estadoAnterior;
         partes = partes;
     }

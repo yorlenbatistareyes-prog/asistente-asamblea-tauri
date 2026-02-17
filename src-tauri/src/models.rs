@@ -103,6 +103,11 @@ pub struct AsignacionEspecialDTO {
     pub persona_id: i32,
     pub nombre_completo: String,
     pub nombre_congregacion: Option<String>,
+    pub telefono: Option<String>,
+    pub email: Option<String>,
+    pub estado: Option<String>,
+    pub esta_presente: bool,
+    pub ensayo_terminado: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

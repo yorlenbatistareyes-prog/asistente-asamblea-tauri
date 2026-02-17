@@ -171,6 +171,11 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         [],
     )?;
 
+    // Agregar columnas de estado a asignaciones_especiales
+    let _ = conn.execute("ALTER TABLE asignaciones_especiales ADD COLUMN estado TEXT DEFAULT 'Pendiente'", []);
+    let _ = conn.execute("ALTER TABLE asignaciones_especiales ADD COLUMN esta_presente BOOLEAN DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asignaciones_especiales ADD COLUMN ensayo_terminado BOOLEAN DEFAULT 0", []);
+
     // --- 7. PLANTILLAS ---
     conn.execute("CREATE TABLE IF NOT EXISTS plantillas_cartas (id TEXT PRIMARY KEY, contenido_html TEXT NOT NULL)", [])?;
 
