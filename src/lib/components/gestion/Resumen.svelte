@@ -14,6 +14,7 @@
   // --- VARIABLES DE ESTADO ---
   let horaActual = '';
   let asambleaIdActual = 0; // Iniciamos en 0 para detectar si cargó
+  let nombreAsamblea = '';
   
   // Datos Manuales (Se guardan en localStorage por ID)
   let asistenciaTotal = 0;
@@ -37,6 +38,7 @@
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         asambleaIdActual = data.id;
+        nombreAsamblea = data.nombre || data.tema || "Asamblea";
         console.log("📂 Cargando Resumen para Asamblea ID:", asambleaIdActual);
     } else {
         console.error("⚠️ No hay asamblea activa. Redirigiendo o usando ID 1 por defecto.");
@@ -188,7 +190,7 @@
     <div>
         <h2>Hola, {$appStore.usuario} 👋</h2>
         <span class="subtitulo-header">
-            Panel de Control • Asamblea #{asambleaIdActual} • v{$appStore.version}
+            Panel de Control • {nombreAsamblea} • v{$appStore.version}
         </span>
     </div>
     <div class="reloj-badge">
