@@ -11,7 +11,7 @@
   // --- COMPONENTES HIJOS ---
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
   import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
-
+  import SeccionAyuda from './secciones/SeccionAyuda.svelte';
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
     ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
@@ -33,15 +33,6 @@
   // Recibe el aviso del hijo (WhatsApp/Correo) para expandir la pantalla
   function manejarCambioModo(e: CustomEvent<boolean>) {
       editorAbierto = e.detail;
-  }
-
-  // Ayuda y Datos Dummy
-  let ayudaItems = guiaUsuario.map(item => ({ ...item, isOpen: false }));
-  function toggleAyuda(index: number) { 
-      if (ayudaItems[index]) { 
-          ayudaItems[index].isOpen = !ayudaItems[index].isOpen; 
-          ayudaItems = [...ayudaItems]; 
-      } 
   }
 
   let config = { 
@@ -246,22 +237,8 @@
             {:else if configSeccion === 'datos'}
                 <Datos />
 
-            {:else if configSeccion === 'ayuda'}
-                <div class="help-container">
-                    <div class="accordion-list">
-                        {#each ayudaItems as item, i}
-                            <div class="accordion-item">
-                                <button class="accordion-header" on:click={() => toggleAyuda(i)}>
-                                    <div class="acc-title"><CircleHelp size={16}/> {item.title}</div>
-                                    {#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
-                                </button>
-                                {#if item.isOpen}
-                                    <div class="accordion-body"><p class="help-text-content">{item.content}</p></div>
-                                {/if}
-                            </div>
-                        {/each}
-                    </div>
-                </div>
+            {:else if configSeccion === 'ayuda'} 
+              <SeccionAyuda />
             {/if}
         </div>
     </main>
