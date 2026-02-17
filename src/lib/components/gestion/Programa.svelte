@@ -3,7 +3,9 @@
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
   import { open as openUrl } from '@tauri-apps/plugin-shell';
-  import { slide } from 'svelte/transition'; 
+  import { slide } from 'svelte/transition';
+  import { fade } from 'svelte/transition'; 
+  import { onDestroy } from 'svelte'; // Mover import arriba para buenas prácticas
   
   // --- NUEVAS IMPORTACIONES PARA EL SISTEMA MODULAR ---
   import { generarContexto } from '$lib/utils/contexto_impresion';
@@ -25,6 +27,7 @@
 
   import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
+  import { oradoresPendientes } from '$lib/stores/gestion';
   
   // --- ESTADO ---
   let asambleaId = 0; 
@@ -41,6 +44,8 @@
   let mostrarModalAsignar = false; 
   let mostrarModalCrear = false;   
   let mostrarModalGestionOficina = false;
+  
+ 
 
   let parteEditando: any = null; 
   let rolOficinaEditando: string | null = null; 
@@ -80,19 +85,27 @@
     try { 
         const res = await invoke('obtener_programa_dia', { asambleaId, dia: diaSeleccionado }) as any[]; 
         partes = res.map(p => ({ 
-            ...p, 
-            _expanded: abiertos.has(p.id), 
-            esta_presente: p.esta_presente || false,
-            // Asegurar que numero_bosquejo no sea nulo
-            numero_bosquejo: p.numero_bosquejo || "",
-            email_enviado: false, 
-            carta_recibida_check: false, 
-            jwpub_enviado: false, 
-            recordatorio_enviado: false, 
-            ensayo_terminado: false,
-            whatsapp_enviado: false,               // <--- NUEVO
-            recordatorio_whatsapp_enviado: false   // <--- NUEVO
-        }));
+  ...p, 
+  _expanded: abiertos.has(p.id), 
+  // Usar el valor real de la base de datos
+  recibido_manual: p.estado === 'Confirmado',
+  estado: p.estado || 'Pendiente',
+  esta_presente: p.esta_presente === true || p.esta_presente === 1,
+  // Asegurar que numero_bosquejo no sea nulo
+  numero_bosquejo: p.numero_bosquejo || "",
+  email_enviado: false, 
+  carta_recibida_check: false, 
+  jwpub_enviado: false, 
+  recordatorio_enviado: false, 
+  ensayo_terminado: p.ensayo_terminado || false,
+  whatsapp_enviado: false,
+  recordatorio_whatsapp_enviado: false
+}));
+        // Actualizar lista global de oradores pendientes (aquellos sin estado 'Confirmado')
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
     } catch (e) { console.error(e); }
     
     try { 
@@ -100,6 +113,27 @@
         organizarOficina(datos); 
     } catch (e) { console.error(e); }
   }
+
+  // Escuchar solicitudes externas de confirmación (desde Resumen u otros)
+  function onSolicitudConfirmar(e: Event) {
+    const parteId = (e as CustomEvent)?.detail?.id;
+    if (!parteId) return;
+    const encontrado = partes.find(p => p.id === parteId);
+    if (encontrado) {
+      (async () => {
+        await toggleConfirmado(encontrado);
+        // volver a propagar pendientes UNA VEZ que el backend haya actualizado
+        const pendientes = partes
+          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
+          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
+        oradoresPendientes.set(pendientes);
+      })();
+    }
+  }
+
+  // registrar listener en mount / cleanup en destroy
+  window.addEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
+  onDestroy(() => { window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener); });
 
   function organizarOficina(datos: any[]) {
       // Reiniciamos con estructura segura
@@ -111,12 +145,14 @@
       
       if (datos && Array.isArray(datos)) {
           datos.forEach(d => {
-              d.estado = d.estado || 'Pendiente';
-              d.esta_presente = d.esta_presente || false;
-              d.ensayo_terminado = d.ensayo_terminado || false;
-              d.carta_recibida_check = false;
-              d.whatsapp_enviado = false;
-              d.recordatorio_whatsapp_enviado = false;
+    // Respetar el valor de la base de datos
+    d.estado = d.estado || 'Pendiente';
+    d.recibido_manual = d.estado === 'Confirmado';
+    d.esta_presente = d.esta_presente === true || d.esta_presente === 1;
+    d.ensayo_terminado = d.ensayo_terminado || false;
+    d.carta_recibida_check = false;
+    d.whatsapp_enviado = false;
+    d.recordatorio_whatsapp_enviado = false;
 
               if (d.tipo_asignacion === 'personal_oficina') {
                   nuevaOficina.personal.push(d);
@@ -175,23 +211,115 @@
   }
 
   async function toggleStatus(objeto: any, campo: string) {
-      objeto[campo] = !objeto[campo];
-      partes = partes; 
-      actualizarVistaOficina(objeto);
-  }
+    if (!objeto || !objeto.id) return;
+
+    const estadoAnterior = objeto[campo];
+    const nuevoEstado = !objeto[campo];
+    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
+
+    try {
+        objeto[campo] = nuevoEstado;
+        partes = partes;
+
+        if (esOficina) {
+            await invoke('alternar_estado_oficina', {
+                id: objeto.id,
+                tipoAccion: campo,
+                valorNuevo: nuevoEstado
+            });
+        } else {
+            await invoke('alternar_estado_parte', {
+                id: objeto.id,
+                tipoAccion: campo,
+                valorNuevo: nuevoEstado
+            });
+        }
+
+        actualizarVistaOficina(objeto);
+    } catch (e) {
+        console.error('Error en toggleStatus:', e);
+        alert('Error al guardar: ' + e);
+        objeto[campo] = estadoAnterior;
+        partes = partes;
+    }
+}
 
   async function toggleConfirmado(objeto: any) {
-      const nuevoEstado = (objeto.estado === 'Confirmado') ? 'Pendiente' : 'Confirmado';
-      objeto.estado = nuevoEstado;
-      partes = partes; 
-      actualizarVistaOficina(objeto);
-  }
+    if (!objeto || !objeto.id) return;
+
+    const estadoAnterior = objeto.recibido_manual;
+    const nuevoEstado = !objeto.recibido_manual;
+    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
+
+    try {
+        objeto.recibido_manual = nuevoEstado;
+        objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
+        partes = partes;
+
+        if (esOficina) {
+            await invoke('alternar_estado_oficina', {
+                id: objeto.id,
+                tipoAccion: 'confirmacion',
+                valorNuevo: nuevoEstado
+            });
+        } else {
+            await invoke('alternar_estado_parte', {
+                id: objeto.id,
+                tipoAccion: 'confirmacion',
+                valorNuevo: nuevoEstado
+            });
+        }
+
+        actualizarVistaOficina(objeto);
+
+        if (typeof oradoresPendientes !== 'undefined' && !esOficina) {
+            const pendientes = partes
+                .filter(p => p.nombre_orador && (!p.recibido_manual))
+                .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: 'Pendiente' }));
+            oradoresPendientes.set(pendientes);
+        }
+    } catch (e) {
+        console.error('Error toggleConfirmado:', e);
+        alert('Error backend: ' + e);
+        objeto.recibido_manual = estadoAnterior;
+        objeto.estado = estadoAnterior ? 'Confirmado' : 'Pendiente';
+        partes = partes;
+    }
+}
 
   async function togglePresente(objeto: any) {
-      objeto.esta_presente = !objeto.esta_presente;
-      partes = partes; 
-      actualizarVistaOficina(objeto);
-  }
+    if (!objeto || !objeto.id) return;
+
+    const estadoAnterior = objeto.esta_presente;
+    const nuevoEstado = !objeto.esta_presente;
+    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
+
+    try {
+        objeto.esta_presente = nuevoEstado;
+        partes = partes;
+
+        if (esOficina) {
+            await invoke('alternar_estado_oficina', {
+                id: objeto.id,
+                tipoAccion: 'presencia',
+                valorNuevo: nuevoEstado
+            });
+        } else {
+            await invoke('alternar_estado_parte', {
+                id: objeto.id,
+                tipoAccion: 'presencia',
+                valorNuevo: nuevoEstado
+            });
+        }
+
+        actualizarVistaOficina(objeto);
+    } catch (e) {
+        console.error('Error togglePresente:', e);
+        alert('Error: ' + e);
+        objeto.esta_presente = estadoAnterior;
+        partes = partes;
+    }
+}
 
  // --- BOTÓN 1: WHATSAPP PARA ASIGNACIÓN (CARTA / RECORDATORIO DE ASIGNACIÓN) ---
 async function abrirWhatsAppAsignacion(objeto: any) {
@@ -515,22 +643,34 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       alert("Error al crear parte: " + e); 
     }
   }
+  
+  let mostrarModalLimpiar = false;
 
-  async function limpiarTodo() {
-    if(confirm("¿Borrar todo el programa de este día?")) { 
-        try {
-            await invoke('limpiar_programa', { asambleaId }); 
-            await cargarDatos(); 
-        } catch (e) { alert(e); }
-    } 
+  async function limpiarTodoConfirmado() {
+  mostrarModalLimpiar = false; // cerrar modal
+  try {
+    await invoke('limpiar_programa', { asambleaId });
+    await cargarDatos();
+    // Opcional: mostrar notificación de éxito
+  } catch (e) {
+    alert('Error al limpiar: ' + e);
   }
+}
 
-  async function eliminarParte(id: number) { 
-    if(confirm("¿Eliminar esta parte?")) { 
-        await invoke('eliminar_parte', { id }); 
-        cargarDatos(); 
-    } 
-  }
+let mostrarModalEliminar = false;
+let idParteAEliminar: number | null = null;
+
+  async function confirmarEliminarParte() {
+    if (!idParteAEliminar) return;
+    mostrarModalEliminar = false;
+    try {
+        await invoke('eliminar_parte', { id: idParteAEliminar });
+        await cargarDatos();
+        idParteAEliminar = null;
+    } catch (e) {
+        alert('Error al eliminar: ' + e);
+    }
+}
   
   async function importarPrograma() { 
       try { 
@@ -543,23 +683,150 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       } catch(e) { alert("Error: " + e); } 
   }
 
-  async function obtenerTodosLosEmails() {
-      const emails = new Set<string>();
-      const dias = ['Viernes', 'Sábado', 'Domingo'];
-      for (const dia of dias) {
-          try {
-              const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
-              res.forEach(parte => { if (parte.email_orador && !parte.es_video) emails.add(parte.email_orador.trim()); });
-          } catch (e) { console.error(e); }
+  async function handleExportarOficina() {
+  await exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado);
+}
+
+  async function handleExportarPrograma() {
+  await exportarProgramaPDF(partes, diaSeleccionado);
+}
+
+
+  // =========================================================
+  // === NUEVO MÓDULO DE EMAILS MASIVOS (CON FILTRO DÍA) ===
+  // =========================================================
+
+  // --- VARIABLES ---
+  let mostrarModalEmails = false;
+  let cargandoEmails = false;
+  
+  // Variables nuevas para el filtro
+  let diaFiltroEmail = 'Viernes'; // Día seleccionado en el modal
+  let todosLosDatosEmails: { email: string, dia: string }[] = []; // Base de datos temporal
+  
+  // Variables del formulario (se mantienen los nombres para compatibilidad)
+  let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
+  let asuntoTodos: string = '';
+  let cuerpoTodos: string = '';
+  let plantillaSeleccionada: string | null = null;
+
+  // --- REACTIVIDAD: FILTRO AUTOMÁTICO ---
+  // Esta línea mágica crea la lista filtrada cada vez que cambias de día
+    $: emailsFiltrados = (() => {
+      if (!todosLosDatosEmails || todosLosDatosEmails.length === 0) return [];
+      if (diaFiltroEmail === 'Todos') {
+        // devolver lista única de emails de los 3 días
+        const s = new Set<string>();
+        todosLosDatosEmails.forEach(i => { if (i.email && i.email.trim()) s.add(i.email.trim()); });
+        return Array.from(s);
       }
-      return Array.from(emails);
+      return todosLosDatosEmails.filter(item => item.dia === diaFiltroEmail).map(item => item.email);
+    })();
+
+  // --- FUNCIÓN DE CARGA ---
+  async function prepararModalEmails() {
+    cargandoEmails = true;
+    todosLosDatosEmails = []; // Limpiamos para recargar fresco
+    
+    // Configuramos plantilla por defecto
+    const defecto = $emailTemplates && $emailTemplates.length ? $emailTemplates[0] : null;
+    plantillaSeleccionada = defecto?.id || null;
+    asuntoTodos = defecto?.subject || 'Asignación de asamblea';
+    cuerpoTodos = defecto?.body || 'Estimado hermano,\n\nLe informamos sobre su asignación...';
+
+    const dias = ['Viernes', 'Sábado', 'Domingo'];
+    
+    // Cargamos los 3 días
+    await Promise.all(dias.map(async (dia) => {
+        try {
+            const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+            res.forEach(parte => { 
+                if (parte.email_orador && !parte.es_video) {
+                    todosLosDatosEmails.push({ 
+                        email: parte.email_orador.trim(), 
+                        dia: dia 
+                    });
+                } 
+            });
+        } catch (e) { console.error(e); }
+    }));
+    
+    // Svelte necesita que reasignemos para detectar el cambio
+    todosLosDatosEmails = todosLosDatosEmails;
+    diaFiltroEmail = diaSeleccionado; // Inicia mostrando el día que estás viendo en la app
+    cargandoEmails = false;
+    mostrarModalEmails = true;
   }
 
-  function enviarJWPUBATodos() {
-      obtenerTodosLosEmails().then(emails => {
-          if (emails.length === 0) return alert("⚠️ No hay correos.");
-          openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emails.join(';'))}`);
-      });
+  // --- CONTROL DEL FILTRO ---
+  function cambiarDiaFiltro(dia: string) {
+      diaFiltroEmail = dia;
+  }
+
+  // --- UTILIDADES ---
+  function copiarEmailsAlPortapapeles() {
+    if (emailsFiltrados.length === 0) return alert(`No hay correos para copiar del ${diaFiltroEmail}.`);
+    const texto = emailsFiltrados.join(';');
+    
+    if (navigator && navigator.clipboard) {
+        navigator.clipboard.writeText(texto)
+            .then(() => alert(`¡Listo! ${emailsFiltrados.length} correos copiados.`))
+            .catch(() => prompt('Copiar (Ctrl+C):', texto));
+    } else {
+        prompt('Copiar (Ctrl+C):', texto);
+    }
+  }
+
+  function aplicarPlantillaSeleccionada() {
+    if (!plantillaSeleccionada) return;
+    const p = obtenerPlantillaPorId(plantillaSeleccionada);
+    if (p) {
+        asuntoTodos = p.subject || asuntoTodos;
+        cuerpoTodos = p.body || cuerpoTodos;
+    }
+  }
+
+  // --- FUNCIONES DE ACCIÓN RÁPIDA (CON FILTRO APLICADO) ---
+  
+  // 1. Botón "Email [Día]"
+  async function enviarEmailADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      openUrl(`mailto:${emailsFiltrados.join(';')}`);
+  }
+
+  // 2. Botón "JWPUB [Día]"
+  async function enviarJWPUBADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}`);
+  }
+
+  // 3. Botón "Recordatorio"
+  async function enviarEmailRecordatorioADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
+      openUrl(`mailto:${emailsFiltrados.join(';')}?subject=${asunto}`);
+  }
+
+  // 4. Botón "JWPUB Recordatorio"
+  async function enviarJWPUBRecordatorioADia() {
+      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
+      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
+      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}&subject=${asunto}`);
+  }
+
+  // 5. Botón Grande "Abrir en..."
+  async function abrirTodosPorMetodo() {
+    if (emailsFiltrados.length === 0) return alert(`⚠️ No hay correos para el ${diaFiltroEmail}.`);
+    const lista = emailsFiltrados.join(';');
+    
+    if (metodoSeleccion === 'jwpub') {
+      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}&subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
+      openUrl(url);
+    } else {
+      const mailto = `mailto:${lista}?subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
+      openUrl(mailto);
+    }
+    mostrarModalEmails = false;
   }
 
     // --- FILTRADO PARA SUGERENCIAS (CUANDO ESCRIBES NUEVA PARTE) ---
@@ -605,9 +872,10 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       <h3><Users size={20}/> Oficina</h3>
       
       <button class="btn-icon-pdf" 
-              title="Exportar Oficina a PDF"
-              on:click={() => exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado)}>
-        <FileUp size={18}/> </button>
+        title="Exportar Oficina a PDF"
+        on:click={handleExportarOficina}>
+        <FileUp size={18}/>
+      </button>
 
       <span class="badge-dark">{diaSeleccionado}</span>
     </div>
@@ -617,13 +885,13 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
         <h4 class="titulo-seccion">PERSONAL</h4>
         <div class="lista-personal">
           {#each oficina.personal as p}
-            <div class="item-personal clickable" role="button" tabindex="0" 
-                 on:click={() => clickEnPersonal(p)} 
-                 on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
+           <div class="item-personal clickable" class:ocupado={true} role="button" tabindex="0" 
+           on:click={() => clickEnPersonal(p)} 
+           on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
               <div class="info-personal">
                 <span class="nombre-p">{p.nombre_completo}</span>
                 <div class="indicadores-mini">
-                  {#if p.estado === 'Confirmado'}
+                  {#if p.recibido_manual}
                     <div class="dot-icon blue" title="Recibido"><FileCheck size={10} strokeWidth={3}/></div>
                   {/if}
                   {#if p.esta_presente}
@@ -660,7 +928,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
                 <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
                 {#if oficina[item.key]}
                   <div class="indicadores-mini">
-                    {#if oficina[item.key].estado === 'Confirmado'}
+                    {#if oficina[item.key].recibido_manual}
                       <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
                     {/if}
                     {#if oficina[item.key].esta_presente}
@@ -694,7 +962,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
                 <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
                 {#if oficina[item.key]}
                   <div class="indicadores-mini">
-                    {#if oficina[item.key].estado === 'Confirmado'}
+                    {#if oficina[item.key].recibido_manual}
                       <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
                     {/if}
                     {#if oficina[item.key].esta_presente}
@@ -731,8 +999,8 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   <div class="header-sesion-left">
     <h2>Programa - {diaSeleccionado}</h2>
     
-    <button class="btn-header-orange" on:click={enviarJWPUBATodos} title="Enviar JWPUB a todos los oradores">
-      <FileJson size={18}/> <span>JWPUB a Todos</span>
+    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }} title="Enviar emails y JWPUB a todos los oradores">
+      <Mail size={18}/> <span>Email a Todos</span>
     </button>
   </div>
   
@@ -741,11 +1009,13 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       <FileSpreadsheet size={18}/> <span>Importar</span>
     </button>
 
-    <button class="btn-header-pdf" on:click={() => exportarProgramaPDF(partes, diaSeleccionado)} title="Exportar lista de discursos a PDF">
+    <button class="btn-header-pdf" 
+        title="Exportar lista de discursos a PDF"
+        on:click={handleExportarPrograma}>
         <FileUp size={18}/> <span>PDF</span>
     </button>
 
-    <button class="btn-header-delete" on:click={limpiarTodo} title="Borrar todo el programa del día">
+    <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
       <Trash2 size={18}/> <span>Limpiar</span>
     </button>
     
@@ -761,159 +1031,176 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       {/if}
       
       {#each partes as parte}
-        <div class="tarjeta-acordeon" 
-             class:expanded={parte._expanded}
-             class:estado-presente={parte.esta_presente}
-             class:estado-confirmado={parte.estado === 'Confirmado' && !parte.esta_presente}
-             class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && parte.estado !== 'Confirmado'}>
-          
-          <div class="header-parte" role="button" tabindex="0" 
-               on:click={() => toggleExpandir(parte.id)} 
-               on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
-            <div class="col-tiempo">
-              <span class="hora">{parte.hora_inicio}</span>
-              <span class="duracion">({parte.duracion}m)</span>
-            </div>
-            <div class="col-tema">
-              <span class="tema-txt">{parte.tema}</span>
-              {#if parte.es_video}
-                <span class="badge-video"><Video size={12}/> Video</span>
-              {/if}
-              {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
-              {/if}
-            </div>
-            <div class="col-orador-mini">
-              {#if !parte.es_video}
-                <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
+    <div class="tarjeta-acordeon" 
+      class:expanded={parte._expanded}
+      class:estado-presente={parte.esta_presente}
+      class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
+      class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}>
+    
+    <div class="header-parte" role="button" tabindex="0" 
+         on:click={() => toggleExpandir(parte.id)} 
+         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
+      <div class="col-tiempo">
+        <span class="hora">{parte.hora_inicio}</span>
+        <span class="duracion">({parte.duracion}m)</span>
+      </div>
+      <div class="col-tema">
+        <span class="tema-txt">{parte.tema}</span>
+        {#if parte.es_video}
+          <span class="badge-video"><Video size={12}/> Video</span>
+        {/if}
+        {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+          <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
+        {/if}
+      </div>
+      <div class="col-orador-mini">
+        {#if !parte.es_video}
+          <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
+          {#if parte.congregacion_orador}
+            <span class="cong-mini">{parte.congregacion_orador}</span>
+          {/if}
+        {/if}
+      </div>
+
+      <div class="col-estados-mini">
+  {#if parte.recibido_manual}
+    <div class="icon-indicator blue" title="Recibido">
+      <FileCheck size={14} />
+    </div>
+  {/if}
+  {#if parte.esta_presente}
+    <div class="icon-indicator green" title="Presente">
+      <UserCheck size={14} />
+    </div>
+  {/if}
+  {#if parte.ensayo_terminado}
+    <div class="icon-indicator orange" title="Ensayo terminado">
+      <Mic size={14} />
+    </div>
+  {/if}
+  {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
+    <div class="icon-indicator gray" title="Pendiente">
+      <Clock size={14} />
+    </div>
+  {/if}
+</div>
+
+      <div class="col-toggle">
+        {#if parte._expanded}
+          <ChevronUp size={20} color="var(--text-secondary)"/>
+        {:else}
+          <ChevronDown size={20} color="var(--text-secondary)"/>
+        {/if}
+      </div>
+    </div>
+
+    {#if parte._expanded}
+      <div class="body-parte" transition:slide={{ duration: 200 }}>
+        {#if !parte.es_video}
+          <div class="fila-superior-control">
+            <div class="info-orador-full">
+              <span class="label-tiny">ORADOR:</span>
+              <strong>{parte.nombre_orador || "---"}</strong>
+              <div class="detalles-contacto-panel">
                 {#if parte.congregacion_orador}
-                  <span class="cong-mini">{parte.congregacion_orador}</span>
+                  <span class="cong-tag">{parte.congregacion_orador}</span>
                 {/if}
-              {/if}
-            </div>
-            <div class="col-estados-mini">
-              {#if parte.estado === 'Confirmado'}
-                <div class="icon-indicator blue" title="Asignación Recibida"><FileCheck size={14}/></div>
-              {/if}
-              {#if parte.esta_presente}
-                <div class="icon-indicator green" title="Presente"><UserCheck size={14}/></div>
-              {/if}
-              {#if parte.ensayo_terminado}
-                <div class="icon-indicator yellow" title="Ensayo"><Mic size={14}/></div>
-              {/if}
-            </div>
-            <div class="col-toggle">
-              {#if parte._expanded}
-                <ChevronUp size={20} color="var(--text-secondary)"/>
-              {:else}
-                <ChevronDown size={20} color="var(--text-secondary)"/>
-              {/if}
-            </div>
-          </div>
-
-          {#if parte._expanded}
-            <div class="body-parte" transition:slide={{ duration: 200 }}>
-              {#if !parte.es_video}
-                <div class="fila-superior-control">
-                  <div class="info-orador-full">
-                    <span class="label-tiny">ORADOR:</span>
-                    <strong>{parte.nombre_orador || "---"}</strong>
-                    <div class="detalles-contacto-panel">
-                      {#if parte.congregacion_orador}
-                        <span class="cong-tag">{parte.congregacion_orador}</span>
-                      {/if}
-                      {#if parte.telefono_orador}
-                        <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
-                      {/if}
-                      {#if parte.email_orador}
-                        <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
-                      {/if}
-                    </div>
-                  </div>
-                  <div class="checks-grandes">
-                    <button class="btn-status-toggle blue" 
-                            class:active={parte.estado === 'Confirmado'} 
-                            on:click={() => toggleConfirmado(parte)}>
-                      <FileCheck size={18} /><span>RECIBIDO</span>
-                    </button>
-                    <button class="btn-status-toggle green" 
-                            class:active={parte.esta_presente} 
-                            on:click={() => togglePresente(parte)}>
-                      <UserCheck size={18} /><span>PRESENTE</span>
-                    </button>
-                    <button class="btn-status-toggle yellow" 
-                            class:active={parte.ensayo_terminado} 
-                            on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
-                      <Mic size={18} /><span>ENSAYO</span>
-                    </button>
-                  </div>
-                </div>
-                <div class="grid-acciones">
-                  <div class="grupo-accion">
-                    <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-                    <div class="checks-row">
-                      <label class="check-inline">
-                        <input type="checkbox" checked={parte.email_enviado} 
-                               on:change={() => toggleStatus(parte, 'email_enviado')}> 
-                        Email enviado
-                      </label>
-                      <label class="check-inline strong-check">
-                        <input type="checkbox" checked={parte.carta_recibida_check} 
-                               on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
-                        Carta Recibida
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <div class="grupo-accion center">
-                    <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
-                      <Printer size={16}/> IMPRIMIR CARTA
-                    </button>
-                  </div>
-
-                  <div class="grupo-accion right">
-                    <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
-                      <FileJson size={16}/> JWPUB ENVIAR CARTA
-                    </button>
-                    <label class="check-inline">
-                      <input type="checkbox" checked={parte.jwpub_enviado} 
-                             on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
-                      Email JWPUB enviado
-                    </label>
-                  </div>
-                  
-                  <div class="grupo-accion">
-                    <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-                    <label class="check-inline">
-                      <input type="checkbox" checked={parte.recordatorio_enviado} 
-                             on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
-                      Recordatorio enviado
-                    </label>
-                  </div>
-                  <div class="grupo-accion center">
-                    <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
-                       <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-                    </button>
-                  </div>
-                  <div class="grupo-accion right">
-                    <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
-                      <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-                    </button>
-                  </div>
-                </div>
-              {/if}
-              <div class="footer-tools">
-                <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
-                  <Edit size={14}/> Editar Datos / Asignar
-                </button>
-                <button class="btn-tool delete" on:click={() => eliminarParte(parte.id)}>
-                  <Trash2 size={14}/> Eliminar Parte
-                </button>
+                {#if parte.telefono_orador}
+                  <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
+                {/if}
+                {#if parte.email_orador}
+                  <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
+                {/if}
               </div>
             </div>
-          {/if}
+            
+            <div class="checks-grandes">
+  <button class="btn-status-toggle blue" 
+          class:active={parte.recibido_manual} 
+          on:click={() => toggleConfirmado(parte)}>
+    <FileCheck size={18} /><span>RECIBIDO</span>
+  </button>
+
+  <button class="btn-status-toggle green" 
+          class:active={parte.esta_presente} 
+          on:click={() => togglePresente(parte)}>
+    <UserCheck size={18} /><span>PRESENTE</span>
+  </button>
+
+  <button class="btn-status-toggle orange" 
+          class:active={parte.ensayo_terminado} 
+          on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
+    <Mic size={18} /><span>ENSAYO</span>
+  </button>
+</div>
+          </div>
+
+          <div class="grid-acciones">
+            <div class="grupo-accion">
+              <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
+              <div class="checks-row">
+                <label class="check-inline">
+                  <input type="checkbox" checked={parte.email_enviado} 
+                         on:change={() => toggleStatus(parte, 'email_enviado')}> 
+                  Email enviado
+                </label>
+                <label class="check-inline strong-check">
+                  <input type="checkbox" checked={parte.carta_recibida_check} 
+                         on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
+                  Carta Recibida
+                </label>
+              </div>
+            </div>
+            
+            <div class="grupo-accion center">
+              <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
+                <Printer size={16}/> IMPRIMIR CARTA
+              </button>
+            </div>
+
+            <div class="grupo-accion right">
+              <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
+                <FileJson size={16}/> JWPUB ENVIAR CARTA
+              </button>
+              <label class="check-inline">
+                <input type="checkbox" checked={parte.jwpub_enviado} 
+                       on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
+                Email JWPUB enviado
+              </label>
+            </div>
+            
+            <div class="grupo-accion">
+              <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
+              <label class="check-inline">
+                <input type="checkbox" checked={parte.recordatorio_enviado} 
+                       on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
+                Recordatorio enviado
+              </label>
+            </div>
+            <div class="grupo-accion center">
+              <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
+                 <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
+              </button>
+            </div>
+            <div class="grupo-accion right">
+              <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
+                <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
+              </button>
+            </div>
+          </div>
+        {/if}
+        <div class="footer-tools">
+          <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
+            <Edit size={14}/> Editar Datos / Asignar
+          </button>
+          <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
+           <Trash2 size={14}/> Eliminar Parte
+          </button>
         </div>
-      {/each}
+      </div>
+    {/if}
+  </div>
+{/each}
     </div>
   </main>
 </div>
@@ -950,9 +1237,9 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
             </div>
           </div>
           <div class="checks-grandes">
-            <button class="btn-status-toggle blue" 
-                    class:active={asignacionOficinaActual.estado === 'Confirmado'} 
-                    on:click={() => toggleConfirmado(asignacionOficinaActual)}>
+                <button class="btn-status-toggle blue" 
+                  class:active={asignacionOficinaActual.recibido_manual} 
+                  on:click={() => toggleConfirmado(asignacionOficinaActual)}>
               <FileCheck size={18} /><span>RECIBIDO</span>
             </button>
             <button class="btn-status-toggle green" 
@@ -1208,6 +1495,193 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   </div>
 {/if}
 
+{#if mostrarModalEmails}
+  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={() => mostrarModalEmails = false} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && (mostrarModalEmails=false)} transition:fade={{ duration: 200 }}>
+    <div class="modal-emails" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown={(e) => e.key === 'Escape' && (mostrarModalEmails=false)}>
+      
+      <div class="modal-header">
+        <h3><Mail size={20}/> Centro de Comunicaciones</h3>
+        <button class="btn-close" on:click={() => mostrarModalEmails = false} aria-label="Cerrar">
+          <X size={20}/>
+        </button>
+      </div>
+      
+      <div class="modal-contenido">
+        
+        <div class="filtro-dia-contenedor">
+          <div class="label-titulo">Enviar correos para el día:</div>
+          <div class="selector-dias">
+            {#each ['Viernes', 'Sábado', 'Domingo', 'Todos'] as dia}
+              <button 
+                class="btn-dia {diaFiltroEmail === dia ? 'activo' : ''} " 
+                on:click={() => cambiarDiaFiltro(dia)}
+                type="button"
+                aria-pressed={diaFiltroEmail === dia}
+              >
+                {dia}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+
+        <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
+        <div class="opciones-email-grid">
+          <button
+            class="opcion-email"
+            on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'mailto'}
+            aria-disabled={metodoSeleccion !== 'mailto'}
+            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail en Método de Envío' : `Enviar emails (${diaFiltroEmail})`}
+          >
+            <div class="icon-wrapper azul"><Mail size={24}/></div>
+            <span>Email {diaFiltroEmail}</span>
+          </button>
+
+          <button
+            class="opcion-email"
+            on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'jwpub'}
+            aria-disabled={metodoSeleccion !== 'jwpub'}
+            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB en Método de Envío' : `Enviar JWPUB (${diaFiltroEmail})`}
+          >
+            <div class="icon-wrapper morado"><FileJson size={24}/></div>
+            <span>JWPUB {diaFiltroEmail}</span>
+          </button>
+
+          <button
+            class="opcion-email"
+            on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'mailto'}
+            aria-disabled={metodoSeleccion !== 'mailto'}
+            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail para usar esta acción' : 'Enviar recordatorio por email'}
+          >
+            <div class="icon-wrapper naranja">
+              <Mail size={24}/>
+              <div class="mini-badge"><Clock size={10}/></div>
+            </div>
+            <span>Recordatorio (Mail)</span>
+          </button>
+
+          <button
+            class="opcion-email"
+            on:click={() => { enviarJWPUBRecordatorioADia(); mostrarModalEmails = false; }}
+            disabled={metodoSeleccion !== 'jwpub'}
+            aria-disabled={metodoSeleccion !== 'jwpub'}
+            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB para usar esta acción' : 'Enviar recordatorio por JWPUB'}
+          >
+            <div class="icon-wrapper morado">
+              <FileJson size={24}/>
+              <div class="mini-badge"><Clock size={10}/></div>
+            </div>
+            <span>Recordatorio (JWPUB)</span>
+          </button>
+        </div>
+
+          <div class="seccion-editor">
+          <div class="editor-header">
+            <div class="label-titulo">Personalizar Mensaje</div>
+            <div class="destinatarios-badge">
+              <span class="status-dot"></span>
+              {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaFiltroEmail}
+            </div>
+          </div>
+
+          <div class="grid-form">
+            <div class="form-group">
+              <label for="metodo">Método de Envío</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" bind:group={metodoSeleccion} value="mailto"> 
+                  <span>Gmail/Mail</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" bind:group={metodoSeleccion} value="jwpub"> 
+                  <span>JWPUB</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="plantilla">Plantilla</label>
+              <select id="plantilla" bind:value={plantillaSeleccionada} on:change={aplicarPlantillaSeleccionada}>
+                <option value={null}>-- Texto libre --</option>
+                {#each $emailTemplates as tpl}
+                  <option value={tpl.id}>{tpl.title || tpl.id}</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="asunto">Asunto</label>
+            <input type="text" id="asunto" bind:value={asuntoTodos} placeholder="Asunto..." />
+          </div>
+
+          <div class="form-group">
+            <label for="cuerpo">Cuerpo</label>
+            <textarea id="cuerpo" rows="6" bind:value={cuerpoTodos}></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsFiltrados.length===0}>
+            Copiar correos
+          </button>
+          <div class="flex-spacer"></div>
+          <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
+            Cancelar
+          </button>
+          <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsFiltrados.length===0}>
+            🚀 Enviar a {emailsFiltrados.length} oradores
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+  
+
+    {#if mostrarModalLimpiar}
+  <div class="modal-backdrop" role="button" tabindex="0" 
+       on:click|self={() => mostrarModalLimpiar = false} 
+       on:keydown={(e) => e.key === 'Escape' && (mostrarModalLimpiar = false)}>
+    <div class="modal modal-confirm">
+      <div class="modal-header">
+        <h3>¿Borrar todo el programa?</h3>
+        <button class="btn-close" on:click={() => mostrarModalLimpiar = false}><X size={20}/></button>
+      </div>
+      <div class="modal-body">
+        <p>Esta acción eliminará todas las partes del día <strong>{diaSeleccionado}</strong>.</p>
+        <p>¿Estás seguro?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" on:click={() => mostrarModalLimpiar = false}>Cancelar</button>
+        <button class="btn-delete" on:click={limpiarTodoConfirmado}>Sí, borrar</button>
+      </div>
+    </div>
+  </div>
+  {/if}
+
+  {#if mostrarModalEliminar}
+  <div class="modal-backdrop" role="button" tabindex="0" 
+       on:click|self={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}
+       on:keydown={(e) => e.key === 'Escape' && (mostrarModalEliminar = false) && (idParteAEliminar = null)}>
+    <div class="modal modal-confirm">
+      <div class="modal-header">
+        <h3>Eliminar parte</h3>
+        <button class="btn-close" on:click={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}><X size={20}/></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Estás seguro de que deseas eliminar esta parte?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" on:click={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}>Cancelar</button>
+        <button class="btn-delete" on:click={confirmarEliminarParte}>Eliminar</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
 /* ==========================================================================
    LAYOUT PRINCIPAL
@@ -1456,7 +1930,6 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 .icon-indicator { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; }
 .icon-indicator.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .icon-indicator.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.icon-indicator.yellow { background: rgba(234, 179, 8, 0.2); color: #eab308; }
 
 .dot-icon { display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; }
 .dot-icon.blue { background: #3b82f6; color: white; }
@@ -1526,6 +1999,18 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 .grupo-accion.right { align-items: flex-end; }
 .btn-outline-blue { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #2563eb; color: #2563eb; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
 .btn-outline-blue:hover { background: rgba(59, 130, 246, 0.1); }
+/* Visual for disabled quick-action buttons: visible but inactive */
+.opcion-email[disabled], .opcion-email[aria-disabled="true"] {
+  opacity: 0.45;
+  filter: grayscale(0.25);
+  cursor: not-allowed;
+}
+.opcion-email[disabled] .icon-wrapper, .opcion-email[aria-disabled="true"] .icon-wrapper {
+  opacity: 0.7;
+}
+.opcion-email[disabled] .mini-badge, .opcion-email[aria-disabled="true"] .mini-badge {
+  opacity: 0.6;
+}
 .btn-outline-orange { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #ea580c; color: #ea580c; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
 .btn-outline-orange:hover { background: rgba(249, 115, 22, 0.1); }
 .btn-outline-gray { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; text-align: center; }
@@ -1598,29 +2083,27 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
 
 /* Botón PDF Oficina: Estilo "Ghost" (Fantasma/Limpio) */
 .btn-icon-pdf {
-  background: transparent;      /* Sin fondo feo */
-  border: none;                 /* Sin borde */
-  color: var(--text-secondary); /* Color gris suave */
-  
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;           /* Bordes redondeados */
-  
+  background: rgba(128, 128, 128, 0.1);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  
-  margin-left: auto;            /* Empuja el botón a la derecha */
-  margin-right: 8px;            /* Un poco de aire con la etiqueta del día */
   transition: all 0.2s ease;
+  margin-left: auto;
+  margin-right: 8px;
 }
 
-/* Efecto al pasar el mouse */
 .btn-icon-pdf:hover {
-  background-color: var(--hover-bg); /* Fondo sutil al tocar */
-  color: var(--primary);             /* El icono se pone azul (o tu color primario) */
-  transform: translateY(-1px);       /* Efecto visual de "clic" */
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px var(--shadow-color);
 }
 
 /* Efecto al hacer clic */
@@ -1744,5 +2227,595 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
     width: 100%;
     box-sizing: border-box;
   }
+}
+
+/* --- CONTENEDOR DEL MODAL --- */
+.modal-emails {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+}
+
+/* --- ENCABEZADO --- */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+
+/* --- SECCIÓN DE ACCIONES RÁPIDAS (TARJETAS) --- */
+.opciones-email-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 20px;
+  background: #ffffff;
+}
+
+.opcion-email {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #475569;
+  text-align: left;
+}
+
+.opcion-email:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.opcion-email span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* --- SECCIÓN AVANZADA (FORMULARIO) --- */
+.modal-contenido {
+  padding: 0 24px 24px 24px;
+}
+
+.seccion-editor {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 10px;
+}
+
+.label-titulo {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* --- INPUTS Y FORMULARIO --- */
+input[type="text"], select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* --- BADGE DE DESTINATARIOS --- */
+.destinatarios-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* --- BOTONES DE ACCIÓN --- */
+.modal-button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #e2e8f0;
+  background: white;
+}
+
+.modal-button.primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+
+.modal-button.primary:hover {
+  background: #1d4ed8;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- ICONOS --- */
+:global(.lucide) {
+  stroke-width: 2.5px;
+}
+
+/* FONDO OSCURO */
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  /* CAJA DEL MODAL */
+  .modal-emails {
+    background: white;
+    width: 95%;
+    max-width: 700px;
+    max-height: 90vh;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* HEADER */
+  .modal-header {
+    padding: 18px 24px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #1e293b;
+  }
+
+  .btn-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+
+  .btn-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+  }
+
+  /* CONTENIDO */
+  .modal-contenido {
+    padding: 24px;
+    overflow-y: auto;
+  }
+
+  .label-titulo {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  /* GRID DE TARJETAS RÁPIDAS */
+  .opciones-email-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .opcion-email {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .opcion-email:hover {
+    background: white;
+    border-color: #3b82f6;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+
+  .icon-wrapper {
+    position: relative;
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .icon-wrapper.azul { background: #dbeafe; color: #2563eb; }
+  .icon-wrapper.morado { background: #f3e8ff; color: #9333ea; }
+  .icon-wrapper.naranja { background: #ffedd5; color: #ea580c; }
+
+  .mini-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #ea580c;
+    color: white;
+    border-radius: 50%;
+    padding: 3px;
+    border: 2px solid white;
+  }
+
+  /* Selector de días (Viernes / Sábado / Domingo / Todos) */
+  .selector-dias {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .btn-dia {
+    background: transparent;
+    border: 1px solid #e6eef8;
+    padding: 8px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: #1e293b;
+    font-weight: 700;
+    transition: all 0.15s ease;
+  }
+
+  .btn-dia:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(2,6,23,0.06); }
+
+  .btn-dia.activo {
+    background: #2563eb;
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 10px 30px rgba(37,99,235,0.14);
+  }
+
+  .opcion-email span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+    text-align: center;
+  }
+
+  /* SECCIÓN EDITOR */
+  .seccion-editor {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  .editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .destinatarios-badge {
+    background: #dcfce7;
+    color: #166534;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(0.95); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.7; }
+  }
+
+  /* FORMULARIO */
+  .grid-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 15px;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .radio-group {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  input[type="text"], select, textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* FOOTER */
+  .modal-footer {
+    display: flex;
+    gap: 12px;
+    padding-top: 20px;
+    align-items: center;
+  }
+
+  .flex-spacer { flex: 1; }
+
+  .modal-button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: #334155;
+  }
+
+  .modal-button:hover:not(:disabled) { background: #f1f5f9; }
+
+  .modal-button.primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+  }
+
+  .modal-button.primary:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: scale(1.02);
+  }
+
+  .modal-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* --- ANIMACIONES --- */
+.modal-backdrop {
+  /* ... tu código anterior ... */
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-emails {
+  /* ... tu código anterior ... */
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-30px) scale(0.95); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
+
+.btn-status-toggle.orange.active {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: #f97316;
+  color: #f97316;
+}
+
+.icon-indicator.orange {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.item-personal.ocupado {
+  background: #dbeafe; /* azul muy claro sólido */
+  border-color: #3b82f6;
+}
+
+/* Estilo común para botones ocupados y items de personal */
+.btn-select-dark.ocupado,
+.item-personal.ocupado {
+  background: rgba(59, 130, 246, 0.15); /* azul suave */
+  border-color: #3b82f6;                /* borde azul */
+}
+
+/* Si quieres un azul más intenso, aumenta la opacidad o usa un color sólido */
+.btn-select-dark.ocupado,
+.item-personal.ocupado {
+  background: #dbeafe;  /* azul claro sólido */
+  border-color: #3b82f6;
+}
+
+/* Hover común con sombra y ligera elevación */
+.btn-select-dark:hover,
+.item-personal.clickable:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  transition: all 0.2s;
+}
+
+/* Mantener el cambio de fondo específico de cada uno si ya lo tienen */
+.btn-select-dark:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+}
+.item-personal.clickable:hover {
+  background: var(--hover-bg);
+}
+
+/* Para los botones de selección (Presidente, Oración, etc.) */
+.btn-select-dark {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  color: var(--text-main) !important; /* Fuerza color claro en modo oscuro */
+}
+
+/* Cuando están ocupados (asignados) */
+.btn-select-dark.ocupado {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: var(--text-main) !important;
+}
+
+/* Para los items de personal */
+.item-personal {
+  background: var(--bg-body);
+  border: 1px solid var(--border-color);
+  color: var(--text-main) !important;
+}
+
+.item-personal.ocupado {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: var(--text-main) !important;
+}
+
+/* Para los textos dentro de los items */
+.nombre-p, .text-truncate {
+  color: var(--text-main) !important;
+}
+
+/* Texto secundario (puede ser un poco más suave) */
+.cong-mini, .detalle, .label-tiny {
+  color: var(--text-secondary);
+}
+
+.modal-confirm {
+  width: 400px;
+  max-width: 90vw;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+}
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-delete:hover {
+  background: #dc2626;
+}
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-cancel:hover {
+  background: var(--hover-bg);
 }
 </style>

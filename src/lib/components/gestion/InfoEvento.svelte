@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { setResumen, addNota, setNotas, totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, notasRapidas } from '$lib/stores/gestion';
+  import { setResumenValue } from '$lib/stores/gestion';
   
   // --- TIPTAP Y EXTENSIONES ---
   import { Editor, Extension } from '@tiptap/core';
@@ -160,18 +162,21 @@
     else { editor.chain().focus().liftListItem('listItem').run(); }
   }
 
-  // --- CICLO DE VIDA ---
+// --- CICLO DE VIDA ---
   onMount(async () => {
     try {
+      // 1. Obtener datos de la base de datos
       locales = await invoke('obtener_locales') as any[];
       const asamblea = await invoke('obtener_asamblea_activa') as any;
       
+      // 2. Si hay asamblea activa, llenar las variables
       if (asamblea) {
         asambleaId = asamblea.id;
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
         identificador = asamblea.identificador || "";
         
+        // Lógica del Salón
         if (asamblea.local_id) {
             idLocal = asamblea.local_id;
             localDetalle = locales.find(l => l.id == idLocal);
@@ -180,20 +185,26 @@
             localDetalle = null;
         }
 
+        // Lógica de Ensayos
         ensayoLugar = asamblea.ensayo_lugar || ""; 
         ensayoFecha = asamblea.ensayo_fecha || "";
         ensayoHora = asamblea.ensayo_hora || "";
         instruccionesEsp = asamblea.instrucciones_esp || "";
         jwStreamStudio = asamblea.jw_stream_studio === true || asamblea.jw_stream_studio === 1;
         
+        // Contenido de los Editores
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
       }
       
+      // 3. Iniciar los editores (TipTap)
       initEditors();
-    } catch (error) { console.error(error); }
-  });
 
+    } catch (error) { 
+        console.error("Error al cargar InfoEvento:", error); 
+    }
+  });
+  
   $: if (idLocal && locales.length > 0) {
       const encontrado = locales.find(l => l.id == idLocal);
       if (encontrado) localDetalle = encontrado;
@@ -260,6 +271,7 @@
         ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
         recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
       });
+      
       alert("✅ Configuración guardada correctamente");
     } catch (e) { alert("❌ Error al guardar: " + e); }
   }
@@ -278,7 +290,7 @@
         <label><Bookmark size={14}/> Identificador</label>
         <input type="text" bind:value={identificador} class="input-id" readonly />
       </div>
-      <div class="campo full"><label>Tema de la Asamblea</label><input type="text" bind:value={tema} class="input-big"/></div>
+      <div class="campo full"><label for="tema">Tema de la Asamblea</label><input id="tema" type="text" bind:value={tema} class="input-big"/></div>
       <div class="campo"><label><Calendar size={14}/> Fecha</label><input type="text" bind:value={fecha} /></div>
       
       <div class="campo">
@@ -312,16 +324,16 @@
 
     <div class="grid-3 mb-15">
       <div class="campo">
-        <label>Lugar de Ensayo</label>
-        <select bind:value={ensayoLugar}>
+        <label for="ensayoLugar">Lugar de Ensayo</label>
+        <select id="ensayoLugar" bind:value={ensayoLugar}>
             <option value="">-- Seleccionar Lugar --</option>
             {#each locales as l}
                 <option value={l.nombre}>{l.nombre}</option>
             {/each}
         </select>
       </div>
-      <div class="campo"><label>Fecha de Ensayo</label><input type="date" bind:value={ensayoFecha} /></div>
-      <div class="campo"><label>Hora</label><input type="time" bind:value={ensayoHora} /></div>
+      <div class="campo"><label for="ensayoFecha">Fecha de Ensayo</label><input id="ensayoFecha" type="date" bind:value={ensayoFecha} /></div>
+      <div class="campo"><label for="ensayoHora">Hora</label><input id="ensayoHora" type="time" bind:value={ensayoHora} /></div>
     </div>
 
     <div class="editor-block">
@@ -396,7 +408,7 @@
     </div>
 
     <div class="editor-block">
-      <label>Información sobre orientaciones</label>
+      <div id="orientacionesLabel" style="font-weight:700; margin-bottom:8px; color:var(--text-secondary);">Información sobre orientaciones</div>
       <div class="tiptap-frame">
         {#if editorOrientaciones}
           <div class="toolbar">
@@ -457,7 +469,7 @@
              </div>
           </div>
         {/if}
-        <div bind:this={elementOrientaciones} class="editor-content"></div>
+        <div id="orientacionesEditor" aria-labelledby="orientacionesLabel" bind:this={elementOrientaciones} class="editor-content"></div>
       </div>
     </div>
 
@@ -479,9 +491,9 @@
         <div class="modal">
             <div class="modal-header"><h3>Nuevo Salón</h3><button on:click={() => mostrarModalSalon = false}><X size={18}/></button></div>
             <div class="modal-body">
-                <label>Nombre</label><input type="text" bind:value={nuevoSalon.nombre} placeholder="Ej: Salón Cotorro"/>
-                <label>Dirección</label><input type="text" bind:value={nuevoSalon.direccion} placeholder="Calle..."/>
-                <label>Capacidad</label><input type="number" bind:value={nuevoSalon.capacidad}/>
+                <label for="nuevoSalonNombre">Nombre</label><input id="nuevoSalonNombre" type="text" bind:value={nuevoSalon.nombre} placeholder="Ej: Salón Cotorro"/>
+                <label for="nuevoSalonDireccion">Dirección</label><input id="nuevoSalonDireccion" type="text" bind:value={nuevoSalon.direccion} placeholder="Calle..."/>
+                <label for="nuevoSalonCapacidad">Capacidad</label><input id="nuevoSalonCapacidad" type="number" bind:value={nuevoSalon.capacidad}/>
                 <button class="btn-create" on:click={guardarNuevoSalon}>Crear y Asignar</button>
             </div>
         </div>

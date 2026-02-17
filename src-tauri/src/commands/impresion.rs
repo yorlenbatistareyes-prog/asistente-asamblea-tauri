@@ -93,7 +93,6 @@ pub fn obtener_datos_para_impresion(
 
         return Ok(datos.unwrap_or_default());
     }
-    
     // --- CASO 2: OFICINA (Presidente, Oración, etc.) ---
     else if tipo == "presidente" || tipo == "oracion" || tipo == "oficina" {
         let mut stmt = conn
@@ -116,7 +115,7 @@ pub fn obtener_datos_para_impresion(
             .query_row(params![id_referencia], |row| {
                 let sexo: String = row.get(4).unwrap_or_else(|_| "M".to_string());
                 let saludo = if sexo == "F" { "Hermana" } else { "Hermano" };
-                
+
                 let tema_ficticio = if tipo == "presidente" {
                     "Presidente de la Sesión"
                 } else {

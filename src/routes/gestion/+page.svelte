@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { oradoresPendientes } from '$lib/stores/gestion';
   // --- IMPORTAMOS LOS ICONOS ---
   import { 
     Users, 
@@ -29,6 +31,7 @@
   import Comite from '$lib/components/gestion/Comite.svelte';
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
+  import { setResumen } from '$lib/stores/gestion';
 
   // Controla qué sección vemos
   let seccionActiva = 'inicio';
@@ -37,12 +40,62 @@
   // NUEVO: Controla si el sidebar está encogido
   let colapsado = false;
 
-  onMount(() => {
+  onMount(async () => {
+
     // Recuperar el nombre de la asamblea activa para mostrarlo en el menú
     const data = localStorage.getItem('asambleaActiva');
     if (data) {
         asambleaActual = JSON.parse(data);
     }
+
+    // PASO 8: Validar si la asamblea guardada existe realmente en la base
+if (asambleaActual?.id) {
+    try {
+        const existe = await invoke('obtener_asamblea_por_id', { id: asambleaActual.id });
+        if (!existe) {
+            console.warn("Asamblea guardada ya no existe. Limpiando localStorage...");
+            localStorage.removeItem('asambleaActiva');
+            asambleaActual = null;
+        }
+    } catch (e) {
+        console.warn("Error validando asamblea activa:", e);
+        localStorage.removeItem('asambleaActiva');
+        asambleaActual = null;
+    }
+}
+    // Intentar inicializar los datos del resumen desde localStorage
+    const resumenRaw = localStorage.getItem('resumen');
+    if (resumenRaw) {
+      try {
+        const parsed = JSON.parse(resumenRaw);
+        setResumen(parsed);
+      } catch (e) {
+        // si falla parsing, cargamos valores por defecto
+        setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12 });
+      }
+    } else {
+      // Valores por defecto para la primera carga
+      setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12 });
+    }
+
+    // Cargar oradores pendientes para el resumen (cargar 3 días)
+    (async () => {
+      try {
+        const dias = ['Viernes', 'Sábado', 'Domingo'];
+        const pendientes: any[] = [];
+        await Promise.all(dias.map(async (dia) => {
+          try {
+            const res = await invoke('obtener_programa_dia', { asambleaId: asambleaActual?.id || (JSON.parse(data || '{}').id), dia }) as any[];
+            res.forEach(p => {
+              if (p.nombre_orador && (!p.estado || p.estado !== 'Confirmado')) {
+                pendientes.push({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' });
+              }
+            });
+          } catch (e) { console.warn('No se pudo cargar programa dia', dia, e); }
+        }));
+        oradoresPendientes.set(pendientes);
+      } catch (e) { console.warn('Error cargando oradores pendientes', e); }
+    })();
   });
 
   function cambiarSeccion(nuevaSeccion: string) {
@@ -213,11 +266,12 @@
       white-space: nowrap; /* CRUCIAL para el colapso */
   }
 
-  .icono-nav {
+    /* svelte-ignore css-unused-selector */
+    :global(.icono-nav) {
       min-width: 20px; /* Mantiene el icono cuadrado sin aplastarse */
       margin-right: 16px;
       flex-shrink: 0;
-  }
+    }
   
   .texto-menu {
       transition: opacity 0.2s;
@@ -238,6 +292,7 @@
   
   .footer-sidebar {
       padding: 20px 10px; /* Un poco más de aire */
+      padding-bottom: 55px;
       border-top: 1px solid var(--border-color);
       /* Opcional: un fondo muy sutil para separar el footer */
       background-color: rgba(0, 0, 0, 0.02); 
@@ -284,9 +339,10 @@
   }
 
   /* Ajuste para que el icono tenga el color correcto en hover */
-  .btn-salir:hover .icono-nav {
+    /* svelte-ignore css-unused-selector */
+    :global(.btn-salir:hover .icono-nav) {
       color: var(--primary);
-  }
+    }
 
   /* --- ESTILOS CUANDO ESTÁ COLAPSADO --- */
 
@@ -318,9 +374,10 @@
       display: none;
   }
 
-  .sidebar.colapsado .icono-nav {
+    /* svelte-ignore css-unused-selector */
+    :global(.sidebar.colapsado .icono-nav) {
       margin-right: 0; /* Quita el margen derecho para que el icono quede en el centro del botón */
-  }
+    }
 
   .sidebar.colapsado .menu button,
   .sidebar.colapsado .btn-salir {
@@ -336,7 +393,8 @@
       .sidebar { width: 72px; }
       .header-acciones { justify-content: center; }
       .texto-logo, .texto-menu { opacity: 0; pointer-events: none; height: 0; }
-      .icono-nav { margin-right: 0; }
+      /* svelte-ignore css-unused-selector */
+      :global(.icono-nav) { margin-right: 0; }
       .menu button, .btn-salir { justify-content: center; }
   }
 

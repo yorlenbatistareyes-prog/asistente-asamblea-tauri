@@ -261,7 +261,6 @@ const DEFAULT_CONFIG = {
   .titulo-icono { display: flex; gap: 12px; align-items: center; }
   .header-section h3 { margin: 0; font-size: 1.1rem; color: var(--text-main, #111827); font-weight: 700; }
   .header-section p { margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-secondary, #6b7280); }
-  .text-primary { color: var(--primary, #3b82f6); }
 
   .acciones-header { display: flex; gap: 10px; }
 

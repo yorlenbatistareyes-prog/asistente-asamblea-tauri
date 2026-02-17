@@ -3,16 +3,20 @@
   import { guiaUsuario } from '$lib/data/ayuda';
   import { getVersion } from '@tauri-apps/api/app';
   import { onMount } from 'svelte';
+  import Datos from '$lib/components/gestion/Datos.svelte';
+
+  import { invoke } from '@tauri-apps/api/core';
+  import { cargarDatosGlobales } from '$lib/stores/appStore';
   
   // --- COMPONENTES HIJOS ---
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
   import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
-
+  import SeccionAyuda from './secciones/SeccionAyuda.svelte';
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
-    ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, Upload, Download, Trash2, HelpCircle,
+    ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
     ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity 
-  } from 'lucide-svelte';
+} from 'lucide-svelte';
 
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
 
@@ -29,15 +33,6 @@
   // Recibe el aviso del hijo (WhatsApp/Correo) para expandir la pantalla
   function manejarCambioModo(e: CustomEvent<boolean>) {
       editorAbierto = e.detail;
-  }
-
-  // Ayuda y Datos Dummy
-  let ayudaItems = guiaUsuario.map(item => ({ ...item, isOpen: false }));
-  function toggleAyuda(index: number) { 
-      if (ayudaItems[index]) { 
-          ayudaItems[index].isOpen = !ayudaItems[index].isOpen; 
-          ayudaItems = [...ayudaItems]; 
-      } 
   }
 
   let config = { 
@@ -62,14 +57,46 @@
   
   function guardarCambiosConfig() { alert("Configuración guardada"); }
   function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
-  function guardarUsuario() { usuario = { ...usuarioEditando }; mostrarModalUsuario = false; }
-  async function respaldarDatos() { alert("Respaldando..."); }
-  async function restaurarDatos() { alert("Restaurando..."); }
-  async function limpiarBaseDatos() { if (prompt("Escribe 'ELIMINAR':") === 'ELIMINAR') { alert("Limpiado."); location.reload(); } }
+  
+  async function guardarUsuario() {
+  try {
+    // Obtener la configuración actual para conservar tema e idioma
+    const configActual = await invoke('obtener_configuracion_general') as any;
+
+    // Construir el objeto con todos los campos del formulario
+    const datosConfig = {
+      nombre: usuarioEditando.nombre || null,
+      segundo_nombre: usuarioEditando.segundoNombre || null,
+      apellido: usuarioEditando.apellido || null,
+      sufijo: usuarioEditando.sufijo || null,
+      email: usuarioEditando.email || null,
+      email_jwpub: usuarioEditando.emailJw || null,
+      movil: usuarioEditando.movil || null,
+      identificador: usuarioEditando.id || null,
+      fecha_creacion: usuarioEditando.fechaCreacion || null,
+      tema: configActual.tema,
+      idioma: configActual.idioma,
+    };
+
+    // Guardar en la base de datos usando el comando Rust
+    await invoke('guardar_configuracion_general', { config: datosConfig });
+
+    // Actualizar la variable local del usuario
+    usuario = { ...usuarioEditando };
+    mostrarModalUsuario = false;
+
+    // Actualizar el store global para que la barra de estado refleje el cambio
+    await cargarDatosGlobales();
+
+  } catch (e) {
+    alert('Error al guardar usuario: ' + e);
+  }
+}
 
   onMount(async () => {
     versionReal = await getVersion();
   });
+  
 </script>
 
 <div class="config-layout">
@@ -206,42 +233,12 @@
 
             {:else if configSeccion === 'correos'}
                 <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
-
+            
             {:else if configSeccion === 'datos'}
-                <div class="data-management-container">
-                    <div class="data-card">
-                        <div class="data-icon-wrapper blue"><Upload size={24} /></div>
-                        <div class="data-content"><h3>Respaldar Datos</h3><p>Guardar copia de seguridad.</p></div>
-                        <button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button>
-                    </div>
-                    <div class="data-card">
-                        <div class="data-icon-wrapper green"><Download size={24} /></div>
-                        <div class="data-content"><h3>Restaurar Datos</h3><p>Cargar copia de seguridad.</p></div>
-                        <button class="btn-data-action secondary" on:click={restaurarDatos}>Restaurar</button>
-                    </div>
-                    <div class="data-card danger-zone">
-                        <div class="data-icon-wrapper red"><Trash2 size={24} /></div>
-                        <div class="data-content"><h3>Limpiar Todo</h3><p>Borrar base de datos.</p></div>
-                        <button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button>
-                    </div>
-                </div>
+                <Datos />
 
-            {:else if configSeccion === 'ayuda'}
-                <div class="help-container">
-                    <div class="accordion-list">
-                        {#each ayudaItems as item, i}
-                            <div class="accordion-item">
-                                <button class="accordion-header" on:click={() => toggleAyuda(i)}>
-                                    <div class="acc-title"><CircleHelp size={16}/> {item.title}</div>
-                                    {#if item.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
-                                </button>
-                                {#if item.isOpen}
-                                    <div class="accordion-body"><p class="help-text-content">{item.content}</p></div>
-                                {/if}
-                            </div>
-                        {/each}
-                    </div>
-                </div>
+            {:else if configSeccion === 'ayuda'} 
+              <SeccionAyuda />
             {/if}
         </div>
     </main>
@@ -282,7 +279,44 @@
 .config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; display: flex; flex-direction: column; height: 100vh;}
 .config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
 .config-header h2 { margin: 15px 0 0; font-size: 1.2rem; }
-.btn-back-config { background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+/* BOTÓN VOLVER (ESTILO DELINEADO AZUL) */
+.btn-back-config { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 10px; 
+    
+    /* Forma y Tamaño */
+    padding: 8px 18px; 
+    border-radius: 50px; /* Cápsula perfecta */
+    
+    /* ESTILO VISIBLE POR DEFECTO */
+    background: rgba(59, 130, 246, 0.04); /* Un fondo azulito casi invisible */
+    border: 1px solid rgba(59, 130, 246, 0.3); /* Borde azul claro (visible siempre) */
+    color: var(--text-secondary); 
+    
+    /* Tipografía */
+    font-size: 14px; 
+    font-weight: 600; 
+    
+    cursor: pointer; 
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    margin-bottom: 15px; /* Separación con el título */
+}
+
+/* EFECTO AL PASAR EL MOUSE */
+.btn-back-config:hover { 
+    background: white; /* Se vuelve sólido */
+    border-color: var(--primary); /* El borde se pone del azul fuerte de la marca */
+    color: var(--primary); /* El texto se pone azul */
+    
+    transform: translateX(-4px); /* Se mueve a la izquierda */
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15); /* Sombra suave azulada */
+}
+
+/* LA FLECHA TAMBIÉN CAMBIA DE COLOR */
+.btn-back-config:hover :global(svg) {
+    stroke: var(--primary);
+}
 
 .config-nav { padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
 .config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
@@ -357,20 +391,6 @@ input:checked + .slider:before { transform: translateX(20px); }
 .btn-cancel-user { background: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; }
 .btn-save-user { background: #ea580c; border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; }
 
-/* Cards de Datos */
-.data-management-container { max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
-.data-card { display: flex; align-items: center; gap: 20px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; }
-.data-content h3 { margin: 0; color: var(--text-main); } 
-.data-content p { margin: 0; color: var(--text-secondary); font-size: 13px; }
-.data-icon-wrapper { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.data-icon-wrapper.blue { background: #eff6ff; color: #2563eb; } 
-.data-icon-wrapper.green { background: #f0fdf4; color: #16a34a; } 
-.data-icon-wrapper.red { background: #fef2f2; color: #dc2626; }
-.btn-data-action { padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; }
-.btn-data-action.primary { background: var(--primary); color: white; } 
-.btn-data-action.secondary { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); } 
-.btn-data-action.danger { background: #fee2e2; color: #dc2626; }
-
 /* Acordeones (Ayuda) */
 .help-container { max-width: 1000px; margin: 0 auto; }
 .help-text-content { color: var(--text-main); font-size: 14px; line-height: 1.6; }
@@ -388,19 +408,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     padding-right: 5px;
 }
 
-.about-system-section {
-    margin-top: 50px;
-    padding-bottom: 20px;
-}
-
-.about-card {
-    background: rgba(255, 255, 255, 0.03); /* Fondo muy sutil */
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 20px;
-    max-width: 600px;
-    margin: 0 auto;
-}
 
 .about-header {
     display: flex;
@@ -419,12 +426,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     color: #1e293b; /* Casi negro para máxima legibilidad */
 }
 
-.about-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
 
 .about-label {
     color: #64748b;
@@ -435,9 +436,6 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-weight: 600;
 }
 
-.tech-badge {
-    color: #4ade80; /* Verde igual al de la barra de estado */
-}
 
 .about-disclaimer {
     font-size: 10px;
@@ -447,23 +445,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     margin-top: 8px;
 }
 
-.version-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
-    font-weight: 500;
-}
 
-.build-text {
-    margin-top: 4px;
-    font-size: 10px;
-    color: #4ade80; /* El verde que usamos para el sistema conectado */
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    padding-left: 22px; /* Alineado con el texto de la versión */
-}
 
 .config-footer {
     margin-top: auto; /* Empuja todo al final del lateral */

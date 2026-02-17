@@ -18,14 +18,18 @@ pub fn obtener_asignaciones_especiales(
 ) -> Result<Vec<AsignacionEspecialDTO>, String> {
     let conn = conectar_db(&app);
 
-    // FILTRO: WHERE ae.asamblea_id = ?1 AND ae.dia = ?2
     let sql = "
         SELECT 
             ae.id, 
             ae.tipo_asignacion, 
             ae.persona_id, 
             p.nombre_completo,
-            c.nombre as nombre_congregacion
+            c.nombre as nombre_congregacion,
+            p.telefono,
+            p.email,
+            ae.estado,
+            ae.esta_presente,
+            ae.ensayo_terminado
         FROM asignaciones_especiales ae
         JOIN personas p ON ae.persona_id = p.id
         LEFT JOIN congregaciones c ON p.id_congregacion = c.id
@@ -42,6 +46,11 @@ pub fn obtener_asignaciones_especiales(
                 persona_id: row.get(2)?,
                 nombre_completo: row.get(3)?,
                 nombre_congregacion: row.get(4).ok(),
+                telefono: row.get(5).ok(),
+                email: row.get(6).ok(),
+                estado: row.get(7).ok(),
+                esta_presente: row.get(8)?,
+                ensayo_terminado: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -94,4 +103,44 @@ pub fn eliminar_asignacion_especial(app: AppHandle, id: i32) -> Result<String, S
     )
     .map_err(|e| e.to_string())?;
     Ok("Asignación eliminada".to_string())
+}
+
+#[command]
+pub fn alternar_estado_oficina(
+    app: AppHandle,
+    id: i32,
+    tipo_accion: String,
+    valor_nuevo: bool,
+) -> Result<String, String> {
+    let conn = conectar_db(&app);
+    
+    let sql = match tipo_accion.as_str() {
+        "confirmacion" => {
+            if valor_nuevo {
+                "UPDATE asignaciones_especiales SET estado = 'Confirmado' WHERE id = ?1"
+            } else {
+                "UPDATE asignaciones_especiales SET estado = 'Pendiente' WHERE id = ?1"
+            }
+        }
+        "presencia" => {
+            if valor_nuevo {
+                "UPDATE asignaciones_especiales SET esta_presente = 1 WHERE id = ?1"
+            } else {
+                "UPDATE asignaciones_especiales SET esta_presente = 0 WHERE id = ?1"
+            }
+        }
+        "ensayo_terminado" => {
+            if valor_nuevo {
+                "UPDATE asignaciones_especiales SET ensayo_terminado = 1 WHERE id = ?1"
+            } else {
+                "UPDATE asignaciones_especiales SET ensayo_terminado = 0 WHERE id = ?1"
+            }
+        }
+        _ => return Err("Acción desconocida".to_string()),
+    };
+
+    conn.execute(sql, params![id])
+        .map_err(|e| e.to_string())?;
+
+    Ok("Actualizado".to_string())
 }

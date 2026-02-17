@@ -50,7 +50,7 @@
       const [h, congs, asamblea] = await Promise.all([
         invoke('obtener_personas', { asambleaId }),
         invoke('obtener_congregaciones', { asambleaId }),
-        invoke('obtener_asamblea_activa') // Este trae la última activa, que coincide con la nuestra
+        invoke('obtener_asamblea_por_id', { id: asambleaId }) // Este trae la última activa, que coincide con la nuestra
       ]) as [any[], any[], any]; 
 
       hermanos = h || [];
@@ -68,7 +68,9 @@
           av: asamblea.audio_video_super_id || 0,
           video: asamblea.video_super_id || 0,
           audio: asamblea.audio_super_id || 0,
-          plat: asamblea.plataforma_super_id || 0
+          plat: asamblea.plataforma_super_id || 0,
+          baut: asamblea.bautismo_super_id || 0,
+          baut_a: asamblea.bautismo_aux_id || 0
         };
       }
     } catch (e) { 
@@ -136,16 +138,37 @@
   async function guardar() {
     try {
       const n = (val: number) => val === 0 ? null : val;
-      // Guardar comité usa IDs directos, no necesita asambleaId extra
+      
+      // Enviamos TODOS los datos al backend (Rust)
       await invoke('guardar_comite', { 
+        id: asambleaId, // <--- CRUCIAL: Sin esto, la base de datos no sabe a quién actualizar
+        
         presidenteId: n(c.presi),
-        coordinadorId: n(c.coord), coordinadorAuxId: n(c.coord_a),
-        progSuperId: n(c.prog), progAuxId: n(c.prog_a),
-        alojSuperId: n(c.aloj), alojAuxId: n(c.aloj_a),
-        audioVideoId: n(c.av), videoId: n(c.video), audioId: n(c.audio), plataformaId: n(c.plat)
+        
+        coordinadorId: n(c.coord), 
+        coordinadorAuxId: n(c.coord_a),
+        
+        progSuperId: n(c.prog), 
+        progAuxId: n(c.prog_a),
+        
+        alojSuperId: n(c.aloj), 
+        alojAuxId: n(c.aloj_a),
+        
+        audioVideoId: n(c.av), 
+        videoId: n(c.video), 
+        audioId: n(c.audio), 
+        plataformaId: n(c.plat),
+
+        // TUS AGREGADOS DE BAUTISMO (Perfecto, esto faltaba):
+        bautismoSuperId: n(c.baut),
+        bautismoAuxId: n(c.baut_a)
       });
+      
       alert("✅ Comité guardado correctamente");
-    } catch (e) { alert("Error: " + e); }
+    } catch (e) { 
+        console.error("Error al guardar comité:", e);
+        alert("Error al guardar: " + e); 
+    }
   }
 
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
@@ -519,7 +542,6 @@
       border-bottom: 1px solid var(--border-color); 
   }
   .header h3 { margin: 0; color: var(--text-main); display: flex; gap: 10px; align-items: center; } 
-  .text-blue { color: var(--primary); }
   
   .btn-save { 
       background: var(--primary); color: white; border: none; 
