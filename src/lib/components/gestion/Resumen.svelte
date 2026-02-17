@@ -1,5 +1,5 @@
 <script lang="ts">
- import { onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   
   // Iconos
@@ -16,7 +16,7 @@
   let asambleaIdActual = 0; 
   let nombreAsamblea = '';
   
-  // --- 1. NUEVO: ASISTENCIA DETALLADA (6 SESIONES) ---
+  // --- 1. ASISTENCIA DETALLADA (6 SESIONES) ---
   let mostrarModalAsistencia = false; 
 
   let asistenciaDetalle = {
@@ -25,7 +25,7 @@
       domingo_am: 0, domingo_pm: 0
   };
 
-  // Cálculo Automático: El sistema elige el número mayor para mostrar en la tarjeta
+  // Cálculo Automático
   $: maxAsistencia = Math.max(
       asistenciaDetalle.viernes_am, asistenciaDetalle.viernes_pm,
       asistenciaDetalle.sabado_am, asistenciaDetalle.sabado_pm,
@@ -34,18 +34,19 @@
 
   // --- 2. RESTO DE DATOS MANUALES ---
   let bautismosTotal = 0;
+  let totalCongregacionesReales = 0; // Se carga desde DB
 
   // --- 3. DATOS AUTOMÁTICOS ---
-  // CORRECCIÓN: Agregamos ": any[]" para arreglar el error de TypeScript
   let oradoresPendientesLista: any[] = []; 
   let estadisticasPrograma = { confirmados: 0, pendientes: 0 };
-
-  let totalCongregacionesReales = 0;
   
-  // Monitor en Vivo
+  // --- 4. MONITOR Y DESFASE DE TIEMPO (NUEVO) ---
   let parteActual: any = null;
   let siguienteParte: any = null;
   let programaCompletoCache: any[] = [];
+  
+  // Variable para adelantar/atrasar el reloj del monitor
+  let offsetMinutos = 0; 
 
   // --- INICIO ---
   onMount(async () => {
@@ -59,18 +60,18 @@
     }
 
     await cargarDatosGlobales();
-    cargarDatosLocales(); // Llama a la función UNIFICADA
+    cargarDatosLocales(); 
     await cargarDatosDB();
 
     actualizarReloj();
     setInterval(actualizarReloj, 30000); 
   });
 
-// --- FUNCIÓN UNIFICADA Y LIMPIA ---
+  // --- FUNCIÓN CARGAR DATOS LOCALES ---
   function cargarDatosLocales() {
     if (!asambleaIdActual) return;
 
-    // A. Cargar las 6 Asistencias
+    // A. Asistencia
     const rawAsis = localStorage.getItem(`dash_asistencia_obj_${asambleaIdActual}`);
     if (rawAsis) {
         asistenciaDetalle = JSON.parse(rawAsis);
@@ -78,8 +79,11 @@
         asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
     }
 
-    // B. Cargar Bautismos (SOLO ESTO, eliminada la línea de reportesRecibidos)
+    // B. Bautismos
     bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
+
+    // C. Desfase de tiempo (NUEVO)
+    offsetMinutos = Number(localStorage.getItem(`dash_offset_${asambleaIdActual}`)) || 0;
   }
 
   // Guardar ASISTENCIA
@@ -94,6 +98,20 @@
     localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
   }
 
+  // --- LÓGICA DE CONTROL DE TIEMPO (NUEVO) ---
+  
+  function ajustarDesfase(valor: number) {
+      offsetMinutos += valor;
+      localStorage.setItem(`dash_offset_${asambleaIdActual}`, offsetMinutos.toString());
+      actualizarReloj(); 
+  }
+
+  function resetearDesfase() {
+      offsetMinutos = 0;
+      localStorage.setItem(`dash_offset_${asambleaIdActual}`, "0");
+      actualizarReloj();
+  }
+
   // --- LÓGICA DE RELOJ Y MONITOR ---
   function actualizarReloj() {
     const ahora = new Date();
@@ -103,14 +121,21 @@
 
   function calcularParteEnVivo(ahora: Date) {
     if (!programaCompletoCache || programaCompletoCache.length === 0) return;
-    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
     
+    // 1. Minutos REALES
+    const minutosReales = ahora.getHours() * 60 + ahora.getMinutes();
+    
+    // 2. Minutos VIRTUALES (Aplicando el ajuste manual)
+    const minutosSistema = minutosReales + offsetMinutos;
+
     const actual = programaCompletoCache.find((p: any) => {
         if (!p.hora_inicio) return false;
         const [hStr, mStr] = p.hora_inicio.split(':');
         const inicio = parseInt(hStr) * 60 + parseInt(mStr);
         const duracion = Number(p.duracion) || 10; 
-        return minutosAhora >= inicio && minutosAhora < (inicio + duracion);
+        
+        // Comparamos con el tiempo ajustado
+        return minutosSistema >= inicio && minutosSistema < (inicio + duracion);
     });
 
     if (actual) {
@@ -122,38 +147,32 @@
         siguienteParte = programaCompletoCache.find((p: any) => {
             if (!p.hora_inicio) return false;
             const [hStr, mStr] = p.hora_inicio.split(':');
-            return (parseInt(hStr) * 60 + parseInt(mStr)) > minutosAhora;
+            return (parseInt(hStr) * 60 + parseInt(mStr)) > minutosSistema;
         });
     }
   }
 
-  // --- CARGA DE DATOS DE LA BASE DE DATOS (CORREGIDA) ---
-async function cargarDatosDB() {
+  // --- CARGA DE DATOS DB ---
+  async function cargarDatosDB() {
     if (!asambleaIdActual) return;
 
-    // 1. CARGAR TOTAL DE CONGREGACIONES
-    // Sacamos esto fuera del bucle para que no se repita 3 veces
+    // 1. CARGAR TOTAL CONGREGACIONES
     try {
-        // Intentamos obtener la lista completa
         const listaCongregaciones: any = await invoke('obtener_congregaciones', { 
             asambleaId: asambleaIdActual 
         });
         
-        // Verificamos si es una lista válida antes de contar
         if (Array.isArray(listaCongregaciones)) {
             totalCongregacionesReales = listaCongregaciones.length;
-            console.log("✅ Congregaciones cargadas:", totalCongregacionesReales);
         } else {
-            console.warn("⚠️ La respuesta de congregaciones no es una lista:", listaCongregaciones);
             totalCongregacionesReales = 0;
         }
     } catch (e) {
-        console.error("❌ Error al obtener congregaciones (Revisa que el comando exista en Rust):", e);
-        // Si falla, mantenemos 0 para no romper la vista
+        console.error("Error al obtener congregaciones:", e);
         totalCongregacionesReales = 0;
     }
 
-    // 2. CARGAR PROGRAMA (ORADORES)
+    // 2. CARGAR PROGRAMA
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     let pendientes: any[] = []; 
     let confirmadosCount = 0;
@@ -171,16 +190,14 @@ async function cargarDatosDB() {
                     }
                 });
             }
-        } catch (e) { console.error(`Error cargando día ${dia}:`, e); }
+        } catch (e) { console.error(e); }
     }
-
-    // 3. ACTUALIZAR ESTADÍSTICAS FINALES
+    
     programaCompletoCache.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
     estadisticasPrograma.confirmados = confirmadosCount;
     estadisticasPrograma.pendientes = pendientes.length;
     oradoresPendientesLista = pendientes;
     
-    // Refrescar el monitor
     actualizarReloj();
   }
 
@@ -233,12 +250,12 @@ async function cargarDatosDB() {
             
             <div class="card stat-card">
                 <div class="icon-wrapper purple">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M17 21v-8.5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0-.5.5V21"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
                 </div>
                 <div class="stat-info">
                     <span class="label">Congregaciones</span>
                     <span class="numero-grande">{totalCongregacionesReales}</span>
-                    <span class="subtext">Asignadas</span>
+                    <span class="subtext">Registradas</span>
                 </div>
             </div>
         </div>
@@ -286,15 +303,29 @@ async function cargarDatosDB() {
     </div>
 
     <div class="col-right">
-        
         <div class="card live-monitor">
             <div class="monitor-header">
-                <div class="live-badge">
-                    <span class="blink-dot"></span> EN CURSO
+                <div class="header-left">
+                    <div class="live-badge">
+                        <span class="blink-dot"></span> EN CURSO
+                    </div>
+                    {#if parteActual}
+                        <span class="monitor-dia">{parteActual.dia}</span>
+                    {/if}
                 </div>
-                {#if parteActual}
-                    <span class="monitor-dia">{parteActual.dia}</span>
-                {/if}
+                
+                <div class="ajuste-tiempo">
+                    <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
+                    
+                    <button class="valor-ajuste" 
+                            class:activo={offsetMinutos !== 0} 
+                            on:click={resetearDesfase}
+                            title="Clic para volver a la Hora Real (0m)">
+                        {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+                    </button>
+                    
+                    <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+                </div>
             </div>
 
             <div class="monitor-body">
@@ -352,38 +383,18 @@ async function cargarDatosDB() {
         <div class="grid-dias">
             <div class="col-dia">
                 <h4>Viernes</h4>
-                <div class="input-group-modal">
-                    <label>Mañana</label>
-                    <input type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}>
-                </div>
-                <div class="input-group-modal">
-                    <label>Tarde</label>
-                    <input type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}>
-                </div>
+                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}></div>
             </div>
-
             <div class="col-dia">
                 <h4>Sábado</h4>
-                <div class="input-group-modal">
-                    <label>Mañana</label>
-                    <input type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}>
-                </div>
-                <div class="input-group-modal">
-                    <label>Tarde</label>
-                    <input type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}>
-                </div>
+                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}></div>
             </div>
-
             <div class="col-dia">
                 <h4>Domingo</h4>
-                <div class="input-group-modal">
-                    <label>Mañana</label>
-                    <input type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}>
-                </div>
-                <div class="input-group-modal">
-                    <label>Tarde</label>
-                    <input type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}>
-                </div>
+                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}></div>
             </div>
         </div>
         
@@ -433,7 +444,7 @@ async function cargarDatosDB() {
   }
   .icon-wrapper.blue { background: #3b82f6; }
   .icon-wrapper.cyan { background: #06b6d4; }
-  .icon-wrapper.green { background: #10b981; }
+  .icon-wrapper.purple { background: #8b5cf6; } /* Violeta */
 
   .stat-info { display: flex; flex-direction: column; width: 100%; overflow: hidden; }
   .label { font-size: 0.7rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
@@ -445,13 +456,6 @@ async function cargarDatosDB() {
   }
   .editable-num:focus { border-bottom: 2px solid var(--primary); }
   
-  .input-group { display: flex; align-items: baseline; gap: 2px; }
-  .editable-num.small { font-size: 1.2rem; width: 35px; }
-  .sep, .static-val { font-size: 0.9rem; color: var(--text-secondary); }
-  
-  .progress-bar-mini { height: 4px; background: var(--bg-body); border-radius: 2px; margin-top: 5px; overflow: hidden; }
-  .progress-bar-mini .fill { height: 100%; background: #10b981; }
-
   /* --- ZONA DE PENDIENTES --- */
   .alertas-section {
     background: var(--bg-card); border: 1px solid var(--border-color);
@@ -486,17 +490,39 @@ async function cargarDatosDB() {
   }
   .monitor-header {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-    padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
     color: white;
   }
+  .header-left { display: flex; flex-direction: column; gap: 2px; }
+
   .live-badge {
     background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px;
     font-size: 0.75rem; font-weight: 800; display: flex; align-items: center; gap: 6px;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid rgba(255,255,255,0.3); width: fit-content;
   }
   .blink-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 10px #ef4444; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   .monitor-dia { font-weight: 600; font-size: 0.9rem; opacity: 0.9; }
+
+  /* CONTROLES DE AJUSTE */
+  .ajuste-tiempo {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(0,0,0,0.2); padding: 4px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+  }
+  .btn-ajuste {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+      font-weight: bold; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+  }
+  .btn-ajuste:hover { background: rgba(255,255,255,0.4); }
+
+  .valor-ajuste { 
+      font-size: 0.85rem; font-weight: 600; min-width: 35px; text-align: center; 
+      opacity: 0.7; color: white; background: none; border: none; cursor: pointer;
+  }
+  .valor-ajuste.activo { color: #fbbf24; opacity: 1; font-weight: 800; }
 
   .monitor-body { padding: 30px; text-align: center; border-bottom: 1px dashed var(--border-color); }
   .hora-big { font-size: 2.5rem; font-weight: 900; color: var(--primary); line-height: 1; display: block; margin-bottom: 10px; }
@@ -525,65 +551,62 @@ async function cargarDatosDB() {
   }
   .btn-acceso:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
 
-/* ESTILOS NUEVOS PARA LA TARJETA CLICKABLE */
-.btn-card-asistencia {
+  /* ESTILOS NUEVOS PARA LA TARJETA CLICKABLE */
+  .btn-card-asistencia {
     width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border-color);
     background: var(--bg-card); padding: 15px; border-radius: 12px;
     display: flex; align-items: center; gap: 12px;
     transition: transform 0.2s, border-color 0.2s;
-    font-family: inherit; /* Hereda la fuente de la app */
-}
-.btn-card-asistencia:hover {
+    font-family: inherit; 
+  }
+  .btn-card-asistencia:hover {
     transform: translateY(-3px); border-color: var(--primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.numero-grande {
+  }
+  .numero-grande {
     font-size: 1.8rem; font-weight: 800; color: var(--text-main);
     display: block; line-height: 1.2;
-}
+  }
 
-/* ESTILOS DEL MODAL */
-.modal-backdrop {
+  /* ESTILOS DEL MODAL */
+  .modal-backdrop {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 2000;
     display: flex; justify-content: center; align-items: center;
     backdrop-filter: blur(3px);
-}
-.modal-content-asistencia {
+  }
+  .modal-content-asistencia {
     background: var(--bg-card); width: 600px; max-width: 95%;
     border-radius: 12px; border: 1px solid var(--border-color);
     box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden;
-}
-.modal-header {
+  }
+  .modal-header {
     padding: 15px 20px; border-bottom: 1px solid var(--border-color);
     display: flex; justify-content: space-between; align-items: center;
     background: var(--bg-body);
-}
-.modal-header h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
-.btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
+  }
+  .modal-header h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
+  .btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
 
-.grid-dias {
+  .grid-dias {
     display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 25px;
-}
-.col-dia { display: flex; flex-direction: column; gap: 15px; }
-.col-dia h4 { 
+  }
+  .col-dia { display: flex; flex-direction: column; gap: 15px; }
+  .col-dia h4 { 
     text-align: center; color: var(--primary); margin: 0; 
     font-size: 0.9rem; text-transform: uppercase; font-weight: 700; 
     border-bottom: 2px solid var(--border-color); padding-bottom: 5px;
-}
+  }
 
-.input-group-modal label { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 5px; font-weight: 600; }
-.input-group-modal input {
+  .input-group-modal label { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 5px; font-weight: 600; }
+  .input-group-modal input {
     width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px;
     background: var(--bg-body); color: var(--text-main); font-weight: bold; text-align: center; font-size: 1.1rem;
-}
-.input-group-modal input:focus { border-color: var(--primary); outline: none; }
+  }
+  .input-group-modal input:focus { border-color: var(--primary); outline: none; }
 
-.modal-footer {
+  .modal-footer {
     padding: 15px; background: var(--bg-body); text-align: center;
     border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-secondary);
-}
-
-.icon-wrapper.purple { background: #8b5cf6; } /* Violeta bonito */
-
+  }
 </style>
