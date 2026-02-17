@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+ import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   
   // Iconos
@@ -8,22 +8,38 @@
     Clock, Activity, ArrowRight 
   } from 'lucide-svelte';
 
-  // Importamos el Store Global (asegúrate que la ruta sea correcta)
+  // Importamos el Store Global
   import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
 
   // --- VARIABLES DE ESTADO ---
   let horaActual = '';
-  let asambleaIdActual = 0; // Iniciamos en 0 para detectar si cargó
+  let asambleaIdActual = 0; 
   let nombreAsamblea = '';
   
-  // Datos Manuales (Se guardan en localStorage por ID)
-  let asistenciaTotal = 0;
+  // --- 1. NUEVO: ASISTENCIA DETALLADA (6 SESIONES) ---
+  let mostrarModalAsistencia = false; 
+
+  let asistenciaDetalle = {
+      viernes_am: 0, viernes_pm: 0,
+      sabado_am: 0, sabado_pm: 0,
+      domingo_am: 0, domingo_pm: 0
+  };
+
+  // Cálculo Automático: El sistema elige el número mayor para mostrar en la tarjeta
+  $: maxAsistencia = Math.max(
+      asistenciaDetalle.viernes_am, asistenciaDetalle.viernes_pm,
+      asistenciaDetalle.sabado_am, asistenciaDetalle.sabado_pm,
+      asistenciaDetalle.domingo_am, asistenciaDetalle.domingo_pm
+  );
+
+  // --- 2. RESTO DE DATOS MANUALES ---
   let bautismosTotal = 0;
   let reportesRecibidos = 0;
   let totalCongregaciones = 12;
 
-  // Datos Automáticos (Vienen de la Base de Datos SQLite)
-  let oradoresPendientesLista: any[] = [];
+  // --- 3. DATOS AUTOMÁTICOS ---
+  // CORRECCIÓN: Agregamos ": any[]" para arreglar el error de TypeScript
+  let oradoresPendientesLista: any[] = []; 
   let estadisticasPrograma = { confirmados: 0, pendientes: 0 };
   
   // Monitor en Vivo
@@ -33,33 +49,56 @@
 
   // --- INICIO ---
   onMount(async () => {
-    // 1. OBTENER ID DE LA ASAMBLEA ACTIVA
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
         asambleaIdActual = data.id;
         nombreAsamblea = data.nombre || data.tema || "Asamblea";
-        console.log("📂 Cargando Resumen para Asamblea ID:", asambleaIdActual);
     } else {
-        console.error("⚠️ No hay asamblea activa. Redirigiendo o usando ID 1 por defecto.");
-        asambleaIdActual = 1; // Fallback de seguridad
+        asambleaIdActual = 1; 
     }
 
-    // 2. Cargar identidad (Usuario y Versión)
     await cargarDatosGlobales();
-
-    // 3. Cargar datos manuales (Asistencia/Bautismos específicos de este ID)
-    cargarDatosLocales();
-
-    // 4. Cargar datos automáticos (DB filtrada por ID)
+    cargarDatosLocales(); // Llama a la función UNIFICADA
     await cargarDatosDB();
 
-    // 5. Iniciar reloj
     actualizarReloj();
-    setInterval(actualizarReloj, 30000); // Actualizar cada 30 seg
+    setInterval(actualizarReloj, 30000); 
   });
 
-  // --- LÓGICA DE RELOJ Y MONITOR ---
+  // --- FUNCIÓN UNIFICADA (ESTA ARREGLA EL ERROR DE DUPLICADO) ---
+  function cargarDatosLocales() {
+    if (!asambleaIdActual) return;
+
+    // A. Cargar las 6 Asistencias
+    const rawAsis = localStorage.getItem(`dash_asistencia_obj_${asambleaIdActual}`);
+    if (rawAsis) {
+        asistenciaDetalle = JSON.parse(rawAsis);
+    } else {
+        asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
+    }
+
+    // B. Cargar Bautismos y Reportes (Se mantienen igual)
+    bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
+    reportesRecibidos = Number(localStorage.getItem(`dash_reportes_${asambleaIdActual}`)) || 0;
+  }
+
+  // Guardar ASISTENCIA (Guarda el objeto completo)
+  function guardarAsistencia() {
+      if (!asambleaIdActual) return;
+      localStorage.setItem(`dash_asistencia_obj_${asambleaIdActual}`, JSON.stringify(asistenciaDetalle));
+  }
+
+  // Guardar OTROS DATOS
+  function guardarDato(tipo: string, valor: number) {
+    if (!asambleaIdActual) return;
+    localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
+  }
+
+  // Cálculo porcentaje reportes
+  $: porcentajeReportes = totalCongregaciones > 0 ? (reportesRecibidos / totalCongregaciones) * 100 : 0;
+
+  // --- LÓGICA DE RELOJ Y MONITOR (INTACTA) ---
   function actualizarReloj() {
     const ahora = new Date();
     horaActual = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -68,120 +107,64 @@
 
   function calcularParteEnVivo(ahora: Date) {
     if (!programaCompletoCache || programaCompletoCache.length === 0) return;
-    
-    // Convertimos hora actual a minutos (0 a 1440)
     const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
     
-    // Buscar qué está pasando AHORA
     const actual = programaCompletoCache.find((p: any) => {
         if (!p.hora_inicio) return false;
-        
         const [hStr, mStr] = p.hora_inicio.split(':');
-        const h = parseInt(hStr);
-        const m = parseInt(mStr);
-        
-        const inicio = h * 60 + m;
+        const inicio = parseInt(hStr) * 60 + parseInt(mStr);
         const duracion = Number(p.duracion) || 10; 
-        const fin = inicio + duracion;
-
-        // Comprobamos si estamos dentro del intervalo
-        return minutosAhora >= inicio && minutosAhora < fin;
+        return minutosAhora >= inicio && minutosAhora < (inicio + duracion);
     });
 
     if (actual) {
         parteActual = actual;
-        // Buscar el siguiente en la lista
         const idx = programaCompletoCache.findIndex(p => p.id === actual.id);
         siguienteParte = programaCompletoCache[idx + 1] || null;
     } else {
         parteActual = null;
-        // Buscar el PRÓXIMO más cercano
         siguienteParte = programaCompletoCache.find((p: any) => {
             if (!p.hora_inicio) return false;
             const [hStr, mStr] = p.hora_inicio.split(':');
-            const inicio = parseInt(hStr) * 60 + parseInt(mStr);
-            return inicio > minutosAhora;
+            return (parseInt(hStr) * 60 + parseInt(mStr)) > minutosAhora;
         });
     }
   }
 
-  // --- LÓGICA DE BASE DE DATOS (FILTRADA POR ID) ---
   async function cargarDatosDB() {
     if (!asambleaIdActual) return;
-
     const dias = ['Viernes', 'Sábado', 'Domingo'];
-    let pendientes = [];
+    // CORRECCIÓN: Agregamos el tipo aquí también
+    let pendientes: any[] = []; 
     let confirmadosCount = 0;
     programaCompletoCache = [];
 
     for (const dia of dias) {
         try {
-            // ¡AQUÍ ES DONDE FILTRAMOS POR ID!
-            const partes: any[] = await invoke('obtener_programa_dia', { 
-                asambleaId: asambleaIdActual, 
-                dia: dia 
-            }); 
-            
+            const partes: any[] = await invoke('obtener_programa_dia', { asambleaId: asambleaIdActual, dia }); 
             partes.forEach(p => {
-                programaCompletoCache.push({ ...p, dia }); // Guardamos para el monitor
-                
-                // Estadísticas: Solo discursos humanos
+                programaCompletoCache.push({ ...p, dia });
                 if (!p.es_video && p.nombre_orador) {
-                    if (p.estado === 'Confirmado' || p.recibido_manual) {
-                        confirmadosCount++;
-                    } else {
-                        pendientes.push({ ...p, dia });
-                    }
+                    if (p.estado === 'Confirmado' || p.recibido_manual) confirmadosCount++;
+                    else pendientes.push({ ...p, dia });
                 }
             });
-        } catch (e) { 
-            console.error(`Error cargando ${dia} para asamblea ${asambleaIdActual}:`, e); 
-        }
+        } catch (e) { console.error(e); }
     }
-    
-    // Ordenar programa cronológicamente para el monitor
-    programaCompletoCache.sort((a, b) => {
-       return a.hora_inicio.localeCompare(b.hora_inicio);
-    });
-
+    programaCompletoCache.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
     estadisticasPrograma.confirmados = confirmadosCount;
     estadisticasPrograma.pendientes = pendientes.length;
     oradoresPendientesLista = pendientes;
-    
-    actualizarReloj(); // Refrescar monitor con los datos cargados
+    actualizarReloj();
   }
 
   async function confirmarOradorDesdeResumen(parte: any) {
       if(!confirm(`¿Confirmar a ${parte.nombre_orador}?`)) return;
       try {
-          await invoke('alternar_estado_parte', { 
-              id: parte.id, 
-              tipoAccion: 'confirmacion', 
-              valorNuevo: true 
-          });
-          // Recargamos datos para actualizar la lista
+          await invoke('alternar_estado_parte', { id: parte.id, tipoAccion: 'confirmacion', valorNuevo: true });
           await cargarDatosDB();
       } catch(e) { alert("Error: " + e); }
   }
-
-  // --- LÓGICA MANUAL (LOCALSTORAGE POR ID) ---
-  function cargarDatosLocales() {
-    if (!asambleaIdActual) return;
-    // Usamos el ID como sufijo en la clave para no mezclar asambleas
-    asistenciaTotal = Number(localStorage.getItem(`dash_asistencia_${asambleaIdActual}`)) || 0;
-    bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
-    reportesRecibidos = Number(localStorage.getItem(`dash_reportes_${asambleaIdActual}`)) || 0;
-  }
-
-  function guardarDato(tipo: string, valor: number) {
-    if (!asambleaIdActual) return;
-    // Guardamos: 'dash_asistencia_2', 'dash_asistencia_3', etc.
-    localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
-  }
-
-  // Cálculo reactivo
-  $: porcentajeReportes = totalCongregaciones > 0 ? (reportesRecibidos / totalCongregaciones) * 100 : 0;
-
 </script>
 
 <div class="dashboard-container">
@@ -203,16 +186,14 @@
     <div class="col-left">
         
         <div class="stats-row">
-            <div class="card stat-card">
-                <div class="icon-wrapper blue"><Users size={22} /></div>
-                <div class="stat-info">
-                    <span class="label">Asistencia</span>
-                    <input type="number" class="editable-num" 
-                           bind:value={asistenciaTotal} 
-                           on:input={() => guardarDato('asistencia', asistenciaTotal)}>
-                    <span class="subtext">Editable</span>
-                </div>
-            </div>
+            <button class="card stat-card btn-card-asistencia" on:click={() => mostrarModalAsistencia = true}>
+              <div class="icon-wrapper blue"><Users size={22} /></div>
+              <div class="stat-info">
+                 <span class="label">Asistencia Máxima</span>
+                 <span class="numero-grande">{maxAsistencia}</span>
+                <span class="subtext">Clic para desglosar</span>
+              </div>
+            </button>
 
             <div class="card stat-card">
                 <div class="icon-wrapper cyan"><Droplets size={22} /></div>
@@ -339,6 +320,59 @@
     </div>
   </div>
 </div>
+
+{#if mostrarModalAsistencia}
+<div class="modal-backdrop" on:click|self={() => mostrarModalAsistencia = false}>
+    <div class="modal-content-asistencia">
+        <div class="modal-header">
+            <h3>Registro de Asistencia</h3>
+            <button class="btn-close" on:click={() => mostrarModalAsistencia = false}>✕</button>
+        </div>
+        
+        <div class="grid-dias">
+            <div class="col-dia">
+                <h4>Viernes</h4>
+                <div class="input-group-modal">
+                    <label>Mañana</label>
+                    <input type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label>Tarde</label>
+                    <input type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}>
+                </div>
+            </div>
+
+            <div class="col-dia">
+                <h4>Sábado</h4>
+                <div class="input-group-modal">
+                    <label>Mañana</label>
+                    <input type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label>Tarde</label>
+                    <input type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}>
+                </div>
+            </div>
+
+            <div class="col-dia">
+                <h4>Domingo</h4>
+                <div class="input-group-modal">
+                    <label>Mañana</label>
+                    <input type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label>Tarde</label>
+                    <input type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <p>Se mostrará en el resumen el valor más alto: <strong>{maxAsistencia}</strong></p>
+        </div>
+    </div>
+</div>
+{/if}
 
 <style>
   /* --- ESTILOS --- */
@@ -470,4 +504,64 @@
       justify-content: center; gap: 10px; font-weight: 600; color: var(--text-secondary);
   }
   .btn-acceso:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
+
+/* ESTILOS NUEVOS PARA LA TARJETA CLICKABLE */
+.btn-card-asistencia {
+    width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border-color);
+    background: var(--bg-card); padding: 15px; border-radius: 12px;
+    display: flex; align-items: center; gap: 12px;
+    transition: transform 0.2s, border-color 0.2s;
+    font-family: inherit; /* Hereda la fuente de la app */
+}
+.btn-card-asistencia:hover {
+    transform: translateY(-3px); border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.numero-grande {
+    font-size: 1.8rem; font-weight: 800; color: var(--text-main);
+    display: block; line-height: 1.2;
+}
+
+/* ESTILOS DEL MODAL */
+.modal-backdrop {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 2000;
+    display: flex; justify-content: center; align-items: center;
+    backdrop-filter: blur(3px);
+}
+.modal-content-asistencia {
+    background: var(--bg-card); width: 600px; max-width: 95%;
+    border-radius: 12px; border: 1px solid var(--border-color);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden;
+}
+.modal-header {
+    padding: 15px 20px; border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg-body);
+}
+.modal-header h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
+.btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
+
+.grid-dias {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 25px;
+}
+.col-dia { display: flex; flex-direction: column; gap: 15px; }
+.col-dia h4 { 
+    text-align: center; color: var(--primary); margin: 0; 
+    font-size: 0.9rem; text-transform: uppercase; font-weight: 700; 
+    border-bottom: 2px solid var(--border-color); padding-bottom: 5px;
+}
+
+.input-group-modal label { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 5px; font-weight: 600; }
+.input-group-modal input {
+    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px;
+    background: var(--bg-body); color: var(--text-main); font-weight: bold; text-align: center; font-size: 1.1rem;
+}
+.input-group-modal input:focus { border-color: var(--primary); outline: none; }
+
+.modal-footer {
+    padding: 15px; background: var(--bg-body); text-align: center;
+    border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-secondary);
+}
+
 </style>
