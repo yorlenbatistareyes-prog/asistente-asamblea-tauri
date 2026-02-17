@@ -279,7 +279,44 @@
 .config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; display: flex; flex-direction: column; height: 100vh;}
 .config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
 .config-header h2 { margin: 15px 0 0; font-size: 1.2rem; }
-.btn-back-config { background: none; border: none; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+/* BOTÓN VOLVER (ESTILO DELINEADO AZUL) */
+.btn-back-config { 
+    display: inline-flex; 
+    align-items: center; 
+    gap: 10px; 
+    
+    /* Forma y Tamaño */
+    padding: 8px 18px; 
+    border-radius: 50px; /* Cápsula perfecta */
+    
+    /* ESTILO VISIBLE POR DEFECTO */
+    background: rgba(59, 130, 246, 0.04); /* Un fondo azulito casi invisible */
+    border: 1px solid rgba(59, 130, 246, 0.3); /* Borde azul claro (visible siempre) */
+    color: var(--text-secondary); 
+    
+    /* Tipografía */
+    font-size: 14px; 
+    font-weight: 600; 
+    
+    cursor: pointer; 
+    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+    margin-bottom: 15px; /* Separación con el título */
+}
+
+/* EFECTO AL PASAR EL MOUSE */
+.btn-back-config:hover { 
+    background: white; /* Se vuelve sólido */
+    border-color: var(--primary); /* El borde se pone del azul fuerte de la marca */
+    color: var(--primary); /* El texto se pone azul */
+    
+    transform: translateX(-4px); /* Se mueve a la izquierda */
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15); /* Sombra suave azulada */
+}
+
+/* LA FLECHA TAMBIÉN CAMBIA DE COLOR */
+.btn-back-config:hover :global(svg) {
+    stroke: var(--primary);
+}
 
 .config-nav { padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
 .config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
