@@ -292,6 +292,7 @@ if (asambleaActual?.id) {
   
   .footer-sidebar {
       padding: 20px 10px; /* Un poco más de aire */
+      padding-bottom: 55px;
       border-top: 1px solid var(--border-color);
       /* Opcional: un fondo muy sutil para separar el footer */
       background-color: rgba(0, 0, 0, 0.02); 
