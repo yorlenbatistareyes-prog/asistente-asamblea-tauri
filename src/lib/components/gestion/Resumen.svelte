@@ -34,13 +34,13 @@
 
   // --- 2. RESTO DE DATOS MANUALES ---
   let bautismosTotal = 0;
-  let reportesRecibidos = 0;
-  let totalCongregaciones = 12;
 
   // --- 3. DATOS AUTOMÁTICOS ---
   // CORRECCIÓN: Agregamos ": any[]" para arreglar el error de TypeScript
   let oradoresPendientesLista: any[] = []; 
   let estadisticasPrograma = { confirmados: 0, pendientes: 0 };
+
+  let totalCongregacionesReales = 0;
   
   // Monitor en Vivo
   let parteActual: any = null;
@@ -66,7 +66,7 @@
     setInterval(actualizarReloj, 30000); 
   });
 
-  // --- FUNCIÓN UNIFICADA (ESTA ARREGLA EL ERROR DE DUPLICADO) ---
+// --- FUNCIÓN UNIFICADA Y LIMPIA ---
   function cargarDatosLocales() {
     if (!asambleaIdActual) return;
 
@@ -78,12 +78,11 @@
         asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
     }
 
-    // B. Cargar Bautismos y Reportes (Se mantienen igual)
+    // B. Cargar Bautismos (SOLO ESTO, eliminada la línea de reportesRecibidos)
     bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
-    reportesRecibidos = Number(localStorage.getItem(`dash_reportes_${asambleaIdActual}`)) || 0;
   }
 
-  // Guardar ASISTENCIA (Guarda el objeto completo)
+  // Guardar ASISTENCIA
   function guardarAsistencia() {
       if (!asambleaIdActual) return;
       localStorage.setItem(`dash_asistencia_obj_${asambleaIdActual}`, JSON.stringify(asistenciaDetalle));
@@ -95,10 +94,7 @@
     localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
   }
 
-  // Cálculo porcentaje reportes
-  $: porcentajeReportes = totalCongregaciones > 0 ? (reportesRecibidos / totalCongregaciones) * 100 : 0;
-
-  // --- LÓGICA DE RELOJ Y MONITOR (INTACTA) ---
+  // --- LÓGICA DE RELOJ Y MONITOR ---
   function actualizarReloj() {
     const ahora = new Date();
     horaActual = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -131,10 +127,34 @@
     }
   }
 
-  async function cargarDatosDB() {
+  // --- CARGA DE DATOS DE LA BASE DE DATOS (CORREGIDA) ---
+async function cargarDatosDB() {
     if (!asambleaIdActual) return;
+
+    // 1. CARGAR TOTAL DE CONGREGACIONES
+    // Sacamos esto fuera del bucle para que no se repita 3 veces
+    try {
+        // Intentamos obtener la lista completa
+        const listaCongregaciones: any = await invoke('obtener_congregaciones', { 
+            asambleaId: asambleaIdActual 
+        });
+        
+        // Verificamos si es una lista válida antes de contar
+        if (Array.isArray(listaCongregaciones)) {
+            totalCongregacionesReales = listaCongregaciones.length;
+            console.log("✅ Congregaciones cargadas:", totalCongregacionesReales);
+        } else {
+            console.warn("⚠️ La respuesta de congregaciones no es una lista:", listaCongregaciones);
+            totalCongregacionesReales = 0;
+        }
+    } catch (e) {
+        console.error("❌ Error al obtener congregaciones (Revisa que el comando exista en Rust):", e);
+        // Si falla, mantenemos 0 para no romper la vista
+        totalCongregacionesReales = 0;
+    }
+
+    // 2. CARGAR PROGRAMA (ORADORES)
     const dias = ['Viernes', 'Sábado', 'Domingo'];
-    // CORRECCIÓN: Agregamos el tipo aquí también
     let pendientes: any[] = []; 
     let confirmadosCount = 0;
     programaCompletoCache = [];
@@ -142,19 +162,25 @@
     for (const dia of dias) {
         try {
             const partes: any[] = await invoke('obtener_programa_dia', { asambleaId: asambleaIdActual, dia }); 
-            partes.forEach(p => {
-                programaCompletoCache.push({ ...p, dia });
-                if (!p.es_video && p.nombre_orador) {
-                    if (p.estado === 'Confirmado' || p.recibido_manual) confirmadosCount++;
-                    else pendientes.push({ ...p, dia });
-                }
-            });
-        } catch (e) { console.error(e); }
+            if (Array.isArray(partes)) {
+                partes.forEach(p => {
+                    programaCompletoCache.push({ ...p, dia });
+                    if (!p.es_video && p.nombre_orador) {
+                        if (p.estado === 'Confirmado' || p.recibido_manual) confirmadosCount++;
+                        else pendientes.push({ ...p, dia });
+                    }
+                });
+            }
+        } catch (e) { console.error(`Error cargando día ${dia}:`, e); }
     }
+
+    // 3. ACTUALIZAR ESTADÍSTICAS FINALES
     programaCompletoCache.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
     estadisticasPrograma.confirmados = confirmadosCount;
     estadisticasPrograma.pendientes = pendientes.length;
     oradoresPendientesLista = pendientes;
+    
+    // Refrescar el monitor
     actualizarReloj();
   }
 
@@ -206,19 +232,13 @@
             </div>
             
             <div class="card stat-card">
-                <div class="icon-wrapper green"><CheckCircle size={22} /></div>
+                <div class="icon-wrapper purple">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M17 21v-8.5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0-.5.5V21"/></svg>
+                </div>
                 <div class="stat-info">
-                    <span class="label">Reportes ({Math.round(porcentajeReportes)}%)</span>
-                    <div class="input-group">
-                        <input type="number" class="editable-num small" 
-                               bind:value={reportesRecibidos} 
-                               on:input={() => guardarDato('reportes', reportesRecibidos)}>
-                        <span class="sep">/</span>
-                        <span class="static-val">{totalCongregaciones}</span>
-                    </div>
-                    <div class="progress-bar-mini">
-                        <div class="fill" style="width: {porcentajeReportes}%"></div>
-                    </div>
+                    <span class="label">Congregaciones</span>
+                    <span class="numero-grande">{totalCongregacionesReales}</span>
+                    <span class="subtext">Asignadas</span>
                 </div>
             </div>
         </div>
@@ -563,5 +583,7 @@
     padding: 15px; background: var(--bg-body); text-align: center;
     border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-secondary);
 }
+
+.icon-wrapper.purple { background: #8b5cf6; } /* Violeta bonito */
 
 </style>
