@@ -15,12 +15,12 @@ pub fn obtener_programa_dia(
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
     let sql = "
-        SELECT 
-            p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
-            p.orador_id, per.nombre_completo, c.nombre,
-            per.email, per.telefono, 
-            p.es_video, p.estado, p.esta_presente,
-            p.numero_bosquejo
+    SELECT 
+        p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
+        p.orador_id, per.nombre_completo, c.nombre,
+        per.email, per.telefono, 
+        p.es_video, p.estado, p.esta_presente,
+        p.numero_bosquejo, p.ensayo_terminado  -- ✅ AGREGA ESTO
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -47,6 +47,7 @@ pub fn obtener_programa_dia(
                 estado: row.get(13).ok(),
                 esta_presente: row.get(14).unwrap_or(false),
                 numero_bosquejo: row.get(15).ok(),
+                ensayo_terminado: row.get(16).unwrap_or(false),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -154,7 +155,6 @@ pub fn crear_parte(
 
                     orador_id_final = Some(tx.last_insert_rowid() as i32);
                 }
-                estado = "Confirmado".to_string();
             }
         }
     }
@@ -208,21 +208,40 @@ pub fn alternar_estado_parte(
     app: AppHandle,
     id: i32,
     tipo_accion: String,
-    valor_actual: bool,
+    valor_nuevo: bool, // Cambiamos el nombre para que sea claro: esto es lo que QUEREMOS guardar
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
+    
     let sql = match tipo_accion.as_str() {
         "confirmacion" => {
-            if valor_actual {
-                "UPDATE programa SET estado = 'Pendiente' WHERE id = ?1"
-            } else {
+            // Si valor_nuevo es TRUE, queremos guardar 'Confirmado'.
+            if valor_nuevo {
                 "UPDATE programa SET estado = 'Confirmado' WHERE id = ?1"
+            } else {
+                "UPDATE programa SET estado = 'Pendiente' WHERE id = ?1"
             }
         }
-        "presencia" => "UPDATE programa SET esta_presente = NOT esta_presente WHERE id = ?1",
+        "presencia" => {
+            // Forzamos el valor exacto (1 o 0) en lugar de usar NOT
+            if valor_nuevo {
+                "UPDATE programa SET esta_presente = 1 WHERE id = ?1"
+            } else {
+                "UPDATE programa SET esta_presente = 0 WHERE id = ?1"
+            }
+        }
+        "ensayo_terminado" => {
+         if valor_nuevo {
+        "UPDATE programa SET ensayo_terminado = 1 WHERE id = ?1"
+    } else {
+        "UPDATE programa SET ensayo_terminado = 0 WHERE id = ?1"
+    }
+}
         _ => return Err("Acción desconocida".to_string()),
     };
-    conn.execute(sql, params![id]).map_err(|e| e.to_string())?;
+
+    conn.execute(sql, params![id])
+        .map_err(|e| e.to_string())?;
+
     Ok("Actualizado".to_string())
 }
 

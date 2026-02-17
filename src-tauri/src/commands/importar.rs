@@ -233,7 +233,7 @@ pub fn importar_programa_jw(
         // 👇 CORRECCIÓN AQUÍ: Se añade 'sexo' y se ajustan los parámetros (?1 a ?7)
         let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5)").map_err(|e| e.to_string())?;
 
-        let mut stmt_ins_prog = tx.prepare("INSERT INTO programa (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, orador_id, es_video, estado, esta_presente) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 10, ?7, ?8, 'Confirmado', 0)").map_err(|e| e.to_string())?;
+        let mut stmt_ins_prog = tx.prepare("INSERT INTO programa (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, orador_id, es_video, estado, esta_presente) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 10, ?7, ?8, 'Pendiente', 0)").map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
             let fila: FilaProgramaJW = match result {

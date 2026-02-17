@@ -85,23 +85,22 @@
     try { 
         const res = await invoke('obtener_programa_dia', { asambleaId, dia: diaSeleccionado }) as any[]; 
         partes = res.map(p => ({ 
-          ...p, 
-          _expanded: abiertos.has(p.id), 
-          // UI-only flag: controlar el botón RECIBIDO solo si el usuario lo marca.
-          recibido_manual: false,
-            // No asumir confirmaciones desde el API: iniciar estado en 'Pendiente'
-          estado: (p.estado === 'Confirmado') ? 'Confirmado' : 'Pendiente',
-          esta_presente: p.esta_presente || false,
-          // Asegurar que numero_bosquejo no sea nulo
-          numero_bosquejo: p.numero_bosquejo || "",
-          email_enviado: false, 
-          carta_recibida_check: false, 
-          jwpub_enviado: false, 
-          recordatorio_enviado: false, 
-          ensayo_terminado: false,
-          whatsapp_enviado: false,               // <--- NUEVO
-          recordatorio_whatsapp_enviado: false   // <--- NUEVO
-        }));
+  ...p, 
+  _expanded: abiertos.has(p.id), 
+  // Usar el valor real de la base de datos
+  recibido_manual: p.estado === 'Confirmado',
+  estado: p.estado || 'Pendiente',
+  esta_presente: p.esta_presente === true || p.esta_presente === 1,
+  // Asegurar que numero_bosquejo no sea nulo
+  numero_bosquejo: p.numero_bosquejo || "",
+  email_enviado: false, 
+  carta_recibida_check: false, 
+  jwpub_enviado: false, 
+  recordatorio_enviado: false, 
+  ensayo_terminado: p.ensayo_terminado || false,
+  whatsapp_enviado: false,
+  recordatorio_whatsapp_enviado: false
+}));
         // Actualizar lista global de oradores pendientes (aquellos sin estado 'Confirmado')
         const pendientes = partes
           .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
@@ -146,15 +145,14 @@
       
       if (datos && Array.isArray(datos)) {
           datos.forEach(d => {
-              // No asumir confirmación por defecto
-              // Forzar 'Pendiente' al cargar la asignación para evitar que aparezca RECIBIDO por defecto
-              d.estado = 'Pendiente';
-              d.recibido_manual = false;
-              d.esta_presente = d.esta_presente || false;
-              d.ensayo_terminado = d.ensayo_terminado || false;
-              d.carta_recibida_check = false;
-              d.whatsapp_enviado = false;
-              d.recordatorio_whatsapp_enviado = false;
+    // Respetar el valor de la base de datos
+    d.estado = d.estado || 'Pendiente';
+    d.recibido_manual = d.estado === 'Confirmado';
+    d.esta_presente = d.esta_presente === true || d.esta_presente === 1;
+    d.ensayo_terminado = d.ensayo_terminado || false;
+    d.carta_recibida_check = false;
+    d.whatsapp_enviado = false;
+    d.recordatorio_whatsapp_enviado = false;
 
               if (d.tipo_asignacion === 'personal_oficina') {
                   nuevaOficina.personal.push(d);
@@ -213,78 +211,108 @@
   }
 
   async function toggleStatus(objeto: any, campo: string) {
-      objeto[campo] = !objeto[campo];
-      partes = partes; 
-      actualizarVistaOficina(objeto);
-  }
-
-  async function toggleConfirmado(objeto: any) {
     if (!objeto || !objeto.id) return;
 
-    // Respaldo del valor anterior
-    const valorAnterior = objeto.recibido_manual;
+    // Guardar estado anterior por si hay error
+    const estadoAnterior = objeto[campo];
 
     try {
-        // Cambio visual inmediato
-        objeto.recibido_manual = !objeto.recibido_manual;
-        // Sincronizar campo 'estado' por compatibilidad (si es necesario)
-        objeto.estado = objeto.recibido_manual ? 'Confirmado' : 'Pendiente';
-        partes = partes; // forzar actualización
+        // Nuevo estado (toggle)
+        const nuevoEstado = !objeto[campo];
 
-        // Llamada al backend con el nuevo valor
+        // Actualización visual optimista
+        objeto[campo] = nuevoEstado;
+        partes = partes; // forzar reactividad
+
+        // Llamada al backend (el campo 'ensayo_terminado' se pasa como tipoAccion)
         await invoke('alternar_estado_parte', {
             id: objeto.id,
-            tipoAccion: 'confirmacion',
-            valorActual: objeto.recibido_manual // true/false
+            tipoAccion: campo,      // 'ensayo_terminado', 'email_enviado', etc.
+            valorNuevo: nuevoEstado
         });
 
         actualizarVistaOficina(objeto);
 
-        // Actualizar lista de pendientes si existe
+    } catch (e) {
+        console.error('Error en toggleStatus:', e);
+        alert('Error al guardar: ' + e);
+        // Revertir cambios visuales si falla
+        objeto[campo] = estadoAnterior;
+        partes = partes;
+    }
+}
+
+  async function toggleConfirmado(objeto: any) {
+    if (!objeto || !objeto.id) return;
+
+    // 1. Guardamos el estado anterior por si hay error
+    const estadoAnterior = objeto.recibido_manual;
+
+    try {
+        // 2. Calculamos el NUEVO estado deseado
+        const nuevoEstado = !objeto.recibido_manual;
+
+        // 3. Actualizamos visualmente primero (Optimistic UI)
+        objeto.recibido_manual = nuevoEstado;
+        objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
+        partes = partes; // Reactividad Svelte
+
+        // 4. Enviamos a Rust el NUEVO estado
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'confirmacion', // Se convierte a tipo_accion en Rust
+            valorNuevo: nuevoEstado     // Se convierte a valor_nuevo en Rust
+        });
+
+        actualizarVistaOficina(objeto);
+
+        // Actualizar store de pendientes si existe
         if (typeof oradoresPendientes !== 'undefined') {
             const pendientes = partes
                 .filter(p => p.nombre_orador && (!p.recibido_manual))
-                .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.recibido_manual ? 'Confirmado' : 'Pendiente' }));
+                .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: 'Pendiente' }));
             oradoresPendientes.set(pendientes);
         }
+
     } catch (e) {
         console.error('Error toggleConfirmado:', e);
         alert('Error backend: ' + e);
-        // Revertir cambios
-        objeto.recibido_manual = valorAnterior;
-        objeto.estado = valorAnterior ? 'Confirmado' : 'Pendiente';
+        // Revertir cambios visuales si falla
+        objeto.recibido_manual = estadoAnterior;
+        objeto.estado = estadoAnterior ? 'Confirmado' : 'Pendiente';
         partes = partes;
     }
 }
 
   async function togglePresente(objeto: any) {
-      if (!objeto || !objeto.id) return;
+    if (!objeto || !objeto.id) return;
 
-      // 1. Respaldo
-      const valorAnterior = objeto.esta_presente;
+    const estadoAnterior = objeto.esta_presente;
 
-      try {
-          // 2. Cambio Visual
-          objeto.esta_presente = !objeto.esta_presente;
-          partes = partes; 
+    try {
+        const nuevoEstado = !objeto.esta_presente;
 
-          // 3. Llamada al Backend (CORREGIDA)
-          await invoke('alternar_estado_parte', { 
-              id: objeto.id, 
-              tipoAccion: 'presencia',     // camelCase (Correcto)
-              valorActual: !!valorAnterior // camelCase (AQUÍ ESTABA EL ERROR)
-          });
+        // Actualización Visual
+        objeto.esta_presente = nuevoEstado;
+        partes = partes;
 
-          actualizarVistaOficina(objeto);
+        // Llamada al Backend
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'presencia',
+            valorNuevo: nuevoEstado // Enviamos explícitamente true o false
+        });
 
-      } catch (e) {
-          console.error('Error togglePresente:', e);
-          alert('Error: ' + e);
-          // Revertir
-          objeto.esta_presente = valorAnterior;
-          partes = partes;
-      }
-  }
+        actualizarVistaOficina(objeto);
+
+    } catch (e) {
+        console.error('Error togglePresente:', e);
+        alert('Error: ' + e);
+        // Revertir
+        objeto.esta_presente = estadoAnterior;
+        partes = partes;
+    }
+}
 
  // --- BOTÓN 1: WHATSAPP PARA ASIGNACIÓN (CARTA / RECORDATORIO DE ASIGNACIÓN) ---
 async function abrirWhatsAppAsignacion(objeto: any) {

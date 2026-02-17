@@ -89,6 +89,7 @@ pub struct PartePrograma {
     pub esta_presente: bool,
     // 👇 CAMBIO ÚNICO: Soporte para el número de bosquejo
     pub numero_bosquejo: Option<String>,
+    pub ensayo_terminado: bool, // ✅ AGREGA ESTO
 }
 
 // ==========================================

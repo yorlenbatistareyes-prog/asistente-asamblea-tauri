@@ -189,7 +189,8 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN congregacion TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
-
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN ensayo_terminado BOOLEAN DEFAULT 0", []);
+    
     // --- 9. CONFIGURACIÓN GENERAL ---
 
     conn.execute(
