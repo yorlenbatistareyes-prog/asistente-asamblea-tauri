@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { 
-    User, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users 
+    User, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
@@ -13,10 +13,9 @@
   let saludo = "Hola"; 
   let temaActual = 'sistema';
   
-  // --- VARIABLES PARA GESTIÓN DE SALONES ---
+  // --- VARIABLES GESTIÓN SALONES ---
   let mostrarModalLocales = false;
   let listaLocales: any[] = [];
-  // Objeto completo con todos los datos
   let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
   onMount(async () => {
@@ -26,7 +25,14 @@
     cargarLocales(); 
   });
 
-  // --- LÓGICA DE SALONES ---
+  // --- FUNCIÓN QUE ARREGLA EL BOTÓN ---
+  function abrirModalSalones() {
+      console.log("Abriendo modal de salones..."); // Para verificar en consola
+      mostrarModalLocales = true; // 1. Abrimos modal inmediatamente
+      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; // 2. Limpiamos
+      cargarLocales(); // 3. Cargamos datos
+  }
+
   async function cargarLocales() {
       try { listaLocales = await invoke('obtener_locales') as any[]; } catch(e) { console.error(e); }
   }
@@ -34,10 +40,10 @@
   async function guardarLocal() {
     if (!nuevoLocal.nombre) return alert("El nombre es obligatorio");
     try {
+        // OJO: Tu backend en Rust debe aceptar estos campos nuevos (direccion, estado, capacidad)
         await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
-        // Limpiar formulario completo
-        nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
         cargarLocales();
+        nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
     } catch (e) { alert("Error al guardar: " + e); }
   }
 
@@ -109,7 +115,7 @@
                 {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
             </button>
             
-            <button class="btn-nav" on:click={() => { cargarLocales(); mostrarModalLocales=true; }}>
+            <button class="btn-nav" on:click={abrirModalSalones}>
                 <Building size={16}/><span>Salones</span>
             </button>
             
@@ -185,7 +191,9 @@
                             <div class="item-info">
                                 <div class="item-title">
                                     <strong>{l.nombre}</strong>
-                                    <span class="badge-cap"><Users size={10}/> {l.capacidad}</span>
+                                    {#if l.capacidad}
+                                        <span class="badge-cap"><Users size={10}/> {l.capacidad}</span>
+                                    {/if}
                                 </div>
                                 <div class="item-details">
                                     <MapPin size={10}/> {l.direccion || 'Sin dirección'}, {l.ciudad}
