@@ -16,11 +16,7 @@
 
   // --- ESTADO ---
   let asambleaId = 0; 
-  
-  // Pestaña Principal Activa (Por defecto Auxiliares)
-  let tabPrincipal = 'auxiliares'; // 'auxiliares', 'horario', 'asignaciones'
-  
-  // Día seleccionado (Solo afecta a la pestaña de Asignaciones)
+  let tabPrincipal = 'auxiliares'; 
   let diaSeleccionado = 'Viernes';
   
   let oficina: { [key: string]: any } = {
@@ -50,9 +46,6 @@
   async function cargarDatos() {
     if (!asambleaId) return;
     try { 
-        // IMPORTANTE: Aquí cargamos los datos del día seleccionado.
-        // Nota: Para que los auxiliares sean "Generales", idealmente deberían guardarse en un día fijo en BD
-        // o modificar el backend. Por ahora, cargamos lo que hay en el día actual para mantener compatibilidad.
         const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: diaSeleccionado }) as any[]; 
         organizarOficina(datos); 
     } catch (e) { console.error(e); }
@@ -63,7 +56,6 @@
     listaHermanos = await invoke('obtener_personas', { asambleaId }) as any[]; 
   }
 
-  // Recargar datos si cambia el día (Solo relevante para la pestaña asignaciones, pero refrescamos todo)
   $: if (diaSeleccionado && asambleaId) cargarDatos();
 
   function organizarOficina(datos: any[]) {
@@ -75,7 +67,6 @@
       
       if (datos && Array.isArray(datos)) {
           datos.forEach(d => {
-              // Normalizar booleanos
               d.recibido_manual = d.estado === 'Confirmado';
               d.esta_presente = d.esta_presente === true || d.esta_presente === 1;
               d.ensayo_terminado = d.ensayo_terminado || false;
@@ -149,33 +140,31 @@
       } catch (e) { alert("Error: " + e); }
   }
 
-  // --- CAMBIO DE ESTADOS (CONFIRMAR, PRESENTE, ETC) ---
+  // --- CAMBIO DE ESTADOS ---
   async function toggleStatus(objeto: any, campo: string, tipoAccionBackend: string) {
       if (!objeto || !objeto.id) return;
       const nuevoEstado = !objeto[campo];
       try {
-          objeto[campo] = nuevoEstado; // Actualización optimista
+          objeto[campo] = nuevoEstado;
           if (campo === 'recibido_manual') objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
           
           await invoke('alternar_estado_oficina', {
               id: objeto.id, tipoAccion: tipoAccionBackend, valorNuevo: nuevoEstado
           });
           
-          // Actualizar vista localmente
           if (objeto.es_personal) {
              const idx = oficina.personal.findIndex((p: any) => p.id === objeto.id);
              if (idx >= 0) oficina.personal[idx] = { ...objeto };
           } else if (objeto.rol_key) {
              oficina[objeto.rol_key] = { ...objeto };
           }
-          oficina = {...oficina}; // Trigger reactividad
+          oficina = {...oficina};
       } catch (e) { 
           alert("Error: " + e); 
-          objeto[campo] = !nuevoEstado; // Revertir
+          objeto[campo] = !nuevoEstado;
       }
   }
 
-  // Mapa de plantillas para oficina (simplificado para el ejemplo)
   const MAPA_PLANTILLAS: Record<string, string> = {
       'presidente': 'presidentes', 'oracion': 'oraciones', 'plataforma': 'oradores', 'default': 'oradores'
   };
@@ -193,7 +182,6 @@
       } catch(e) { alert("Error PDF: " + e); }
   }
 
-  // --- FILTRO ---
   const getHermanosFiltrados = () => !terminoBusqueda ? listaHermanos : listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
 </script>
@@ -227,7 +215,10 @@
         {#if tabPrincipal === 'auxiliares'}
             <div class="panel-full">
                 <div class="header-panel">
-                    <h4><Users size={16}/> Auxiliares Registrados</h4>
+                    <div class="header-textos">
+                        <h4><Users size={16}/> Auxiliares Registrados</h4>
+                        <span class="subtitulo-suave">Personal de la oficina y apoyo a la Asamblea</span>
+                    </div>
                     <button class="btn-mini-add" on:click={() => abrirModalAsignar('personal_oficina')}>
                         <UserPlus size={14}/> Añadir Personal
                     </button>
@@ -272,6 +263,10 @@
         {#if tabPrincipal === 'asignaciones'}
             <div class="layout-asignaciones">
                 
+                <p class="descripcion-seccion">
+                    Presidente de sesión, oraciones, seguimiento a bosquejos y acompañante a la plataforma
+                </p>
+
                 <div class="bar-dias">
                     <span class="label-dia">Seleccionar día:</span>
                     <div class="tabs-dias">
@@ -380,7 +375,7 @@
 {/if}
 
 <style>
-    /* VARIABLES (Simuladas si no existen globales) */
+    /* VARIABLES */
     :root { --bg-aux: #f8fafc; }
 
     .contenedor-oficina { padding: 20px 40px; height: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
@@ -415,9 +410,19 @@
     .area-contenido { flex: 1; min-height: 0; display: flex; flex-direction: column; }
     .panel-full { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; flex: 1; display: flex; flex-direction: column; }
     .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-    .header-panel h4 { margin: 0; font-size: 15px; color: var(--text-main); display: flex; gap: 8px; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-textos h4 { margin: 0; font-size: 15px; color: var(--text-main); display: flex; gap: 8px; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-textos .subtitulo-suave { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 400; }
+    
     .header-panel.sun h4 { color: #d97706; }
     .header-panel.sunset h4 { color: #ea580c; }
+
+    /* DESCRIPCIÓN SIMPLE */
+    .descripcion-seccion {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin: 0 0 5px 0;
+        padding-left: 5px;
+    }
 
     /* AUXILIARES GRID */
     .lista-personal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; overflow-y: auto; padding: 5px; }
@@ -443,7 +448,7 @@
     .btn-mini-add { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; }
 
     /* ASIGNACIONES LAYOUT */
-    .layout-asignaciones { display: flex; flex-direction: column; gap: 20px; height: 100%; }
+    .layout-asignaciones { display: flex; flex-direction: column; gap: 15px; height: 100%; }
     .bar-dias { display: flex; align-items: center; gap: 15px; background: var(--bg-card); padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border-color); }
     .label-dia { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
     .tabs-dias { display: flex; gap: 5px; }
@@ -464,7 +469,7 @@
     .placeholder-horario { text-align: center; color: var(--text-secondary); }
     .placeholder-horario h3 { margin: 10px 0 5px 0; color: var(--text-main); }
 
-    /* MODALES (Mismo estilo anterior) */
+    /* MODALES */
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
     .modal { background: var(--bg-card); padding: 20px; border-radius: 12px; width: 400px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .modal-grande { width: 600px; }
