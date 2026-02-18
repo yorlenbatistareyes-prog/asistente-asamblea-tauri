@@ -379,10 +379,16 @@ pub fn crear_asamblea(
 pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
     let conn = conectar_db(&app);
     let mut stmt = conn
-        .prepare("SELECT id, tema, fecha, identificador FROM asambleas ORDER BY id DESC")
+        .prepare("SELECT id, tema, fecha, identificador, local_id FROM asambleas ORDER BY id DESC")
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map([], |row| {
-        Ok(serde_json::json!({ "id": row.get::<_, i64>(0)?, "tema": row.get::<_, String>(1)?, "fecha": row.get::<_, String>(2)?, "identificador": row.get::<_, Option<String>>(3)? }))
+        Ok(serde_json::json!({
+            "id": row.get::<_, i64>(0)?,
+            "tema": row.get::<_, String>(1)?,
+            "fecha": row.get::<_, String>(2)?,
+            "identificador": row.get::<_, Option<String>>(3)?,
+            "local_id": row.get::<_, Option<i32>>(4)?
+        }))
     }).map_err(|e| e.to_string())?;
     let mut asambleas = Vec::new();
     for row in rows {

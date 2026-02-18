@@ -5,13 +5,13 @@
   import { ask } from "@tauri-apps/plugin-dialog";
   import { vistaActual } from '$lib/stores/appStore';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
-  import { Plus, Calendar, Trash2, Lectern, X, Building } from 'lucide-svelte';
+  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe } from 'lucide-svelte';
 
   // DATOS
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = [];
   let mostrarModal = false;
-  let form = { tema: "", fecha: "", local_id: null, identificador: "" };
+  let form = { tema: "", fecha: "", local_id: null, identificador: "", idioma: "Español" };
 
   onMount(() => { cargarTodo(); });
 
@@ -23,20 +23,44 @@
   }
 
   function abrirModal() {
-      form = { tema: "", fecha: "", local_id: null, identificador: "" };
+      form = { tema: "", fecha: "", local_id: null, identificador: "", idioma: "Español" };
       mostrarModal = true;
   }
 
   async function crear() {
-      if(!form.tema) return;
-      let lugar = "Sin asignar";
-      let locId = null;
+      if(!form.tema) return; // Validación mínima
+      
+      // 1. Valores por defecto
+      let nombreLugar = "Sin asignar";
+      let idFinal = null;
+
+      // 2. Lógica de búsqueda segura
       if(form.local_id) {
-          const loc: any = listaLocales.find((x:any)=>x.id == form.local_id);
-          if(loc) { lugar = loc.nombre; locId = loc.id; }
+          // Convertimos a número para asegurar que la búsqueda funcione
+          const idBuscado = Number(form.local_id);
+          
+          // Buscamos el salón en la lista comparando números
+          const loc = listaLocales.find((x:any) => x.id === idBuscado);
+          
+          if(loc) { 
+              // Si existe, armamos el texto: "Nombre, Ciudad"
+              nombreLugar = loc.nombre; 
+              if (loc.ciudad) {
+                  nombreLugar += `, ${loc.ciudad}`;
+              }
+              idFinal = idBuscado; 
+          }
       }
-      await invoke('crear_asamblea', { ...form, lugar, localId: locId });
-      mostrarModal = false; cargarTodo();
+
+      // 3. Enviar al Backend (asegurando que mandamos 'lugar' con el texto correcto)
+      await invoke('crear_asamblea', { 
+          ...form, 
+          lugar: nombreLugar, 
+          localId: idFinal 
+      });
+      
+      mostrarModal = false; 
+      cargarTodo();
   }
 
   async function borrar(id: number, e: Event) {
@@ -50,6 +74,23 @@
   function gestionar(item: any) {
       localStorage.setItem('asambleaActiva', JSON.stringify(item));
       goto('/gestion');
+  }
+
+  // ESTA FUNCIÓN ES LA CLAVE PARA QUE SALGA EL NOMBRE
+  function obtenerNombreLugar(idLocal: any) {
+      if (!idLocal) return "Sin asignar";
+      
+      // Buscamos en la lista de locales (convertimos a texto para asegurar coincidencia)
+      const local = listaLocales.find((l: any) => l.id == idLocal);
+      
+      if (local) {
+          // Si tiene ciudad, mostramos "Nombre, Ciudad"
+          if (local.ciudad && local.ciudad.trim() !== "") {
+              return `${local.nombre}, ${local.ciudad}`;
+          }
+          return local.nombre;
+      }
+      return "Salón no encontrado"; // Opcional: podrías poner "Sin asignar" también aquí
   }
 </script>
 
@@ -80,7 +121,7 @@
                                     <div class="info-line">
                                         <Building size={16} class="ico-dark"/> 
                                         <div class="info-col">
-                                            <b>{item.lugar||'Sin lugar'}</b>
+                                            <b>{obtenerNombreLugar(item.local_id)}</b>
                                             <span>Ubicación</span>
                                         </div>
                                     </div>
@@ -90,6 +131,14 @@
                                         <div class="info-col">
                                             <b>{item.fecha}</b>
                                             <span>Fecha</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-line">
+                                        <Globe size={16} class="ico-dark"/> 
+                                        <div class="info-col">
+                                            <b>{item.idioma || 'Español'}</b>
+                                            <span>Idioma</span>
                                         </div>
                                     </div>
                                 </div>
@@ -104,7 +153,7 @@
                                     <Trash2 size={18}/>
                                 </button>
                                 <button class="btn-manage-blue" on:click={()=>gestionar(item)}>
-                                    Gestionar Datos &rarr;
+                                    Gestionar Asamblea &rarr;
                                 </button>
                             </div>
                         </div>
@@ -117,9 +166,29 @@
     {#if mostrarModal}
         <div class="modal-bg" on:click|self={()=>mostrarModal=false}>
             <div class="modal">
-                <div class="modal-head"><h3>Nueva Asamblea</h3><button on:click={()=>mostrarModal=false}><X size={20}/></button></div>
+                <div class="modal-head">
+                    <h3>Nueva Asamblea</h3>
+                    <button class="btn-close-text" on:click={() => mostrarModal = false}>
+                        Cerrar
+                    </button>
+                </div>
+
                 <div class="modal-form">
-                    <label>Identificador</label><input bind:value={form.identificador} placeholder="Ej: 2026-A">
+                    <div style="display: flex; gap: 15px;">
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                            <label>Identificador</label>
+                            <input bind:value={form.identificador} placeholder="Ej: 2026-A">
+                        </div>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                            <label>Idioma</label>
+                            <select bind:value={form.idioma}>
+                                <option>Español</option>
+                                <option>LSC</option>
+                                <option>Inglés</option>
+                                <option>Francés</option>
+                            </select>
+                        </div>
+                    </div>
                     <label>Tema</label><input bind:value={form.tema} placeholder="Tema de la asamblea">
                     <label>Fecha</label><input bind:value={form.fecha} placeholder="Fecha">
                     <label>Lugar</label>
@@ -145,8 +214,23 @@
     .dashboard { padding: 30px 40px; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
     .action-bar h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--text-main); }
-    .btn-new { background: #1e293b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; display: flex; gap: 8px; cursor: pointer; transition: background 0.2s; }
-    .btn-new:hover { background: #334155; }
+    /* BOTÓN NUEVA ASAMBLEA (Color Azul Unificado) */
+    .btn-new { 
+        background: #1e40af; /* Mismo azul que la etiqueta */
+        color: white; 
+        border: none; 
+        padding: 10px 20px; 
+        border-radius: 8px; 
+        font-weight: 600; 
+        display: flex; 
+        gap: 8px; 
+        cursor: pointer; 
+        transition: background 0.2s; 
+        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25); /* Sombra azul suave */
+    }
+    .btn-new:hover { 
+        background: #1e3a8a; /* Un azul un poco más oscuro al pasar el mouse */
+    }
     
     .list-container { background: rgba(255,255,255,0.5); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); }
     .list-header { font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 20px; display: flex; gap: 8px; align-items: center; }
@@ -245,11 +329,50 @@
     /* MODAL */
     .modal-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
     .modal { background: var(--bg-card); width: 400px; padding: 25px; border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
-    .modal-head { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: 700; font-size: 18px; color: var(--text-main); }
+    
     .modal-form { display: flex; flex-direction: column; gap: 10px; }
     .modal-form input, select { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-main); }
     .modal-form label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
     .modal-foot { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
     .btn-pri { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
     .btn-sec { background: transparent; border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
+
+  .modal-head { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; /* <--- ESTO ES LA CLAVE. Evita que el botón se estire a lo alto */
+    margin-bottom: 20px; 
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+    /* Botón Cerrar: Rectángulo pequeño y ajustado al texto */
+/* Botón Cerrar: Pequeño y ajustado */
+.btn-close-text {
+    /* FORZAR TAMAÑO */
+    width: fit-content !important;  /* Solo el ancho del texto */
+    height: auto !important;        /* Altura automática */
+    padding: 4px 8px !important;    /* Relleno muy pequeño */
+    margin: 0 !important;
+    
+    /* ESTÉTICA */
+    background: transparent;
+    border: 1px solid transparent;  /* Borde invisible */
+    border-radius: 4px;
+    
+    /* TEXTO */
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-close-text:hover {
+    background: #f1f5f9;            /* Fondo gris muy claro */
+    border-color: #cbd5e1;          /* Borde gris visible */
+    color: #0f172a;                 /* Texto oscuro */
+}
+
 </style>
