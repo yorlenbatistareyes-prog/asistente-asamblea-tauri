@@ -1,272 +1,176 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
-  import { Lectern, Activity, User } from 'lucide-svelte';
-  import Actualizaciones from '$lib/components/ui/Actualizaciones.svelte';
+  import { 
+    User, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2 
+  } from 'lucide-svelte';
+  import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
+  import { goto } from '$app/navigation';
+  import { invoke } from '@tauri-apps/api/core';
+
+  // --- VARIABLES ---
+  let horaActual = "";
+  let fechaActual = "";
+  let saludo = "Hola"; 
+  let temaActual = 'sistema';
+  
+  // Modal Salones (Global)
+  let mostrarModalLocales = false;
+  let listaLocales: any[] = [];
+  let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
   onMount(async () => {
     await cargarDatosGlobales();
-
-    const temaGuardado = localStorage.getItem('temaApp') || 'sistema';
-    aplicarTema(temaGuardado);
-
-    window.addEventListener('cambiarTemaGlobal', (e: any) => {
-      aplicarTema(e.detail.tema);
-    });
-
-    window.addEventListener('storage', () => {
-      const nuevoTema = localStorage.getItem('temaApp');
-      if (nuevoTema) aplicarTema(nuevoTema);
-    });
+    iniciarReloj(); 
+    cargarTemaGuardado();
+    cargarLocales();
   });
 
+  async function cargarLocales() {
+      try { listaLocales = await invoke('obtener_locales') as any[]; } catch(e) { console.error(e); }
+  }
+
+  // --- RELOJ ---
+  function iniciarReloj() {
+    actualizarTiempo(); setInterval(actualizarTiempo, 1000); 
+  }
+  function actualizarTiempo() {
+    const ahora = new Date();
+    horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const opciones = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } as const;
+    let f = ahora.toLocaleDateString('es-ES', opciones);
+    fechaActual = f.charAt(0).toUpperCase() + f.slice(1);
+    const h = ahora.getHours(); 
+    saludo = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
+  }
+
+  // --- TEMA ---
+  function cargarTemaGuardado() {
+    const t = localStorage.getItem('temaApp');
+    if (t) temaActual = t;
+    aplicarTema(temaActual);
+  }
+  function cambiarTema() {
+      temaActual = temaActual === 'sistema' ? 'claro' : temaActual === 'claro' ? 'oscuro' : 'sistema';
+      localStorage.setItem('temaApp', temaActual);
+      aplicarTema(temaActual);
+  }
   function aplicarTema(modo: string) {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    const esOscuroSistema = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (modo === 'oscuro' || (modo === 'sistema' && esOscuroSistema)) {
-      root.classList.add('dark-theme');
-    } else {
-      root.classList.remove('dark-theme');
-    }
+      const root = document.documentElement;
+      const oscuro = modo === 'oscuro' || (modo === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (oscuro) root.classList.add('dark-theme'); else root.classList.remove('dark-theme');
+  }
+
+  // --- ACCIONES ---
+  function irInicio() { vistaActual.set('inicio'); goto('/'); }
+  function irConfig() { vistaActual.set('configuracion'); }
+
+  async function guardarLocal() {
+    if (!nuevoLocal.nombre) return;
+    await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
+    nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; cargarLocales();
+  }
+  async function eliminarLocal(id: number) {
+     if(confirm("¿Borrar salón?")) { await invoke('eliminar_local', { id }); cargarLocales(); }
   }
 </script>
 
-<slot />
+<div class="app-layout">
+    <header class="top-header">
+        <div class="header-left">
+            <div class="avatar"><User size={24} /></div>
+            <div class="user-data">
+                <h2>{saludo}, {$appStore.usuario}</h2>
+                <span>{fechaActual}</span>
+            </div>
+        </div>
 
-<footer class="status-bar">
-  <div class="status-left">
-    <div class="connection-status">
-      <span class="dot pulse"></span>
-      <span class="status-label hide-mobile">Sistema Conectado</span> 
-      <strong class="tech-stack hide-mobile">(Rust/Tauri)</strong>
-    </div>
-    
-    <span class="separator">|</span>
-    
-    <div class="user-status">
-      <User size={14} />
-      <span class="hide-mobile">Usuario:</span> 
-      <strong class="text-truncate">{$appStore.usuario}</strong>
-    </div>
-  </div>
+        <div class="header-center">
+            <Clock size={16}/> <span>{horaActual}</span>
+        </div>
 
-  <div class="status-center">
-    <span>Construido y diseñado para Presidentes de Asambleas Regionales</span>
-  </div>
+        <div class="header-right">
+            <button class="btn-nav" on:click={irInicio} title="Inicio"><Home size={18}/><span>Inicio</span></button>
+            <button class="btn-icon" on:click={cambiarTema}>
+                {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
+            </button>
+            <button class="btn-nav" on:click={()=>mostrarModalLocales=true}><Building size={16}/><span>Salones</span></button>
+            <button class="btn-icon" on:click={irConfig}><Settings size={18}/></button>
+        </div>
+    </header>
 
-  <div class="status-right">
-    <div class="stat-item">
-      <Lectern size={14} />
-      <span class="hide-mobile">Asambleas:</span>
-      <strong>{$appStore.asambleas.length}</strong>
-    </div>
-    
-    <span class="separator">|</span>
-    
-    <div class="version-info">
-      <Activity size={14} />
-      <span class="app-version">v{$appStore.version}</span>
-    </div>
-    
-    <span class="separator">|</span>
-    
-    <div class="update-box">
-      <Actualizaciones />
-    </div>
-  </div>
-</footer>
+    <main class="main-content">
+        <slot />
+    </main>
+
+    <footer class="status-bar">
+        <div class="status-left">
+            <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
+        </div>
+        <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
+        <div class="status-right">v1.0.0</div>
+    </footer>
+
+    {#if mostrarModalLocales}
+      <div class="modal-backdrop" on:click|self={()=>mostrarModalLocales=false}>
+        <div class="modal-box">
+            <div class="modal-top"><h3>Gestión de Salones</h3><button on:click={()=>mostrarModalLocales=false}><X size={20}/></button></div>
+            <div class="form-grid">
+                <input placeholder="Nombre" bind:value={nuevoLocal.nombre}>
+                <input placeholder="Ciudad" bind:value={nuevoLocal.ciudad}>
+                <button class="btn-blue" on:click={guardarLocal}>Guardar</button>
+            </div>
+            <div class="list-scroll">
+                {#each listaLocales as l}
+                    <div class="list-item"><span>{l.nombre}</span><button class="btn-red" on:click={()=>eliminarLocal(l.id)}><Trash2 size={14}/></button></div>
+                {/each}
+            </div>
+        </div>
+      </div>
+    {/if}
+</div>
 
 <style>
-  /* === VARIABLES CSS GLOBALES === */
+  /* VARIABLES */
   :global(:root) {
-      --bg-body: #f8fafc;
-      --bg-card: #ffffff;
-      --bg-secondary: #f1f5f9;
-      --text-main: #1e293b;
-      --text-secondary: #64748b;
-      --border-color: #e2e8f0;
-      --primary: #0078d4;
-      --input-bg: #ffffff;
-      --shadow-color: rgba(0,0,0,0.05);
-      --hover-bg: #e2e8f0;
+      --bg-body: #f8fafc; --bg-card: #ffffff; --text-main: #1e293b; --text-sec: #64748b;
+      --border: #e2e8f0; --primary: #0078d4; 
+      --status-bg: #EBEBEB; --status-text: #000000;
   }
-
   :global(html.dark-theme) {
-      --bg-body: #0f172a;       
-      --bg-card: #1e293b;       
-      --bg-secondary: #334155;  
-      --text-main: #f8fafc;     
-      --text-secondary: #cbd5e1; 
-      --border-color: #334155;  
-      --primary: #3b82f6;       
-      --input-bg: #1e293b;
-      --shadow-color: rgba(0,0,0,0.3);
-      --hover-bg: #334155;
+      --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc; --text-sec: #cbd5e1;
+      --border: #334155; --primary: #3b82f6;
+      --status-bg: #1e293b; --status-text: #f1f5f9;
   }
+  :global(body) { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); overflow: hidden; }
 
-  :global(body) { 
-      margin: 0; 
-      font-family: 'Segoe UI', sans-serif; 
-      background: var(--bg-body); 
-      color: var(--text-main); 
-      transition: background 0.3s, color 0.3s;
-  }
+  /* LAYOUT */
+  .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+  .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
 
-  /* === BARRA DE ESTADO === */
-  .status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 32px;
-    background-color: #1e293b;
-    color: #94a3b8;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 12px;
-    font-size: 12px;
-    z-index: 2000;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-  }
+  /* HEADER */
+  .top-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); border-bottom: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 50; }
+  .header-left { display: flex; gap: 12px; align-items: center; }
+  .avatar { width: 40px; height: 40px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
+  .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
+  .header-center { background: var(--bg-body); padding: 5px 15px; border-radius: 20px; border: 1px solid var(--border); display: flex; gap: 8px; font-weight: 700; }
+  .header-right { display: flex; gap: 8px; }
+  .btn-nav { background: var(--bg-body); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 6px; color: var(--text-main); font-weight: 600; }
+  .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); }
+  .btn-nav:hover, .btn-icon:hover { background: var(--border); }
 
-  .status-left, .status-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1; 
-  }
+  /* FOOTER */
+  .status-bar { position: fixed; bottom: 0; width: 100%; height: 32px; background: var(--status-bg); color: var(--status-text); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 12px; font-weight: 600; border-top: 1px solid var(--border); z-index: 100; transition: background 0.3s; box-sizing: border-box; }
+  .status-center span, .tech { color: inherit; } .tech { color: #059669; }
+  .dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
 
-  .status-right {
-    justify-content: flex-end;
-  }
-
-  .status-center {
-    flex: 2;
-    text-align: center;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .connection-status, .user-status, .stat-item, .version-info {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    background-color: #22c55e;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .dot.pulse {
-    animation: pulse-green 2s infinite;
-  }
-
-  @keyframes pulse-green {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-  }
-
-  .separator {
-    color: rgba(255,255,255,0.2);
-    margin: 0 2px;
-  }
-
-  strong {
-    color: #f1f5f9;
-    font-weight: 600;
-  }
-
-  .tech-stack {
-    color: #4ade80;
-  }
-
-  .text-truncate {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    vertical-align: bottom;
-  }
-
-  /* === RESPONSIVE === */
-  
-  /* 1. Ocultar texto central en pantallas medianas */
-  @media (max-width: 900px) {
-    .status-center { display: none; }
-  }
-
- /* 2. MODO MÓVIL (Pantallas Pequeñas) */
-@media (max-width: 650px) {
-  .hide-mobile { display: none; }
-  
-  .status-bar { padding: 0 8px; }
-  .status-left, .status-right { gap: 8px; }
-  .text-truncate { max-width: 80px; }
-
-  /* Botón de actualizar */
-  .update-box :global(button) {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 28px !important;
-    height: 28px !important;
-    padding: 0 !important;
-    background-color: var(--primary) !important;
-    border: none !important;
-    border-radius: 4px !important;
-    font-size: 0 !important;
-  }
-
-  /* El span que envuelve al SVG también debe centrar */
-  .update-box :global(button span) {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 100% !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    line-height: 1 !important;
-  }
-
-  /* El SVG dentro del botón */
-  .update-box :global(button svg) {
-    display: block !important;
-    width: 18px !important;
-    height: 18px !important;
-    color: white !important;
-    stroke: white !important;
-    stroke-width: 2.5 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-}
-
-/* Para pantallas extremadamente pequeñas (menos de 400px) */
-@media (max-width: 400px) {
-  .update-box :global(button) {
-    width: 24px !important;
-    height: 24px !important;
-  }
-  .update-box :global(button svg) {
-    width: 14px !important;
-    height: 14px !important;
-    stroke-width: 2 !important;
-  }
-}
-
+  /* MODAL */
+  .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); }
+  .modal-box { background: var(--bg-card); padding: 20px; border-radius: 12px; width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid var(--border); }
+  .modal-top { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: 700; }
+  .form-grid { display: flex; gap: 5px; margin-bottom: 10px; }
+  .form-grid input { flex: 1; padding: 8px; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-main); border-radius: 6px; }
+  .btn-blue { background: var(--primary); color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; }
+  .list-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--border); }
+  .btn-red { color: #ef4444; background: none; border: none; cursor: pointer; }
+  button { font-family: inherit; }
 </style>
