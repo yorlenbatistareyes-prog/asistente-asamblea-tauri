@@ -2,27 +2,12 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
+  import Oficina from '$lib/components/gestion/Oficina.svelte';
+
   // --- IMPORTAMOS LOS ICONOS ---
-  import { 
-    Users, 
-    Home, 
-    ArrowLeft, 
-    Bookmark, 
-    BookUser,   // Para Registro de Personas
-    UserCog,    // Para Comité y Admin
-    Mic2,       // Para Programa y Oradores
-    PanelLeftClose, // Icono para ocultar sidebar
-    PanelLeftOpen,
-    IdCard,
-    UserCheck,
-    ListChecks,
-    ClipboardList,
-    Network,
-    Layers,
-    Key,
-    HeartHandshake,
-    Workflow // Icono para mostrar sidebar
-  } from 'lucide-svelte';
+  import { Users, Home, ArrowLeft, Bookmark, BookUser, UserCog, Mic2, PanelLeftClose, PanelLeftOpen,
+    IdCard, UserCheck, ListChecks, ClipboardList, Network, Layers, Key, HeartHandshake, 
+    Workflow, Briefcase } from 'lucide-svelte';
   
   // --- COMPONENTES ---
   import Resumen from '$lib/components/gestion/Resumen.svelte';
@@ -153,6 +138,11 @@ if (asambleaActual?.id) {
       <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa y Oradores">
         <Mic2 size={20} class="icono-nav" /> <span class="texto-menu">Programa y Oradores</span>
       </button>
+
+      <button class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')} title="Oficina">
+        <Briefcase size={20} class="icono-nav" /> <span class="texto-menu">Oficina</span>
+      </button>
+
     </nav>
 
     <div class="footer-sidebar">
@@ -172,6 +162,7 @@ if (asambleaActual?.id) {
         {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
         {#if seccionActiva === 'comite'} Responsabilidades {/if}
         {#if seccionActiva === 'programa'} Programa {/if}
+        {#if seccionActiva === 'oficina'} Oficina {/if}
       </h2>
     </header>
 
@@ -183,6 +174,7 @@ if (asambleaActual?.id) {
       {#if seccionActiva === 'personas'} <Personas /> {/if}
       {#if seccionActiva === 'comite'} <Comite /> {/if}
       {#if seccionActiva === 'programa'} <Programa /> {/if}
+      {#if seccionActiva === 'oficina'} <Oficina /> {/if}
 
     </div>
 
