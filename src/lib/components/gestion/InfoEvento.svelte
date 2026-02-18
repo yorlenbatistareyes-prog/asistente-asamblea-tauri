@@ -445,7 +445,7 @@ async function guardarOrientaciones() {
   <!-- TARJETA 1: Información General -->
   <div class="card-config">
     <div class="header-card">
-      <h3><Bookmark size={20} color="var(--primary)"/> Información General</h3>
+      <h3><Bookmark size={20} color="var(--primary)"/> Detalles de la Asamblea</h3>
       {#if !editGeneral}
         <button class="btn-edit" on:click={iniciarEdicionGeneral}><Edit size={16}/> Editar</button>
       {:else}
@@ -462,7 +462,7 @@ async function guardarOrientaciones() {
         <input type="text" bind:value={identificador} class="input-id" readonly />
       </div>
       <div class="campo full">
-        <label for="tema">Tema de la Asamblea</label>
+        <label for="tema">Tema</label>
         <input id="tema" type="text" bind:value={tempGeneral.tema} disabled={!editGeneral} class="input-big"/>
       </div>
       <div class="campo">
@@ -725,208 +725,448 @@ async function guardarOrientaciones() {
 {/if}
 
 <style>
-  /* APLICANDO VARIABLES GLOBALES DE TEMA */
-  .contenedor { display: flex; flex-direction: column; gap: 20px; padding-bottom: 40px; }
-  
-  .card-config { 
-      background: var(--bg-card); 
-      padding: 30px; 
-      border-radius: 12px; 
-      border: 1px solid var(--border-color); 
-      box-shadow: 0 2px 5px var(--shadow-color); 
-  }
-  
-  .header-card { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; }
-  .header-card h3 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--text-main); }
-
-  .seccion-titulo { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
-  .seccion-titulo h4 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .grid-3 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 15px; }
-  .full { grid-column: span 2; }
-  .mt-30 { margin-top: 30px; }
-  .mb-15 { margin-bottom: 15px; }
-  .pb-20 { padding-bottom: 20px; }
-  .border-bottom { border-bottom: 1px solid var(--border-color); }
-  
-  label { display: flex; gap: 8px; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; }
-  
-  input, select { 
-      padding: 10px 12px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 6px; 
-      width: 100%; box-sizing: border-box; font-size: 14px; 
-      color: var(--text-main); 
-      background: var(--input-bg);
-      transition: border 0.2s; 
-  }
-  input:focus, select:focus { border-color: var(--primary); outline: none; }
-  .input-big { font-size: 16px; font-weight: 600; color: var(--text-main); }
-
-  .selector-salon { display: flex; gap: 8px; }
-  .btn-plus { 
-      background: var(--bg-secondary); 
-      border: 1px solid var(--border-color); 
-      border-radius: 6px; width: 42px; cursor: pointer; 
-      color: var(--primary); display: flex; align-items: center; justify-content: center; transition: background 0.2s; 
-  }
-  .btn-plus:hover { background: var(--hover-bg); }
-
-  /* TARJETA SALON */
-  .salon-info-card { 
-      position: relative; 
-      background: var(--bg-body); 
-      border: 1px solid var(--border-color); 
-      border-radius: 8px; padding: 15px; 
-      display: flex; align-items: center; gap: 15px; 
-  }
-  .btn-close-card { 
-      position: absolute; top: -10px; right: -10px; 
-      background: #ef4444; color: white; border: 2px solid var(--bg-card); 
-      width: 24px; height: 24px; border-radius: 50%; 
-      cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-  }
-  .icon-building { 
-      background: var(--bg-card); 
-      padding: 10px; border-radius: 8px; 
-      color: var(--primary); border: 1px solid var(--border-color); 
-  }
-  .info-text { flex: 1; display: flex; flex-direction: column; }
-  .l-nombre { font-weight: 700; color: var(--text-main); font-size: 15px; }
-  .l-dir { font-size: 13px; color: var(--text-secondary); }
-  .info-cap { 
-      display: flex; flex-direction: column; align-items: center; 
-      background: var(--bg-card); 
-      padding: 5px 12px; border-radius: 6px; 
-      border: 1px solid var(--border-color); color: var(--text-main); 
-  }
-  .info-cap span { font-weight: 800; font-size: 16px; }
-  .info-cap small { font-size: 9px; color: var(--text-secondary); text-transform: uppercase; }
-
-  /* EDITORES TIPTAP MEJORADOS */
-  .tiptap-frame { 
-      border: 1px solid var(--border-color); 
-      border-radius: 8px; 
-      background: var(--bg-card); 
-      min-height: 180px; display: flex; flex-direction: column; 
-      overflow: visible; position: relative; z-index: 10; 
-  }
-  
-  .toolbar { 
-      background: var(--bg-body); 
-      padding: 5px; 
-      border-bottom: 1px solid var(--border-color); 
-      display: flex; gap: 2px; align-items: center; flex-wrap: wrap; 
-      border-radius: 8px 8px 0 0; 
-  }
-  
-  .group { display: flex; align-items: center; gap: 1px; }
-  .sep { width: 1px; height: 18px; background: var(--border-color); margin: 0 6px; }
-  .ml-auto { margin-left: auto; }
-
-  .toolbar button { 
-      width: 26px; height: 26px; 
-      display: flex; align-items: center; justify-content: center; 
-      background: transparent; border: 1px solid transparent; 
-      border-radius: 3px; cursor: pointer; color: var(--text-secondary); position: relative; 
-  }
-  .toolbar button:hover { background: var(--hover-bg); color: var(--text-main); }
-  .toolbar button.active { background: var(--bg-secondary); color: var(--primary); border-color: var(--border-color); }
-
-  .native-select { 
-      height: 26px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 3px; padding: 0 2px; font-size: 12px; 
-      color: var(--text-secondary); outline: none; cursor: pointer; 
-      background: var(--bg-card); 
-  }
-  .font-family { width: 80px; } .font-size { width: 45px; } .line-height { width: 40px; }
-
-  .color-wrapper { position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 3px; }
-  .color-wrapper:hover { background-color: var(--hover-bg); }
-  .color-wrapper input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-
-  .editor-content { 
-      padding: 20px; flex: 1; outline: none; font-size: 14px; line-height: 1.5; 
-      border-radius: 0 0 8px 8px; color: var(--text-main);
-  }
-
-  /* TOOLTIPS VISIBLES (Z-INDEX ALTO) */
-  [data-tooltip]:hover::after {
-    content: attr(data-tooltip);
-    position: absolute; 
-    bottom: 115%; 
-    left: 50%; 
-    transform: translateX(-50%);
-    background-color: var(--text-main); 
-    color: var(--bg-card); 
-    padding: 4px 8px; 
-    border-radius: 4px;
-    font-size: 11px; 
-    white-space: nowrap; 
-    z-index: 9999;
-    pointer-events: none;
-    box-shadow: 0 4px 6px var(--shadow-color); 
-    font-weight: 500;
-  }
-  
-  [data-tooltip]:hover::before {
-    content: ''; 
-    position: absolute; 
-    bottom: 100%; 
-    left: 50%; 
-    transform: translateX(-50%);
-    border-width: 5px; 
-    border-style: solid; 
-    border-color: var(--text-main) transparent transparent transparent;
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  /* CHECKBOX COMPACTO */
-  .stream-check-compact { 
-      display: inline-flex; align-items: center; gap: 10px; padding: 8px 15px; 
-      background: var(--bg-secondary); 
-      border: 1px solid var(--border-color); 
-      border-radius: 20px; cursor: pointer; transition: all 0.2s; width: fit-content; 
-  }
-  .stream-check-compact:hover { background: var(--hover-bg); border-color: var(--primary); }
-  
-  .label-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--primary); text-transform: none; font-weight: 500; }
-  .stream-check-compact input { width: 16px; height: 16px; margin: 0; }
-
-  .btn-save { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; font-weight: 600; font-size: 13px; transition: background 0.2s; }
-  .btn-save:hover { opacity: 0.9; }
-
-  /* MODAL */
-  .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000; }
-  .modal { background: var(--bg-card); width: 350px; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border-color); }
-  .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; } .modal-header h3 { margin: 0; font-size: 18px; color: var(--text-main); } .modal-header button { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
-  .modal-body { display: flex; flex-direction: column; gap: 12px; }
-  .btn-create { background: var(--primary); color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: 600; }
-
-  /* ESTILOS TIPTAP INTERNOS (Adaptados al tema) */
-  :global(.ProseMirror) { outline: none; min-height: 100px; color: var(--text-main); }
-  :global(.ProseMirror p) { margin-bottom: 0.5em; margin-top: 0; }
-  :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5rem; margin: 0.5rem 0; }
-  :global(.ProseMirror a) { color: var(--primary); text-decoration: underline; cursor: pointer; }
-  :global(.ProseMirror hr) { border: none; border-top: 2px solid var(--border-color); margin: 1rem 0; }
-  :global(.ProseMirror p.is-editor-empty:first-child::before) { color: var(--text-secondary); content: attr(data-placeholder); float: left; height: 0; pointer-events: none; }
-  
-  :global(ul[data-type="taskList"]) { list-style: none; padding: 0; }
-  :global(ul[data-type="taskList"] li) { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
-  :global(ul[data-type="taskList"] li > label) { display: flex; align-items: center; user-select: none; margin-right: 4px; }
-  :global(ul[data-type="taskList"] li > div) { flex: 1; }
-  :global(ul[data-type="taskList"] input[type="checkbox"]) { width: 16px; height: 16px; cursor: pointer; margin: 0; }
-  .input-id {
-    background: var(--bg-secondary); /* Color un poco más gris/oscuro */
-    color: var(--text-secondary);
-    border: 1px dashed var(--border-color); /* Borde punteado para indicar que es informativo */
-    cursor: not-allowed; /* Cambia el cursor al pasar por encima */
-    font-weight: 600;
+/* ========================================
+   CONTENEDOR Y TARJETAS
+   ======================================== */
+.contenedor { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 20px; 
+  padding: 20px;
+  padding-bottom: 40px; 
+  background: var(--bg-body);
 }
 
+.card-config { 
+  background: var(--bg-card); 
+  padding: 30px; 
+  border-radius: 12px; 
+  border: 1px solid var(--border-color); 
+  box-shadow: 0 2px 8px var(--shadow-color);
+  margin-bottom: 20px;
+}
+
+.card-config:last-child {
+  margin-bottom: 0;
+}
+
+.header-card { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  margin-bottom: 25px; 
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 20px;
+}
+
+.header-card h3 { 
+  margin: 0; 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  font-size: 18px; 
+  color: var(--text-main); 
+}
+
+/* ========================================
+   GRIDS Y UTILIDADES
+   ======================================== */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 15px; }
+.full { grid-column: span 2; }
+.mb-15 { margin-bottom: 15px; }
+
+/* ========================================
+   FORMULARIOS
+   ======================================== */
+label { 
+  display: flex; 
+  gap: 8px; 
+  font-size: 12px; 
+  font-weight: 700; 
+  color: var(--text-secondary); 
+  margin-bottom: 6px; 
+  text-transform: uppercase; 
+}
+
+input, select { 
+  padding: 10px 12px; 
+  border: 1px solid var(--border-color); 
+  border-radius: 6px; 
+  width: 100%; 
+  box-sizing: border-box; 
+  font-size: 14px; 
+  color: var(--text-main); 
+  background: var(--input-bg);
+  transition: border 0.2s; 
+}
+
+input:disabled, select:disabled {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+input:focus, select:focus { 
+  border-color: var(--primary); 
+  outline: none; 
+}
+
+.input-big { 
+  font-size: 16px; 
+  font-weight: 600; 
+}
+
+.input-id {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color);
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+/* ========================================
+   SELECTOR DE SALÓN
+   ======================================== */
+.selector-salon { display: flex; gap: 8px; }
+
+.btn-plus { 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border-color); 
+  border-radius: 6px; 
+  width: 42px; 
+  cursor: pointer; 
+  color: var(--primary); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  transition: background 0.2s; 
+}
+
+.btn-plus:hover { background: var(--hover-bg); }
+.btn-plus:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.salon-info-card { 
+  position: relative; 
+  background: var(--bg-body); 
+  border: 1px solid var(--border-color); 
+  border-radius: 8px; 
+  padding: 15px; 
+  display: flex; 
+  align-items: center; 
+  gap: 15px; 
+}
+
+.btn-close-card { 
+  position: absolute; 
+  top: -10px; 
+  right: -10px; 
+  background: #ef4444; 
+  color: white; 
+  border: 2px solid var(--bg-card); 
+  width: 24px; 
+  height: 24px; 
+  border-radius: 50%; 
+  cursor: pointer; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+}
+
+.btn-close-card:disabled { 
+  opacity: 0.5; 
+  cursor: not-allowed; 
+}
+
+.icon-building { 
+  background: var(--bg-card); 
+  padding: 10px; 
+  border-radius: 8px; 
+  color: var(--primary); 
+  border: 1px solid var(--border-color); 
+}
+
+.info-text { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+}
+
+.l-nombre { 
+  font-weight: 700; 
+  color: var(--text-main); 
+  font-size: 15px; 
+}
+
+.l-dir { 
+  font-size: 13px; 
+  color: var(--text-secondary); 
+}
+
+.info-cap { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  background: var(--bg-card); 
+  padding: 5px 12px; 
+  border-radius: 6px; 
+  border: 1px solid var(--border-color); 
+  color: var(--text-main); 
+}
+
+.info-cap span { font-weight: 800; font-size: 16px; }
+.info-cap small { 
+  font-size: 9px; 
+  color: var(--text-secondary); 
+  text-transform: uppercase; 
+}
+
+/* ========================================
+   EDITORES TIPTAP
+   ======================================== */
+.tiptap-frame { 
+  border: 1px solid var(--border-color); 
+  border-radius: 8px; 
+  background: var(--bg-card); 
+  min-height: 180px; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: visible;
+  position: relative; 
+  z-index: 10; 
+}
+
+.toolbar { 
+  background: var(--bg-body);
+  padding: 10px 12px; 
+  border-bottom: 3px solid var(--border-color);
+  display: flex; 
+  gap: 6px; 
+  align-items: center; 
+  flex-wrap: wrap; 
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.05);
+  border-radius: 8px 8px 0 0;
+  min-height: 50px;
+}
+
+.group { 
+  display: flex; 
+  align-items: center; 
+  gap: 2px; 
+  background: var(--bg-card);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.group.inputs {
+  background: transparent;
+  border: none;
+  padding: 0;
+  gap: 4px;
+}
+
+.sep { 
+  width: 2px;
+  height: 28px; 
+  background: var(--border-color); 
+  margin: 0 10px;
+  border-radius: 1px;
+}
+
+.ml-auto { margin-left: auto; }
+
+.toolbar button { 
+  width: 34px; 
+  height: 34px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  background: transparent; 
+  border: 1px solid transparent; 
+  border-radius: 5px; 
+  cursor: pointer; 
+  color: var(--text-secondary); 
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.toolbar button:hover { 
+  background: var(--hover-bg); 
+  color: var(--text-main); 
+  border-color: var(--border-color);
+}
+
+.toolbar button.active { 
+  background: var(--primary);
+  color: white; 
+  border-color: var(--primary); 
+}
+
+.native-select { 
+  height: 34px;
+  border: 1px solid var(--border-color); 
+  border-radius: 5px; 
+  padding: 0 8px; 
+  font-size: 13px; 
+  color: var(--text-main);
+  outline: none; 
+  cursor: pointer; 
+  background: var(--bg-card);
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.native-select:hover {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+}
+
+.font-family { width: 95px; }
+.font-size { width: 55px; }
+.line-height { width: 48px; }
+
+.color-wrapper { 
+  position: relative; 
+  width: 34px; 
+  height: 34px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer; 
+  border-radius: 5px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.color-wrapper:hover { 
+  background-color: var(--hover-bg); 
+  border-color: var(--border-color);
+}
+
+.color-wrapper input { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; 
+  opacity: 0; 
+  cursor: pointer; 
+}
+
+.editor-content { 
+  padding: 20px; 
+  flex: 1; 
+  outline: none; 
+  font-size: 14px; 
+  line-height: 1.6;
+  color: var(--text-main);
+  background: var(--bg-card);
+  min-height: 200px;
+  border-radius: 0 0 8px 8px;
+}
+
+:global(.ProseMirror:not(.ProseMirror-focused)) {
+  background: var(--bg-secondary);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+:global(.ProseMirror.ProseMirror-focused) {
+  background: var(--bg-card);
+  cursor: text;
+  opacity: 1;
+}
+
+/* ========================================
+   TOOLTIPS
+   ======================================== */
+.toolbar button[data-tooltip],
+.color-wrapper[data-tooltip] {
+  position: relative;
+}
+
+.toolbar button[data-tooltip]:hover::after,
+.color-wrapper[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute; 
+  bottom: calc(100% + 8px);
+  left: 50%; 
+  transform: translateX(-50%);
+  background-color: #1a1a1a;
+  color: white; 
+  padding: 6px 10px; 
+  border-radius: 6px;
+  font-size: 11px; 
+  white-space: nowrap; 
+  z-index: 99999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+  font-weight: 600;
+  line-height: 1;
+}
+
+.toolbar button[data-tooltip]:hover::before,
+.color-wrapper[data-tooltip]:hover::before {
+  content: ''; 
+  position: absolute; 
+  bottom: calc(100% + 2px);
+  left: 50%; 
+  transform: translateX(-50%);
+  border-width: 6px; 
+  border-style: solid; 
+  border-color: #1a1a1a transparent transparent transparent;
+  pointer-events: none;
+  z-index: 99999;
+}
+
+/* ========================================
+   CHECKBOX
+   ======================================== */
+.stream-check-compact { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 10px; 
+  padding: 8px 15px; 
+  background: var(--bg-secondary); 
+  border: 1px solid var(--border-color); 
+  border-radius: 20px; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  width: fit-content; 
+}
+
+.stream-check-compact:hover { 
+  background: var(--hover-bg); 
+  border-color: var(--primary); 
+}
+
+.label-check { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  font-size: 13px; 
+  color: var(--primary); 
+  text-transform: none; 
+  font-weight: 500; 
+}
+
+.stream-check-compact input { 
+  width: 16px; 
+  height: 16px; 
+  margin: 0; 
+  cursor: pointer;
+}
+
+.stream-check-compact input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ========================================
+   BOTONES
+   ======================================== */
 .btn-edit, .btn-cancel {
   background: transparent;
   border: 1px solid var(--border-color);
@@ -940,63 +1180,191 @@ async function guardarOrientaciones() {
   font-size: 12px;
   transition: all 0.2s;
 }
-.btn-edit { color: var(--primary); border-color: var(--primary); }
-.btn-edit:hover { background: var(--primary); color: white; }
-.btn-cancel { color: #ef4444; border-color: #ef4444; }
-.btn-cancel:hover { background: #ef4444; color: white; }
 
-.card-config {
-  margin-bottom: 20px;
+.btn-edit { 
+  color: var(--primary); 
+  border-color: var(--primary); 
 }
 
-.card-config:last-child {
-  margin-bottom: 0;
+.btn-edit:hover { 
+  background: var(--primary); 
+  color: white; 
 }
 
-.contenedor {
-  padding: 20px;
-  background: #f5f5f5; /* Fondo gris claro para contraste */
+.btn-cancel { 
+  color: #ef4444; 
+  border-color: #ef4444; 
 }
 
-.card-config {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e0e0e0;
+.btn-cancel:hover { 
+  background: #ef4444; 
+  color: white; 
 }
 
-.card-config:last-child {
-  margin-bottom: 0;
+.btn-save { 
+  background: var(--primary); 
+  color: white; 
+  border: none; 
+  padding: 8px 20px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 8px; 
+  font-weight: 600; 
+  font-size: 13px; 
+  transition: background 0.2s; 
 }
 
-.header-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 20px;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #f0f0f0;
+.btn-save:hover { opacity: 0.9; }
+
+/* ========================================
+   MODAL
+   ======================================== */
+.modal-backdrop { 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; 
+  background: rgba(0,0,0,0.5); 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 10000; 
 }
 
-.header-card h3 {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  font-size: 18px;
-  color: #333;
+.modal { 
+  background: var(--bg-card); 
+  width: 350px; 
+  padding: 25px; 
+  border-radius: 12px; 
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3); 
+  border: 1px solid var(--border-color); 
 }
 
-/* Estilo para editores bloqueados */
-:global(.ProseMirror:not(.ProseMirror-focused)) {
-  background: var(--bg-secondary);
-  cursor: not-allowed;
+.modal-header { 
+  display: flex; 
+  justify-content: space-between; 
+  margin-bottom: 20px; 
 }
 
-:global(.ProseMirror.ProseMirror-focused) {
-  background: var(--bg-card);
-  cursor: text;
+.modal-header h3 { 
+  margin: 0; 
+  font-size: 18px; 
+  color: var(--text-main); 
+}
+
+.modal-header button { 
+  border: none; 
+  background: none; 
+  cursor: pointer; 
+  color: var(--text-secondary); 
+}
+
+.modal-body { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 12px; 
+}
+
+.btn-create { 
+  background: var(--primary); 
+  color: white; 
+  padding: 10px; 
+  border: none; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  margin-top: 10px; 
+  font-weight: 600; 
+}
+
+/* ========================================
+   ESTILOS TIPTAP INTERNOS
+   ======================================== */
+:global(.ProseMirror) { 
+  outline: none; 
+  min-height: 100px; 
+  color: var(--text-main); 
+}
+
+:global(.ProseMirror p) { 
+  margin-bottom: 0.5em; 
+  margin-top: 0; 
+}
+
+:global(.ProseMirror ul, .ProseMirror ol) { 
+  padding-left: 1.5rem; 
+  margin: 0.5rem 0; 
+}
+
+:global(.ProseMirror a) { 
+  color: var(--primary); 
+  text-decoration: underline; 
+  cursor: pointer; 
+}
+
+:global(.ProseMirror hr) { 
+  border: none; 
+  border-top: 2px solid var(--border-color); 
+  margin: 1rem 0; 
+}
+
+:global(.ProseMirror p.is-editor-empty:first-child::before) { 
+  color: var(--text-secondary); 
+  content: attr(data-placeholder); 
+  float: left; 
+  height: 0; 
+  pointer-events: none; 
+}
+
+:global(ul[data-type="taskList"]) { 
+  list-style: none; 
+  padding: 0; 
+}
+
+:global(ul[data-type="taskList"] li) { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  margin-bottom: 5px; 
+}
+
+:global(ul[data-type="taskList"] li > label) { 
+  display: flex; 
+  align-items: center; 
+  user-select: none; 
+  margin-right: 4px; 
+}
+
+:global(ul[data-type="taskList"] li > div) { 
+  flex: 1; 
+}
+
+:global(ul[data-type="taskList"] input[type="checkbox"]) { 
+  width: 16px; 
+  height: 16px; 
+  cursor: pointer; 
+  margin: 0; 
+}
+
+/* ========================================
+   CONTENEDOR Y TARJETAS
+   ======================================== */
+.card-config { 
+  background: var(--bg-card); 
+  padding: 30px; 
+  border-radius: 16px; /* Bordes más redondeados */
+  border: 2px solid var(--border-color);
+  box-shadow: 
+    0 4px 6px rgba(0, 0, 0, 0.07),
+    0 10px 15px rgba(0, 0, 0, 0.05); /* Doble sombra para más profundidad */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-config:hover {
+  transform: translateY(-2px); /* Efecto hover sutil */
+  box-shadow: 
+    0 6px 8px rgba(0, 0, 0, 0.09),
+    0 12px 20px rgba(0, 0, 0, 0.07);
 }
 </style>

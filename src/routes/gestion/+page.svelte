@@ -135,7 +135,7 @@ if (asambleaActual?.id) {
       </button>
 
       <button class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')} title="Información Evento">
-        <Bookmark size={20} class="icono-nav" /> <span class="texto-menu">Información Evento</span>
+        <Bookmark size={20} class="icono-nav" /> <span class="texto-menu">Detalles de la Asamblea</span>
       </button>
 
       <button class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')} title="Congregaciones">
@@ -167,7 +167,7 @@ if (asambleaActual?.id) {
     <header>
       <h2>
         {#if seccionActiva === 'inicio'} Resumen General {/if}
-        {#if seccionActiva === 'info_evento'} Información del Evento {/if} 
+        {#if seccionActiva === 'info_evento'} Detalles de la Asamblea {/if} 
         {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
         {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
         {#if seccionActiva === 'comite'} Responsabilidades {/if}
