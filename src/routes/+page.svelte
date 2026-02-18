@@ -259,10 +259,6 @@ async function cargarDatos() {
         <button class="btn-secondary" on:click={() => mostrarModalLocales = true}>
             <Building size={18} /><span>Salones</span>
         </button>
-
-        <button class="btn-nueva" on:click={abrirCrearAsamblea}>
-            <Plus size={18} /><span>Nueva Asamblea</span>
-        </button>
         
         <button class="btn-config" on:click={irAConfiguracion} title="Configuración">
             <Settings size={20} />
@@ -271,8 +267,19 @@ async function cargarDatos() {
     </header>
 
     <div class="dashboard">
+      
+      <div class="page-action-header">
+        <button class="btn-nueva" on:click={abrirCrearAsamblea}>
+            <Plus size={18} /><span>Crear Asamblea</span>
+        </button>
+      </div>
+
       <section class="asambleas-list">
-        <div class="section-header"><Lectern size={26} /> <span>MIS ASAMBLEAS</span></div>
+        
+        <div class="section-header">
+            <Lectern size={26} /> <span>LISTAS DE ASAMBLEAS</span>
+        </div>
+        
         {#if listaAsambleas.length === 0}
             <div class="empty-state"><p>No tienes ninguna asamblea creada.</p><button on:click={abrirCrearAsamblea}>Crear la primera ahora</button></div>
         {:else}
@@ -872,5 +879,40 @@ async function cargarDatos() {
 .status-label {
     display: inline-flex; /* Permite que el contenido se comporte como texto corrido */
     align-items: center;
+}
+
+.list-header-row {
+    display: flex;
+    justify-content: space-between; /* Uno a cada extremo */
+    align-items: center;            /* Centrados verticalmente */
+    margin-bottom: 25px;            /* Espacio antes de las tarjetas */
+    padding: 0 5px;                 /* Un pequeño margen lateral */
+}
+
+/* Contenedor para el botón que lo empuja a la derecha */
+.page-action-header {
+    display: flex;
+    justify-content: flex-end; /* Alinear a la derecha */
+    margin-bottom: 20px;       /* Espacio entre el botón y la tarjeta blanca de abajo */
+    padding-right: 5px;        /* Un pequeño margen respecto al borde */
+}
+
+/* El estilo del título vuelve a ser simple (sin flex space-between) */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 25px; /* Espacio entre el título y las tarjetas */
+}
+
+/* Asegúrate de que el dashboard ocupe el ancho disponible */
+.dashboard {
+    width: 100%;
+    display: block;
 }
 </style>
