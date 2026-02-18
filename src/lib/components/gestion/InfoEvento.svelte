@@ -23,7 +23,7 @@
     AlignLeft, Bold, Italic, Underline as UnderIcon, List, 
     AlignCenter, AlignRight, AlignJustify, Eraser, Building, Users, Plus, X, 
     MonitorPlay, FileText, Palette, Link as LinkIcon, ListTodo,
-    ListOrdered, Minus, IndentDecrease, IndentIncrease
+    ListOrdered, Minus, IndentDecrease, IndentIncrease, Edit
   } from 'lucide-svelte';
 
   // --- EXTENSIONES PERSONALIZADAS ---
@@ -110,6 +110,37 @@
   let htmlOrientaciones = "";
   let htmlNotas = "";
 
+  // Estados de edición
+let editGeneral = false;
+let editEnsayos = false;
+let editOrientaciones = false;
+
+// Datos temporales para cada sección
+let tempGeneral = {
+  tema: '',
+  fecha: '',
+  idLocal: null as number | null,
+};
+let tempEnsayos = {
+  ensayoLugar: '',
+  ensayoFecha: '',
+  ensayoHora: '',
+  htmlNotas: '',
+};
+let tempOrientaciones = {
+  htmlOrientaciones: '',
+  instruccionesEsp: '',
+  jwStreamStudio: false,
+};
+
+// Reactividad para mostrar el detalle del salón en modo edición
+$: if (tempGeneral.idLocal && locales.length > 0) {
+    const encontrado = locales.find(l => l.id == tempGeneral.idLocal);
+    if (encontrado) localDetalle = encontrado;
+} else if (!tempGeneral.idLocal) {
+    localDetalle = null;
+}
+  
   // --- HELPERS PARA EDITOR ---
   const ejecutar = (editor: Editor, cb: (chain: any) => any) => {
     if (editor) cb(editor.chain().focus()).run();
@@ -162,6 +193,80 @@
     else { editor.chain().focus().liftListItem('listItem').run(); }
   }
 
+  function iniciarEdicionGeneral() {
+  tempGeneral = {
+    tema,
+    fecha,
+    idLocal,
+  };
+  editGeneral = true;
+  editEnsayos = false;
+  editOrientaciones = false;
+}
+
+function cancelarEdicionGeneral() {
+  editGeneral = false;
+}
+
+async function guardarGeneral() {
+  tema = tempGeneral.tema;
+  fecha = tempGeneral.fecha;
+  idLocal = tempGeneral.idLocal;
+  await guardar();
+  tempGeneral = { tema, fecha, idLocal };
+  editGeneral = false;
+}
+
+function iniciarEdicionEnsayos() {
+  tempEnsayos = {
+    ensayoLugar,
+    ensayoFecha,
+    ensayoHora,
+    htmlNotas,
+  };
+  editEnsayos = true;
+  editGeneral = false;
+  editOrientaciones = false;
+}
+
+function cancelarEdicionEnsayos() {
+  editEnsayos = false;
+}
+
+async function guardarEnsayos() {
+  ensayoLugar = tempEnsayos.ensayoLugar;
+  ensayoFecha = tempEnsayos.ensayoFecha;
+  ensayoHora = tempEnsayos.ensayoHora;
+  htmlNotas = tempEnsayos.htmlNotas;
+  await guardar();
+  tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
+  editEnsayos = false;
+}
+
+function iniciarEdicionOrientaciones() {
+  tempOrientaciones = {
+    htmlOrientaciones,
+    instruccionesEsp,
+    jwStreamStudio,
+  };
+  editOrientaciones = true;
+  editGeneral = false;
+  editEnsayos = false;
+}
+
+function cancelarEdicionOrientaciones() {
+  editOrientaciones = false;
+}
+
+async function guardarOrientaciones() {
+  htmlOrientaciones = tempOrientaciones.htmlOrientaciones;
+  instruccionesEsp = tempOrientaciones.instruccionesEsp;
+  jwStreamStudio = tempOrientaciones.jwStreamStudio;
+  await guardar();
+  tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
+  editOrientaciones = false;
+}
+
 // --- CICLO DE VIDA ---
   onMount(async () => {
     try {
@@ -196,6 +301,11 @@
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
       }
+
+      // Inicializar datos temporales
+        tempGeneral = { tema, fecha, idLocal };
+        tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
+        tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
       
       // 3. Iniciar los editores (TipTap)
       initEditors();
@@ -205,7 +315,7 @@
     }
   });
   
-  $: if (idLocal && locales.length > 0) {
+ $: if (idLocal && locales.length > 0) {
       const encontrado = locales.find(l => l.id == idLocal);
       if (encontrado) localDetalle = encontrado;
   } else if (!idLocal) {
@@ -213,9 +323,14 @@
   }
 
   function quitarSeleccion() {
-    idLocal = null; 
+  if (editGeneral) {
+    tempGeneral.idLocal = null;
+  } else {
+    // Si no está en edición, no debería poder quitarse, pero por si acaso:
+    idLocal = null;
     localDetalle = null;
   }
+}
 
   function initEditors() {
       const extensionesComunes = [
@@ -279,213 +394,274 @@
 
 <div class="contenedor">
   
+  <!-- TARJETA 1: Información General -->
   <div class="card-config">
     <div class="header-card">
       <h3><Bookmark size={20} color="var(--primary)"/> Información General</h3>
-      <button class="btn-save" on:click={guardar} data-tooltip="Guardar cambios"><Save size={18}/> Guardar Todo</button>
+      {#if !editGeneral}
+        <button class="btn-edit" on:click={iniciarEdicionGeneral}><Edit size={16}/> Editar</button>
+      {:else}
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-cancel" on:click={cancelarEdicionGeneral}><X size={16}/> Cancelar</button>
+          <button class="btn-save" on:click={guardarGeneral}><Save size={16}/> Guardar</button>
+        </div>
+      {/if}
     </div>
     
-    <div class="formulario grid-2 border-bottom pb-20">
+    <div class="formulario grid-2">
       <div class="campo">
         <label><Bookmark size={14}/> Identificador</label>
         <input type="text" bind:value={identificador} class="input-id" readonly />
       </div>
-      <div class="campo full"><label for="tema">Tema de la Asamblea</label><input id="tema" type="text" bind:value={tema} class="input-big"/></div>
-      <div class="campo"><label><Calendar size={14}/> Fecha</label><input type="text" bind:value={fecha} /></div>
+      <div class="campo full">
+        <label for="tema">Tema de la Asamblea</label>
+        <input id="tema" type="text" bind:value={tempGeneral.tema} disabled={!editGeneral} class="input-big"/>
+      </div>
+      <div class="campo">
+        <label><Calendar size={14}/> Fecha</label>
+        <input type="text" bind:value={tempGeneral.fecha} disabled={!editGeneral} />
+      </div>
       
       <div class="campo">
         <label><MapPin size={14}/> Salón de Asambleas</label>
         {#if localDetalle}
-             <div class="salon-info-card">
-                <button class="btn-close-card" on:click={quitarSeleccion} title="Cambiar Salón"><X size={16} /></button>
-                <div class="icon-building"><Building size={24}/></div>
-                <div class="info-text">
-                    <span class="l-nombre">{localDetalle.nombre}</span>
-                    <span class="l-dir">{localDetalle.direccion || 'Sin dirección registrada'}</span>
-                </div>
-                <div class="info-cap"><Users size={16}/><span>{localDetalle.capacidad || 0}</span><small>asientos</small></div>
+          <div class="salon-info-card">
+            <button class="btn-close-card" on:click={quitarSeleccion} disabled={!editGeneral} title="Cambiar Salón">
+              <X size={16} />
+            </button>
+            <div class="icon-building"><Building size={24}/></div>
+            <div class="info-text">
+              <span class="l-nombre">{localDetalle.nombre}</span>
+              <span class="l-dir">{localDetalle.direccion || 'Sin dirección registrada'}</span>
             </div>
+            <div class="info-cap">
+              <Users size={16}/>
+              <span>{localDetalle.capacidad || 0}</span>
+              <small>asientos</small>
+            </div>
+          </div>
         {:else}
-            <div class="selector-salon">
-                <select bind:value={idLocal}>
-                    <option value={null}>-- Seleccionar Salón --</option>
-                    {#each locales as l}<option value={l.id}>{l.nombre}</option>{/each}
-                </select>
-                <button class="btn-plus" on:click={() => mostrarModalSalon = true} data-tooltip="Nuevo Salón"><Plus size={16}/></button>
-            </div>
-        {/if}
-      </div>
-    </div>
-
-    <div class="seccion-titulo mt-30">
-        <Clock size={18} color="var(--primary)"/> 
-        <h4>Programación de Ensayos</h4>
-    </div>
-
-    <div class="grid-3 mb-15">
-      <div class="campo">
-        <label for="ensayoLugar">Lugar de Ensayo</label>
-        <select id="ensayoLugar" bind:value={ensayoLugar}>
-            <option value="">-- Seleccionar Lugar --</option>
-            {#each locales as l}
-                <option value={l.nombre}>{l.nombre}</option>
-            {/each}
-        </select>
-      </div>
-      <div class="campo"><label for="ensayoFecha">Fecha de Ensayo</label><input id="ensayoFecha" type="date" bind:value={ensayoFecha} /></div>
-      <div class="campo"><label for="ensayoHora">Hora</label><input id="ensayoHora" type="time" bind:value={ensayoHora} /></div>
-    </div>
-
-    <div class="editor-block">
-      <label><Info size={14}/> Notas e Información para Ensayos</label>
-      <div class="tiptap-frame">
-        {#if editorNotas}
-          <div class="toolbar">
-             <div class="group">
-                <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('left'))} data-tooltip="Izquierda"><AlignLeft size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('center'))} data-tooltip="Centro"><AlignCenter size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('right'))} data-tooltip="Derecha"><AlignRight size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('justify'))} data-tooltip="Justificar"><AlignJustify size={14}/></button>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group inputs">
-                <select class="native-select font-family" on:change={(e) => cambiarFuente(editorNotas, e)} title="Fuente">
-                    <option value="" selected>Fuente</option>
-                    <option value="serif">Serif</option>
-                    <option value="monospace">Monospace</option>
-                    <option value="cursive">Cursive</option>
-                </select>
-                <select class="native-select font-size" on:change={(e) => cambiarTamano(editorNotas, e)} title="Tamaño">
-                    <option value="" disabled selected>Tm.</option>
-                    <option value="12">12</option><option value="14">14</option><option value="16">16</option>
-                    <option value="18">18</option><option value="20">20</option><option value="24">24</option>
-                </select>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group">
-                <button on:click={() => ejecutar(editorNotas, c => c.toggleBold())} class:active={editorNotas.isActive('bold')} data-tooltip="Negrita"><Bold size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.toggleItalic())} class:active={editorNotas.isActive('italic')} data-tooltip="Cursiva"><Italic size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.toggleUnderline())} class:active={editorNotas.isActive('underline')} data-tooltip="Subrayado"><UnderIcon size={14}/></button>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group">
-                <button on:click={() => setLink(editorNotas)} class:active={editorNotas.isActive('link')} data-tooltip="Enlace"><LinkIcon size={14}/></button>
-                <div class="color-wrapper" data-tooltip="Color">
-                    <input type="color" on:input={(e) => cambiarColor(editorNotas, e)} value={editorNotas.getAttributes('textStyle').color || '#000000'} />
-                    <Palette size={14} />
-                </div>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group">
-                <select class="native-select line-height" on:change={(e) => cambiarInterlineado(editorNotas, e)} title="Interlineado">
-                    <option value="" disabled selected>↕</option>
-                    <option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
-                </select>
-                <button on:click={() => ejecutar(editorNotas, c => c.toggleBulletList())} class:active={editorNotas.isActive('bulletList')} data-tooltip="Puntos"><List size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.toggleOrderedList())} class:active={editorNotas.isActive('orderedList')} data-tooltip="Números"><ListOrdered size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.toggleTaskList())} class:active={editorNotas.isActive('taskList')} data-tooltip="Tareas"><ListTodo size={14}/></button>
-                <button on:click={() => desindentar(editorNotas)} data-tooltip="Disminuir"><IndentDecrease size={14}/></button>
-                <button on:click={() => indentar(editorNotas)} data-tooltip="Aumentar"><IndentIncrease size={14}/></button>
-             </div>
-
-             <div class="ml-auto group">
-                <button on:click={() => ejecutar(editorNotas, c => c.setHorizontalRule())} data-tooltip="Línea"><Minus size={14}/></button>
-                <button on:click={() => ejecutar(editorNotas, c => c.unsetAllMarks())} data-tooltip="Limpiar"><Eraser size={14}/></button>
-             </div>
+          <div class="selector-salon">
+            <select bind:value={tempGeneral.idLocal} disabled={!editGeneral}>
+              <option value={null}>-- Seleccionar Salón --</option>
+              {#each locales as l}
+                <option value={l.id}>{l.nombre}</option>
+              {/each}
+            </select>
+            <button class="btn-plus" on:click={() => mostrarModalSalon = true} disabled={!editGeneral} data-tooltip="Nuevo Salón">
+              <Plus size={16}/>
+            </button>
           </div>
         {/if}
-        <div bind:this={elementNotas} class="editor-content"></div>
       </div>
     </div>
+  </div>
 
-    <div class="seccion-titulo mt-30">
-        <FileText size={18} color="var(--primary)"/> 
-        <h4>Orientaciones en Plataforma</h4>
+  <!-- TARJETA 2: Programación de Ensayos -->
+<div class="card-config">
+  <div class="header-card">
+    <h3><Clock size={20} color="var(--primary)"/> Programación de Ensayos</h3>
+    {#if !editEnsayos}
+      <button class="btn-edit" on:click={iniciarEdicionEnsayos}><Edit size={16}/> Editar</button>
+    {:else}
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-cancel" on:click={cancelarEdicionEnsayos}><X size={16}/> Cancelar</button>
+        <button class="btn-save" on:click={guardarEnsayos}><Save size={16}/> Guardar</button>
+      </div>
+    {/if}
+  </div>
+
+  <div class="grid-3 mb-15">
+    <div class="campo">
+      <label for="ensayoLugar">Lugar de Ensayo</label>
+      <select id="ensayoLugar" bind:value={tempEnsayos.ensayoLugar} disabled={!editEnsayos}>
+        <option value="">-- Seleccionar Lugar --</option>
+        {#each locales as l}
+          <option value={l.nombre}>{l.nombre}</option>
+        {/each}
+      </select>
     </div>
+    <div class="campo">
+      <label for="ensayoFecha">Fecha de Ensayo</label>
+      <input id="ensayoFecha" type="date" bind:value={tempEnsayos.ensayoFecha} disabled={!editEnsayos} />
+    </div>
+    <div class="campo">
+      <label for="ensayoHora">Hora</label>
+      <input id="ensayoHora" type="time" bind:value={tempEnsayos.ensayoHora} disabled={!editEnsayos} />
+    </div>
+  </div>
 
-    <div class="editor-block">
-      <div id="orientacionesLabel" style="font-weight:700; margin-bottom:8px; color:var(--text-secondary);">Información sobre orientaciones</div>
-      <div class="tiptap-frame">
-        {#if editorOrientaciones}
-          <div class="toolbar">
-             <div class="group">
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('left'))} data-tooltip="Izquierda"><AlignLeft size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('center'))} data-tooltip="Centro"><AlignCenter size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('right'))} data-tooltip="Derecha"><AlignRight size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('justify'))} data-tooltip="Justificar"><AlignJustify size={14}/></button>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group inputs">
-                <select class="native-select font-family" on:change={(e) => cambiarFuente(editorOrientaciones, e)} title="Fuente">
-                    <option value="" selected>Fuente</option>
-                    <option value="serif">Serif</option>
-                    <option value="monospace">Monospace</option>
-                    <option value="cursive">Cursive</option>
-                </select>
-                <select class="native-select font-size" on:change={(e) => cambiarTamano(editorOrientaciones, e)} title="Tamaño">
-                    <option value="" disabled selected>Tm.</option>
-                    <option value="12">12</option><option value="14">14</option><option value="16">16</option>
-                    <option value="18">18</option><option value="20">20</option><option value="24">24</option>
-                </select>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group">
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleBold())} class:active={editorOrientaciones.isActive('bold')} data-tooltip="Negrita"><Bold size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleItalic())} class:active={editorOrientaciones.isActive('italic')} data-tooltip="Cursiva"><Italic size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleUnderline())} class:active={editorOrientaciones.isActive('underline')} data-tooltip="Subrayado"><UnderIcon size={14}/></button>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group">
-                <button on:click={() => setLink(editorOrientaciones)} class:active={editorOrientaciones.isActive('link')} data-tooltip="Enlace"><LinkIcon size={14}/></button>
-                <div class="color-wrapper" data-tooltip="Color">
-                    <input type="color" on:input={(e) => cambiarColor(editorOrientaciones, e)} value={editorOrientaciones.getAttributes('textStyle').color || '#000000'} />
-                    <Palette size={14} />
-                </div>
-             </div>
-             <div class="sep"></div>
-
-             <div class="group">
-                <select class="native-select line-height" on:change={(e) => cambiarInterlineado(editorOrientaciones, e)} title="Interlineado">
-                    <option value="" disabled selected>↕</option>
-                    <option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
-                </select>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleBulletList())} class:active={editorOrientaciones.isActive('bulletList')} data-tooltip="Puntos"><List size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleOrderedList())} class:active={editorOrientaciones.isActive('orderedList')} data-tooltip="Números"><ListOrdered size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleTaskList())} class:active={editorOrientaciones.isActive('taskList')} data-tooltip="Tareas"><ListTodo size={14}/></button>
-                <button on:click={() => desindentar(editorOrientaciones)} data-tooltip="Disminuir"><IndentDecrease size={14}/></button>
-                <button on:click={() => indentar(editorOrientaciones)} data-tooltip="Aumentar"><IndentIncrease size={14}/></button>
-             </div>
-
-             <div class="ml-auto group">
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.setHorizontalRule())} data-tooltip="Línea"><Minus size={14}/></button>
-                <button on:click={() => ejecutar(editorOrientaciones, c => c.unsetAllMarks())} data-tooltip="Limpiar"><Eraser size={14}/></button>
-             </div>
+  <div class="editor-block">
+    <label><Info size={14}/> Notas e Información para Ensayos</label>
+    <div class="tiptap-frame">
+      {#if editorNotas}
+        <div class="toolbar">
+          <div class="group">
+            <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('left'))} data-tooltip="Izquierda"><AlignLeft size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('center'))} data-tooltip="Centro"><AlignCenter size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('right'))} data-tooltip="Derecha"><AlignRight size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.setTextAlign('justify'))} data-tooltip="Justificar"><AlignJustify size={14}/></button>
           </div>
-        {/if}
-        <div id="orientacionesEditor" aria-labelledby="orientacionesLabel" bind:this={elementOrientaciones} class="editor-content"></div>
-      </div>
-    </div>
+          <div class="sep"></div>
 
-    <div class="footer-options mt-30">
-        <label class="stream-check-compact">
-            <input type="checkbox" bind:checked={jwStreamStudio} />
-            <div class="label-check">
-                <MonitorPlay size={16} />
-                <span>Transmitir por <strong>JW Stream Studio</strong></span>
+          <div class="group inputs">
+            <select class="native-select font-family" on:change={(e) => cambiarFuente(editorNotas, e)} title="Fuente">
+              <option value="" selected>Fuente</option>
+              <option value="serif">Serif</option>
+              <option value="monospace">Monospace</option>
+              <option value="cursive">Cursive</option>
+            </select>
+            <select class="native-select font-size" on:change={(e) => cambiarTamano(editorNotas, e)} title="Tamaño">
+              <option value="" disabled selected>Tm.</option>
+              <option value="12">12</option><option value="14">14</option><option value="16">16</option>
+              <option value="18">18</option><option value="20">20</option><option value="24">24</option>
+            </select>
+          </div>
+          <div class="sep"></div>
+
+          <div class="group">
+            <button on:click={() => ejecutar(editorNotas, c => c.toggleBold())} class:active={editorNotas.isActive('bold')} data-tooltip="Negrita"><Bold size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.toggleItalic())} class:active={editorNotas.isActive('italic')} data-tooltip="Cursiva"><Italic size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.toggleUnderline())} class:active={editorNotas.isActive('underline')} data-tooltip="Subrayado"><UnderIcon size={14}/></button>
+          </div>
+          <div class="sep"></div>
+
+          <div class="group">
+            <button on:click={() => setLink(editorNotas)} class:active={editorNotas.isActive('link')} data-tooltip="Enlace"><LinkIcon size={14}/></button>
+            <div class="color-wrapper" data-tooltip="Color">
+              <input type="color" on:input={(e) => cambiarColor(editorNotas, e)} value={editorNotas.getAttributes('textStyle').color || '#000000'} />
+              <Palette size={14} />
             </div>
-        </label>
-    </div>
+          </div>
+          <div class="sep"></div>
 
+          <div class="group">
+            <select class="native-select line-height" on:change={(e) => cambiarInterlineado(editorNotas, e)} title="Interlineado">
+              <option value="" disabled selected>↕</option>
+              <option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
+            </select>
+            <button on:click={() => ejecutar(editorNotas, c => c.toggleBulletList())} class:active={editorNotas.isActive('bulletList')} data-tooltip="Puntos"><List size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.toggleOrderedList())} class:active={editorNotas.isActive('orderedList')} data-tooltip="Números"><ListOrdered size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.toggleTaskList())} class:active={editorNotas.isActive('taskList')} data-tooltip="Tareas"><ListTodo size={14}/></button>
+            <button on:click={() => desindentar(editorNotas)} data-tooltip="Disminuir"><IndentDecrease size={14}/></button>
+            <button on:click={() => indentar(editorNotas)} data-tooltip="Aumentar"><IndentIncrease size={14}/></button>
+          </div>
+
+          <div class="ml-auto group">
+            <button on:click={() => ejecutar(editorNotas, c => c.setHorizontalRule())} data-tooltip="Línea"><Minus size={14}/></button>
+            <button on:click={() => ejecutar(editorNotas, c => c.unsetAllMarks())} data-tooltip="Limpiar"><Eraser size={14}/></button>
+          </div>
+        </div>
+      {/if}
+      <div bind:this={elementNotas} class="editor-content"></div>
+    </div>
   </div>
 </div>
 
+<!-- TARJETA 3: Orientaciones en Plataforma -->
+<div class="card-config">
+  <div class="header-card">
+    <h3><FileText size={20} color="var(--primary)"/> Orientaciones en Plataforma</h3>
+    {#if !editOrientaciones}
+      <button class="btn-edit" on:click={iniciarEdicionOrientaciones}><Edit size={16}/> Editar</button>
+    {:else}
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-cancel" on:click={cancelarEdicionOrientaciones}><X size={16}/> Cancelar</button>
+        <button class="btn-save" on:click={guardarOrientaciones}><Save size={16}/> Guardar</button>
+      </div>
+    {/if}
+  </div>
+
+  <div class="editor-block">
+    <div class="tiptap-frame">
+      {#if editorOrientaciones}
+        <div class="toolbar">
+          <div class="group">
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('left'))} data-tooltip="Izquierda"><AlignLeft size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('center'))} data-tooltip="Centro"><AlignCenter size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('right'))} data-tooltip="Derecha"><AlignRight size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.setTextAlign('justify'))} data-tooltip="Justificar"><AlignJustify size={14}/></button>
+          </div>
+          <div class="sep"></div>
+
+          <div class="group inputs">
+            <select class="native-select font-family" on:change={(e) => cambiarFuente(editorOrientaciones, e)} title="Fuente">
+              <option value="" selected>Fuente</option>
+              <option value="serif">Serif</option>
+              <option value="monospace">Monospace</option>
+              <option value="cursive">Cursive</option>
+            </select>
+            <select class="native-select font-size" on:change={(e) => cambiarTamano(editorOrientaciones, e)} title="Tamaño">
+              <option value="" disabled selected>Tm.</option>
+              <option value="12">12</option><option value="14">14</option><option value="16">16</option>
+              <option value="18">18</option><option value="20">20</option><option value="24">24</option>
+            </select>
+          </div>
+          <div class="sep"></div>
+
+          <div class="group">
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleBold())} class:active={editorOrientaciones.isActive('bold')} data-tooltip="Negrita"><Bold size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleItalic())} class:active={editorOrientaciones.isActive('italic')} data-tooltip="Cursiva"><Italic size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleUnderline())} class:active={editorOrientaciones.isActive('underline')} data-tooltip="Subrayado"><UnderIcon size={14}/></button>
+          </div>
+          <div class="sep"></div>
+
+          <div class="group">
+            <button on:click={() => setLink(editorOrientaciones)} class:active={editorOrientaciones.isActive('link')} data-tooltip="Enlace"><LinkIcon size={14}/></button>
+            <div class="color-wrapper" data-tooltip="Color">
+              <input type="color" on:input={(e) => cambiarColor(editorOrientaciones, e)} value={editorOrientaciones.getAttributes('textStyle').color || '#000000'} />
+              <Palette size={14} />
+            </div>
+          </div>
+          <div class="sep"></div>
+
+          <div class="group">
+            <select class="native-select line-height" on:change={(e) => cambiarInterlineado(editorOrientaciones, e)} title="Interlineado">
+              <option value="" disabled selected>↕</option>
+              <option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
+            </select>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleBulletList())} class:active={editorOrientaciones.isActive('bulletList')} data-tooltip="Puntos"><List size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleOrderedList())} class:active={editorOrientaciones.isActive('orderedList')} data-tooltip="Números"><ListOrdered size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleTaskList())} class:active={editorOrientaciones.isActive('taskList')} data-tooltip="Tareas"><ListTodo size={14}/></button>
+            <button on:click={() => desindentar(editorOrientaciones)} data-tooltip="Disminuir"><IndentDecrease size={14}/></button>
+            <button on:click={() => indentar(editorOrientaciones)} data-tooltip="Aumentar"><IndentIncrease size={14}/></button>
+          </div>
+
+          <div class="ml-auto group">
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.setHorizontalRule())} data-tooltip="Línea"><Minus size={14}/></button>
+            <button on:click={() => ejecutar(editorOrientaciones, c => c.unsetAllMarks())} data-tooltip="Limpiar"><Eraser size={14}/></button>
+          </div>
+        </div>
+      {/if}
+      <div bind:this={elementOrientaciones} class="editor-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TARJETA 4: Transmisión -->
+<div class="card-config">
+  <div class="header-card">
+    <h3><MonitorPlay size={20} color="var(--primary)"/> Transmisión</h3>
+    {#if !editOrientaciones}
+      <button class="btn-edit" on:click={iniciarEdicionOrientaciones}><Edit size={16}/> Editar</button>
+    {:else}
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-cancel" on:click={cancelarEdicionOrientaciones}><X size={16}/> Cancelar</button>
+        <button class="btn-save" on:click={guardarOrientaciones}><Save size={16}/> Guardar</button>
+      </div>
+    {/if}
+  </div>
+
+  <label class="stream-check-compact">
+    <input type="checkbox" bind:checked={tempOrientaciones.jwStreamStudio} disabled={!editOrientaciones} />
+    <div class="label-check">
+      <MonitorPlay size={16} />
+      <span>Transmitir por <strong>JW Stream Studio</strong></span>
+    </div>
+  </label>
+</div>
+
+</div>
 {#if mostrarModalSalon}
     <div class="modal-backdrop">
         <div class="modal">
@@ -701,5 +877,67 @@
     border: 1px dashed var(--border-color); /* Borde punteado para indicar que es informativo */
     cursor: not-allowed; /* Cambia el cursor al pasar por encima */
     font-weight: 600;
+}
+
+.btn-edit, .btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.btn-edit { color: var(--primary); border-color: var(--primary); }
+.btn-edit:hover { background: var(--primary); color: white; }
+.btn-cancel { color: #ef4444; border-color: #ef4444; }
+.btn-cancel:hover { background: #ef4444; color: white; }
+
+.card-config {
+  margin-bottom: 20px;
+}
+
+.card-config:last-child {
+  margin-bottom: 0;
+}
+
+.contenedor {
+  padding: 20px;
+  background: #f5f5f5; /* Fondo gris claro para contraste */
+}
+
+.card-config {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.card-config:last-child {
+  margin-bottom: 0;
+}
+
+.header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.header-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 18px;
+  color: #333;
 }
 </style>
