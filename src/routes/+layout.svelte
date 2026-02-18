@@ -195,10 +195,21 @@
                                         <span class="badge-cap"><Users size={10}/> {l.capacidad}</span>
                                     {/if}
                                 </div>
+                                
                                 <div class="item-details">
-                                    <MapPin size={10}/> {l.direccion || 'Sin dirección'}, {l.ciudad}
+                                    <MapPin size={10}/> 
+                                    <span>
+                                        {l.direccion || 'Sin dirección'}
+                                        {#if l.ciudad} 
+                                            <strong> • {l.ciudad}</strong> 
+                                        {/if}
+                                        {#if l.estado} 
+                                            <span style="opacity:0.7"> ({l.estado})</span> 
+                                        {/if}
+                                    </span>
                                 </div>
                             </div>
+                            
                             <button class="btn-red" on:click={()=>eliminarLocal(l.id)} title="Borrar Salón">
                                 <Trash2 size={16}/>
                             </button>
