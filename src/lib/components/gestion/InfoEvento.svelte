@@ -217,6 +217,7 @@ async function guardarGeneral() {
   editGeneral = false;
 }
 
+// ENSAYOS - Funciones actualizadas
 function iniciarEdicionEnsayos() {
   tempEnsayos = {
     ensayoLugar,
@@ -224,12 +225,24 @@ function iniciarEdicionEnsayos() {
     ensayoHora,
     htmlNotas,
   };
+  
+  // Activar edición del editor
+  if (editorNotas) {
+    editorNotas.setEditable(true);
+    editorNotas.commands.setContent(htmlNotas); // Cargar contenido actual
+  }
+  
   editEnsayos = true;
   editGeneral = false;
   editOrientaciones = false;
 }
 
 function cancelarEdicionEnsayos() {
+  // Desactivar edición y restaurar contenido original
+  if (editorNotas) {
+    editorNotas.setEditable(false);
+    editorNotas.commands.setContent(htmlNotas); // Restaurar contenido
+  }
   editEnsayos = false;
 }
 
@@ -238,23 +251,42 @@ async function guardarEnsayos() {
   ensayoFecha = tempEnsayos.ensayoFecha;
   ensayoHora = tempEnsayos.ensayoHora;
   htmlNotas = tempEnsayos.htmlNotas;
+  
   await guardar();
-  tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
+  
+  // Desactivar edición
+  if (editorNotas) {
+    editorNotas.setEditable(false);
+  }
+  
   editEnsayos = false;
 }
 
+// ORIENTACIONES - Funciones actualizadas
 function iniciarEdicionOrientaciones() {
   tempOrientaciones = {
     htmlOrientaciones,
     instruccionesEsp,
     jwStreamStudio,
   };
+  
+  // Activar edición del editor
+  if (editorOrientaciones) {
+    editorOrientaciones.setEditable(true);
+    editorOrientaciones.commands.setContent(htmlOrientaciones); // Cargar contenido actual
+  }
+  
   editOrientaciones = true;
   editGeneral = false;
   editEnsayos = false;
 }
 
 function cancelarEdicionOrientaciones() {
+  // Desactivar edición y restaurar contenido original
+  if (editorOrientaciones) {
+    editorOrientaciones.setEditable(false);
+    editorOrientaciones.commands.setContent(htmlOrientaciones); // Restaurar contenido
+  }
   editOrientaciones = false;
 }
 
@@ -262,8 +294,14 @@ async function guardarOrientaciones() {
   htmlOrientaciones = tempOrientaciones.htmlOrientaciones;
   instruccionesEsp = tempOrientaciones.instruccionesEsp;
   jwStreamStudio = tempOrientaciones.jwStreamStudio;
+  
   await guardar();
-  tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
+  
+  // Desactivar edición
+  if (editorOrientaciones) {
+    editorOrientaciones.setEditable(false);
+  }
+  
   editOrientaciones = false;
 }
 
@@ -333,29 +371,39 @@ async function guardarOrientaciones() {
 }
 
   function initEditors() {
-      const extensionesComunes = [
-        StarterKit, Underline, TextStyle, Color, FontFamily, FontSize, LineHeight,
-        TaskList, TaskItem.configure({ nested: true }),
-        Link.configure({ openOnClick: false }),
-        TextAlign.configure({ types: ['heading', 'paragraph'] }),
-        Placeholder.configure({ placeholder: 'Escriba aquí...' })
-      ];
+  const extensionesComunes = [
+    StarterKit, Underline, TextStyle, Color, FontFamily, FontSize, LineHeight,
+    TaskList, TaskItem.configure({ nested: true }),
+    Link.configure({ openOnClick: false }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    Placeholder.configure({ placeholder: 'Escriba aquí...' })
+  ];
 
-      editorOrientaciones = new Editor({
-        element: elementOrientaciones,
-        extensions: extensionesComunes,
-        content: htmlOrientaciones, 
-        onUpdate: ({ editor }) => { htmlOrientaciones = editor.getHTML(); },
-        onTransaction: () => { editorOrientaciones = editorOrientaciones; }
-      });
+  editorOrientaciones = new Editor({
+    element: elementOrientaciones,
+    extensions: extensionesComunes,
+    content: htmlOrientaciones,
+    editable: false, // ← IMPORTANTE: Bloqueado por defecto
+    onUpdate: ({ editor }) => { 
+      if (editOrientaciones) { // Solo actualiza si estamos editando
+        tempOrientaciones.htmlOrientaciones = editor.getHTML(); 
+      }
+    },
+    onTransaction: () => { editorOrientaciones = editorOrientaciones; }
+  });
 
-      editorNotas = new Editor({
-        element: elementNotas,
-        extensions: extensionesComunes,
-        content: htmlNotas,
-        onUpdate: ({ editor }) => { htmlNotas = editor.getHTML(); },
-        onTransaction: () => { editorNotas = editorNotas; }
-      });
+  editorNotas = new Editor({
+    element: elementNotas,
+    extensions: extensionesComunes,
+    content: htmlNotas,
+    editable: false, // ← IMPORTANTE: Bloqueado por defecto
+    onUpdate: ({ editor }) => { 
+      if (editEnsayos) { // Solo actualiza si estamos editando
+        tempEnsayos.htmlNotas = editor.getHTML(); 
+      }
+    },
+    onTransaction: () => { editorNotas = editorNotas; }
+  });
   }
 
   onDestroy(() => {
@@ -939,5 +987,16 @@ async function guardarOrientaciones() {
   margin: 0;
   font-size: 18px;
   color: #333;
+}
+
+/* Estilo para editores bloqueados */
+:global(.ProseMirror:not(.ProseMirror-focused)) {
+  background: var(--bg-secondary);
+  cursor: not-allowed;
+}
+
+:global(.ProseMirror.ProseMirror-focused) {
+  background: var(--bg-card);
+  cursor: text;
 }
 </style>
