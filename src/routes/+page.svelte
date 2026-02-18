@@ -12,13 +12,11 @@
   } from 'lucide-svelte';
   
   // --- IMPORTACIÓN DE COMPONENTES ---
-  import Correspondencia from '$lib/components/gestion/Correspondencia.svelte';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Actualizaciones from '$lib/components/ui/Actualizaciones.svelte';
   import { cargarDatosGlobales } from '$lib/stores/appStore';
   // --- ESTADO ---
   let vistaActual = 'inicio';
-  let seccionCorrespondencia = 'oradores'; 
   
   // VARIABLES RELOJ
   let horaActual = "";
@@ -226,10 +224,6 @@ async function cargarDatos() {
     goto('/gestion');
   }
 
-  function irACorrespondencia(tipo: string) {
-    seccionCorrespondencia = tipo;
-    vistaActual = 'correspondencia';
-  }
 
   function irAConfiguracion() {
     vistaActual = 'configuracion';
@@ -310,24 +304,6 @@ async function cargarDatos() {
                {/each}
             </div>
         {/if}
-      </section>
-
-      <section class="gestion-global">
-        <div class="section-header"><Mail size={24} /> <span>PLANTILLAS GLOBALES</span></div>
-        <div class="grid-cartas">
-          <button class="card-action" on:click={() => irACorrespondencia('oradores')}>
-            <div class="card-icon oradores"><Mic size={22} /></div>
-            <div class="card-text"><h3>Cartas a Oradores</h3><p>Editar plantilla global</p></div><ChevronRight size={16} />
-          </button>
-          <button class="card-action" on:click={() => irACorrespondencia('presidentes')}>
-            <div class="card-icon presidentes"><UserCheck size={22} /></div>
-            <div class="card-text"><h3>Cartas a Presidentes</h3><p>Editar plantilla global</p></div><ChevronRight size={16} />
-          </button>
-          <button class="card-action" on:click={() => irACorrespondencia('oraciones')}>
-            <div class="card-icon oraciones"><MessageSquare size={22} /></div>
-            <div class="card-text"><h3>Cartas de Oración</h3><p>Editar plantilla global</p></div><ChevronRight size={16} />
-          </button>
-        </div>
       </section>
     </div>
 
@@ -419,9 +395,6 @@ async function cargarDatos() {
     </div>
   </div>
 {/if}
-
-  {:else if vistaActual === 'correspondencia'}
-    <Correspondencia seccionInicial={seccionCorrespondencia} on:close={volverAlInicio} />
 
   {:else if vistaActual === 'configuracion'}
     <Configuracion on:close={volverAlInicio} />

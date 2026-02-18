@@ -12,10 +12,11 @@
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
   import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
   import SeccionAyuda from './secciones/SeccionAyuda.svelte';
+  import PlantillasCartas from './secciones/PlantillasCartas.svelte';
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
     ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
-    ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity 
+    ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity, FileText 
 } from 'lucide-svelte';
 
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
@@ -107,6 +108,7 @@
         </div>
         <nav class="config-nav">
             <button class:active={configSeccion === 'general'} on:click={() => configSeccion = 'general'}><Sliders size={18}/> General</button>
+            <button class:active={configSeccion === 'cartas'} on:click={() => configSeccion = 'cartas'}><FileText size={18}/> Plantillas de cartas</button>
             <button class:active={configSeccion === 'correos'} on:click={() => configSeccion = 'correos'}><Mail size={18}/> Plantillas de correo</button>
             <button class:active={configSeccion === 'cuenta'} on:click={() => configSeccion = 'cuenta'}><Shield size={18}/> Cuenta y Seguridad</button>
             <div class="nav-divider"></div>
@@ -231,6 +233,9 @@
 
                 <MembreteConfig />
 
+            {:else if configSeccion === 'cartas'}
+                <PlantillasCartas on:cambioModo={manejarCambioModo} />
+                  
             {:else if configSeccion === 'correos'}
                 <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
             
