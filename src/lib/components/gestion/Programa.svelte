@@ -652,44 +652,51 @@ onDestroy(() => {
 function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, orden: string) {
   let resultado = [...listaPartes];
   
-  // 1. Filtro por día
+  // 1. Filtro por día (Filtro base)
   if (dias.length > 0) {
     resultado = resultado.filter(p => dias.includes(p.dia));
   } else {
     return [];
   }
   
-  // 2. Filtro por estado
+  // 2. Filtro por estado (Filtro base)
   if (estado === 'asignada') {
     resultado = resultado.filter(p => p.nombre_orador && p.nombre_orador.trim() !== '');
   } else if (estado === 'sin_asignar') {
     resultado = resultado.filter(p => !p.nombre_orador || p.nombre_orador.trim() === '');
   }
   
-  // 3. Filtro por características (Si marcas varios, muestra oradores que cumplan con AL MENOS UNO)
+  // 3. Filtros Avanzados (Características y Fuentes unificados con lógica inclusiva OR)
   let filtroCaracActivo = caracteristicas.betelita || caracteristicas.interprete || caracteristicas.visitante;
-  if (filtroCaracActivo) {
-    resultado = resultado.filter(p => 
-      (caracteristicas.betelita && p.es_betelita) ||
-      (caracteristicas.interprete && p.es_interprete) ||
-      (caracteristicas.visitante && p.es_visitante)
-    );
-  }
-  
-  // 4. Filtro por fuente (Múltiple selección inteligente)
   let filtroFuenteActivo = fuente.video || fuente.en_persona || fuente.jw_stream || fuente.transmision_remota;
-  if (filtroFuenteActivo) {
+  
+  if (filtroCaracActivo || filtroFuenteActivo) {
     resultado = resultado.filter(p => {
+      // Preparar la verificación de la fuente de la tarjeta actual
       let f = p.fuente || '';
       let isVid = p.es_video === true || f.toLowerCase().includes('video') || f.toLowerCase().includes('vídeo');
       let isStr = f === 'jw_stream' || f === 'Descarga de JW Stream';
       let isRem = f === 'transmision_remota' || f === 'Transmisión remota en directo';
       let isPer = !isVid && !isStr && !isRem; // Si no es ninguna de las otras, es en persona
 
-      return (fuente.video && isVid) ||
-             (fuente.jw_stream && isStr) ||
-             (fuente.transmision_remota && isRem) ||
-             (fuente.en_persona && isPer);
+      // Verificar si la tarjeta coincide con alguna de las opciones marcadas
+      let coincideCarac = (caracteristicas.betelita && p.es_betelita) ||
+                          (caracteristicas.interprete && p.es_interprete) ||
+                          (caracteristicas.visitante && p.es_visitante);
+                          
+      let coincideFuente = (fuente.video && isVid) ||
+                           (fuente.jw_stream && isStr) ||
+                           (fuente.transmision_remota && isRem) ||
+                           (fuente.en_persona && isPer);
+
+      // LÓGICA DE UNIFICACIÓN:
+      // Si solo marcó características, filtra por características
+      if (filtroCaracActivo && !filtroFuenteActivo) return coincideCarac;
+      // Si solo marcó fuentes, filtra por fuentes
+      if (!filtroCaracActivo && filtroFuenteActivo) return coincideFuente;
+      
+      // Si marcó de AMBOS grupos (ej: Visitante y Video), muestra si cumple UNO u OTRO (OR)
+      return coincideCarac || coincideFuente;
     });
   }
   
