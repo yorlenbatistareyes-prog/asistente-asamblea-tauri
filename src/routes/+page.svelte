@@ -5,13 +5,40 @@
   import { ask } from "@tauri-apps/plugin-dialog";
   import { vistaActual } from '$lib/stores/appStore';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
-  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe } from 'lucide-svelte';
+  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
 
   // DATOS
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = [];
   let mostrarModal = false;
   let form = { tema: "", fecha: "", local_id: null, identificador: "", idioma: "Español" };
+
+  // ESTADOS DE BÚSQUEDA Y FILTRO
+  let terminoBusqueda = "";
+  let filtroCategoria = "todas"; 
+  let ordenamiento = "fecha_desc";
+
+  // LÓGICA REACTIVA: Filtra y ordena las asambleas en tiempo real
+  $: asambleasFiltradas = listaAsambleas
+      .filter(a => {
+          if (!terminoBusqueda) return true;
+          const tb = terminoBusqueda.toLowerCase();
+          return (
+              (a.tema && a.tema.toLowerCase().includes(tb)) ||
+              (a.fecha && a.fecha.toLowerCase().includes(tb)) ||
+              (a.identificador && a.identificador.toLowerCase().includes(tb))
+          );
+      })
+      .sort((a, b) => {
+          if (ordenamiento === 'fecha_desc') {
+              return new Date(b.fecha).getTime() - new Date(a.fecha).getTime(); // Recientes primero
+          } else if (ordenamiento === 'fecha_asc') {
+              return new Date(a.fecha).getTime() - new Date(b.fecha).getTime(); // Antiguas primero
+          } else if (ordenamiento === 'tema_az') {
+              return (a.tema || "").localeCompare(b.tema || ""); // Alfabético A-Z
+          }
+          return 0;
+      });
 
   onMount(() => { cargarTodo(); });
 
@@ -96,19 +123,53 @@
 
 {#if $vistaActual === 'inicio'}
     <div class="dashboard">
-        <div class="action-bar">
-            <h2>Mis Asambleas</h2>
+        <div class="header-principal">
+            <div class="textos-header">
+                <h2>Listas de asambleas</h2>
+                <p class="subtitulo-header">Administrar todas las asambleas en un solo lugar.</p>
+            </div>
+
             <button class="btn-new" on:click={abrirModal}><Plus size={18}/> Nueva Asamblea</button>
         </div>
+
+        <div class="controles-busqueda">
+            <div class="search-box">
+                <Search size={18} class="icon-search"/>
+                <input 
+                    type="text" 
+                    placeholder="Buscar asambleas por nombre, año, mes o tema..." 
+                    bind:value={terminoBusqueda}>
+            </div>
+    
+            <div class="filtros-box">
+                <select class="filter-select" bind:value={filtroCategoria}>
+                    <option value="todas">Todas las asambleas</option>
+                    <option value="activas">Asambleas activas</option>
+                </select>
+        
+                <select class="filter-select" bind:value={ordenamiento}>
+                    <option value="fecha_desc">Ordenar por fecha (recientes)</option>
+                    <option value="fecha_asc">Ordenar por fecha (antiguas)</option>
+                    <option value="tema_az">Ordenar por tema (A-Z)</option>
+                    <option value="tema_az">Ordenar por próximas</option>
+                </select>
+            </div>
+    </div>
 
         <div class="list-container">
             <div class="list-header"><Lectern size={20}/> ASAMBLEAS REGISTRADAS</div>
             
-            {#if listaAsambleas.length === 0}
-                <div class="empty">No hay asambleas. <button on:click={abrirModal}>Crear una</button></div>
+            {#if asambleasFiltradas.length === 0}
+                <div class="empty">
+                    {#if terminoBusqueda}
+                        No se encontraron asambleas con la búsqueda "{terminoBusqueda}".
+                    {:else}
+                        No hay asambleas registradas. <button class="btn-empty" on:click={abrirModal}>Crear una</button>
+                    {/if}
+                </div>
             {:else}
                 <div class="grid">
-                    {#each listaAsambleas as item}
+                    {#each asambleasFiltradas as item}
                         <div class="card-blue">
                             <div class="card-header-integrated">
                                 <span class="badge-pill">{item.identificador || '000'}</span>
@@ -374,5 +435,74 @@
     border-color: #cbd5e1;          /* Borde gris visible */
     color: #0f172a;                 /* Texto oscuro */
 }
+
+/* --- NUEVOS ESTILOS HEADER Y BUSCADOR --- */
+.header-principal { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; 
+    margin-bottom: 20px;
+}
+.textos-header h2 { 
+    margin: 0; 
+    font-size: 26px; 
+    font-weight: 800; 
+    color: var(--text-main); 
+}
+.subtitulo-header {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.controles-busqueda {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap; /* En pantallas pequeñas se pone uno abajo de otro */
+    margin-bottom: 25px;
+}
+
+.search-box {
+    flex: 1; /* Ocupa el espacio disponible mayoritario */
+    min-width: 300px;
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0 15px;
+    transition: all 0.2s;
+}
+.search-box:focus-within {
+    border-color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+.icon-search { color: var(--text-secondary); }
+.search-box input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 12px 10px;
+    font-size: 14px;
+    color: var(--text-main);
+    outline: none;
+}
+
+.filtros-box { display: flex; gap: 10px; }
+.filter-select {
+    padding: 12px 15px;
+    border: 1px solid #cbd5e1;
+    background: var(--bg-card);
+    color: var(--text-main);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+    transition: border 0.2s;
+}
+.filter-select:hover { border-color: #1e40af; }
+.btn-empty { background: transparent; border: none; color: #1e40af; font-weight: bold; cursor: pointer; text-decoration: underline; font-size: 15px; padding: 0;}
 
 </style>
