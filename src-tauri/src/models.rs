@@ -87,9 +87,13 @@ pub struct PartePrograma {
     pub es_video: bool,
     pub estado: Option<String>,
     pub esta_presente: bool,
-    // 👇 CAMBIO ÚNICO: Soporte para el número de bosquejo
     pub numero_bosquejo: Option<String>,
-    pub ensayo_terminado: bool, // ✅ AGREGA ESTO
+    pub ensayo_terminado: bool, 
+    // ✅ NUEVOS CAMPOS PARA LOS FILTROS
+    pub fuente: Option<String>,
+    pub es_betelita: bool,
+    pub es_interprete: bool,
+    pub es_visitante: bool,
 }
 
 // ==========================================

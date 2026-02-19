@@ -15,7 +15,7 @@
     Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
     FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
-    FileText, Download, ListFilter, Calendar  
+    FileText, Download, ListFilter, Calendar, Globe, Languages, Plane  
   } from 'lucide-svelte';
 
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
@@ -914,21 +914,46 @@ async function cargarTodosDias() {
               <span class="hora">{parte.hora_inicio}</span>
               <span class="duracion">({parte.duracion}m)</span>
             </div>
+            
             <div class="col-tema">
               <span class="tema-txt">{parte.tema}</span>
-              {#if parte.es_video}
-                <span class="badge-video"><Video size={12}/> Video</span>
-              {/if}
-              {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
-              {/if}
+              
+              <div class="badges-row">
+                {#if parte.es_video || parte.fuente === 'video'}
+                  <span class="badge-fuente video"><Video size={10}/> Video</span>
+                {:else if parte.fuente === 'jw_stream'}
+                  <span class="badge-fuente stream"><Download size={10}/> Stream</span>
+                {:else if parte.fuente === 'transmision_remota'}
+                  <span class="badge-fuente remota"><Globe size={10}/> Remota</span>
+                {/if}
+
+                {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+                  <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
+                {/if}
+              </div>
             </div>
+
             <div class="col-orador-mini">
               {#if !parte.es_video}
                 <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
-                {#if parte.congregacion_orador}
-                  <span class="cong-mini">{parte.congregacion_orador}</span>
-                {/if}
+                
+                <div class="orador-meta">
+                  {#if parte.congregacion_orador}
+                    <span class="cong-mini">{parte.congregacion_orador}</span>
+                  {/if}
+                  
+                  <div class="traits-container">
+                    {#if parte.es_betelita}
+                      <span class="trait-badge betel" title="Betelita">B</span>
+                    {/if}
+                    {#if parte.es_interprete}
+                      <span class="trait-badge interprete" title="Intérprete"><Languages size={9}/></span>
+                    {/if}
+                    {#if parte.es_visitante}
+                      <span class="trait-badge visitante" title="Visitante Orador"><Plane size={9}/></span>
+                    {/if}
+                  </div>
+                </div>
               {/if}
             </div>
 
@@ -1651,7 +1676,6 @@ async function cargarTodosDias() {
   line-height: 1.3; 
 }
 .orador-nombre { font-weight: 600; color: var(--text-main); font-size: 13px; text-transform: uppercase; }
-.cong-mini { font-size: 11px; color: var(--text-secondary); }
 
 /* --- ICONOS MINI --- */
 .col-estados-mini { 
@@ -1696,22 +1720,6 @@ async function cargarTodosDias() {
   color: #334155; 
   padding: 4px 8px; 
   border-radius: 999px; /* Cápsula */
-  display: inline-flex; 
-  align-items: center; 
-  gap: 4px; 
-  width: fit-content; 
-  margin-top: 4px; 
-  border: none;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.badge-bosquejo { 
-  font-size: 10px; 
-  background: #fef3c7; 
-  color: #b45309; 
-  padding: 4px 8px; 
-  border-radius: 999px;
   display: inline-flex; 
   align-items: center; 
   gap: 4px; 
@@ -2069,28 +2077,6 @@ async function cargarTodosDias() {
 .modal-button.primary:hover:not(:disabled) {
   background: #1d4ed8;
   transform: scale(1.02);
-}
-
-/* ========================================
-   MODO OSCURO - SECCIÓN PROGRAMA
-   ======================================== */
-:global(html.dark-theme) .lista-partes {
-  background: var(--bg-body);
-}
-
-:global(html.dark-theme) .tarjeta-acordeon {
-  background: var(--bg-card);
-  border-color: var(--border-color);
-}
-
-:global(html.dark-theme) .badge-video {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-}
-
-:global(html.dark-theme) .badge-bosquejo {
-  background: rgba(249, 115, 22, 0.25);
-  color: #fcd34d; /* Amarillo claro para contraste */
 }
 
 /* Modal de emails */
@@ -2832,5 +2818,131 @@ textarea {
   height: 1px;
   background: var(--border-color);
   margin: 5px 10px;
+}
+
+/* --- BADGES Y CARACTERÍSTICAS (NUEVO) --- */
+.badges-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* Estilo base para badges de fuente */
+.badge-fuente {
+  font-size: 9px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: 1px solid transparent;
+}
+/* Colores específicos por fuente */
+.badge-fuente.video { background: #e2e8f0; color: #475569; border-color: #cbd5e1; }
+.badge-fuente.stream { background: #dbeafe; color: #2563eb; border-color: #bfdbfe; } /* Azul */
+.badge-fuente.remota { background: #f3e8ff; color: #9333ea; border-color: #e9d5ff; } /* Morado */
+
+/* Estilo para el bosquejo (mantenido pero ajustado) */
+.badge-bosquejo {
+  font-size: 9px;
+  background: #fff7ed; /* Naranja muy claro */
+  color: #c2410c;
+  padding: 3px 7px;
+  border-radius: 4px; /* Cuadrado redondeado para diferenciarlo */
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+  border: 1px solid #ffedd5;
+}
+
+/* Meta data del orador (congregación + iconos) */
+.orador-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Separa cong de los iconos */
+  gap: 8px;
+  margin-top: 2px;
+}
+.cong-mini { font-size: 11px; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+
+/* Contenedor de iconos de características */
+.traits-container {
+  display: flex;
+  gap: 3px;
+}
+.trait-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+}
+/* Colores para características */
+.trait-badge.betel { background: #1e293b; color: #f8fafc; } /* Oscuro para Betel */
+.trait-badge.interprete { background: #059669; color: #ecfdf5; } /* Verde para Intérprete */
+.trait-badge.visitante { background: #0891b2; color: #ecfeff; } /* Cian para Visitante */
+
+/* Ajustes para modo oscuro (OPCIONAL, si usas tema oscuro) */
+:global(html.dark-theme) .badge-fuente.video { background: var(--bg-secondary); color: var(--text-secondary); border-color: var(--border-color); }
+:global(html.dark-theme) .badge-fuente.stream { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border-color: rgba(37, 99, 235, 0.3); }
+:global(html.dark-theme) .badge-fuente.remota { background: rgba(147, 51, 234, 0.2); color: #c084fc; border-color: rgba(147, 51, 234, 0.3); }
+:global(html.dark-theme) .badge-bosquejo { background: rgba(249, 115, 22, 0.1); color: #fdba74; border-color: rgba(249, 115, 22, 0.2); }
+
+/* ==========================================================================
+   CORRECCIÓN MODO OSCURO PARA LAS TARJETAS Y FONDOS
+   ========================================================================== */
+:global(html.dark-theme) .lista-partes,
+:global(body.dark-theme) .lista-partes {
+  background: var(--bg-body) !important;
+}
+
+:global(html.dark-theme) .tarjeta-acordeon,
+:global(body.dark-theme) .tarjeta-acordeon {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+:global(html.dark-theme) .body-parte,
+:global(body.dark-theme) .body-parte {
+  background: var(--bg-body) !important;
+  border-top-color: var(--border-color) !important;
+}
+
+/* Forzar que los paneles internos de la tarjeta abierta sean oscuros */
+:global(html.dark-theme) .fila-superior-control,
+:global(body.dark-theme) .fila-superior-control,
+:global(html.dark-theme) .grupo-accion,
+:global(body.dark-theme) .grupo-accion {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Corregir el color del texto si se queda negro */
+:global(html.dark-theme) .orador-nombre,
+:global(body.dark-theme) .orador-nombre,
+:global(html.dark-theme) .tema-txt,
+:global(body.dark-theme) .tema-txt,
+:global(html.dark-theme) .hora,
+:global(body.dark-theme) .hora,
+:global(html.dark-theme) .info-orador-full strong,
+:global(body.dark-theme) .info-orador-full strong {
+  color: var(--text-main) !important;
+}
+
+/* Ajuste de píldoras de contacto en modo oscuro */
+:global(html.dark-theme) .contact-pill,
+:global(body.dark-theme) .contact-pill {
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-secondary) !important;
 }
 </style>

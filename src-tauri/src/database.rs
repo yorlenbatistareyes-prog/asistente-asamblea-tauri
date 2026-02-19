@@ -145,11 +145,16 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         tema TEXT NOT NULL, 
         tipo TEXT DEFAULT 'Discurso', 
         duracion INTEGER, 
-        orador_id INTEGER, -- <--- CAMBIADO: Antes era persona_id
+        orador_id INTEGER, 
         es_video BOOLEAN DEFAULT 0, 
         estado TEXT DEFAULT 'Pendiente', 
         esta_presente BOOLEAN DEFAULT 0, 
         numero_bosquejo TEXT, 
+        ensayo_terminado BOOLEAN DEFAULT 0,
+        fuente TEXT DEFAULT 'en_persona',     -- ✅ NUEVO FILTRO
+        es_betelita BOOLEAN DEFAULT 0,        -- ✅ NUEVO FILTRO
+        es_interprete BOOLEAN DEFAULT 0,      -- ✅ NUEVO FILTRO
+        es_visitante BOOLEAN DEFAULT 0,       -- ✅ NUEVO FILTRO
         FOREIGN KEY(orador_id) REFERENCES personas(id),
         FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
     )",
@@ -195,6 +200,12 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN ensayo_terminado BOOLEAN DEFAULT 0", []);
+    
+    // ✅ NUEVAS MIGRACIONES PARA LOS FILTROS
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN fuente TEXT DEFAULT 'en_persona'", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN es_betelita BOOLEAN DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN es_interprete BOOLEAN DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN es_visitante BOOLEAN DEFAULT 0", []);
     
     // --- 9. CONFIGURACIÓN GENERAL ---
 

@@ -14,13 +14,16 @@ pub fn obtener_programa_dia(
     dia: String,
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
+    
+    // ✅ Añadidas las 4 columnas al final del SELECT
     let sql = "
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
         p.orador_id, per.nombre_completo, c.nombre,
         per.email, per.telefono, 
         p.es_video, p.estado, p.esta_presente,
-        p.numero_bosquejo, p.ensayo_terminado  -- ✅ AGREGA ESTO
+        p.numero_bosquejo, p.ensayo_terminado,
+        p.fuente, p.es_betelita, p.es_interprete, p.es_visitante
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -48,6 +51,11 @@ pub fn obtener_programa_dia(
                 esta_presente: row.get(14).unwrap_or(false),
                 numero_bosquejo: row.get(15).ok(),
                 ensayo_terminado: row.get(16).unwrap_or(false),
+                // ✅ Capturamos los nuevos campos para los filtros
+                fuente: row.get(17).unwrap_or_else(|_| Some("en_persona".to_string())),
+                es_betelita: row.get(18).unwrap_or(false),
+                es_interprete: row.get(19).unwrap_or(false),
+                es_visitante: row.get(20).unwrap_or(false),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -165,8 +173,15 @@ pub fn crear_parte(
         numero_bosquejo
     };
 
+    // Asignamos una fuente por defecto si se crea manualmente
+    let fuente_default = if tipo == "Video" { "video" } else { "en_persona" };
+
     tx.execute(
-        "INSERT INTO programa (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, orador_id, es_video, esta_presente, numero_bosquejo) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)", 
+        "INSERT INTO programa (
+            asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
+            orador_id, es_video, esta_presente, numero_bosquejo, 
+            fuente, es_betelita, es_interprete, es_visitante
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, 0, 0, 0)", 
         params![
             asamblea_id, 
             dia, 
@@ -178,7 +193,8 @@ pub fn crear_parte(
             estado, 
             orador_id_final, 
             tipo == "Video", 
-            bosquejo_final.as_deref()
+            bosquejo_final.as_deref(),
+            fuente_default
         ]
     ).map_err(|e| e.to_string())?;
 
