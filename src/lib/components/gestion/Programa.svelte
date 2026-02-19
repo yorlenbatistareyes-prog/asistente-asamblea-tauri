@@ -1883,6 +1883,11 @@ async function cargarTodosDias() {
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
 
 /* Modales - Corrección de altura y diseño */
+/* =========================================================
+   DISEÑO DE MODALES - VERSIÓN DEFINITIVA Y BLINDADA
+   ========================================================= */
+
+/* Fondo oscuro: Fuerza el centrado y los márgenes de seguridad */
 .modal-backdrop { 
   position: fixed; 
   top: 0; 
@@ -1891,45 +1896,51 @@ async function cargarTodosDias() {
   height: 100vh; 
   background: rgba(0,0,0,0.6); 
   display: flex; 
-  justify-content: center; 
-  align-items: flex-start; /* CRUCIAL: Evita que la cabecera se corte hacia arriba */
+  justify-content: center; /* Centrado horizontal */
+  /* align-items: center; <-- A veces esto falla con contenido complejo */
   z-index: 9999; 
-  padding: 60px 20px 20px 20px; /* 60px de espacio libre arriba para tu barra superior */
+  /* Muro invisible de 80px arriba/abajo que NADIE puede cruzar */
+  padding: 80px 20px; 
   box-sizing: border-box;
 }
 
+/* El contenedor del modal */
 .modal { 
   background: var(--bg-card); 
-  width: 480px; /* Un poquitito más ancho para que los campos respiren mejor */
-  max-width: 100%;
+  width: 500px; /* Un poco más ancho para el editor de email */
+  max-width: 100%; 
   border-radius: 12px; 
-  max-height: calc(100vh - 90px); /* Altura máxima estricta (100% de la pantalla menos los márgenes) */
+  /* Truco para centrado absoluto si flex falla: */
+  margin: auto; 
+  /* Altura máxima: el 100% del espacio disponible entre los muros de 80px */
+  max-height: 100%; 
   display: flex; 
   flex-direction: column; 
-  overflow: hidden; /* Obliga a que el scroll ocurra SOLO en el body del modal */
+  overflow: hidden; 
   border: 1px solid var(--border-color); 
-  color: var(--text-main); 
-  box-shadow: 0 15px 40px rgba(0,0,0,0.25); 
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3); /* Sombra más pronunciada para efecto flotante */
 }
 
-/* Aseguramos que el contenido interno sea el que haga scroll */
-.modal-body {
-  padding: 20px;
-  overflow-y: auto; /* Aquí ocurre la magia del scroll */
-  flex: 1;
-  background: var(--bg-body);
-}
-
+/* Cabecera fija */
 .modal-header {
   padding: 15px 20px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0; /* Evita que la cabecera se aplaste */
+  flex-shrink: 0; /* Nunca se aplasta */
   background: var(--bg-card);
 }
 
+/* Cuerpo flexible con scroll interno */
+.modal-body {
+  padding: 20px;
+  overflow-y: auto; /* El scroll ocurre SOLO aquí dentro */
+  flex: 1; /* Ocupa todo el espacio sobrante */
+  display: flex; /* Asegura que el contenido interno se estire */
+  flex-direction: column;
+  background: var(--bg-body);
+}
 
 .modal-header h3 { color: var(--text-main); margin: 0; }
 
@@ -2163,32 +2174,74 @@ async function cargarTodosDias() {
 }
 
 /* Estilos específicos para el modal de emails */
+/* ========================================
+   MODAL EMAILS - Estilos profesionales
+   ======================================== */
+
 .modal-emails {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25);
   width: 90%;
   max-width: 650px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
+  
+  /* LA MAGIA: Esto lo obliga a centrarse y respetar los 80px de la barra superior */
+  margin: auto;
+  max-height: 100%; 
+  
+  /* Comportamiento interno para no aplastar la cabecera */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
+  border: 1px solid var(--border-color);
 }
+
 .modal-emails .modal-header {
   padding: 16px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  /* Protegemos la cabecera */
+  flex-shrink: 0; 
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
+
 .modal-emails .modal-header h3 {
   margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-main);
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #1e293b;
-  font-size: 1.1rem;
 }
+
+.modal-emails .btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.modal-emails .btn-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.modal-emails .modal-contenido {
+  padding: 24px;
+  /* El scroll ahora ocurre SOLO aquí adentro */
+  overflow-y: auto; 
+  flex: 1;
+}
+
 .opciones-email-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2398,48 +2451,72 @@ async function cargarTodosDias() {
 /* ========================================
    MODAL EMAILS - Estilos profesionales
    ======================================== */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(2px);
+/* =========================================================
+   FONDOS Y MODALES - CENTRADO MATEMÁTICO PERFECTO
+   ========================================================= */
+
+.modal-backdrop { 
+  position: fixed; 
+  /* Usar top/left/right/bottom es más seguro que 100vh para evitar desbordes */
+  top: 0; left: 0; right: 0; bottom: 0; 
+  background: rgba(0,0,0,0.6); 
+  display: flex; 
+  justify-content: center; /* Centrado horizontal */
+  align-items: center;     /* Centrado vertical */
+  z-index: 9999; 
+  padding: 20px; /* Solo margen de seguridad a los lados para pantallas pequeñas */
+}
+
+/* Reglas compartidas para TODOS los modales (Agregar, Editar y Emails) */
+.modal, .modal-emails { 
+  background: var(--bg-card); 
+  border-radius: 12px; 
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25); 
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  
+  /* LA REGLA MATEMÁTICA: 100% de la pantalla MENOS 160px. 
+     Como está centrado, siempre dejará 80px libres arriba y 80px libres abajo */
+  max-height: calc(100vh - 160px); 
+  
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; /* Corta lo que sobra para forzar el scroll interno */
+}
+
+/* Anchos específicos */
+.modal {
+  width: 480px;
+  max-width: 100%;
 }
 
 .modal-emails {
-  background: var(--bg-card);
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   width: 90%;
-  max-width: 700px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
+  max-width: 650px; /* El de emails es más ancho */
 }
 
-.modal-emails .modal-header {
-  padding: 18px 24px;
+/* Cabeceras que nunca se encogen */
+.modal-header, .modal-emails .modal-header {
+  padding: 16px 24px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
+  flex-shrink: 0; /* Blindaje para que no se aplaste */
+}
+
+/* Cuerpos que hacen scroll interno */
+.modal-body, .modal-emails .modal-contenido {
+  padding: 24px;
+  overflow-y: auto; /* Aquí ocurre la magia del desplazamiento */
+  flex: 1; /* Estira el contenido en el espacio disponible */
 }
 
 .modal-emails .modal-header h3 {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
-  color: var(--text-main);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2462,6 +2539,7 @@ async function cargarTodosDias() {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
+
 
 .modal-emails .modal-contenido {
   padding: 24px;
