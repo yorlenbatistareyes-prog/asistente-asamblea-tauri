@@ -215,87 +215,77 @@ async function guardarYcerrar() {
 </div>
 
 <style>
-  /* APLICANDO VARIABLES GLOBALES DE TEMA */
-  .contenedor-cong { display: flex; flex-direction: column; gap: 15px; height: 100%; }
-  
-  .toolbar { 
+ /* ===== ESTILOS MEJORADOS PARA CONGREGACIONES ===== */
+
+/* CONTENEDOR PRINCIPAL */
+.contenedor-cong { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 15px; 
+  height: 100%; 
+}
+
+/* ===== TOOLBAR MEJORADO ===== */
+.toolbar { 
   display: flex; 
   gap: 10px; 
   background: var(--bg-card); 
   padding: 10px; 
   border-radius: 8px; 
   border: 1px solid var(--border-color); 
-  align-items: center; 
-  flex-wrap: wrap; /* Permite que los botones bajen si no hay espacio */
+  align-items: center;
+  flex-wrap: wrap;
 }
 
+/* BARRA DE BÚSQUEDA - Más ancha y fina con lupa */
+.busqueda { 
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-body);
+  padding: 6px 12px;      /* Menos padding vertical para hacerla más fina */
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  flex: 1;                /* Ocupa todo el espacio disponible */
+  min-width: 300px;       /* Ancho mínimo */
+  height: 32px;           /* Más fina (era 36px) */
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
 
-  .busqueda input { border: none; background: transparent; outline: none; width: 100%; font-size: 14px; color: var(--text-main); }
-  
-  .btn-importar { background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
-  .btn-importar:hover { background: #059669; }
+.busqueda:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
 
-  .btn-danger { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
-  .btn-danger:hover { background: #fecaca; }
+.busqueda :global(svg) {
+  color: var(--text-secondary);
+  width: 16px;            /* Icono más pequeño y proporcionado */
+  height: 16px;
+  flex-shrink: 0;
+}
 
-  .card-form { background: var(--bg-card); padding: 15px; border-radius: 10px; border: 1px solid var(--border-color); }
-  .card-form h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--primary); display: flex; gap: 5px; align-items: center; }
-  
-  .grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
-  
-  input { 
-      width: 100%; padding: 8px 10px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 6px; box-sizing: border-box; font-size: 13px; 
-      background: var(--input-bg); color: var(--text-main);
-  }
-  input:focus { border-color: var(--primary); outline: none; }
+.busqueda:focus-within :global(svg) {
+  color: var(--primary);
+}
 
-  label { font-size: 11px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px; }
-  
-  .footer-form { display: flex; justify-content: flex-end; }
-  .btn-save { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; }
-  .btn-save:hover { opacity: 0.9; }
+.busqueda input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 13px;        /* Texto un poco más pequeño */
+  color: var(--text-main);
+  height: 100%;
+}
 
-  .icon-input { position: relative; }
-  .icon-input input { padding-left: 28px; }
-  .icon-input :global(.ico) { position: absolute; left: 8px; top: 10px; color: var(--text-secondary); }
+.busqueda input::placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
 
-  .lista { 
-      flex: 1; display: flex; flex-direction: column; overflow: hidden; 
-      background: var(--bg-card); 
-      border-radius: 8px; border: 1px solid var(--border-color); 
-  }
-  .header-lista { padding: 10px; border-bottom: 1px solid var(--border-color); }
-  .lista h4 { margin: 0; color: var(--text-main); font-size: 13px; }
-
-  .tabla-header { 
-      display: grid; grid-template-columns: 2fr 1fr 1fr 60px; padding: 10px; 
-      background: var(--bg-body); 
-      border-bottom: 1px solid var(--border-color); 
-      font-size: 12px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase; 
-  }
-  
-  .tabla-scroll { flex: 1; overflow-y: auto; }
-
-  .fila { 
-      display: grid; grid-template-columns: 2fr 1fr 1fr 60px; padding: 10px; 
-      border-bottom: 1px solid var(--border-color); 
-      align-items: center; font-size: 13px; 
-      background: var(--bg-card);
-  }
-  .fila:hover { background: var(--hover-bg); }
-  
-  .nombre { display: flex; gap: 8px; align-items: center; font-weight: 500; color: var(--text-main); }
-  .tag { background: rgba(14, 165, 233, 0.1); color: var(--primary); padding: 2px 8px; border-radius: 4px; font-size: 11px; display: inline-block; width: fit-content; border: 1px solid rgba(14, 165, 233, 0.3); }
-  .num { color: var(--text-secondary); font-family: monospace; font-weight: 600; }
-  .vacio { padding: 40px; text-align: center; color: var(--text-secondary); font-style: italic; }
-
-  .acciones { display: flex; justify-content: center; }
-  .btn-icon-delete { background: transparent; color: var(--text-secondary); border: none; padding: 5px; cursor: pointer; border-radius: 4px; }
-  .btn-icon-delete:hover { background: #fee2e2; color: #ef4444; }
-
-  .btn-primary {
+/* BOTONES */
+.btn-primary {
   background: var(--primary);
   color: white;
   border: none;
@@ -307,41 +297,279 @@ async function guardarYcerrar() {
   align-items: center;
   font-weight: 500;
   font-size: 13px;
-}
-.btn-primary:hover {
-  opacity: 0.9;
+  height: 36px;  /* Altura normal para botones */
+  transition: all 0.2s ease;
 }
 
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-importar { 
+  background: #10b981; 
+  color: white; 
+  border: none; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 5px; 
+  align-items: center; 
+  font-weight: 500; 
+  font-size: 13px;
+  height: 36px;
+  transition: all 0.2s ease;
+}
+
+.btn-importar:hover { 
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.btn-danger { 
+  background: #fee2e2; 
+  color: #ef4444; 
+  border: 1px solid #fecaca; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 5px; 
+  align-items: center; 
+  font-weight: 500; 
+  font-size: 13px;
+  height: 36px;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover { 
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+/* ===== LISTA DE CONGREGACIONES - MEJORADA ===== */
+.lista { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  background: var(--bg-card); 
+  border-radius: 8px; 
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.header-lista { 
+  padding: 15px; 
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(to bottom, var(--bg-card), var(--bg-body));
+}
+
+.lista h4 { 
+  margin: 0; 
+  color: var(--text-main); 
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tabla-header { 
+  display: grid; 
+  grid-template-columns: 2fr 1fr 1fr 80px; 
+  padding: 12px 15px; 
+  background: var(--bg-body); 
+  border-bottom: 2px solid var(--border-color); 
+  font-size: 11px; 
+  font-weight: 700; 
+  color: var(--text-secondary); 
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tabla-scroll { 
+  flex: 1; 
+  overflow-y: auto;
+  background: var(--bg-card);
+}
+
+/* ===== FILAS/TARJETAS MEJORADAS ===== */
+.fila { 
+  display: grid; 
+  grid-template-columns: 2fr 1fr 1fr 80px; 
+  padding: 14px 15px; 
+  border-bottom: 1px solid var(--border-color); 
+  align-items: center; 
+  font-size: 13px; 
+  background: var(--bg-card);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.fila::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.fila:hover {
+  background: var(--hover-bg);
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.fila:hover::before {
+  opacity: 1;
+}
+
+/* Nombre con mejor estilo */
+.nombre { 
+  display: flex; 
+  gap: 8px; 
+  align-items: center; 
+  font-weight: 600; 
+  color: var(--text-main);
+}
+
+.nombre :global(svg) {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+/* Tag de circuito mejorado */
+.tag { 
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(14, 165, 233, 0.08));
+  color: #0284c7;
+  padding: 4px 10px; 
+  border-radius: 6px; 
+  font-size: 11px; 
+  font-weight: 600;
+  display: inline-block; 
+  width: fit-content; 
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.1);
+}
+
+/* Número mejorado */
+.num { 
+  color: var(--text-secondary); 
+  font-family: 'Courier New', monospace; 
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--bg-body);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+
+/* Estado vacío */
+.vacio {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.empty-icon {
+  opacity: 0.3;
+  margin-bottom: 10px;
+}
+
+.vacio small {
+  font-size: 12px;
+  opacity: 0.7;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* Acciones */
+.acciones { 
+  display: flex; 
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-icon-delete { 
+  background: transparent; 
+  color: var(--text-secondary); 
+  border: none; 
+  padding: 6px; 
+  cursor: pointer; 
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-delete:hover { 
+  background: #fee2e2; 
+  color: #ef4444;
+  transform: scale(1.1);
+}
+
+/* ===== MODAL ===== */
 .modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal {
   background: var(--bg-card);
   border-radius: 12px;
-  padding: 20px;
-  width: 450px;
+  padding: 24px;
+  width: 480px;
   max-width: 90vw;
-  box-shadow: 0 10px 25px var(--shadow-color);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-color);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border-color);
 }
 
 .modal-header h3 {
@@ -351,6 +579,25 @@ async function guardarYcerrar() {
   gap: 8px;
   font-size: 18px;
   color: var(--text-main);
+  font-weight: 600;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.btn-close:hover {
+  background: var(--hover-bg);
+  color: var(--text-main);
+  transform: rotate(90deg);
 }
 
 .modal-body {
@@ -359,134 +606,122 @@ async function guardarYcerrar() {
   gap: 15px;
 }
 
+/* Grid del formulario */
+.grid { 
+  display: grid; 
+  grid-template-columns: 1fr; 
+  gap: 15px; 
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label { 
+  font-size: 12px; 
+  font-weight: 600; 
+  color: var(--text-secondary); 
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input { 
+  width: 100%; 
+  padding: 10px 12px; 
+  border: 1px solid var(--border-color); 
+  border-radius: 6px; 
+  box-sizing: border-box; 
+  font-size: 14px; 
+  background: var(--input-bg); 
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+
+input:focus { 
+  border-color: var(--primary); 
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.icon-input { 
+  position: relative; 
+}
+
+.icon-input input { 
+  padding-left: 34px; 
+}
+
+.icon-input :global(.ico) { 
+  position: absolute; 
+  left: 10px; 
+  top: 12px; 
+  color: var(--text-secondary);
+}
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 15px;
-  border-top: 1px solid var(--border-color);
+  margin-top: 10px;
   padding-top: 15px;
+  border-top: 1px solid var(--border-color);
 }
 
 .btn-cancel {
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-cancel:hover {
   background: var(--hover-bg);
+  border-color: var(--text-secondary);
 }
 
-.busqueda { 
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.btn-save { 
+  background: var(--primary); 
+  color: white; 
+  border: none; 
+  padding: 10px 20px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 6px; 
+  align-items: center; 
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-save:hover { 
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* ===== SCROLLBAR PERSONALIZADO ===== */
+.tabla-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tabla-scroll::-webkit-scrollbar-track {
   background: var(--bg-body);
-  padding: 8px 12px;          /* Mismo padding que los botones */
-  border-radius: 6px;
-  border: 1px solid var(--border-color); /* Borde fino definido */
-  flex: 1;                     /* Ocupa el espacio restante */
-  transition: box-shadow 0.2s, border-color 0.2s;
-  min-height: 40px;            /* Altura mínima para igualar botones */
-  box-sizing: border-box;
+  border-radius: 4px;
 }
 
-/* Asegurar que la lupa se vea bien */
-.busqueda :global(svg) {
-  color: var(--text-secondary);
-  width: 18px;
-  height: 18px;
-  transition: color 0.2s;
+.tabla-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
-.busqueda:focus-within :global(svg) {
-  color: var(--primary); /* Cambia al enfocar */
-}
-
-.busqueda:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.busqueda input {
-  border: none;
-  background: transparent;
-  outline: none;
-  width: 100%;
-  font-size: 14px;
-  color: var(--text-main);
-}
-
-.busqueda input::placeholder {
-  color: var(--text-secondary);
-  font-style: italic;
-}
-
-.vacio {
-  padding: 40px;
-  text-align: center;
-  color: var(--text-secondary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.empty-icon {
-  opacity: 0.4;
-  margin-bottom: 10px;
-}
-
-.vacio small {
-  font-size: 12px;
-  opacity: 0.7;
-}
-
-.busqueda :global(svg) {
-  color: var(--text-secondary);
-  transition: color 0.2s;
-}
-
-.busqueda:focus-within :global(svg) {
-  color: var(--primary);
-}
-
-.vacio {
-  padding: 40px;
-  text-align: center;
-  color: var(--text-secondary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.empty-icon {
-  opacity: 0.4;
-  margin-bottom: 10px;
-}
-
-.vacio small {
-  font-size: 12px;
-  opacity: 0.7;
-}
-
-.busqueda :global(svg) {
-  color: var(--text-secondary);
-  width: 18px;      /* Ajusta tamaño si es necesario */
-  height: 18px;
-}
-
-.busqueda:focus-within :global(svg) {
-  color: var(--primary); /* Cambia a color primario al enfocar */
-}
-
-.ml-auto {
-  margin-left: auto;
+.tabla-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 </style>
