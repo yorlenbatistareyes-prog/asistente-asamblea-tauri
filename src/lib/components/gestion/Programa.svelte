@@ -1013,7 +1013,7 @@
     <div class="modal-emails" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown={(e) => e.key === 'Escape' && (mostrarModalEmails=false)}>
       
       <div class="modal-header">
-        <h3><Mail size={20}/> Centro de Comunicaciones</h3>
+        <h3><Mail size={20}/> Email a todos los oradores</h3>
         <button class="btn-close" on:click={() => mostrarModalEmails = false} aria-label="Cerrar">
           <X size={20}/>
         </button>
@@ -1059,35 +1059,7 @@
           >
             <div class="icon-wrapper morado"><FileJson size={24}/></div>
             <span>JWPUB {diaFiltroEmail}</span>
-          </button>
-
-          <button
-            class="opcion-email"
-            on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'mailto'}
-            aria-disabled={metodoSeleccion !== 'mailto'}
-            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail para usar esta acción' : 'Enviar recordatorio por email'}
-          >
-            <div class="icon-wrapper naranja">
-              <Mail size={24}/>
-              <div class="mini-badge"><Clock size={10}/></div>
-            </div>
-            <span>Recordatorio (Mail)</span>
-          </button>
-
-          <button
-            class="opcion-email"
-            on:click={() => { enviarJWPUBRecordatorioADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'jwpub'}
-            aria-disabled={metodoSeleccion !== 'jwpub'}
-            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB para usar esta acción' : 'Enviar recordatorio por JWPUB'}
-          >
-            <div class="icon-wrapper morado">
-              <FileJson size={24}/>
-              <div class="mini-badge"><Clock size={10}/></div>
-            </div>
-            <span>Recordatorio (JWPUB)</span>
-          </button>
+          </button>  
         </div>
 
         <div class="seccion-editor">
@@ -1865,5 +1837,378 @@
 :global(html.dark-theme) .modal-button.primary {
   background: var(--primary);
   color: white;
+}
+
+/* ========================================
+   MODAL EMAILS - Estilos profesionales
+   ======================================== */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-emails {
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.modal-emails .modal-header {
+  padding: 18px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.modal-emails .modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-emails .btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.modal-emails .btn-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.modal-emails .modal-contenido {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Filtro de días */
+.filtro-dia-contenedor {
+  margin-bottom: 24px;
+}
+
+.label-titulo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.selector-dias {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-dia {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-dia:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.btn-dia.activo {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Grid de acciones rápidas */
+.opciones-email-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.opcion-email {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  width: 100%;
+}
+
+.opcion-email:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px var(--shadow-color);
+}
+
+.opcion-email:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+}
+
+.icon-wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-wrapper.azul {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.icon-wrapper.morado {
+  background: rgba(147, 51, 234, 0.2);
+  color: #9333ea;
+}
+
+.icon-wrapper.naranja {
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+
+.mini-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #f97316;
+  color: white;
+  border-radius: 50%;
+  padding: 3px;
+  border: 2px solid var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.opcion-email span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.3;
+  flex: 1;
+}
+
+/* Sección editor */
+.seccion-editor {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.destinatarios-badge {
+  background: #10b981;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 30px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+.grid-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.radio-group {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.radio-label input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+select, input[type="text"], textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  transition: border 0.2s;
+}
+
+select:focus, input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Footer del modal */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 8px;
+}
+
+.modal-button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+.modal-button:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+}
+
+.modal-button.primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+}
+
+.modal-button.primary:hover:not(:disabled) {
+  background: var(--primary-dark, #1d4ed8);
+  transform: scale(1.02);
+}
+
+.modal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.flex-spacer {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .opciones-email-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-form {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-emails .modal-contenido {
+    padding: 16px;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 </style>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2 } from 'lucide-svelte';
+  import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2, X  } from 'lucide-svelte';
   import { open } from '@tauri-apps/plugin-dialog';
 
   // --- VARIABLES ---
@@ -18,6 +18,7 @@
     numero_congregacion?: string;
   }
 
+  let mostrarModal = false;
   let lista: Congregacion[] = [];
   let terminoBusqueda = "";
 
@@ -105,6 +106,17 @@
       alert("Error al limpiar: " + e);
     }
   }
+
+  function resetFormulario() {
+  nombre = "";
+  circuito = "";
+  numero = "";
+}
+
+async function guardarYcerrar() {
+  await guardar();  // guardar ya existe y al final recarga la lista
+  mostrarModal = false;
+}
 </script>
 
 <div class="contenedor-cong">
@@ -114,41 +126,19 @@
       <Search size={18} color="var(--text-secondary)"/>
       <input type="text" bind:value={terminoBusqueda} placeholder="Buscar..." />
     </div>
-    
-    <button class="btn-danger" on:click={limpiarTodo} title="Borrar lista de esta asamblea">
-        <Trash2 size={16}/> Limpiar Lista
+
+    <button class="btn-primary" on:click={() => mostrarModal = true} title="Añadir nueva congregación">
+       <Plus size={16}/> Añadir Congregación
     </button>
 
     <button class="btn-importar" on:click={importarCongregaciones}>
       <Upload size={16}/> Importar CSV
     </button>
-  </div>
 
-  <div class="card-form">
-    <h3><Plus size={18}/> Registrar Manualmente</h3>
-    <div class="grid">
-      <div class="campo">
-        <label>Nombre</label>
-        <input type="text" bind:value={nombre} placeholder="Ej: Reparto Eléctrico" />
-      </div>
-      <div class="campo">
-        <label>Circuito</label>
-        <div class="icon-input">
-          <Map size={14} class="ico"/>
-          <input type="text" bind:value={circuito} placeholder="Ej: CA-15" />
-        </div>
-      </div>
-      <div class="campo">
-        <label>Número</label>
-        <div class="icon-input">
-          <Hash size={14} class="ico"/>
-          <input type="text" bind:value={numero} placeholder="Ej: 12345" />
-        </div>
-      </div>
-    </div>
-    <div class="footer-form">
-        <button on:click={guardar} class="btn-save"><Save size={16}/> Guardar</button>
-    </div>
+    <button class="btn-danger" on:click={limpiarTodo} title="Borrar lista de esta asamblea">
+        <Trash2 size={16}/> Limpiar Lista
+    </button>
+
   </div>
 
   <div class="lista">
@@ -177,10 +167,49 @@
           </div>
         </div>
       {:else}
-        <div class="vacio">No hay congregaciones en esta asamblea.</div>
+        <div class="vacio">No hay congregaciones. Puede añadirlas, haciendo Click en el botón correspondiente.</div>
       {/each}
     </div>
   </div>
+
+  {#if mostrarModal}
+  <div class="modal-backdrop" on:click|self={() => { mostrarModal = false; resetFormulario(); }}>
+    <div class="modal">
+      <div class="modal-header">
+        <h3><Plus size={18}/> Nueva Congregación</h3>
+        <button class="btn-close" on:click={() => { mostrarModal = false; resetFormulario(); }}>
+          <X size={18}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="grid">
+          <div class="campo">
+            <label>Nombre</label>
+            <input type="text" bind:value={nombre} placeholder="Ej: Reparto Eléctrico" />
+          </div>
+          <div class="campo">
+            <label>Circuito</label>
+            <div class="icon-input">
+              <Map size={14} class="ico"/>
+              <input type="text" bind:value={circuito} placeholder="Ej: CA-15" />
+            </div>
+          </div>
+          <div class="campo">
+            <label>Número</label>
+            <div class="icon-input">
+              <Hash size={14} class="ico"/>
+              <input type="text" bind:value={numero} placeholder="Ej: 12345" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" on:click={() => { mostrarModal = false; resetFormulario(); }}>Cancelar</button>
+          <button class="btn-save" on:click={guardarYcerrar}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 </div>
 
 <style>
@@ -262,4 +291,91 @@
   .acciones { display: flex; justify-content: center; }
   .btn-icon-delete { background: transparent; color: var(--text-secondary); border: none; padding: 5px; cursor: pointer; border-radius: 4px; }
   .btn-icon-delete:hover { background: #fee2e2; color: #ef4444; }
+
+  .btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-weight: 500;
+  font-size: 13px;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+
+.modal {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px;
+  width: 450px;
+  max-width: 90vw;
+  box-shadow: 0 10px 25px var(--shadow-color);
+  border: 1px solid var(--border-color);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  color: var(--text-main);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 15px;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-cancel:hover {
+  background: var(--hover-bg);
+}
 </style>
