@@ -124,7 +124,7 @@ async function guardarYcerrar() {
   <div class="toolbar">
     <div class="busqueda">
       <Search size={18} color="var(--text-secondary)"/>
-      <input type="text" bind:value={terminoBusqueda} placeholder="Buscar..." />
+      <input type="text" bind:value={terminoBusqueda} placeholder="Buscar congregación (nombre, número, circuito)" />
     </div>
 
     <button class="btn-primary" on:click={() => mostrarModal = true} title="Añadir nueva congregación">
@@ -167,7 +167,9 @@ async function guardarYcerrar() {
           </div>
         </div>
       {:else}
-        <div class="vacio">No hay congregaciones. Puede añadirlas, haciendo Click en el botón correspondiente.</div>
+        <div class="vacio">No hay congregaciones añadidas</div>
+        <small>Puede añadirlas con el botón "Nueva Congregación" 
+          o importando un archivo CSV.</small>
       {/each}
     </div>
   </div>
@@ -217,16 +219,17 @@ async function guardarYcerrar() {
   .contenedor-cong { display: flex; flex-direction: column; gap: 15px; height: 100%; }
   
   .toolbar { 
-      display: flex; gap: 10px; 
-      background: var(--bg-card); 
-      padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); 
-      align-items: center; 
-  }
-  .busqueda { 
-      display: flex; align-items: center; gap: 8px; 
-      background: var(--bg-body); 
-      padding: 8px 12px; border-radius: 6px; flex: 1; border: 1px solid var(--border-color);
-  }
+  display: flex; 
+  gap: 10px; 
+  background: var(--bg-card); 
+  padding: 10px; 
+  border-radius: 8px; 
+  border: 1px solid var(--border-color); 
+  align-items: center; 
+  flex-wrap: wrap; /* Permite que los botones bajen si no hay espacio */
+}
+
+
   .busqueda input { border: none; background: transparent; outline: none; width: 100%; font-size: 14px; color: var(--text-main); }
   
   .btn-importar { background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
@@ -377,5 +380,113 @@ async function guardarYcerrar() {
 
 .btn-cancel:hover {
   background: var(--hover-bg);
+}
+
+.busqueda { 
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-body);
+  padding: 8px 12px;          /* Mismo padding que los botones */
+  border-radius: 6px;
+  border: 1px solid var(--border-color); /* Borde fino definido */
+  flex: 1;                     /* Ocupa el espacio restante */
+  transition: box-shadow 0.2s, border-color 0.2s;
+  min-height: 40px;            /* Altura mínima para igualar botones */
+  box-sizing: border-box;
+}
+
+/* Asegurar que la lupa se vea bien */
+.busqueda :global(svg) {
+  color: var(--text-secondary);
+  width: 18px;
+  height: 18px;
+  transition: color 0.2s;
+}
+
+.busqueda:focus-within :global(svg) {
+  color: var(--primary); /* Cambia al enfocar */
+}
+
+.busqueda:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.busqueda input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.busqueda input::placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.vacio {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-icon {
+  opacity: 0.4;
+  margin-bottom: 10px;
+}
+
+.vacio small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.busqueda :global(svg) {
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+
+.busqueda:focus-within :global(svg) {
+  color: var(--primary);
+}
+
+.vacio {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-icon {
+  opacity: 0.4;
+  margin-bottom: 10px;
+}
+
+.vacio small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.busqueda :global(svg) {
+  color: var(--text-secondary);
+  width: 18px;      /* Ajusta tamaño si es necesario */
+  height: 18px;
+}
+
+.busqueda:focus-within :global(svg) {
+  color: var(--primary); /* Cambia a color primario al enfocar */
+}
+
+.ml-auto {
+  margin-left: auto;
 }
 </style>

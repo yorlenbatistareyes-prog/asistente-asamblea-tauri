@@ -240,10 +240,11 @@
                             <Settings size={16} class="ico-gear"/>
                         </div>
                     {/each}
+                    
                     {#if oficina.personal.length === 0}
                         <div class="vacio-box">
                             <p>Aún no se ha añadido auxiliares de oficina.</p>
-                            <p>Haga Click en el botón "Añadir persona" para agregar a algún hermano.</p>
+                            <small>Puede añadirlos con el botón "Añadir persona".</small>
                         </div>
                     {/if}
                 </div>
