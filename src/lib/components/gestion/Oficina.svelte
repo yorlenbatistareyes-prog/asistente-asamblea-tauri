@@ -200,13 +200,13 @@
 
     <div class="tabs-principales">
         <button class:active={tabPrincipal === 'auxiliares'} on:click={() => tabPrincipal = 'auxiliares'}>
-            <Users size={18}/> Auxiliares de la Oficina del Presidente
+            <Users size={18}/> Auxiliar(es) 
         </button>
         <button class:active={tabPrincipal === 'horario'} on:click={() => tabPrincipal = 'horario'}>
             <CalendarClock size={18}/> Horario
         </button>
         <button class:active={tabPrincipal === 'asignaciones'} on:click={() => tabPrincipal = 'asignaciones'}>
-            <ClipboardList size={18}/> Asignaciones en la Oficina
+            <ClipboardList size={18}/> Asignaciones 
         </button>
     </div>
 
@@ -216,11 +216,11 @@
             <div class="panel-full">
                 <div class="header-panel">
                     <div class="header-textos">
-                        <h4><Users size={16}/> Auxiliares Registrados</h4>
+                        <h4><Users size={16}/> Auxiliares añadidos</h4>
                         <span class="subtitulo-suave">Personal de la oficina y apoyo a la Asamblea</span>
                     </div>
                     <button class="btn-mini-add" on:click={() => abrirModalAsignar('personal_oficina')}>
-                        <UserPlus size={14}/> Añadir Personal
+                        <UserPlus size={14}/> Añadir persona
                     </button>
                 </div>
                 <div class="lista-personal-grid">
@@ -242,8 +242,8 @@
                     {/each}
                     {#if oficina.personal.length === 0}
                         <div class="vacio-box">
-                            <p>No hay auxiliares registrados.</p>
-                            <button on:click={() => abrirModalAsignar('personal_oficina')}>Añadir el primero</button>
+                            <p>Aún no se ha añadido auxiliares de oficina.</p>
+                            <p>Haga Click en el botón "Añadir persona" para agregar a algún hermano.</p>
                         </div>
                     {/if}
                 </div>

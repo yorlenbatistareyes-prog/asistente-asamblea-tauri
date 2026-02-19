@@ -211,18 +211,6 @@
 </script>
 
 <div class="dashboard-container">
-  
-  <div class="header-torre">
-    <div>
-        <h2>Hola, {$appStore.usuario} 👋</h2>
-        <span class="subtitulo-header">
-            Panel de Control • {nombreAsamblea} • v{$appStore.version}
-        </span>
-    </div>
-    <div class="reloj-badge">
-        <Clock size={18}/> {horaActual}
-    </div>
-  </div>
 
   <div class="main-grid">
       
