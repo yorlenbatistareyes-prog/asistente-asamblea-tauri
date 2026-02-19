@@ -1991,26 +1991,40 @@ async function cargarTodosDias() {
   color: var(--text-secondary); 
 }
 
-/* Diseño de los inputs y selects */
+/* Diseño de los inputs, selects y textareas (UNIFICADO) */
 .campo input, 
 .campo select,
-.input-icon input { 
+.input-icon input,
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea { 
   padding: 10px 14px !important; 
-  border: 1px solid #cbd5e1 !important; /* Fuerza el borde en TODOS los campos */
+  border: 1px solid #cbd5e1 !important; /* Fuerza el borde fino en todos */
   border-radius: 8px !important; 
   outline: none !important; 
-  background: #f8fafc !important; /* Fuerza el fondo claro */
+  background: #f8fafc !important; /* Fondo gris ultra claro */
   color: var(--text-main) !important; 
   font-size: 14px;
+  font-family: inherit; /* Asegura que la fuente sea igual en el textarea */
   transition: all 0.2s ease;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Efecto al hacer clic (Focus) para todos */
+/* Regla extra para el cuadro de texto grande (Cuerpo del email) */
+.form-group textarea {
+  resize: vertical; /* Permite estirarlo solo hacia abajo */
+  min-height: 120px;
+  line-height: 1.5;
+}
+
+/* Efecto al hacer clic (Focus) para TODOS */
 .campo input:focus, 
 .campo select:focus,
-.input-icon input:focus {
+.input-icon input:focus,
+.form-group input[type="text"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
   border-color: var(--primary) !important;
   background: #ffffff !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important; /* Resplandor azul */
@@ -2027,10 +2041,10 @@ async function cargarTodosDias() {
   position: absolute; 
   left: 12px; 
   color: #64748b; 
-  pointer-events: none; /* Permite hacer clic "a través" del ícono */
+  pointer-events: none; 
 }
 .input-icon input { 
-  padding-left: 38px !important; /* Forza el espacio para el ícono */
+  padding-left: 38px !important; 
 }
 
 .fila { 
@@ -2043,17 +2057,23 @@ async function cargarTodosDias() {
   margin-bottom: 0; 
 }
 
-/* Ajustes para modo oscuro en los formularios */
+/* Ajustes para modo oscuro en TODOS los formularios */
 :global(html.dark-theme) .campo input, 
 :global(html.dark-theme) .campo select,
-:global(html.dark-theme) .input-icon input {
+:global(html.dark-theme) .input-icon input,
+:global(html.dark-theme) .form-group input[type="text"],
+:global(html.dark-theme) .form-group select,
+:global(html.dark-theme) .form-group textarea {
   background: var(--bg-body) !important;
   border-color: var(--border-color) !important;
   color: var(--text-main) !important;
 }
 :global(html.dark-theme) .campo input:focus, 
 :global(html.dark-theme) .campo select:focus,
-:global(html.dark-theme) .input-icon input:focus {
+:global(html.dark-theme) .input-icon input:focus,
+:global(html.dark-theme) .form-group input[type="text"]:focus,
+:global(html.dark-theme) .form-group select:focus,
+:global(html.dark-theme) .form-group textarea:focus {
   background: var(--bg-card) !important;
   border-color: var(--primary) !important;
 }
