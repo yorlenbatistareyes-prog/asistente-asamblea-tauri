@@ -123,7 +123,7 @@ async function guardarYcerrar() {
   
   <div class="toolbar">
     <div class="busqueda">
-      <Search size={18} color="var(--text-secondary)"/>
+      <Search size={18} strokeWidth={2} />
       <input type="text" bind:value={terminoBusqueda} placeholder="Buscar congregación (nombre, número, circuito)" />
     </div>
 
@@ -259,14 +259,16 @@ async function guardarYcerrar() {
 }
 
 .busqueda :global(svg) {
-  color: var(--text-secondary);
-  width: 16px;            /* Icono más pequeño y proporcionado */
-  height: 16px;
+  color: var(--text-secondary) !important;
+  width: 18px !important;
+  height: 18px !important;
   flex-shrink: 0;
+  opacity: 1;
+  display: block;
 }
 
 .busqueda:focus-within :global(svg) {
-  color: var(--primary);
+  color: var(--primary) !important;
 }
 
 .busqueda input {
