@@ -245,7 +245,7 @@ async function guardarYcerrar() {
   background: var(--bg-body);
   padding: 6px 12px;      /* Menos padding vertical para hacerla más fina */
   border-radius: 6px;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid rgba(0, 0, 0, 0.15);  /* Borde más visible */
   flex: 1;                /* Ocupa todo el espacio disponible */
   min-width: 300px;       /* Ancho mínimo */
   height: 32px;           /* Más fina (era 36px) */
