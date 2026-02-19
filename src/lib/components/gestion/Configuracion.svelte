@@ -172,46 +172,7 @@
                             </div>
                             <div class="config-group"><label>Idioma</label><select bind:value={config.idioma} class="input-light"><option value="es">Español</option><option value="en">English</option></select></div>
                         {/if}
-                    </div>
-                    
-                    {#if !editorAbierto}
-                        <div class="col-side">
-                            <div class="config-group">
-                                <label class="group-label">Opciones de Correo</label>
-                                <div class="toggle-list">
-                                    <div class="toggle-item"><span>Correo a oradores</span><label class="switch"><input type="checkbox" bind:checked={config.email_oradores}><span class="slider round"></span></label></div>
-            
-                                    <div class="toggle-item"><span>Correo a presidentes de sesión</span><label class="switch"><input type="checkbox" bind:checked={config.email_presidente}><span class="slider round"></span></label></div>
-            
-                                    <div class="toggle-item"><span>Correo a oraciones</span><label class="switch"><input type="checkbox" bind:checked={config.email_oraciones}><span class="slider round"></span></label></div>
-            
-                                    <div class="toggle-item"><span>Correo a personal de oficina</span><label class="switch"><input type="checkbox" bind:checked={config.email_oficina}><span class="slider round"></span></label></div>
-            
-                                    <div class="toggle-item"><span>Correo al comité de asamblea</span><label class="switch"><input type="checkbox" bind:checked={config.email_comite}><span class="slider round"></span></label></div>
-            
-                                    <div class="toggle-item"><span>Correo a audio y video</span><label class="switch"><input type="checkbox" bind:checked={config.email_audio_video}><span class="slider round"></span></label></div>
-            
-                                    <div class="toggle-item"><span>Anuncio de emergencia</span><label class="switch"><input type="checkbox" bind:checked={config.email_emergencia}><span class="slider round"></span></label></div>
-                                </div>
-                            </div>
-
-                            <div class="config-group mt-large">
-                                <label class="group-label-icon">Utilice el cliente de correo electrónico <HelpCircle size={14}/></label>
-                                <div class="toggle-item description-toggle">
-                                    <label class="switch"><input type="checkbox" bind:checked={config.usar_cliente_sistema}><span class="slider round"></span></label>
-                                    <div class="desc-text">Utilice Thunderbird, BlueMail u otro cliente compatible</div>
-                                </div>
-                            </div>
-
-                            <div class="config-group">
-                                <label class="group-label-icon">No complete con texto sin formato <HelpCircle size={14}/></label>
-                                <div class="toggle-item description-toggle">
-                                    <label class="switch"><input type="checkbox" bind:checked={config.no_precompletar}><span class="slider round"></span></label>
-                                    <div class="desc-text">Solo cuerpo HTML</div>
-                                </div>
-                            </div>
-                        </div>
-                    {/if}
+                    </div>                   
                 </div>
 
                 {#if !editorAbierto}

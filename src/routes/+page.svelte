@@ -293,7 +293,16 @@
         background: #1e3a8a; /* Un azul un poco más oscuro al pasar el mouse */
     }
     
-    .list-container { background: rgba(255,255,255,0.5); padding: 25px; border-radius: 16px; border: 1px solid var(--border-color); }
+   .list-container { 
+    background: var(--bg-card); 
+    padding: 30px; 
+    border-radius: 16px; 
+    border: 1px solid var(--border-color); 
+    /* 👇 Sombra más pronunciada para crear contraste en modo claro */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04); 
+    min-height: 400px; 
+}
+
     .list-header { font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 20px; display: flex; gap: 8px; align-items: center; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 25px; }
     .empty { text-align: center; color: var(--text-secondary); padding: 40px; }

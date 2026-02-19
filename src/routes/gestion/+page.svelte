@@ -5,9 +5,9 @@
   import Oficina from '$lib/components/gestion/Oficina.svelte';
 
   // --- IMPORTAMOS LOS ICONOS ---
-  import { Users, Home, ArrowLeft, Bookmark, BookUser, UserCog, Mic2, PanelLeftClose, PanelLeftOpen,
+  import { User, Users, ArrowLeft, Bookmark, BookUser, UserCog, Mic2, PanelLeftClose, PanelLeftOpen,
     IdCard, UserCheck, ListChecks, ClipboardList, Network, Layers, Key, HeartHandshake, 
-    Workflow, Briefcase } from 'lucide-svelte';
+    Workflow, Briefcase, LayoutDashboard, UsersRound } from 'lucide-svelte';
   
   // --- COMPONENTES ---
   import Resumen from '$lib/components/gestion/Resumen.svelte';
@@ -116,7 +116,7 @@ if (asambleaActual?.id) {
 
     <nav class="menu">
       <button class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')} title="Inicio / Resumen">
-        <Home size={20} class="icono-nav" /> <span class="texto-menu">Inicio / Resumen</span>
+        <LayoutDashboard size={20} class="icono-nav" /> <span class="texto-menu">Inicio/Estadísticas</span>
       </button>
 
       <button class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')} title="Información Evento">
@@ -128,11 +128,11 @@ if (asambleaActual?.id) {
       </button>
 
       <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')} title="Personas">
-        <BookUser size={20} class="icono-nav" /> <span class="texto-menu">Personas</span>
+        <User size={20} class="icono-nav" /> <span class="texto-menu">Personas</span>
       </button>
 
       <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Responsabilidades">
-        <Network size={20} class="icono-nav" /> <span class="texto-menu">Responsabilidades</span>
+        <UserCog size={20} class="icono-nav" /> <span class="texto-menu">Responsabilidades</span>
       </button>
 
       <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa">
