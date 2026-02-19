@@ -15,7 +15,7 @@
     Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
     FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
-    FileText, Download 
+    FileText, Download, ListFilter 
   } from 'lucide-svelte';
 
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
@@ -42,23 +42,51 @@
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
 
+// --- FILTROS Y ORDENAMIENTO ---
+let mostrarPanelFiltros = false;
+let mostrarSelectorDia = false;
+let diasSeleccionados = ['Viernes', 'Sábado', 'Domingo']; // Por defecto todos
+let filtroEstado = 'todos'; // 'todos', 'asignada', 'sin_asignar'
+let filtrosCaracteristicas = {
+  betelita: false,
+  interprete: false,
+  visitante: false
+};
+let filtrosFuente = {
+  en_persona: false,
+  jw_stream: false,
+  transmision_remota: false,
+  video: false
+};
+let ordenarPor = 'secuencia'; // 'secuencia' o 'orador'
+
   // --- onMount ---
   onMount(async () => {
-    const datosGuardados = localStorage.getItem('asambleaActiva');
-    if (datosGuardados) {
-        asambleaId = JSON.parse(datosGuardados).id;
-        
-        await Promise.all([
-            cargarDatos(),
-            cargarHermanos(),
-            cargarPlantillasEmail(),  
-            cargarPlantillasWhatsApp()
-        ]);
-        
-    } else {
-        alert("⚠️ No hay asamblea seleccionada.");
-    }
-  });
+  const datosGuardados = localStorage.getItem('asambleaActiva');
+  if (datosGuardados) {
+      asambleaId = JSON.parse(datosGuardados).id;
+      
+      await Promise.all([
+          cargarTodosDias(),
+          cargarHermanos(),
+          cargarPlantillasEmail(),  
+          cargarPlantillasWhatsApp()
+      ]);
+  } else {
+      alert("⚠️ No hay asamblea seleccionada.");
+  }
+  
+  // Event listener para cerrar el dropdown
+  window.addEventListener('click', handleClickOutside);
+});
+
+onDestroy(() => {
+  window.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
+});
+
+// ELIMINA esta línea que está más abajo:
+// $: if (diaSeleccionado && asambleaId) cargarDatos();
 
   async function cargarDatos() {
     if (!asambleaId) return;
@@ -462,10 +490,10 @@
           const f = await openDialog({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
           if(f) { 
               await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); 
-              await cargarDatos(); 
+              await cargarTodosDias(); 
               await cargarHermanos(); 
           } 
-      } catch(e) { alert("Error: " + e); } 
+      } catch(e) { alert("Error al importar: " + e); }
   }
 
   async function handleExportarPrograma() {
@@ -615,55 +643,244 @@
   }
 
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
+
+ // --- FUNCIONES DE FILTRADO ---
+function aplicarFiltros(listaPartes, dias, estado, caracteristicas, fuente, orden) {
+  let resultado = [...listaPartes];
+  
+  // 1. PRIMERO: Filtro por día seleccionado
+  if (dias.length > 0) {
+    resultado = resultado.filter(p => dias.includes(p.dia));
+  } else {
+    // Si no hay días seleccionados, no mostrar nada
+    return [];
+  }
+  
+  // 2. SEGUNDO: Filtro por estado de asignación
+  if (estado === 'asignada') {
+    resultado = resultado.filter(p => p.nombre_orador && p.nombre_orador.trim() !== '');
+  } else if (estado === 'sin_asignar') {
+    resultado = resultado.filter(p => !p.nombre_orador || p.nombre_orador.trim() === '');
+  }
+  
+  // 3. TERCERO: Filtro por características
+  if (caracteristicas.betelita) {
+    resultado = resultado.filter(p => p.es_betelita === true);
+  }
+  if (caracteristicas.interprete) {
+    resultado = resultado.filter(p => p.es_interprete === true);
+  }
+  if (caracteristicas.visitante) {
+    resultado = resultado.filter(p => p.es_visitante === true);
+  }
+  
+  // 4. CUARTO: Filtro por fuente
+  if (fuente.video) {
+    resultado = resultado.filter(p => p.es_video === true);
+  }
+  if (fuente.en_persona) {
+    resultado = resultado.filter(p => p.fuente === 'en_persona');
+  }
+  if (fuente.jw_stream) {
+    resultado = resultado.filter(p => p.fuente === 'jw_stream');
+  }
+  if (fuente.transmision_remota) {
+    resultado = resultado.filter(p => p.fuente === 'transmision_remota');
+  }
+  
+  return resultado;
+}
+
+function ordenarPartes(partesAOrdenar: any[]) {
+  // 5. QUINTO: Ordenar los resultados filtrados
+  if (ordenarPor === 'orador') {
+    return [...partesAOrdenar].sort((a, b) => {
+      const nombreA = a.nombre_orador || 'ZZZ'; // Los sin orador van al final
+      const nombreB = b.nombre_orador || 'ZZZ';
+      return nombreA.localeCompare(nombreB);
+    });
+  }
+  // Por defecto, ordenar por día y hora (secuencia)
+  return [...partesAOrdenar].sort((a, b) => {
+    const orden = { 'Viernes': 1, 'Sábado': 2, 'Domingo': 3 };
+    const ordenDia = orden[a.dia as keyof typeof orden] - orden[b.dia as keyof typeof orden];
+    if (ordenDia !== 0) return ordenDia;
+    return (a.hora_inicio || '').localeCompare(b.hora_inicio || '');
+  });
+}
+
+function limpiarFiltros() {
+  filtroEstado = 'todos';
+  filtrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
+  filtrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+  ordenarPor = 'secuencia';
+}
+
+function toggleDia(dia: string) {
+  if (dia === 'Todos') {
+    // Si está todo seleccionado, deseleccionar todo, sino seleccionar todo
+    if (diasSeleccionados.length === 3) {
+      diasSeleccionados = [];
+    } else {
+      diasSeleccionados = ['Viernes', 'Sábado', 'Domingo'];
+    }
+  } else {
+    const index = diasSeleccionados.indexOf(dia);
+    if (index > -1) {
+      // Deseleccionar
+      diasSeleccionados = diasSeleccionados.filter(d => d !== dia);
+    } else {
+      // Seleccionar
+      diasSeleccionados = [...diasSeleccionados, dia];
+    }
+  }
+  // NO cerrar el modal aquí
+}
+
+// Al incluir `partes` en los argumentos de la función, Svelte detecta el cambio
+$: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, filtroEstado, filtrosCaracteristicas, filtrosFuente, ordenarPor));
+
+function getLabelDia() {
+  if (diasSeleccionados.length === 0) return 'Ningún día';
+  if (diasSeleccionados.length === 3) return 'Todos';
+  if (diasSeleccionados.length === 1) return diasSeleccionados[0];
+  if (diasSeleccionados.length === 2) {
+    return diasSeleccionados.join(', ');
+  }
+  return `${diasSeleccionados.length} días`;
+}
+
+// Cerrar dropdown al hacer clic fuera
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement;
+  if (mostrarSelectorDia && !target.closest('.selector-dia-container')) {
+    mostrarSelectorDia = false;
+  }
+}
+
+// Cargar todos los días
+async function cargarTodosDias() {
+  if (!asambleaId) return;
+  const abiertos = new Set(partes.filter(p => p._expanded).map(p => p.id));
+  
+  try {
+    const dias = ['Viernes', 'Sábado', 'Domingo'];
+    let todasLasPartes: any[] = [];
+    
+    for (const dia of dias) {
+      const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+      const partesConDia = res.map(p => ({ 
+        ...p, 
+        dia: dia, // Agregar el día a cada parte
+        _expanded: abiertos.has(p.id),
+        recibido_manual: p.estado === 'Confirmado',
+        estado: p.estado || 'Pendiente',
+        esta_presente: p.esta_presente === true || p.esta_presente === 1,
+        numero_bosquejo: p.numero_bosquejo || "",
+        email_enviado: false,
+        carta_recibida_check: false,
+        jwpub_enviado: false,
+        recordatorio_enviado: false,
+        ensayo_terminado: p.ensayo_terminado || false,
+        whatsapp_enviado: false,
+        recordatorio_whatsapp_enviado: false
+      }));
+      todasLasPartes = [...todasLasPartes, ...partesConDia];
+    }
+    
+    partes = todasLasPartes;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Reactive statement
+
+
 </script>
 
 <!-- ========== HTML ========== -->
 <div class="layout-programa">
   <main class="panel-discursos">
-    <div class="tabs">
-      {#each ['Viernes', 'Sábado', 'Domingo'] as dia}
-        <button class:active={diaSeleccionado === dia} on:click={() => diaSeleccionado = dia}>
-          {dia}
-        </button>
-      {/each}
-    </div>
 
     <div class="header-sesion">
-      <div class="header-sesion-left">
-        <h2>Programa - {diaSeleccionado}</h2>
-        
-        <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }} title="Enviar emails y JWPUB a todos los oradores">
-          <Mail size={18}/> <span>Email a Todos</span>
-        </button>
-      </div>
+  <div class="header-sesion-left">
+    <h2>Programa</h2>
       
-      <div class="acciones-header">
-        <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
-          <FileSpreadsheet size={18}/> <span>Importar</span>
-        </button>
-
-        <button class="btn-header-pdf" 
-            title="Exportar lista de discursos a PDF"
-            on:click={handleExportarPrograma}>
-            <FileUp size={18}/> <span>PDF</span>
-        </button>
-
-        <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
-          <Trash2 size={18}/> <span>Limpiar</span>
-        </button>
-        
-        <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
-          <Plus size={18}/> <span>Agregar</span>
-        </button>
-      </div>
+      <!-- SELECTOR DE DÍA -->
+<div class="selector-dia-container">
+  <button class="btn-selector-dia" on:click|stopPropagation={() => mostrarSelectorDia = !mostrarSelectorDia}>
+    <span>📅 {getLabelDia()}</span>
+    <ChevronDown size={16}/>
+  </button>
+  
+  {#if mostrarSelectorDia}
+    <div class="dropdown-dias" on:click|stopPropagation>
+      <button class="dia-opcion" on:click={() => toggleDia('Todos')}>
+        <input type="checkbox" checked={diasSeleccionados.length === 3} readonly>
+        <span>Todos</span>
+      </button>
+      <div class="separator-dropdown"></div>
+      <button class="dia-opcion" on:click={() => toggleDia('Viernes')}>
+        <input type="checkbox" checked={diasSeleccionados.includes('Viernes')} readonly>
+        <span>Viernes</span>
+      </button>
+      <button class="dia-opcion" on:click={() => toggleDia('Sábado')}>
+        <input type="checkbox" checked={diasSeleccionados.includes('Sábado')} readonly>
+        <span>Sábado</span>
+      </button>
+      <button class="dia-opcion" on:click={() => toggleDia('Domingo')}>
+        <input type="checkbox" checked={diasSeleccionados.includes('Domingo')} readonly>
+        <span>Domingo</span>
+      </button>
     </div>
+  {/if}
+</div>
+
+    <!-- BOTÓN FILTROS -->
+    <button class="btn-header-filtros" on:click={() => mostrarPanelFiltros = true}>
+      <Settings size={18}/> <span>Filtros</span>
+    </button>
+
+    <!-- ORDENAR POR -->
+    <div class="ordenar-container">
+      <label for="ordenar">Ordenar:</label>
+      <select id="ordenar" bind:value={ordenarPor} class="select-ordenar">
+        <option value="secuencia">Secuencia</option>
+        <option value="orador">Orador</option>
+      </select>
+    </div>
+  </div>
+  
+  <div class="acciones-header">
+    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }}>
+      <Mail size={18}/> <span>Email a Todos</span>
+    </button>
+
+    <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
+      <FileSpreadsheet size={18}/> <span>Importar</span>
+    </button>
+
+    <button class="btn-header-pdf" title="Exportar lista de discursos a PDF" on:click={handleExportarPrograma}>
+      <FileUp size={18}/> <span>PDF</span>
+    </button>
+
+    <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
+      <Trash2 size={18}/> <span>Limpiar</span>
+    </button>
+    
+    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
+      <Plus size={18}/> <span>Agregar</span>
+    </button>
+  </div>
+</div>
 
     <div class="lista-partes">
       {#if partes.length === 0}
         <div class="empty-state"><p>Programa vacío para este día.</p></div>
       {/if}
       
-      {#each partes as parte}
+      {#each partesFiltradas as parte}
         <div class="tarjeta-acordeon" 
           class:expanded={parte._expanded}
           class:estado-presente={parte.esta_presente}
@@ -1160,6 +1377,113 @@
       <div class="modal-footer">
         <button class="btn-cancel" on:click={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}>Cancelar</button>
         <button class="btn-delete" on:click={confirmarEliminarParte}>Eliminar</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if mostrarPanelFiltros}
+  <div class="modal-backdrop" on:click|self={() => mostrarPanelFiltros = false}>
+    <div class="modal-filtros">
+      <div class="modal-header">
+        <h3><Settings size={20}/> Filtros</h3>
+        <button class="btn-close" on:click={() => mostrarPanelFiltros = false}>
+          <X size={20}/>
+        </button>
+      </div>
+      
+      <div class="modal-body-filtros">
+        <div class="filtros-activos-info">
+          <h4>Filtros activos</h4>
+          <p class="texto-secundario">Los filtros no están activos</p>
+        </div>
+
+        <!-- ELIMINAR SECCIÓN DE DÍA -->
+
+        <!-- ESTADO DE LA ASIGNACIÓN -->
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Estado de la asignación</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => filtroEstado = 'todos'}>
+              Eliminar
+            </button>
+            <label class="radio-label-filtro">
+              <input type="radio" bind:group={filtroEstado} value="todos">
+              <span>Todos</span>
+            </label>
+            <label class="radio-label-filtro">
+              <input type="radio" bind:group={filtroEstado} value="asignada">
+              <span>Asignada</span>
+            </label>
+            <label class="radio-label-filtro">
+              <input type="radio" bind:group={filtroEstado} value="sin_asignar">
+              <span>Sin asignar</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- CARACTERÍSTICAS DEL ORADOR -->
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Características del orador</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => filtrosCaracteristicas = {betelita: false, interprete: false, visitante: false}}>
+              Eliminar
+            </button>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosCaracteristicas.betelita}>
+              <span>Betelita</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosCaracteristicas.interprete}>
+              <span>Intérprete</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosCaracteristicas.visitante}>
+              <span>Visitante</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- FUENTE -->
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Fuente</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => filtrosFuente = {en_persona: false, jw_stream: false, transmision_remota: false, video: false}}>
+              Eliminar
+            </button>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosFuente.en_persona}>
+              <span>En persona</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosFuente.jw_stream}>
+              <span>Descarga de JW Stream</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosFuente.transmision_remota}>
+              <span>Transmisión remota en directo</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={filtrosFuente.video}>
+              <span>Video</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer-filtros">
+        <button class="btn-cancel" on:click={() => mostrarPanelFiltros = false}>Cancelar</button>
+        <button class="btn-limpiar" on:click={limpiarFiltros}>Eliminar todo</button>
+        <button class="btn-aplicar" on:click={() => mostrarPanelFiltros = false}>Aplicar</button>
       </div>
     </div>
   </div>
@@ -2210,5 +2534,263 @@ textarea {
     flex-wrap: wrap;
     justify-content: center;
   }
+}
+
+/* === FILTROS === */
+.btn-header-filtros {
+  background: var(--bg-card);
+  border: 1px solid #8b5cf6;
+  color: #8b5cf6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-header-filtros:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.ordenar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ordenar-container label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.select-ordenar {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.modal-filtros {
+  background: var(--bg-card);
+  width: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.modal-body-filtros {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  background: var(--bg-body);
+}
+
+.filtros-activos-info {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filtros-activos-info h4 {
+  margin: 0 0 5px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.texto-secundario {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.grupo-filtro {
+  margin-bottom: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.filtro-header {
+  width: 100%;
+  padding: 12px 15px;
+  background: transparent;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.filtro-header:hover {
+  background: var(--hover-bg);
+}
+
+.filtro-contenido {
+  padding: 15px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-eliminar-filtro {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 5px;
+}
+
+.btn-eliminar-filtro:hover {
+  text-decoration: underline;
+}
+
+.checkbox-label, .radio-label-filtro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.checkbox-label input, .radio-label-filtro input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.modal-footer-filtros {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.btn-limpiar {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-limpiar:hover {
+  background: var(--hover-bg);
+}
+
+.btn-aplicar {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-aplicar:hover {
+  opacity: 0.9;
+}
+
+/* === SELECTOR DE DÍA === */
+.selector-dia-container {
+  position: relative;
+}
+
+.btn-selector-dia {
+  background: var(--bg-card);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-selector-dia:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.dropdown-dias {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 5px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+  z-index: 100;
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.dia-opcion {
+  width: 100%;
+  padding: 10px 15px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-main);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.2s;
+}
+
+.dia-opcion:last-child {
+  border-bottom: none;
+}
+
+.dia-opcion:hover {
+  background: var(--hover-bg);
+}
+
+.dia-opcion input[type="checkbox"] {
+  pointer-events: none;
+  accent-color: var(--primary);
+}
+
+.separator-dropdown {
+  height: 1px;
+  background: var(--border-color);
+  margin: 5px 10px;
 }
 </style>
