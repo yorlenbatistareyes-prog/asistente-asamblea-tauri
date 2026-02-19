@@ -1754,4 +1754,116 @@
   background: #1d4ed8;
   transform: scale(1.02);
 }
+
+/* ========================================
+   MODO OSCURO - SECCIÓN PROGRAMA
+   ======================================== */
+:global(html.dark-theme) .lista-partes {
+  background: var(--bg-body);
+}
+
+:global(html.dark-theme) .tarjeta-acordeon {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+:global(html.dark-theme) .badge-video {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+:global(html.dark-theme) .badge-bosquejo {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fcd34d; /* Amarillo claro para contraste */
+}
+
+/* Modal de emails */
+:global(html.dark-theme) .modal-emails {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px var(--shadow-color);
+}
+
+:global(html.dark-theme) .modal-emails .modal-header {
+  background: var(--bg-secondary);
+  border-bottom-color: var(--border-color);
+}
+
+:global(html.dark-theme) .modal-emails .modal-header h3 {
+  color: var(--text-main);
+}
+
+:global(html.dark-theme) .opciones-email-grid {
+  background: var(--bg-card);
+}
+
+:global(html.dark-theme) .opcion-email {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+:global(html.dark-theme) .opcion-email:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+:global(html.dark-theme) .icon-wrapper.azul {
+  background: rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+}
+
+:global(html.dark-theme) .icon-wrapper.morado {
+  background: rgba(147, 51, 234, 0.25);
+  color: #c084fc;
+}
+
+:global(html.dark-theme) .icon-wrapper.naranja {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fb923c;
+}
+
+:global(html.dark-theme) .mini-badge {
+  border-color: var(--bg-card);
+}
+
+:global(html.dark-theme) .btn-dia {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+:global(html.dark-theme) .btn-dia:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  box-shadow: 0 8px 18px var(--shadow-color);
+}
+
+:global(html.dark-theme) .btn-dia.activo {
+  background: var(--primary);
+  color: white;
+  border-color: transparent;
+}
+
+:global(html.dark-theme) .seccion-editor {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+:global(html.dark-theme) .destinatarios-badge {
+  background: #10b981;
+  color: white;
+}
+
+:global(html.dark-theme) .modal-button {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+:global(html.dark-theme) .modal-button.primary {
+  background: var(--primary);
+  color: white;
+}
 </style>

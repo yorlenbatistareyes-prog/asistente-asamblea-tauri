@@ -734,15 +734,15 @@ async function guardarOrientaciones() {
   gap: 20px; 
   padding: 20px;
   padding-bottom: 40px; 
-  background: var(--bg-body);
+  background: #f1f5f9;
 }
 
 .card-config { 
-  background: var(--bg-card); 
+  background: #ffffff; /* <--- Blanco puro */
   padding: 30px; 
   border-radius: 12px; 
-  border: 1px solid var(--border-color); 
-  box-shadow: 0 2px 8px var(--shadow-color);
+  border: 1px solid #cbd5e1; /* <--- El borde gris sólido que te gustó */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* <--- Sombra sutil pero elegante */
   margin-bottom: 20px;
 }
 
@@ -926,9 +926,9 @@ input:focus, select:focus {
    EDITORES TIPTAP
    ======================================== */
 .tiptap-frame { 
-  border: 1px solid var(--border-color); 
+  border: 1px solid #cbd5e1; /* <--- Igualamos el borde de la tarjeta */
   border-radius: 8px; 
-  background: var(--bg-card); 
+  background: #ffffff; 
   min-height: 180px; 
   display: flex; 
   flex-direction: column; 
@@ -1347,24 +1347,29 @@ input:focus, select:focus {
   margin: 0; 
 }
 
-/* ========================================
-   CONTENEDOR Y TARJETAS
-   ======================================== */
-.card-config { 
-  background: var(--bg-card); 
-  padding: 30px; 
-  border-radius: 16px; /* Bordes más redondeados */
-  border: 2px solid var(--border-color);
-  box-shadow: 
-    0 4px 6px rgba(0, 0, 0, 0.07),
-    0 10px 15px rgba(0, 0, 0, 0.05); /* Doble sombra para más profundidad */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
 .card-config:hover {
   transform: translateY(-2px); /* Efecto hover sutil */
   box-shadow: 
     0 6px 8px rgba(0, 0, 0, 0.09),
     0 12px 20px rgba(0, 0, 0, 0.07);
+}
+
+/* Sobrescrituras para modo oscuro */
+:global(html.dark-theme) .contenedor {
+  background: var(--bg-body);
+}
+
+:global(html.dark-theme) .card-config {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+:global(html.dark-theme) .tiptap-frame {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+:global(html.dark-theme) .card-config:hover {
+  box-shadow: 0 6px 8px var(--shadow-color), 0 12px 20px var(--shadow-color);
 }
 </style>
