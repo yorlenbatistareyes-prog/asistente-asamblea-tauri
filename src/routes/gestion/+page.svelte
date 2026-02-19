@@ -127,16 +127,16 @@ if (asambleaActual?.id) {
         <Users size={20} class="icono-nav" /> <span class="texto-menu">Congregaciones</span>
       </button>
 
-      <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')} title="Registro de Personas">
-        <BookUser size={20} class="icono-nav" /> <span class="texto-menu">Registro de Personas</span>
+      <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')} title="Personas">
+        <BookUser size={20} class="icono-nav" /> <span class="texto-menu">Personas</span>
       </button>
 
       <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Responsabilidades">
         <Network size={20} class="icono-nav" /> <span class="texto-menu">Responsabilidades</span>
       </button>
 
-      <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa y Oradores">
-        <Mic2 size={20} class="icono-nav" /> <span class="texto-menu">Programa y Oradores</span>
+      <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa">
+        <Mic2 size={20} class="icono-nav" /> <span class="texto-menu">Programa</span>
       </button>
 
       <button class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')} title="Oficina">

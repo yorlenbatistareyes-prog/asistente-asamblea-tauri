@@ -5,14 +5,11 @@
   import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { slide } from 'svelte/transition';
   import { fade } from 'svelte/transition'; 
-  import { onDestroy } from 'svelte'; // Mover import arriba para buenas prácticas
+  import { onDestroy } from 'svelte';
   
-  // --- NUEVAS IMPORTACIONES PARA EL SISTEMA MODULAR ---
   import { generarContexto } from '$lib/utils/contexto_impresion';
   import { generarCartaPDF } from '$lib/utils/impresion';
-
-  // NUEVO: Importamos la función de exportar desde la ruta limpia
-  import { exportarProgramaPDF, exportarOficinaPDF } from '$lib/utils/exportar';
+  import { exportarProgramaPDF } from '$lib/utils/exportar';
   
   import { 
     Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
@@ -22,9 +19,7 @@
   } from 'lucide-svelte';
 
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
-  // NUEVO: importamos desde plantillasEmail.ts
   import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
-
   import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
   import { oradoresPendientes } from '$lib/stores/gestion';
@@ -33,23 +28,12 @@
   let asambleaId = 0; 
   let diaSeleccionado = 'Viernes';
   let partes: any[] = []; 
-  
-  let oficina: { [key: string]: any } = {
-      personal: [] as any[],
-      presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null,
-      presidente_tarde: null, oracion_conclusion: null, bosquejos_tarde: null, plataforma_tarde: null
-  };
 
   // --- MODALS ---
   let mostrarModalAsignar = false; 
   let mostrarModalCrear = false;   
-  let mostrarModalGestionOficina = false;
-  
- 
 
   let parteEditando: any = null; 
-  let rolOficinaEditando: string | null = null; 
-  let asignacionOficinaActual: any = null; 
   
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
@@ -58,13 +42,12 @@
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
 
-  // --- onMount MEJORADO ---
+  // --- onMount ---
   onMount(async () => {
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
         asambleaId = JSON.parse(datosGuardados).id;
         
-        // Cargamos todo en paralelo
         await Promise.all([
             cargarDatos(),
             cargarHermanos(),
@@ -75,8 +58,7 @@
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
     }
-});
-
+  });
 
   async function cargarDatos() {
     if (!asambleaId) return;
@@ -85,32 +67,24 @@
     try { 
         const res = await invoke('obtener_programa_dia', { asambleaId, dia: diaSeleccionado }) as any[]; 
         partes = res.map(p => ({ 
-  ...p, 
-  _expanded: abiertos.has(p.id), 
-  // Usar el valor real de la base de datos
-  recibido_manual: p.estado === 'Confirmado',
-  estado: p.estado || 'Pendiente',
-  esta_presente: p.esta_presente === true || p.esta_presente === 1,
-  // Asegurar que numero_bosquejo no sea nulo
-  numero_bosquejo: p.numero_bosquejo || "",
-  email_enviado: false, 
-  carta_recibida_check: false, 
-  jwpub_enviado: false, 
-  recordatorio_enviado: false, 
-  ensayo_terminado: p.ensayo_terminado || false,
-  whatsapp_enviado: false,
-  recordatorio_whatsapp_enviado: false
-}));
-        // Actualizar lista global de oradores pendientes (aquellos sin estado 'Confirmado')
+          ...p, 
+          _expanded: abiertos.has(p.id), 
+          recibido_manual: p.estado === 'Confirmado',
+          estado: p.estado || 'Pendiente',
+          esta_presente: p.esta_presente === true || p.esta_presente === 1,
+          numero_bosquejo: p.numero_bosquejo || "",
+          email_enviado: false, 
+          carta_recibida_check: false, 
+          jwpub_enviado: false, 
+          recordatorio_enviado: false, 
+          ensayo_terminado: p.ensayo_terminado || false,
+          whatsapp_enviado: false,
+          recordatorio_whatsapp_enviado: false
+        }));
         const pendientes = partes
           .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
           .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
         oradoresPendientes.set(pendientes);
-    } catch (e) { console.error(e); }
-    
-    try { 
-        const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: diaSeleccionado }) as any[]; 
-        organizarOficina(datos); 
     } catch (e) { console.error(e); }
   }
 
@@ -122,7 +96,6 @@
     if (encontrado) {
       (async () => {
         await toggleConfirmado(encontrado);
-        // volver a propagar pendientes UNA VEZ que el backend haya actualizado
         const pendientes = partes
           .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
           .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
@@ -131,38 +104,8 @@
     }
   }
 
-  // registrar listener en mount / cleanup en destroy
   window.addEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
   onDestroy(() => { window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener); });
-
-  function organizarOficina(datos: any[]) {
-      // Reiniciamos con estructura segura
-      let nuevaOficina: any = { 
-          personal: [], 
-          presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null, 
-          presidente_tarde: null, oracion_conclusion: null, bosquejos_tarde: null, plataforma_tarde: null 
-      };
-      
-      if (datos && Array.isArray(datos)) {
-          datos.forEach(d => {
-    // Respetar el valor de la base de datos
-    d.estado = d.estado || 'Pendiente';
-    d.recibido_manual = d.estado === 'Confirmado';
-    d.esta_presente = d.esta_presente === true || d.esta_presente === 1;
-    d.ensayo_terminado = d.ensayo_terminado || false;
-    d.carta_recibida_check = false;
-    d.whatsapp_enviado = false;
-    d.recordatorio_whatsapp_enviado = false;
-
-              if (d.tipo_asignacion === 'personal_oficina') {
-                  nuevaOficina.personal.push(d);
-              } else if (Object.keys(nuevaOficina).includes(d.tipo_asignacion)) {
-                  nuevaOficina[d.tipo_asignacion] = d;
-              }
-          });
-      }
-      oficina = nuevaOficina; // Asignación reactiva final
-  }
 
   async function cargarHermanos() { 
     if (!asambleaId) return;
@@ -178,101 +121,49 @@
       });
   }
 
-  async function eliminarAsignacionOficina(idAsignacion: number) {
-      if (!confirm("¿Quitar a este hermano?")) return;
-      try {
-          await invoke('eliminar_asignacion_especial', { id: idAsignacion });
-          mostrarModalGestionOficina = false;
-          cargarDatos(); 
-      } catch (e) { alert("Error: " + e); }
-  }
-
-  function prepararDatosOficina(asignacion: any) {
-      const datosCompletos = listaHermanos.find(h => h.id === asignacion.persona_id || h.nombre_completo === asignacion.nombre_completo) || {};
-      return {
-          ...asignacion,
-          telefono_visual: asignacion.telefono || asignacion.telefono_persona || datosCompletos.telefono || '',
-          email_visual: asignacion.email || asignacion.email_persona || datosCompletos.email || '',
-          congregacion_visual: asignacion.nombre_congregacion || datosCompletos.nombre_congregacion || ''
-      };
-  }
-
-  function actualizarVistaOficina(objeto: any) {
-      if (mostrarModalGestionOficina && objeto) {
-          if (objeto.es_personal) {
-              const idx = oficina.personal.findIndex((p: any) => p.id === objeto.id);
-              if (idx >= 0) oficina.personal[idx] = { ...objeto };
-          } else if (objeto.rol_key) {
-              oficina[objeto.rol_key] = { ...objeto };
-          }
-          oficina = { ...oficina }; 
-          asignacionOficinaActual = { ...objeto }; 
-      }
-  }
-
+  // --- FUNCIONES DE ESTADO (sin oficina) ---
   async function toggleStatus(objeto: any, campo: string) {
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto[campo];
     const nuevoEstado = !objeto[campo];
-    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
         objeto[campo] = nuevoEstado;
         partes = partes;
 
-        if (esOficina) {
-            await invoke('alternar_estado_oficina', {
-                id: objeto.id,
-                tipoAccion: campo,
-                valorNuevo: nuevoEstado
-            });
-        } else {
-            await invoke('alternar_estado_parte', {
-                id: objeto.id,
-                tipoAccion: campo,
-                valorNuevo: nuevoEstado
-            });
-        }
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: campo,
+            valorNuevo: nuevoEstado
+        });
 
-        actualizarVistaOficina(objeto);
     } catch (e) {
         console.error('Error en toggleStatus:', e);
         alert('Error al guardar: ' + e);
         objeto[campo] = estadoAnterior;
         partes = partes;
     }
-}
+  }
 
   async function toggleConfirmado(objeto: any) {
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto.recibido_manual;
     const nuevoEstado = !objeto.recibido_manual;
-    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
         objeto.recibido_manual = nuevoEstado;
         objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
         partes = partes;
 
-        if (esOficina) {
-            await invoke('alternar_estado_oficina', {
-                id: objeto.id,
-                tipoAccion: 'confirmacion',
-                valorNuevo: nuevoEstado
-            });
-        } else {
-            await invoke('alternar_estado_parte', {
-                id: objeto.id,
-                tipoAccion: 'confirmacion',
-                valorNuevo: nuevoEstado
-            });
-        }
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'confirmacion',
+            valorNuevo: nuevoEstado
+        });
 
-        actualizarVistaOficina(objeto);
-
-        if (typeof oradoresPendientes !== 'undefined' && !esOficina) {
+        if (typeof oradoresPendientes !== 'undefined') {
             const pendientes = partes
                 .filter(p => p.nombre_orador && (!p.recibido_manual))
                 .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: 'Pendiente' }));
@@ -285,235 +176,184 @@
         objeto.estado = estadoAnterior ? 'Confirmado' : 'Pendiente';
         partes = partes;
     }
-}
+  }
 
   async function togglePresente(objeto: any) {
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto.esta_presente;
     const nuevoEstado = !objeto.esta_presente;
-    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
         objeto.esta_presente = nuevoEstado;
         partes = partes;
+        
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'presencia',
+            valorNuevo: nuevoEstado
+        });
 
-        if (esOficina) {
-            await invoke('alternar_estado_oficina', {
-                id: objeto.id,
-                tipoAccion: 'presencia',
-                valorNuevo: nuevoEstado
-            });
-        } else {
-            await invoke('alternar_estado_parte', {
-                id: objeto.id,
-                tipoAccion: 'presencia',
-                valorNuevo: nuevoEstado
-            });
-        }
-
-        actualizarVistaOficina(objeto);
     } catch (e) {
         console.error('Error togglePresente:', e);
         alert('Error: ' + e);
         objeto.esta_presente = estadoAnterior;
         partes = partes;
     }
-}
+  }
 
- // --- BOTÓN 1: WHATSAPP PARA ASIGNACIÓN (CARTA / RECORDATORIO DE ASIGNACIÓN) ---
-async function abrirWhatsAppAsignacion(objeto: any) {
+  // --- WHATSAPP ---
+  async function abrirWhatsAppAsignacion(objeto: any) {
     const url = await obtenerUrlWhatsApp(objeto, false);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.whatsapp_enviado = true;
         partes = partes;
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-// --- BOTÓN 2: WHATSAPP PARA RECORDATORIO DE ENSAYO ---
-async function abrirWhatsAppRecordatorio(objeto: any) {
+  async function abrirWhatsAppRecordatorio(objeto: any) {
     const url = await obtenerUrlWhatsApp(objeto, true);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.recordatorio_whatsapp_enviado = true;
         partes = partes;
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-  // --- LÓGICA DE ENVÍO DE CORREOS (Separada e Independiente) ---
-
-// --- FUNCIÓN MEJORADA: OBTENER URL DE CORREO (CON MARCADORES COMPLETOS) ---
-// --- FUNCIÓN DEFINITIVA (SIN MAPEO MANUAL, SIN ERRORES TS) ---
-async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<string | null> {
-    // 1. Validar correo
+  // --- CORREOS ---
+  async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<string | null> {
     const emailDestino = (objeto.email_visual || objeto.email_orador || objeto.email || "").trim();
     if (!emailDestino) {
         alert("⚠️ No hay correo registrado.");
         return null;
     }
 
-    // 2. ID de plantilla según rol
     let idPlantilla = 'oradores';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
     if (rol.includes('presidente')) idPlantilla = 'presidentes';
     else if (rol.includes('oracion')) idPlantilla = 'oraciones';
 
-    // 3. Obtener plantilla (síncrono, del store)
     const plantilla = obtenerPlantillaPorId(idPlantilla);
     const asuntoBase = plantilla?.subject || "Asignación JWPUB";
     const cuerpoBase = plantilla?.body || "⚠️ No se ha definido una plantilla para este tipo de asignación.";
 
-    // 4. Obtener contexto COMPLETO (¡ya tiene todo!)
     const contexto = await generarContexto(objeto, asambleaId, true);
-
-    // 5. Procesar asunto y cuerpo con las funciones NUEVAS (pasando contexto directamente)
     let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
     let cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
 
-    // 6. Si es recordatorio, prefijo
     if (esRecordatorio) {
         asuntoFinal = "RECORDATORIO: " + asuntoFinal;
     }
 
-    // 7. Construir URL de JWPUB (con # en lugar de ?)
     return `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
        `&to=${encodeURIComponent(emailDestino)}` +
        `&subject=${encodeURIComponent(asuntoFinal)}` +
        `&body=${encodeURIComponent(cuerpoFinal)}`;
-    }
-  // --- BOTÓN 1: ENVIAR CARTA ---
-async function abrirJWPUBCarta(objeto: any) {
+  }
+
+  async function abrirJWPUBCarta(objeto: any) {
     const url = await obtenerUrlCorreo(objeto, false);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.jwpub_enviado = true;
         partes = partes; 
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-// --- BOTÓN 2: ENVIAR RECORDATORIO ---
-async function abrirJWPUBRecordatorio(objeto: any) {
+  async function abrirJWPUBRecordatorio(objeto: any) {
     const url = await obtenerUrlCorreo(objeto, true);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.recordatorio_enviado = true;
         partes = partes;
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-// --- CONFIGURACIÓN DE PLANTILLAS ---
-  // Las claves de la derecha ('presidentes', 'oraciones') coinciden con 
-  // los nombres de las tarjetas donde guardaste el texto en el Editor.
-  const MAPA_PLANTILLAS: Record<string, string> = {
-      'programa': 'oradores',       // Para discursos normales
-      'presidente': 'presidentes',  // <--- AQUÍ ESTÁ LA MAGIA
-      'oracion': 'oraciones',       // <--- Y AQUÍ
-      'plataforma': 'oradores',     // (O usa una genérica si no tienes esta)
-      'personal': 'oradores',       // (O usa una genérica)
-      'default': 'oradores'         
-  };
-
-  // --- LÓGICA DE WHATSAPP (CON PLANTILLAS) ---
-// --- LÓGICA DE WHATSAPP CON CARGA DIRECTA DESDE RUST ---
-async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
-    // 1. Validar teléfono
+  // --- WHATSAPP URL ---
+  async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
     const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
     if (!telefono) {
         alert("⚠️ No hay teléfono registrado.");
         return null;
     }
 
-    // 2. ID de plantilla según rol
     let idPlantilla = 'oradores';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
     if (rol.includes('presidente')) idPlantilla = 'presidentes';
     else if (rol.includes('oracion')) idPlantilla = 'oraciones';
     else if (esRecordatorio) idPlantilla = 'ensayo';
 
-    // 3. Intentar obtener del store
     let plantilla = obtenerPlantillaWhatsAppPorId(idPlantilla);
     let cuerpoBase = plantilla?.body || "";
 
-    // 4. Si no está en el store, cargar directamente desde Rust
     if (!cuerpoBase) {
         console.log(`📱 Plantilla WhatsApp "${idPlantilla}" no encontrada en store, cargando desde Rust...`);
         try {
             const res: any = await invoke('obtener_plantilla_mensaje', { id: idPlantilla });
             if (res && res.cuerpo) {
                 cuerpoBase = res.cuerpo;
-                // Opcional: actualizar el store para futuras ocasiones
-                // (puedes implementar una función para esto si quieres)
             }
         } catch (e) {
             console.error(`Error cargando plantilla WhatsApp ${idPlantilla}:`, e);
         }
     }
 
-    // 5. Si sigue vacío, usar texto de respaldo
     if (!cuerpoBase) {
         cuerpoBase = "⚠️ No se ha definido una plantilla para WhatsApp.";
     }
 
-    // 6. Obtener contexto y procesar mensaje
     const contexto = await generarContexto(objeto, asambleaId, true);
     let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
-    mensaje = mensaje.substring(0, 4000); // Límite de WhatsApp
+    mensaje = mensaje.substring(0, 4000);
 
-    // 7. Construir URL
     const numero = telefono.replace(/\D/g, '');
     return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-}
+  }
 
-  // --- FUNCIÓN DE IMPRESIÓN (Con Mapa) ---
+  // --- MAPA DE PLANTILLAS PARA IMPRESIÓN ---
+  const MAPA_PLANTILLAS: Record<string, string> = {
+      'programa': 'oradores',
+      'presidente': 'presidentes',
+      'oracion': 'oraciones',
+      'plataforma': 'oradores',
+      'personal': 'oradores',
+      'default': 'oradores'         
+  };
+
   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
       if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila.");
       
       try {
-          // 1. Preparamos los datos
           const contexto = await generarContexto(objeto, asambleaId, esPartePrograma);
-
-          // 2. Elegimos qué plantilla usar usando el Mapa
           let plantillaId = '';
 
           if (esPartePrograma) {
               plantillaId = MAPA_PLANTILLAS['programa'];
           } else {
-              // Detectamos el rol del hermano
               const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
-              
               if (rol.includes('presidente')) {
                   plantillaId = MAPA_PLANTILLAS['presidente']; 
-              } 
-              else if (rol.includes('oracion') || rol.includes('oración')) {
+              } else if (rol.includes('oracion') || rol.includes('oración')) {
                   plantillaId = MAPA_PLANTILLAS['oracion'];
-              } 
-              else if (rol.includes('plataforma')) {
+              } else if (rol.includes('plataforma')) {
                   plantillaId = MAPA_PLANTILLAS['plataforma'];
-              }
-              else {
+              } else {
                   plantillaId = MAPA_PLANTILLAS['default'];
               }
           }
 
           console.log(`🖨️ Rol: "${contexto.tipo_asignacion}" -> Buscando plantilla ID: "${plantillaId}"`);
 
-          // 3. Verificamos que la plantilla exista antes de imprimir
           const existe = await invoke('obtener_plantilla', { id: plantillaId });
           
           if (!existe) {
-              // Si falla, mostramos qué plantillas SÍ existen para ayudarte
               const disponibles: any[] = await invoke('obtener_todas_plantillas');
               const ids = disponibles.map(p => p.id).join(', ');
-              alert(`⛔ ERROR: No se encuentra la plantilla con ID "${plantillaId}".\n\nEl sistema intentó usar "${plantillaId}" para este hermano, pero no existe en la base de datos.\n\nIDs disponibles: [ ${ids} ]`);
+              alert(`⛔ ERROR: No se encuentra la plantilla con ID "${plantillaId}".\n\nIDs disponibles: [ ${ids} ]`);
               return;
           }
 
-          // 4. Imprimimos
           await generarCartaPDF(contexto, plantillaId);
 
       } catch (e) { 
@@ -522,44 +362,18 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       }
   }
 
-  function clickEnOficina(key: string, asignacion: any) {
-      if (asignacion) {
-          const datos = prepararDatosOficina(asignacion);
-          asignacionOficinaActual = { ...datos, rol_key: key };
-          mostrarModalGestionOficina = true;
-      } else { abrirModalOficina(key); }
-  }
-
-  function clickEnPersonal(persona: any) {
-      const datos = prepararDatosOficina(persona);
-      asignacionOficinaActual = { ...datos, es_personal: true };
-      mostrarModalGestionOficina = true;
-  }
-
   function abrirModalPrograma(parte: any) { 
     parteEditando = { ...parte }; 
-    rolOficinaEditando = null; 
     terminoBusqueda = ""; 
     mostrarModalAsignar = true; 
   }
 
-  function abrirModalOficina(rol: string) { 
-    rolOficinaEditando = rol; 
-    parteEditando = null; 
-    terminoBusqueda = ""; 
-    mostrarModalAsignar = true; 
-  }
-  
   function cerrarModales() { 
       mostrarModalAsignar = false; 
       mostrarModalCrear = false; 
-      mostrarModalGestionOficina = false;
       parteEditando = null; 
-      rolOficinaEditando = null; 
-      asignacionOficinaActual = null;
   }
 
-  // --- FUNCIÓN PARA ACTUALIZAR SOLO EL NÚMERO DE BOSQUEJO ---
   async function actualizarBosquejo(parteId: number, numeroBosquejo: string) {
     try {
         await invoke('actualizar_numero_bosquejo', { 
@@ -573,35 +387,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
     }
   }
 
-// --- FUNCIÓN CORREGIDA Y CON DEPURACIÓN ---
   async function asignarOrador(oradorId: number | null, esVideo: boolean) {
-    
-    // CASO 1: OFICINA (Presidente, Oración, etc.)
-    if (rolOficinaEditando) {
-        console.log("Intento asignar oficina:", rolOficinaEditando, oradorId); // DEBUG
-
-        if (!oradorId) return alert("Por favor, selecciona un hermano.");
-
-        try {
-            // NOTA: 'tipoAsignacion' en JS -> se convierte a 'tipo_asignacion' en Rust
-            await invoke('guardar_asignacion_especial', { 
-                asambleaId: asambleaId, 
-                dia: diaSeleccionado,
-                tipoAsignacion: rolOficinaEditando, 
-                personaId: oradorId 
-            });
-            
-            console.log("¡Asignación exitosa en Rust!"); // DEBUG
-            cerrarModales();
-            await cargarDatos(); 
-        } catch (e) {
-            console.error("Error Rust Oficina:", e); // DEBUG
-            alert("Error al guardar en oficina: " + e);
-        }
-        return; // IMPORTANTE: Detenemos aquí.
-    }
-
-    // CASO 2: PROGRAMA (Discursos)
     if (parteEditando) {
         const bsq = parteEditando?.numero_bosquejo?.trim() || "";
         try {
@@ -647,18 +433,17 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   let mostrarModalLimpiar = false;
 
   async function limpiarTodoConfirmado() {
-  mostrarModalLimpiar = false; // cerrar modal
-  try {
-    await invoke('limpiar_programa', { asambleaId });
-    await cargarDatos();
-    // Opcional: mostrar notificación de éxito
-  } catch (e) {
-    alert('Error al limpiar: ' + e);
+    mostrarModalLimpiar = false;
+    try {
+        await invoke('limpiar_programa', { asambleaId });
+        await cargarDatos();
+    } catch (e) {
+        alert('Error al limpiar: ' + e);
+    }
   }
-}
 
-let mostrarModalEliminar = false;
-let idParteAEliminar: number | null = null;
+  let mostrarModalEliminar = false;
+  let idParteAEliminar: number | null = null;
 
   async function confirmarEliminarParte() {
     if (!idParteAEliminar) return;
@@ -670,7 +455,7 @@ let idParteAEliminar: number | null = null;
     } catch (e) {
         alert('Error al eliminar: ' + e);
     }
-}
+  }
   
   async function importarPrograma() { 
       try { 
@@ -683,52 +468,34 @@ let idParteAEliminar: number | null = null;
       } catch(e) { alert("Error: " + e); } 
   }
 
-  async function handleExportarOficina() {
-  await exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado);
-}
-
   async function handleExportarPrograma() {
-  await exportarProgramaPDF(partes, diaSeleccionado);
-}
+    await exportarProgramaPDF(partes, diaSeleccionado);
+  }
 
-
-  // =========================================================
-  // === NUEVO MÓDULO DE EMAILS MASIVOS (CON FILTRO DÍA) ===
-  // =========================================================
-
-  // --- VARIABLES ---
+  // --- MÓDULO DE EMAILS MASIVOS ---
   let mostrarModalEmails = false;
   let cargandoEmails = false;
-  
-  // Variables nuevas para el filtro
-  let diaFiltroEmail = 'Viernes'; // Día seleccionado en el modal
-  let todosLosDatosEmails: { email: string, dia: string }[] = []; // Base de datos temporal
-  
-  // Variables del formulario (se mantienen los nombres para compatibilidad)
+  let diaFiltroEmail = 'Viernes';
+  let todosLosDatosEmails: { email: string, dia: string }[] = [];
   let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
   let asuntoTodos: string = '';
   let cuerpoTodos: string = '';
   let plantillaSeleccionada: string | null = null;
 
-  // --- REACTIVIDAD: FILTRO AUTOMÁTICO ---
-  // Esta línea mágica crea la lista filtrada cada vez que cambias de día
-    $: emailsFiltrados = (() => {
+  $: emailsFiltrados = (() => {
       if (!todosLosDatosEmails || todosLosDatosEmails.length === 0) return [];
       if (diaFiltroEmail === 'Todos') {
-        // devolver lista única de emails de los 3 días
         const s = new Set<string>();
         todosLosDatosEmails.forEach(i => { if (i.email && i.email.trim()) s.add(i.email.trim()); });
         return Array.from(s);
       }
       return todosLosDatosEmails.filter(item => item.dia === diaFiltroEmail).map(item => item.email);
-    })();
+  })();
 
-  // --- FUNCIÓN DE CARGA ---
   async function prepararModalEmails() {
     cargandoEmails = true;
-    todosLosDatosEmails = []; // Limpiamos para recargar fresco
+    todosLosDatosEmails = [];
     
-    // Configuramos plantilla por defecto
     const defecto = $emailTemplates && $emailTemplates.length ? $emailTemplates[0] : null;
     plantillaSeleccionada = defecto?.id || null;
     asuntoTodos = defecto?.subject || 'Asignación de asamblea';
@@ -736,7 +503,6 @@ let idParteAEliminar: number | null = null;
 
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     
-    // Cargamos los 3 días
     await Promise.all(dias.map(async (dia) => {
         try {
             const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
@@ -751,19 +517,16 @@ let idParteAEliminar: number | null = null;
         } catch (e) { console.error(e); }
     }));
     
-    // Svelte necesita que reasignemos para detectar el cambio
     todosLosDatosEmails = todosLosDatosEmails;
-    diaFiltroEmail = diaSeleccionado; // Inicia mostrando el día que estás viendo en la app
+    diaFiltroEmail = diaSeleccionado;
     cargandoEmails = false;
     mostrarModalEmails = true;
   }
 
-  // --- CONTROL DEL FILTRO ---
   function cambiarDiaFiltro(dia: string) {
       diaFiltroEmail = dia;
   }
 
-  // --- UTILIDADES ---
   function copiarEmailsAlPortapapeles() {
     if (emailsFiltrados.length === 0) return alert(`No hay correos para copiar del ${diaFiltroEmail}.`);
     const texto = emailsFiltrados.join(';');
@@ -786,35 +549,28 @@ let idParteAEliminar: number | null = null;
     }
   }
 
-  // --- FUNCIONES DE ACCIÓN RÁPIDA (CON FILTRO APLICADO) ---
-  
-  // 1. Botón "Email [Día]"
   async function enviarEmailADia() {
       if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
       openUrl(`mailto:${emailsFiltrados.join(';')}`);
   }
 
-  // 2. Botón "JWPUB [Día]"
   async function enviarJWPUBADia() {
       if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
       openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}`);
   }
 
-  // 3. Botón "Recordatorio"
   async function enviarEmailRecordatorioADia() {
       if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
       const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
       openUrl(`mailto:${emailsFiltrados.join(';')}?subject=${asunto}`);
   }
 
-  // 4. Botón "JWPUB Recordatorio"
   async function enviarJWPUBRecordatorioADia() {
       if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
       const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
       openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}&subject=${asunto}`);
   }
 
-  // 5. Botón Grande "Abrir en..."
   async function abrirTodosPorMetodo() {
     if (emailsFiltrados.length === 0) return alert(`⚠️ No hay correos para el ${diaFiltroEmail}.`);
     const lista = emailsFiltrados.join(';');
@@ -829,7 +585,7 @@ let idParteAEliminar: number | null = null;
     mostrarModalEmails = false;
   }
 
-    // --- FILTRADO PARA SUGERENCIAS (CUANDO ESCRIBES NUEVA PARTE) ---
+  // --- FILTRADO PARA SUGERENCIAS ---
   function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase(); 
     if (t.length < 2) {
@@ -851,141 +607,18 @@ let idParteAEliminar: number | null = null;
     mostrarSugerencias = false; 
   }
   
- // --- FILTRADO PARA EL MODAL DE ASIGNACIÓN (BUSCADOR) ---
   function getHermanosFiltrados() {
-    // CAMBIO: Si la búsqueda está vacía, mostramos a TODOS los hermanos
     if (!terminoBusqueda) return listaHermanos;
-    
-    // Si escribes algo, entonces filtramos
     return listaHermanos.filter(h => 
       h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase())
     );
   }
 
-  // --- FUNCIÓN AUXILIAR (sin cambios) ---
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
- </script>
+</script>
 
+<!-- ========== HTML ========== -->
 <div class="layout-programa">
-  <aside class="panel-oficina dark-theme">
-    <div class="header-oficina-dark">
-      <h3><Users size={20}/> Oficina</h3>
-      
-      <button class="btn-icon-pdf" 
-        title="Exportar Oficina a PDF"
-        on:click={handleExportarOficina}>
-        <FileUp size={18}/>
-      </button>
-
-      <span class="badge-dark">{diaSeleccionado}</span>
-    </div>
-    <div class="contenido-oficina">
-        
-      <div class="seccion-oficina">
-        <h4 class="titulo-seccion">PERSONAL</h4>
-        <div class="lista-personal">
-          {#each oficina.personal as p}
-           <div class="item-personal clickable" class:ocupado={true} role="button" tabindex="0" 
-           on:click={() => clickEnPersonal(p)} 
-           on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
-              <div class="info-personal">
-                <span class="nombre-p">{p.nombre_completo}</span>
-                <div class="indicadores-mini">
-                  {#if p.recibido_manual}
-                    <div class="dot-icon blue" title="Recibido"><FileCheck size={10} strokeWidth={3}/></div>
-                  {/if}
-                  {#if p.esta_presente}
-                    <div class="dot-icon green" title="Presente"><UserCheck size={10} strokeWidth={3}/></div>
-                  {/if}
-                  {#if p.ensayo_terminado}
-                    <div class="dot-icon yellow" title="Ensayo"><Mic size={10} strokeWidth={3}/></div>
-                  {/if}
-                </div>
-              </div>
-              <Settings size={14} class="icon-gear"/>
-            </div>
-          {/each}
-          {#if oficina.personal.length === 0}
-            <span class="vacio">(Vacío)</span>
-          {/if}
-        </div>
-        <button class="btn-add-dark" on:click={() => abrirModalOficina('personal_oficina')}>
-          <UserPlus size={14}/> Añadir
-        </button>
-      </div>
-      
-      <div class="separador-dark"></div>
-      
-      <div class="seccion-oficina">
-        <h4 class="titulo-seccion">MAÑANA</h4>
-        {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item, idx}
-          <div class="campo-dark">
-            <label for="btn_manana_{idx}">{item.label}</label>
-            <button id="btn_manana_{idx}" class="btn-select-dark" 
-                    class:ocupado={oficina[item.key]} 
-                    on:click={() => clickEnOficina(item.key, oficina[item.key])}>
-              <div class="btn-content-left">
-                <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
-                {#if oficina[item.key]}
-                  <div class="indicadores-mini">
-                    {#if oficina[item.key].recibido_manual}
-                      <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].esta_presente}
-                      <div class="dot-icon green"><UserCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].ensayo_terminado}
-                      <div class="dot-icon yellow"><Mic size={10} strokeWidth={3}/></div>
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-              {#if oficina[item.key]} 
-                <Settings size={14} class="icon-gear"/> 
-              {:else} 
-                <ChevronRight size={14}/> 
-              {/if}
-            </button>
-          </div>
-        {/each}
-      </div>
-
-      <div class="seccion-oficina mt-4">
-        <h4 class="titulo-seccion">TARDE</h4>
-        {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item, idx}
-          <div class="campo-dark">
-            <label for="btn_tarde_{idx}">{item.label}</label>
-            <button id="btn_tarde_{idx}" class="btn-select-dark" 
-                    class:ocupado={oficina[item.key]} 
-                    on:click={() => clickEnOficina(item.key, oficina[item.key])}>
-              <div class="btn-content-left">
-                <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
-                {#if oficina[item.key]}
-                  <div class="indicadores-mini">
-                    {#if oficina[item.key].recibido_manual}
-                      <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].esta_presente}
-                      <div class="dot-icon green"><UserCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].ensayo_terminado}
-                      <div class="dot-icon yellow"><Mic size={10} strokeWidth={3}/></div>
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-              {#if oficina[item.key]} 
-                <Settings size={14} class="icon-gear"/> 
-              {:else} 
-                <ChevronRight size={14}/> 
-              {/if}
-            </button>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </aside>
-
   <main class="panel-discursos">
     <div class="tabs">
       {#each ['Viernes', 'Sábado', 'Domingo'] as dia}
@@ -996,34 +629,34 @@ let idParteAEliminar: number | null = null;
     </div>
 
     <div class="header-sesion">
-  <div class="header-sesion-left">
-    <h2>Programa - {diaSeleccionado}</h2>
-    
-    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }} title="Enviar emails y JWPUB a todos los oradores">
-      <Mail size={18}/> <span>Email a Todos</span>
-    </button>
-  </div>
-  
-  <div class="acciones-header">
-    <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
-      <FileSpreadsheet size={18}/> <span>Importar</span>
-    </button>
+      <div class="header-sesion-left">
+        <h2>Programa - {diaSeleccionado}</h2>
+        
+        <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }} title="Enviar emails y JWPUB a todos los oradores">
+          <Mail size={18}/> <span>Email a Todos</span>
+        </button>
+      </div>
+      
+      <div class="acciones-header">
+        <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
+          <FileSpreadsheet size={18}/> <span>Importar</span>
+        </button>
 
-    <button class="btn-header-pdf" 
-        title="Exportar lista de discursos a PDF"
-        on:click={handleExportarPrograma}>
-        <FileUp size={18}/> <span>PDF</span>
-    </button>
+        <button class="btn-header-pdf" 
+            title="Exportar lista de discursos a PDF"
+            on:click={handleExportarPrograma}>
+            <FileUp size={18}/> <span>PDF</span>
+        </button>
 
-    <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
-      <Trash2 size={18}/> <span>Limpiar</span>
-    </button>
-    
-    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
-      <Plus size={18}/> <span>Agregar</span>
-    </button>
-  </div>
-</div>
+        <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
+          <Trash2 size={18}/> <span>Limpiar</span>
+        </button>
+        
+        <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
+          <Plus size={18}/> <span>Agregar</span>
+        </button>
+      </div>
+    </div>
 
     <div class="lista-partes">
       {#if partes.length === 0}
@@ -1031,293 +664,181 @@ let idParteAEliminar: number | null = null;
       {/if}
       
       {#each partes as parte}
-    <div class="tarjeta-acordeon" 
-      class:expanded={parte._expanded}
-      class:estado-presente={parte.esta_presente}
-      class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
-      class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}>
-    
-    <div class="header-parte" role="button" tabindex="0" 
-         on:click={() => toggleExpandir(parte.id)} 
-         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
-      <div class="col-tiempo">
-        <span class="hora">{parte.hora_inicio}</span>
-        <span class="duracion">({parte.duracion}m)</span>
-      </div>
-      <div class="col-tema">
-        <span class="tema-txt">{parte.tema}</span>
-        {#if parte.es_video}
-          <span class="badge-video"><Video size={12}/> Video</span>
-        {/if}
-        {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-          <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
-        {/if}
-      </div>
-      <div class="col-orador-mini">
-        {#if !parte.es_video}
-          <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
-          {#if parte.congregacion_orador}
-            <span class="cong-mini">{parte.congregacion_orador}</span>
-          {/if}
-        {/if}
-      </div>
-
-      <div class="col-estados-mini">
-  {#if parte.recibido_manual}
-    <div class="icon-indicator blue" title="Recibido">
-      <FileCheck size={14} />
-    </div>
-  {/if}
-  {#if parte.esta_presente}
-    <div class="icon-indicator green" title="Presente">
-      <UserCheck size={14} />
-    </div>
-  {/if}
-  {#if parte.ensayo_terminado}
-    <div class="icon-indicator orange" title="Ensayo terminado">
-      <Mic size={14} />
-    </div>
-  {/if}
-  {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
-    <div class="icon-indicator gray" title="Pendiente">
-      <Clock size={14} />
-    </div>
-  {/if}
-</div>
-
-      <div class="col-toggle">
-        {#if parte._expanded}
-          <ChevronUp size={20} color="var(--text-secondary)"/>
-        {:else}
-          <ChevronDown size={20} color="var(--text-secondary)"/>
-        {/if}
-      </div>
-    </div>
-
-    {#if parte._expanded}
-      <div class="body-parte" transition:slide={{ duration: 200 }}>
-        {#if !parte.es_video}
-          <div class="fila-superior-control">
-            <div class="info-orador-full">
-              <span class="label-tiny">ORADOR:</span>
-              <strong>{parte.nombre_orador || "---"}</strong>
-              <div class="detalles-contacto-panel">
+        <div class="tarjeta-acordeon" 
+          class:expanded={parte._expanded}
+          class:estado-presente={parte.esta_presente}
+          class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
+          class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}>
+        
+          <div class="header-parte" role="button" tabindex="0" 
+               on:click={() => toggleExpandir(parte.id)} 
+               on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
+            <div class="col-tiempo">
+              <span class="hora">{parte.hora_inicio}</span>
+              <span class="duracion">({parte.duracion}m)</span>
+            </div>
+            <div class="col-tema">
+              <span class="tema-txt">{parte.tema}</span>
+              {#if parte.es_video}
+                <span class="badge-video"><Video size={12}/> Video</span>
+              {/if}
+              {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+                <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
+              {/if}
+            </div>
+            <div class="col-orador-mini">
+              {#if !parte.es_video}
+                <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
                 {#if parte.congregacion_orador}
-                  <span class="cong-tag">{parte.congregacion_orador}</span>
+                  <span class="cong-mini">{parte.congregacion_orador}</span>
                 {/if}
-                {#if parte.telefono_orador}
-                  <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
-                {/if}
-                {#if parte.email_orador}
-                  <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
-                {/if}
-              </div>
+              {/if}
             </div>
-            
-            <div class="checks-grandes">
-  <button class="btn-status-toggle blue" 
-          class:active={parte.recibido_manual} 
-          on:click={() => toggleConfirmado(parte)}>
-    <FileCheck size={18} /><span>RECIBIDO</span>
-  </button>
 
-  <button class="btn-status-toggle green" 
-          class:active={parte.esta_presente} 
-          on:click={() => togglePresente(parte)}>
-    <UserCheck size={18} /><span>PRESENTE</span>
-  </button>
+            <div class="col-estados-mini">
+              {#if parte.recibido_manual}
+                <div class="icon-indicator blue" title="Recibido">
+                  <FileCheck size={14} />
+                </div>
+              {/if}
+              {#if parte.esta_presente}
+                <div class="icon-indicator green" title="Presente">
+                  <UserCheck size={14} />
+                </div>
+              {/if}
+              {#if parte.ensayo_terminado}
+                <div class="icon-indicator orange" title="Ensayo terminado">
+                  <Mic size={14} />
+                </div>
+              {/if}
+              {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
+                <div class="icon-indicator gray" title="Pendiente">
+                  <Clock size={14} />
+                </div>
+              {/if}
+            </div>
 
-  <button class="btn-status-toggle orange" 
-          class:active={parte.ensayo_terminado} 
-          on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
-    <Mic size={18} /><span>ENSAYO</span>
-  </button>
-</div>
+            <div class="col-toggle">
+              {#if parte._expanded}
+                <ChevronUp size={20} color="var(--text-secondary)"/>
+              {:else}
+                <ChevronDown size={20} color="var(--text-secondary)"/>
+              {/if}
+            </div>
           </div>
 
-          <div class="grid-acciones">
-            <div class="grupo-accion">
-              <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-              <div class="checks-row">
-                <label class="check-inline">
-                  <input type="checkbox" checked={parte.email_enviado} 
-                         on:change={() => toggleStatus(parte, 'email_enviado')}> 
-                  Email enviado
-                </label>
-                <label class="check-inline strong-check">
-                  <input type="checkbox" checked={parte.carta_recibida_check} 
-                         on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
-                  Carta Recibida
-                </label>
+          {#if parte._expanded}
+            <div class="body-parte" transition:slide={{ duration: 200 }}>
+              {#if !parte.es_video}
+                <div class="fila-superior-control">
+                  <div class="info-orador-full">
+                    <span class="label-tiny">ORADOR:</span>
+                    <strong>{parte.nombre_orador || "---"}</strong>
+                    <div class="detalles-contacto-panel">
+                      {#if parte.congregacion_orador}
+                        <span class="cong-tag">{parte.congregacion_orador}</span>
+                      {/if}
+                      {#if parte.telefono_orador}
+                        <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
+                      {/if}
+                      {#if parte.email_orador}
+                        <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
+                      {/if}
+                    </div>
+                  </div>
+                  
+                  <div class="checks-grandes">
+                    <button class="btn-status-toggle blue" 
+                            class:active={parte.recibido_manual} 
+                            on:click={() => toggleConfirmado(parte)}>
+                      <FileCheck size={18} /><span>RECIBIDO</span>
+                    </button>
+
+                    <button class="btn-status-toggle green" 
+                            class:active={parte.esta_presente} 
+                            on:click={() => togglePresente(parte)}>
+                      <UserCheck size={18} /><span>PRESENTE</span>
+                    </button>
+
+                    <button class="btn-status-toggle orange" 
+                            class:active={parte.ensayo_terminado} 
+                            on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
+                      <Mic size={18} /><span>ENSAYO</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="grid-acciones">
+                  <div class="grupo-accion">
+                    <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
+                    <div class="checks-row">
+                      <label class="check-inline">
+                        <input type="checkbox" checked={parte.email_enviado} 
+                               on:change={() => toggleStatus(parte, 'email_enviado')}> 
+                        Email enviado
+                      </label>
+                      <label class="check-inline strong-check">
+                        <input type="checkbox" checked={parte.carta_recibida_check} 
+                               on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
+                        Carta Recibida
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div class="grupo-accion center">
+                    <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
+                      <Printer size={16}/> IMPRIMIR CARTA
+                    </button>
+                  </div>
+
+                  <div class="grupo-accion right">
+                    <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
+                      <FileJson size={16}/> JWPUB ENVIAR CARTA
+                    </button>
+                    <label class="check-inline">
+                      <input type="checkbox" checked={parte.jwpub_enviado} 
+                             on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
+                      Email JWPUB enviado
+                    </label>
+                  </div>
+                  
+                  <div class="grupo-accion">
+                    <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
+                    <label class="check-inline">
+                      <input type="checkbox" checked={parte.recordatorio_enviado} 
+                             on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
+                      Recordatorio enviado
+                    </label>
+                  </div>
+                  <div class="grupo-accion center">
+                    <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
+                       <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
+                    </button>
+                  </div>
+                  <div class="grupo-accion right">
+                    <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
+                      <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
+                    </button>
+                  </div>
+                </div>
+              {/if}
+              <div class="footer-tools">
+                <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
+                  <Edit size={14}/> Editar Datos / Asignar
+                </button>
+                <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
+                 <Trash2 size={14}/> Eliminar Parte
+                </button>
               </div>
             </div>
-            
-            <div class="grupo-accion center">
-              <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
-                <Printer size={16}/> IMPRIMIR CARTA
-              </button>
-            </div>
-
-            <div class="grupo-accion right">
-              <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
-                <FileJson size={16}/> JWPUB ENVIAR CARTA
-              </button>
-              <label class="check-inline">
-                <input type="checkbox" checked={parte.jwpub_enviado} 
-                       on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
-                Email JWPUB enviado
-              </label>
-            </div>
-            
-            <div class="grupo-accion">
-              <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-              <label class="check-inline">
-                <input type="checkbox" checked={parte.recordatorio_enviado} 
-                       on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
-                Recordatorio enviado
-              </label>
-            </div>
-            <div class="grupo-accion center">
-              <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
-                 <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-              </button>
-            </div>
-            <div class="grupo-accion right">
-              <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
-                <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-              </button>
-            </div>
-          </div>
-        {/if}
-        <div class="footer-tools">
-          <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
-            <Edit size={14}/> Editar Datos / Asignar
-          </button>
-          <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
-           <Trash2 size={14}/> Eliminar Parte
-          </button>
+          {/if}
         </div>
-      </div>
-    {/if}
-  </div>
-{/each}
+      {/each}
     </div>
   </main>
 </div>
 
-{#if mostrarModalGestionOficina && asignacionOficinaActual}
-  <div class="modal-backdrop" role="button" tabindex="0" 
-       on:click|self={cerrarModales} 
-       on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
-    <div class="modal modal-gestion">
-      <div class="modal-header header-gestion">
-        <div class="titulo-gestion">
-          <h3>Gestión de Asignación</h3>
-          <span class="subtitulo-rol">
-            {asignacionOficinaActual.tipo_asignacion?.replace('_', ' ').toUpperCase() || 'PERSONAL'}
-          </span>
-        </div>
-        <button class="btn-close" on:click={cerrarModales}><X size={20}/></button>
-      </div>
-      <div class="modal-body body-gestion">
-        <div class="fila-superior-control">
-          <div class="info-orador-full">
-            <span class="label-tiny">HERMANO ASIGNADO:</span>
-            <strong>{asignacionOficinaActual.nombre_completo || asignacionOficinaActual.nombre_orador}</strong>
-            <div class="detalles-contacto-panel">
-              {#if asignacionOficinaActual.congregacion_visual}
-                <span class="cong-tag">{asignacionOficinaActual.congregacion_visual}</span>
-              {/if}
-              {#if asignacionOficinaActual.telefono_visual}
-                <span class="contact-pill"><Phone size={11}/> {asignacionOficinaActual.telefono_visual}</span>
-              {/if}
-              {#if asignacionOficinaActual.email_visual}
-                <span class="contact-pill"><Mail size={11}/> {asignacionOficinaActual.email_visual}</span>
-              {/if}
-            </div>
-          </div>
-          <div class="checks-grandes">
-                <button class="btn-status-toggle blue" 
-                  class:active={asignacionOficinaActual.recibido_manual} 
-                  on:click={() => toggleConfirmado(asignacionOficinaActual)}>
-              <FileCheck size={18} /><span>RECIBIDO</span>
-            </button>
-            <button class="btn-status-toggle green" 
-                    class:active={asignacionOficinaActual.esta_presente} 
-                    on:click={() => togglePresente(asignacionOficinaActual)}>
-              <UserCheck size={18} /><span>PRESENTE</span>
-            </button>
-            <button class="btn-status-toggle yellow" 
-                    class:active={asignacionOficinaActual.ensayo_terminado} 
-                    on:click={() => toggleStatus(asignacionOficinaActual, 'ensayo_terminado')}>
-              <Mic size={18} /><span>ENSAYO</span>
-            </button>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="grid-acciones">
-          <div class="grupo-accion">
-            <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-            <div class="checks-row">
-              <label class="check-inline">
-                <input type="checkbox" checked={asignacionOficinaActual.email_enviado} 
-                       on:change={() => toggleStatus(asignacionOficinaActual, 'email_enviado')}> 
-                Email enviado
-              </label>
-              <label class="check-inline strong-check">
-                <input type="checkbox" checked={asignacionOficinaActual.carta_recibida_check} 
-                       on:change={() => toggleStatus(asignacionOficinaActual, 'carta_recibida_check')}> 
-                Carta Recibida
-              </label>
-            </div>
-          </div>
-          
-          <div class="grupo-accion center">
-            <button class="btn-outline-gray" on:click={() => procesarImpresion(asignacionOficinaActual, false)}>
-              <Printer size={16}/> IMPRIMIR CARTA
-            </button>
-          </div>
-
-          <div class="grupo-accion right">
-            <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(asignacionOficinaActual)}>
-              <FileJson size={16}/> JWPUB ENVIAR CARTA
-            </button>
-            <label class="check-inline">
-              <input type="checkbox" checked={asignacionOficinaActual.jwpub_enviado} 
-                     on:change={() => toggleStatus(asignacionOficinaActual, 'jwpub_enviado')}> 
-              Email JWPUB enviado
-            </label>
-          </div>
-          
-          <div class="grupo-accion">
-            <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-            <label class="check-inline">
-              <input type="checkbox" checked={asignacionOficinaActual.recordatorio_enviado} 
-                     on:change={() => toggleStatus(asignacionOficinaActual, 'recordatorio_enviado')}> 
-              Recordatorio enviado
-            </label>
-          </div>
-          <div class="grupo-accion center">
-            <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(asignacionOficinaActual)}>
-              <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-            </button>
-          </div>
-          <div class="grupo-accion right">
-            <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(asignacionOficinaActual)}>
-              <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer footer-gestion">
-        <button class="btn-delete-full" on:click={() => eliminarAsignacionOficina(asignacionOficinaActual.id)}>
-          <Trash2 size={16}/> Quitar a este hermano de la asignación
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
+<!-- ========== MODALES ========== -->
 {#if mostrarModalCrear}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={cerrarModales} 
@@ -1420,51 +941,45 @@ let idParteAEliminar: number | null = null;
   </div>
 {/if}
 
-{#if mostrarModalAsignar && (parteEditando || rolOficinaEditando)}
+{#if mostrarModalAsignar && parteEditando}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={cerrarModales} 
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header">
-        <h3>
-            {#if rolOficinaEditando}
-                Asignar {rolOficinaEditando.replace('_', ' ').toUpperCase()}
-            {:else}
-                Asignar Orador
-            {/if}
-        </h3>
+        <h3>Asignar Orador</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body">
         
         {#if parteEditando}
-            <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-              <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-                Número de Bosquejo
-              </label>
-              <div class="input-icon" style="margin-top: 8px; position: relative; display: flex; align-items: center;">
-                <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
-                <input 
-                  id="edit_bosquejo" 
-                  type="text" 
-                  placeholder="Ej: 178" 
-                  bind:value={parteEditando.numero_bosquejo} 
-                  style="padding-left: 35px; width: 100%; height: 38px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
-                />
-              </div>
-              <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button 
-                  class="btn-guardar-bosquejo" 
-                  style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;"
-                  on:click={() => actualizarBosquejo(parteEditando.id, parteEditando.numero_bosquejo || '')}
-                >
-                  Guardar Solo Bosquejo
-                </button>
-                <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; flex: 1;">
-                  * El número se guardará independientemente de asignar orador
-                </small>
-              </div>
+          <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+              Número de Bosquejo
+            </label>
+            <div class="input-icon" style="margin-top: 8px; position: relative; display: flex; align-items: center;">
+              <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
+              <input 
+                id="edit_bosquejo" 
+                type="text" 
+                placeholder="Ej: 178" 
+                bind:value={parteEditando.numero_bosquejo} 
+                style="padding-left: 35px; width: 100%; height: 38px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
+              />
             </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+              <button 
+                class="btn-guardar-bosquejo" 
+                style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;"
+                on:click={() => actualizarBosquejo(parteEditando.id, parteEditando.numero_bosquejo || '')}
+              >
+                Guardar Solo Bosquejo
+              </button>
+              <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; flex: 1;">
+                * El número se guardará independientemente de asignar orador
+              </small>
+            </div>
+          </div>
         {/if}
 
         <div class="buscador">
@@ -1473,14 +988,12 @@ let idParteAEliminar: number | null = null;
         </div>
         
         <div class="lista-opciones">
-          {#if !rolOficinaEditando}
-            <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
-              <div class="icono-video"><Video size={18}/></div>
-              <span>Video</span>
-            </button>
-          {/if}
+          <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
+            <div class="icono-video"><Video size={18}/></div>
+            <span>Video</span>
+          </button>
           
-         {#each getHermanosFiltrados() as h}
+          {#each getHermanosFiltrados() as h}
             <button class="item-opcion" on:click={() => asignarOrador(h.id, false)}>
               <div class="avatar">{h.nombre_completo.charAt(0)}</div>
               <div class="datos-opcion">
@@ -1523,7 +1036,6 @@ let idParteAEliminar: number | null = null;
             {/each}
           </div>
         </div>
-
 
         <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
         <div class="opciones-email-grid">
@@ -1578,7 +1090,7 @@ let idParteAEliminar: number | null = null;
           </button>
         </div>
 
-          <div class="seccion-editor">
+        <div class="seccion-editor">
           <div class="editor-header">
             <div class="label-titulo">Personalizar Mensaje</div>
             <div class="destinatarios-badge">
@@ -1639,9 +1151,8 @@ let idParteAEliminar: number | null = null;
     </div>
   </div>
 {/if}
-  
 
-    {#if mostrarModalLimpiar}
+{#if mostrarModalLimpiar}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={() => mostrarModalLimpiar = false} 
        on:keydown={(e) => e.key === 'Escape' && (mostrarModalLimpiar = false)}>
@@ -1660,9 +1171,9 @@ let idParteAEliminar: number | null = null;
       </div>
     </div>
   </div>
-  {/if}
+{/if}
 
-  {#if mostrarModalEliminar}
+{#if mostrarModalEliminar}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}
        on:keydown={(e) => e.key === 'Escape' && (mostrarModalEliminar = false) && (idParteAEliminar = null)}>
@@ -1684,143 +1195,29 @@ let idParteAEliminar: number | null = null;
 
 <style>
 /* ==========================================================================
-   LAYOUT PRINCIPAL
+   LAYOUT PRINCIPAL - SOLO PANEL DE DISCURSOS
    ========================================================================== */
-.layout-programa { 
-  display: grid; 
-  /* LA MAGIA: La columna izquierda mide 280px, la derecha mide el resto (1fr), 
-     PERO nunca podrá medir menos de 450px. */
-  grid-template-columns: 280px minmax(450px, 1fr); 
-  gap: 20px; 
-  height: 100%; 
-  
-  /* Permite que aparezca la barra de scroll horizontal abajo si la ventana es muy pequeña */
-  overflow-x: auto; 
-  
-  /* Mantiene oculto el scroll vertical general, ya que cada panel tiene el suyo interno */
-  overflow-y: hidden; 
-  
-  /* Un pequeño padding abajo para que la barra de desplazamiento no tape el borde de las tarjetas */
-  padding-bottom: 8px; 
+.layout-programa {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  padding-bottom: 0;
 }
 
 /* ==========================================================================
-   PANEL DE OFICINA (Izquierda)
-   Lógica aplicada: Usar var(--bg-card) igual que en el Resumen
+   PANEL DE DISCURSOS (Único)
    ========================================================================== */
-.panel-oficina.dark-theme { 
-  background: var(--bg-card); /* Fondo dinámico del sistema */
-  color: var(--text-main); 
-  border-radius: 12px; 
+.panel-discursos { 
+  flex: 1;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: 10px; 
+  border: 1px solid var(--border-color); 
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
-  border: 1px solid var(--border-color); 
-  box-shadow: 0 4px 6px -1px var(--shadow-color);
-}
-
-/* El encabezado usa el fondo del cuerpo para contrastar sutilmente con la tarjeta */
-.header-oficina-dark { 
-  background: var(--bg-body); 
-  padding: 15px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  border-bottom: 1px solid var(--border-color); 
-}
-
-.header-oficina-dark h3 { 
-  margin: 0; 
-  font-size: 16px; 
-  display: flex; 
-  gap: 8px; 
-  color: var(--text-main); 
-  font-weight: 700;
-}
-
-.contenido-oficina { 
-  padding: 15px; 
-  overflow-y: auto; 
-  flex: 1; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 20px; 
-}
-
-/* Títulos de Sección */
-.titulo-seccion { 
-  color: var(--text-secondary); 
-  font-size: 11px; 
-  font-weight: 800; 
-  letter-spacing: 1px; 
-  margin: 5px 0 10px 0; 
-  text-transform: uppercase;
-}
-
-/* --- BOTONES DE SELECCIÓN (Inputs) --- */
-.btn-select-dark { 
-  width: 100%; 
-  background: var(--bg-body); /* En lugar de blanco fijo, usa el fondo del body */
-  border: 1px solid var(--border-color); 
-  color: var(--text-main); 
-  padding: 10px 12px; 
-  border-radius: 8px; 
-  text-align: left; 
-  cursor: pointer; 
-  font-size: 13px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  transition: all 0.2s; 
-  box-shadow: 0 1px 2px 0 var(--shadow-color);
-}
-
-.btn-select-dark:hover { 
-  border-color: var(--primary); 
-  background: var(--hover-bg);
-  transform: translateY(-1px);
-}
-
-/* Estado Ocupado: Usamos transparencia para que funcione en Dark Mode */
-.btn-select-dark.ocupado { 
-  background: rgba(59, 130, 246, 0.15); /* Azul translúcido */
-  border-color: #3b82f6; 
-  color: var(--primary);
-}
-
-.separador-dark { 
-  height: 1px; 
-  background: var(--border-color); 
-  margin: 15px 0;
-}
-
-/* Items de Personal */
-.lista-personal { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-
-.item-personal { 
-  display: flex; justify-content: space-between; align-items: center; 
-  background: var(--bg-body); /* Fondo dinámico */
-  padding: 6px 10px; border-radius: 6px; font-size: 13px; 
-  border: 1px solid var(--border-color); color: var(--text-main);
-}
-.item-personal.clickable:hover { background: var(--hover-bg); }
-
-.btn-add-dark { 
-  background: none; border: 1px dashed var(--text-secondary); color: var(--text-secondary); 
-  width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; 
-  justify-content: center; gap: 6px; font-size: 12px; 
-}
-.btn-add-dark:hover { background: var(--hover-bg); color: var(--text-main); }
-
-
-/* ==========================================================================
-   PANEL DE DISCURSOS (Derecha)
-   ========================================================================== */
-.panel-discursos { 
-  background: var(--bg-card); /* Usa variable global */
-  border-radius: 10px; 
-  border: 1px solid var(--border-color); 
-  display: flex; flex-direction: column; overflow: hidden; 
 }
 
 .header-sesion { 
@@ -1828,7 +1225,7 @@ let idParteAEliminar: number | null = null;
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
-  flex-wrap: wrap; /* 👈 LA CLAVE 1: Permite bajar de línea */
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border-color); 
   gap: 15px; 
   background: var(--bg-card); 
@@ -1838,14 +1235,14 @@ let idParteAEliminar: number | null = null;
   margin: 0; 
   font-size: 18px; 
   color: var(--text-main); 
-  white-space: nowrap; /* 👈 Evita que el título se parta en dos líneas */
+  white-space: nowrap;
 }
 
 .header-sesion-left { 
   display: flex; 
   align-items: center; 
   gap: 12px; 
-  flex-wrap: wrap; /* 👈 Permite que el botón JWPUB baje si es necesario */
+  flex-wrap: wrap;
 }
 
 /* Tabs */
@@ -1860,24 +1257,41 @@ let idParteAEliminar: number | null = null;
   background: var(--bg-card); 
 }
 
-.lista-partes { padding: 20px; overflow-y: auto; flex: 1; background: var(--bg-body); }
+.lista-partes { 
+  padding: 20px; 
+  overflow-y: auto; 
+  flex: 1; 
+  background: #f1f5f9;/* Fondo gris muy suave (ya definido en variables) */
+}
 
 /* --- TARJETAS ACORDEÓN --- */
 .tarjeta-acordeon { 
-  background: var(--bg-card); /* Clave para el modo oscuro */
+  background: #ffffff; /* <--- CAMBIO: Blanco puro explícito */
   border-radius: 8px; 
-  border: 1px solid var(--border-color); 
+  border: 1px solid #cbd5e1; /* <--- CAMBIO: Color gris sólido (Slate 300) para un borde definido */
   margin-bottom: 10px; 
   overflow: hidden; 
-  transition: box-shadow 0.2s; 
+  transition: box-shadow 0.2s, transform 0.2s; 
   color: var(--text-main);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* Sombra ligera para dar volumen */
 }
-.tarjeta-acordeon:hover { box-shadow: 0 4px 6px var(--shadow-color); }
-.tarjeta-acordeon.expanded { border-color: var(--text-secondary); box-shadow: 0 4px 12px var(--shadow-color); }
+
+.tarjeta-acordeon:hover { 
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1); /* Elevación más pronunciada */
+  transform: translateY(-2px); /* Ligero levantamiento */
+}
+.tarjeta-acordeon.expanded { 
+  border-color: var(--text-secondary); 
+  box-shadow: 0 4px 12px var(--shadow-color); 
+}
 
 .header-parte { 
-  display: flex; align-items: center; padding: 12px 15px; 
-  cursor: pointer; gap: 15px; background: transparent; 
+  display: flex; 
+  align-items: center; 
+  padding: 12px 15px; 
+  cursor: pointer; 
+  gap: 15px; 
+  background: transparent; 
 }
 .header-parte:hover { background: var(--hover-bg); }
 .body-parte { 
@@ -1887,54 +1301,69 @@ let idParteAEliminar: number | null = null;
   color: var(--text-main); 
 }
 
-/* --- ESTADOS Y COLORES SUAVES (Compatibles con Dark Mode) --- */
-/* Usamos RGBA (transparencia) en lugar de colores sólidos. 
-   Así se ve pastel en blanco y tintado en negro. */
-
+/* --- ESTADOS Y COLORES SUAVES --- */
 .tarjeta-acordeon.estado-presente { 
   border-left: 6px solid #10b981 !important; 
-  background-color: rgba(16, 185, 129, 0.12) !important; /* Verde transparente */
+  background-color: rgba(16, 185, 129, 0.12) !important;
 }
 .tarjeta-acordeon.estado-confirmado { 
   border-left: 6px solid #3b82f6 !important; 
-  background-color: rgba(59, 130, 246, 0.12) !important; /* Azul transparente */
+  background-color: rgba(59, 130, 246, 0.12) !important;
 }
 .tarjeta-acordeon.estado-ensayo { 
-  border-left: 6px solid #eab308 !important; 
-  background-color: rgba(234, 179, 8, 0.12) !important; /* Amarillo transparente */
+  border-left: 6px solid #f97316 !important; /* Naranja más vibrante */
+  background-color: rgba(249, 115, 22, 0.12) !important;
 }
 
 /* Hover suave en estados */
 .tarjeta-acordeon.estado-presente:hover { background-color: rgba(16, 185, 129, 0.2) !important; }
 .tarjeta-acordeon.estado-confirmado:hover { background-color: rgba(59, 130, 246, 0.2) !important; }
-.tarjeta-acordeon.estado-ensayo:hover { background-color: rgba(234, 179, 8, 0.2) !important; }
+.tarjeta-acordeon.estado-ensayo:hover { background-color: rgba(249, 115, 22, 0.2) !important; }
 
 /* Textos */
-.hora { font-weight: 800; color: var(--primary); font-size: 14px; }
+.hora { 
+  font-weight: 800; 
+  color: var(--primary); 
+  font-size: 16px; /* Más grande y clara */
+  line-height: 1.2;
+}
 .duracion { font-size: 11px; color: var(--text-secondary); }
-.tema-txt { font-weight: 600; color: var(--text-main); font-size: 14px; line-height: 1.2; }
+.tema-txt { 
+  font-weight: 600; 
+  color: var(--text-main); 
+  font-size: 15px; /* Un poco más grande */
+  line-height: 1.3; 
+}
 .orador-nombre { font-weight: 600; color: var(--text-main); font-size: 13px; text-transform: uppercase; }
 .cong-mini { font-size: 11px; color: var(--text-secondary); }
 
-/* --- ICONOS MINI (Horizontal Fix) --- */
+/* --- ICONOS MINI --- */
 .col-estados-mini { 
   display: flex !important;
-  flex-direction: row !important; /* Fuerza horizontal */
+  flex-direction: row !important;
   gap: 6px; 
   min-width: 60px; 
   justify-content: flex-end; 
   align-items: center; 
 }
 
-/* Círculos de estado */
-.icon-indicator { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; }
+.icon-indicator { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  width: 24px; 
+  height: 24px; 
+  border-radius: 50%; 
+}
 .icon-indicator.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .icon-indicator.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.icon-indicator.orange { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+.icon-indicator.gray { background: rgba(107, 114, 128, 0.2); color: #6b7280; }
 
 .dot-icon { display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; }
 .dot-icon.blue { background: #3b82f6; color: white; }
 .dot-icon.green { background: #10b981; color: white; }
-.dot-icon.yellow { background: #eab308; color: white; }
+.dot-icon.yellow { background: #f97316; color: white; } /* Cambiado a naranja vibrante */
 
 /* Pulse Animation */
 .estado-presente .icon-indicator.green { animation: pulse-green 2s infinite; }
@@ -1944,20 +1373,48 @@ let idParteAEliminar: number | null = null;
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } 
 }
 
-/* Badges */
-.badge-video { font-size: 10px; background: var(--bg-body); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; border: 1px solid var(--border-color); }
-.badge-bosquejo { font-size: 10px; background: rgba(234, 179, 8, 0.2); color: #ca8a04; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; border: 1px solid var(--border-color); }
-.badge-dark { background: var(--primary); color: white; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; }
+/* Badges - Estilo cápsula elegante */
+.badge-video { 
+  font-size: 10px; 
+  background: #e2e8f0; 
+  color: #334155; 
+  padding: 4px 8px; 
+  border-radius: 999px; /* Cápsula */
+  display: inline-flex; 
+  align-items: center; 
+  gap: 4px; 
+  width: fit-content; 
+  margin-top: 4px; 
+  border: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.badge-bosquejo { 
+  font-size: 10px; 
+  background: #fef3c7; 
+  color: #b45309; 
+  padding: 4px 8px; 
+  border-radius: 999px;
+  display: inline-flex; 
+  align-items: center; 
+  gap: 4px; 
+  width: fit-content; 
+  margin-top: 4px; 
+  border: none;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
 /* Botones Cabecera */
 .acciones-header { 
   display: flex; 
   gap: 10px; 
   align-items: center;
-  flex-wrap: wrap; /* 👈 LA CLAVE 2: Los botones saltan de línea como Tetris */
+  flex-wrap: wrap;
 }
 
-/* 👈 Protegemos los textos de TODOS los botones del header para que no se rompan */
 .header-sesion button {
   white-space: nowrap; 
 }
@@ -1977,7 +1434,7 @@ let idParteAEliminar: number | null = null;
 
 .btn-status-toggle.blue.active { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; color: #2563eb; }
 .btn-status-toggle.green.active { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #059669; }
-.btn-status-toggle.yellow.active { background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #ca8a04; }
+.btn-status-toggle.orange.active { background: rgba(249, 115, 22, 0.15); border-color: #f97316; color: #f97316; }
 
 /* Utilidades varias */
 .col-tiempo { display: flex; flex-direction: column; min-width: 60px; }
@@ -1999,17 +1456,10 @@ let idParteAEliminar: number | null = null;
 .grupo-accion.right { align-items: flex-end; }
 .btn-outline-blue { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #2563eb; color: #2563eb; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
 .btn-outline-blue:hover { background: rgba(59, 130, 246, 0.1); }
-/* Visual for disabled quick-action buttons: visible but inactive */
 .opcion-email[disabled], .opcion-email[aria-disabled="true"] {
   opacity: 0.45;
   filter: grayscale(0.25);
   cursor: not-allowed;
-}
-.opcion-email[disabled] .icon-wrapper, .opcion-email[aria-disabled="true"] .icon-wrapper {
-  opacity: 0.7;
-}
-.opcion-email[disabled] .mini-badge, .opcion-email[aria-disabled="true"] .mini-badge {
-  opacity: 0.6;
 }
 .btn-outline-orange { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #ea580c; color: #ea580c; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
 .btn-outline-orange:hover { background: rgba(249, 115, 22, 0.1); }
@@ -2027,15 +1477,6 @@ let idParteAEliminar: number | null = null;
 .modal-body { padding: 20px; overflow-y: auto; background: var(--bg-body); }
 .btn-close { color: var(--text-secondary); opacity: 0.7; background: none; border: none; cursor: pointer; }
 .btn-close:hover { opacity: 1; }
-.modal-gestion { width: 750px; max-width: 95vw; }
-.header-gestion { background: var(--bg-card); color: var(--text-main); padding: 20px; border-bottom: none; }
-.titulo-gestion h3 { margin: 0; font-size: 20px; font-weight: 600; }
-.subtitulo-rol { font-size: 12px; background: #3b82f6; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-top: 5px; display: inline-block; color: white; }
-.body-gestion { padding: 30px; background: var(--bg-body); }
-.divider { height: 1px; background: var(--border-color); margin: 25px 0; }
-.footer-gestion { padding: 15px 30px; background: var(--bg-card); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; }
-.btn-delete-full { color: #ef4444; background: #fef2f2; border: 1px solid #fee2e2; padding: 10px 20px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; }
-.btn-delete-full:hover { background: #fee2e2; border-color: #fecaca; }
 
 /* Buscador Modal */
 .buscador { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
@@ -2072,717 +1513,69 @@ let idParteAEliminar: number | null = null;
 .btn-tool:hover { color: var(--primary); text-decoration: underline; }
 .btn-tool.delete:hover { color: #ef4444; }
 .col-tema { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* Forzar que los iconos pequeños de estado (Oficina) se vean horizontales */
-.indicadores-mini {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-}
 
-/* Botón PDF Oficina: Estilo "Ghost" (Fantasma/Limpio) */
-.btn-icon-pdf {
-  background: rgba(128, 128, 128, 0.1);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-left: auto;
-  margin-right: 8px;
-}
-
-.btn-icon-pdf:hover {
-  background: var(--hover-bg);
-  border-color: var(--primary);
-  color: var(--primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px var(--shadow-color);
-}
-
-/* Efecto al hacer clic */
-.btn-icon-pdf:active {
-  transform: translateY(1px);
-}
-
-/* =========================================
-   BOTÓN EXPORTAR PDF (Estilo Profesional)
-   ========================================= */
-
+/* Botón PDF */
 .btn-header-pdf {
-  /* Estructura */
   display: flex;
   align-items: center;
-  gap: 6px;                /* Espacio entre el icono y el texto */
-  
-  /* Tamaño y Forma */
-  padding: 8px 14px;       /* Un poco más ancho para que se vea bien */
+  gap: 6px;
+  padding: 8px 14px;
   border-radius: 6px;
-  
-  /* Colores (Rojo PDF estándar) */
   background-color: transparent; 
-  border: 1px solid #ef4444;  /* Rojo vibrante pero elegante */
+  border: 1px solid #ef4444;
   color: #ef4444;
-  
-  /* Texto */
   font-size: 12px;
-  font-weight: 700;        /* Letra un poco más gruesa */
+  font-weight: 700;
   cursor: pointer;
-  
-  /* Animación suave */
   transition: all 0.2s ease-in-out;
 }
-
-/* Efecto al pasar el mouse (Hover) */
 .btn-header-pdf:hover {
-  background-color: rgba(239, 68, 68, 0.08); /* Fondo rojo muy sutil */
-  transform: translateY(-2px);               /* Se eleva un poquito */
-  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2); /* Sombrita roja */
+  background-color: rgba(239, 68, 68, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
 }
 
-/* Efecto al hacer click */
-.btn-header-pdf:active {
-  transform: translateY(0);
-  background-color: rgba(239, 68, 68, 0.15);
-}
-
-/* ==========================================================================
-   RESPONSIVIDAD: MODO COMPACTO PARA BOTONES DE PROGRAMA
-   ========================================================================== */
+/* Responsividad */
 @media (max-width: 850px) {
-  /* Ocultamos las palabras (Importar, Limpiar, PDF, etc.) */
   .header-sesion-left button span,
   .acciones-header button span {
       display: none; 
   }
-  
-  /* Convertimos los botones en cuadrados perfectos centrando el icono */
   .header-sesion-left button,
   .acciones-header button {
       padding: 8px 10px; 
       justify-content: center;
   }
 }
-
-/* ==========================================================================
-   RESPONSIVIDAD: MÓVILES Y TABLETAS (Un solo scroll maestro)
-   ========================================================================== */
 @media (max-width: 900px) {
-  
-  /* 1. EL CONTENEDOR PRINCIPAL: Le quitamos el límite de altura */
   .layout-programa {
     display: flex;
     flex-direction: column;
-    height: auto;       /* 👈 LA CLAVE: Permite que crezca infinitamente hacia abajo */
-    overflow: visible;  /* 👈 Apaga su scroll interno */
+    height: auto;
+    overflow: visible;
     gap: 15px;
     padding-bottom: 20px;
   }
-
-  /* 2. PANEL DE OFICINA: Crecimiento libre y sin scroll */
-  .panel-oficina.dark-theme {
-    height: auto;     
-    max-height: none; 
-    overflow: visible; /* 👈 Apaga el scroll de la tarjeta */
-    width: 100%;       
-    margin-bottom: 0;
-  }
-  
-  .contenido-oficina {
-    height: auto;
-    overflow: visible; /* 👈 Apaga el scroll de la lista de oradores */
-  }
-
-  /* 3. PANEL DE DISCURSOS: Crecimiento libre y sin scroll */
   .panel-discursos {
     height: auto;
-    overflow: visible; /* 👈 Apaga el scroll de la tarjeta */
+    overflow: visible;
     width: 100%;       
   }
-  
   .lista-partes {
     height: auto;
-    overflow: visible; /* 👈 Apaga el scroll de la lista de discursos */
+    overflow: visible;
     padding-bottom: 20px; 
   }
-
-  /* 4. PROTECCIÓN HORIZONTAL PARA BOTONES Y PESTAÑAS */
   .tabs {
     flex-wrap: wrap; 
   }
-  
   .tabs button {
     padding: 12px 5px; 
     font-size: 13px;   
   }
-
-  .btn-select-dark,
-  .item-personal {
-    width: 100%;
-    box-sizing: border-box;
-  }
 }
 
-/* --- CONTENEDOR DEL MODAL --- */
-.modal-emails {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 90%;
-  max-width: 650px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
-}
-
-/* --- ENCABEZADO --- */
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.modal-header h3 {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #1e293b;
-  font-size: 1.1rem;
-}
-
-/* --- SECCIÓN DE ACCIONES RÁPIDAS (TARJETAS) --- */
-.opciones-email-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 20px;
-  background: #ffffff;
-}
-
-.opcion-email {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #475569;
-  text-align: left;
-}
-
-.opcion-email:hover {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  transform: translateY(-2px);
-}
-
-.opcion-email span {
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* --- SECCIÓN AVANZADA (FORMULARIO) --- */
-.modal-contenido {
-  padding: 0 24px 24px 24px;
-}
-
-.seccion-editor {
-  background: #f8fafc;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  margin-top: 10px;
-}
-
-.label-titulo {
-  display: block;
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-/* --- INPUTS Y FORMULARIO --- */
-input[type="text"], select, textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  margin-bottom: 12px;
-  transition: all 0.2s;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* --- BADGE DE DESTINATARIOS --- */
-.destinatarios-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #dcfce7;
-  color: #166534;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-/* --- BOTONES DE ACCIÓN --- */
-.modal-button {
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid #e2e8f0;
-  background: white;
-}
-
-.modal-button.primary {
-  background: #2563eb;
-  color: white;
-  border: none;
-}
-
-.modal-button.primary:hover {
-  background: #1d4ed8;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
-}
-
-.modal-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* --- ICONOS --- */
-:global(.lucide) {
-  stroke-width: 2.5px;
-}
-
-/* FONDO OSCURO */
-  .modal-backdrop {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-
-  /* CAJA DEL MODAL */
-  .modal-emails {
-    background: white;
-    width: 95%;
-    max-width: 700px;
-    max-height: 90vh;
-    border-radius: 20px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid #e2e8f0;
-  }
-
-  /* HEADER */
-  .modal-header {
-    padding: 18px 24px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .modal-header h3 {
-    margin: 0;
-    font-size: 1.15rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #1e293b;
-  }
-
-  .btn-close {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 8px;
-    transition: all 0.2s;
-  }
-
-  .btn-close:hover {
-    background: #fee2e2;
-    color: #ef4444;
-  }
-
-  /* CONTENIDO */
-  .modal-contenido {
-    padding: 24px;
-    overflow-y: auto;
-  }
-
-  .label-titulo {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #64748b;
-    margin-bottom: 12px;
-    letter-spacing: 0.05em;
-  }
-
-  /* GRID DE TARJETAS RÁPIDAS */
-  .opciones-email-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-  }
-
-  .opcion-email {
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .opcion-email:hover {
-    background: white;
-    border-color: #3b82f6;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  }
-
-  .icon-wrapper {
-    position: relative;
-    padding: 10px;
-    border-radius: 10px;
-  }
-
-  .icon-wrapper.azul { background: #dbeafe; color: #2563eb; }
-  .icon-wrapper.morado { background: #f3e8ff; color: #9333ea; }
-  .icon-wrapper.naranja { background: #ffedd5; color: #ea580c; }
-
-  .mini-badge {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    background: #ea580c;
-    color: white;
-    border-radius: 50%;
-    padding: 3px;
-    border: 2px solid white;
-  }
-
-  /* Selector de días (Viernes / Sábado / Domingo / Todos) */
-  .selector-dias {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .btn-dia {
-    background: transparent;
-    border: 1px solid #e6eef8;
-    padding: 8px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    color: #1e293b;
-    font-weight: 700;
-    transition: all 0.15s ease;
-  }
-
-  .btn-dia:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(2,6,23,0.06); }
-
-  .btn-dia.activo {
-    background: #2563eb;
-    color: white;
-    border-color: transparent;
-    box-shadow: 0 10px 30px rgba(37,99,235,0.14);
-  }
-
-  .opcion-email span {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #334155;
-    text-align: center;
-  }
-
-  /* SECCIÓN EDITOR */
-  .seccion-editor {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 20px;
-  }
-
-  .editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-  }
-
-  .destinatarios-badge {
-    background: #dcfce7;
-    color: #166534;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .status-dot {
-    width: 8px; height: 8px;
-    background: #22c55e;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0% { transform: scale(0.95); opacity: 0.7; }
-    50% { transform: scale(1.1); opacity: 1; }
-    100% { transform: scale(0.95); opacity: 0.7; }
-  }
-
-  /* FORMULARIO */
-  .grid-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 15px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 15px;
-  }
-
-  .form-group label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #475569;
-  }
-
-  .radio-group {
-    display: flex;
-    gap: 12px;
-    padding: 8px 0;
-  }
-
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-
-  input[type="text"], select, textarea {
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 10px;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-
-  input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  /* FOOTER */
-  .modal-footer {
-    display: flex;
-    gap: 12px;
-    padding-top: 20px;
-    align-items: center;
-  }
-
-  .flex-spacer { flex: 1; }
-
-  .modal-button {
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid #cbd5e1;
-    background: white;
-    color: #334155;
-  }
-
-  .modal-button:hover:not(:disabled) { background: #f1f5f9; }
-
-  .modal-button.primary {
-    background: #2563eb;
-    color: white;
-    border: none;
-  }
-
-  .modal-button.primary:hover:not(:disabled) {
-    background: #1d4ed8;
-    transform: scale(1.02);
-  }
-
-  .modal-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* --- ANIMACIONES --- */
-.modal-backdrop {
-  /* ... tu código anterior ... */
-  animation: fadeIn 0.3s ease-out;
-}
-
-.modal-emails {
-  /* ... tu código anterior ... */
-  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(-30px) scale(0.95); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
-  }
-}
-
-.btn-status-toggle.orange.active {
-  background: rgba(249, 115, 22, 0.15);
-  border-color: #f97316;
-  color: #f97316;
-}
-
-.icon-indicator.orange {
-  background: rgba(249, 115, 22, 0.2);
-  color: #f97316;
-}
-
-.item-personal.ocupado {
-  background: #dbeafe; /* azul muy claro sólido */
-  border-color: #3b82f6;
-}
-
-/* Estilo común para botones ocupados y items de personal */
-.btn-select-dark.ocupado,
-.item-personal.ocupado {
-  background: rgba(59, 130, 246, 0.15); /* azul suave */
-  border-color: #3b82f6;                /* borde azul */
-}
-
-/* Si quieres un azul más intenso, aumenta la opacidad o usa un color sólido */
-.btn-select-dark.ocupado,
-.item-personal.ocupado {
-  background: #dbeafe;  /* azul claro sólido */
-  border-color: #3b82f6;
-}
-
-/* Hover común con sombra y ligera elevación */
-.btn-select-dark:hover,
-.item-personal.clickable:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
-  transition: all 0.2s;
-}
-
-/* Mantener el cambio de fondo específico de cada uno si ya lo tienen */
-.btn-select-dark:hover {
-  background: var(--hover-bg);
-  border-color: var(--primary);
-}
-.item-personal.clickable:hover {
-  background: var(--hover-bg);
-}
-
-/* Para los botones de selección (Presidente, Oración, etc.) */
-.btn-select-dark {
-  background: var(--bg-body);
-  border: 1px solid var(--border-color);
-  color: var(--text-main) !important; /* Fuerza color claro en modo oscuro */
-}
-
-/* Cuando están ocupados (asignados) */
-.btn-select-dark.ocupado {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: #3b82f6;
-  color: var(--text-main) !important;
-}
-
-/* Para los items de personal */
-.item-personal {
-  background: var(--bg-body);
-  border: 1px solid var(--border-color);
-  color: var(--text-main) !important;
-}
-
-.item-personal.ocupado {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: #3b82f6;
-  color: var(--text-main) !important;
-}
-
-/* Para los textos dentro de los items */
-.nombre-p, .text-truncate {
-  color: var(--text-main) !important;
-}
-
-/* Texto secundario (puede ser un poco más suave) */
-.cong-mini, .detalle, .label-tiny {
-  color: var(--text-secondary);
-}
-
+/* Modal de confirmación */
 .modal-confirm {
   width: 400px;
   max-width: 90vw;
@@ -2817,5 +1610,148 @@ input:focus, textarea:focus, select:focus {
 }
 .btn-cancel:hover {
   background: var(--hover-bg);
+}
+
+/* Estilos específicos para el modal de emails */
+.modal-emails {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+}
+.modal-emails .modal-header {
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.modal-emails .modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+.opciones-email-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 20px;
+  background: #ffffff;
+}
+.opcion-email {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #475569;
+  text-align: left;
+}
+.opcion-email:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: translateY(-2px);
+}
+.icon-wrapper.azul { background: #dbeafe; color: #2563eb; }
+.icon-wrapper.morado { background: #f3e8ff; color: #9333ea; }
+.icon-wrapper.naranja { background: #ffedd5; color: #ea580c; }
+.mini-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: #ea580c;
+  color: white;
+  border-radius: 50%;
+  padding: 3px;
+  border: 2px solid white;
+}
+.selector-dias {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.btn-dia {
+  background: transparent;
+  border: 1px solid #e6eef8;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: #1e293b;
+  font-weight: 700;
+  transition: all 0.15s ease;
+}
+.btn-dia:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(2,6,23,0.06); }
+.btn-dia.activo {
+  background: #2563eb;
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 10px 30px rgba(37,99,235,0.14);
+}
+.seccion-editor {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+}
+.destinatarios-badge {
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+.grid-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+.modal-button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #334155;
+}
+.modal-button.primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+}
+.modal-button.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: scale(1.02);
 }
 </style>
