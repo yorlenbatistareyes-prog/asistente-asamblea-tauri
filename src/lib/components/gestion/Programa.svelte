@@ -1881,11 +1881,58 @@ async function cargarTodosDias() {
 
 /* Modales */
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
-.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal { background: var(--bg-card); width: 450px; border-radius: 12px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); color: var(--text-main); }
-.modal-header { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+
+/* Modales - Corrección de altura y diseño */
+.modal-backdrop { 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh; 
+  background: rgba(0,0,0,0.6); 
+  display: flex; 
+  justify-content: center; 
+  align-items: flex-start; /* CRUCIAL: Evita que la cabecera se corte hacia arriba */
+  z-index: 9999; 
+  padding: 60px 20px 20px 20px; /* 60px de espacio libre arriba para tu barra superior */
+  box-sizing: border-box;
+}
+
+.modal { 
+  background: var(--bg-card); 
+  width: 480px; /* Un poquitito más ancho para que los campos respiren mejor */
+  max-width: 100%;
+  border-radius: 12px; 
+  max-height: calc(100vh - 90px); /* Altura máxima estricta (100% de la pantalla menos los márgenes) */
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; /* Obliga a que el scroll ocurra SOLO en el body del modal */
+  border: 1px solid var(--border-color); 
+  color: var(--text-main); 
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25); 
+}
+
+/* Aseguramos que el contenido interno sea el que haga scroll */
+.modal-body {
+  padding: 20px;
+  overflow-y: auto; /* Aquí ocurre la magia del scroll */
+  flex: 1;
+  background: var(--bg-body);
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0; /* Evita que la cabecera se aplaste */
+  background: var(--bg-card);
+}
+
+
 .modal-header h3 { color: var(--text-main); margin: 0; }
-.modal-body { padding: 20px; overflow-y: auto; background: var(--bg-body); }
+
 .btn-close { color: var(--text-secondary); opacity: 0.7; background: none; border: none; cursor: pointer; }
 .btn-close:hover { opacity: 1; }
 
