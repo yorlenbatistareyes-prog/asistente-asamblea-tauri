@@ -910,19 +910,19 @@ async function cargarTodosDias() {
     </button>
 
     <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
-      <FileSpreadsheet size={18}/> <span>Importar</span>
+      <FileSpreadsheet size={18}/> <span>Importar CSV</span>
     </button>
 
     <button class="btn-header-pdf" title="Exportar lista de discursos a PDF" on:click={handleExportarPrograma}>
-      <FileUp size={18}/> <span>PDF</span>
+      <FileUp size={18}/> <span>Generar PDF</span>
     </button>
 
     <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
-      <Trash2 size={18}/> <span>Limpiar</span>
+      <Trash2 size={18}/> <span>Limpiar toada la lista</span>
     </button>
     
     <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
-      <Plus size={18}/> <span>Agregar</span>
+      <Plus size={18}/> <span>Agregar parte</span>
     </button>
   </div>
 </div>
@@ -1269,33 +1269,29 @@ async function cargarTodosDias() {
         <h3>Asignar Orador / Editar Datos</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
-      <div class="modal-body">
+      
+      <div class="modal-body form-body">
         
         {#if parteEditando}
-          <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <div class="campo-bosquejo" style="margin-bottom: 10px; background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
-              <div>
-                <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Núm. Bosquejo
-                </label>
-                <div class="input-icon" style="margin-top: 6px; position: relative; display: flex; align-items: center;">
-                  <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
+            <div class="fila" style="margin-bottom: 15px;">
+              <div class="campo" style="margin-bottom: 0;">
+                <label>Núm. Bosquejo</label>
+                <div class="input-icon">
+                  <FileText size={16}/>
                   <input 
                     id="edit_bosquejo" 
                     type="text" 
                     placeholder="Ej: 178" 
                     bind:value={parteEditando.numero_bosquejo} 
-                    style="padding-left: 35px; width: 100%; height: 36px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
                   />
                 </div>
               </div>
               
-              <div>
-                <label style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Fuente
-                </label>
-                <select bind:value={parteEditando.fuente} disabled={parteEditando.es_video} style="margin-top: 6px; width: 100%; height: 36px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); padding-left: 10px; outline: none;">
+              <div class="campo" style="margin-bottom: 0;">
+                <label>Fuente</label>
+                <select bind:value={parteEditando.fuente} disabled={parteEditando.es_video}>
                   <option value="en_persona">En persona</option>
                   <option value="jw_stream">Descarga JW Stream</option>
                   <option value="transmision_remota">Transmisión remota</option>
@@ -1305,48 +1301,53 @@ async function cargarTodosDias() {
             </div>
 
             {#if !parteEditando.es_video}
-              <div style="margin-bottom: 15px;">
-                <label style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Características del Orador
-                </label>
+              <div class="campo" style="margin-bottom: 15px;">
+                <label>Características del Orador</label>
                 <div style="display: flex; gap: 15px; margin-top: 8px;">
-                  <label class="checkbox-label" style="font-size: 12px;"><input type="checkbox" bind:checked={parteEditando.es_betelita}> Betelita</label>
-                  <label class="checkbox-label" style="font-size: 12px;"><input type="checkbox" bind:checked={parteEditando.es_interprete}> Intérprete</label>
-                  <label class="checkbox-label" style="font-size: 12px;"><input type="checkbox" bind:checked={parteEditando.es_visitante}> Visitante</label>
+                  <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_betelita}> Betelita</label>
+                  <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_interprete}> Intérprete</label>
+                  <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_visitante}> Visitante</label>
                 </div>
               </div>
             {/if}
 
             <div style="display: flex; flex-direction: column; gap: 5px;">
               <button 
-                class="btn-guardar-bosquejo" 
-                style="background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; width: 100%;"
+                class="btn-guardar" 
+                style="margin-top: 0;"
                 on:click={() => actualizarDetallesParte(parteEditando.id)}
               >
                 Guardar Cambios de la Parte
               </button>
-              <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; text-align: center;">
+              <small style="font-size: 10.5px; color: var(--text-secondary); font-style: italic; text-align: center; margin-top: 4px;">
                 * Estos datos se guardan independientemente de quién sea el orador asignado abajo.
               </small>
             </div>
           </div>
         {/if}
 
-        <div class="buscador">
-          <Search size={16} color="var(--text-secondary)"/>
-          <input type="text" placeholder="Buscar hermano para asignar..." bind:value={terminoBusqueda} />
+        <div class="separator-line" style="margin: 15px 0;"></div>
+
+        <div class="campo" style="margin-bottom: 10px;">
+          <label>Buscar y Asignar Orador</label>
+          <div class="input-icon">
+            <Search size={16} />
+            <input type="text" placeholder="Escribe el nombre del hermano..." bind:value={terminoBusqueda} />
+          </div>
         </div>
         
-        <div class="lista-opciones">
+        <div class="lista-opciones" style="margin-top: 0;">
           <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
-            <div class="icono-video"><Video size={18}/></div>
-            <span>Asignar como Video</span>
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:var(--hover-bg); border-radius:50%; color:var(--text-secondary);">
+              <Video size={16}/>
+            </div>
+            <span style="font-weight:600; font-size:14px;">Asignar como Video</span>
           </button>
           
           {#each getHermanosFiltrados() as h}
             <button class="item-opcion" on:click={() => asignarOrador(h.id, false)}>
               <div class="avatar">{h.nombre_completo.charAt(0)}</div>
-              <div class="datos-opcion">
+              <div class="datos-opcion" style="display:flex; flex-direction:column; gap:2px;">
                 <span class="nombre">{h.nombre_completo}</span>
                 <span class="detalle">{h.nombre_congregacion || '-'}</span>
               </div>
