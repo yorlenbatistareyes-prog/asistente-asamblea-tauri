@@ -515,8 +515,18 @@ async function actualizarDetallesParte(parteId: number) {
       } catch(e) { alert("Error al importar: " + e); }
   }
 
-  async function handleExportarPrograma() {
-    await exportarProgramaPDF(partes, diaSeleccionado);
+ async function handleExportarPrograma() {
+    // 1. Creamos un título dinámico basado en lo que el usuario seleccionó en el filtro
+    let tituloPDF = labelDia;
+    if (diasSeleccionados.length === 3) {
+      tituloPDF = 'Programa Completo (3 días)';
+    } else if (diasSeleccionados.length === 0) {
+      return alert("⚠️ Seleccione al menos un día para generar el PDF.");
+    }
+
+    // 2. Pasamos 'partesFiltradas' en lugar de 'partes'. 
+    // ¡Así el PDF imprimirá exactamente lo que tienes en pantalla (orden y filtros)!
+    await exportarProgramaPDF(partesFiltradas, tituloPDF);
   }
 
   // --- MÓDULO DE EMAILS MASIVOS ---
