@@ -652,44 +652,45 @@ onDestroy(() => {
 function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, orden: string) {
   let resultado = [...listaPartes];
   
-  // 1. PRIMERO: Filtro por día seleccionado
+  // 1. Filtro por día
   if (dias.length > 0) {
     resultado = resultado.filter(p => dias.includes(p.dia));
   } else {
-    // Si no hay días seleccionados, no mostrar nada
     return [];
   }
   
-  // 2. SEGUNDO: Filtro por estado de asignación
+  // 2. Filtro por estado
   if (estado === 'asignada') {
     resultado = resultado.filter(p => p.nombre_orador && p.nombre_orador.trim() !== '');
   } else if (estado === 'sin_asignar') {
     resultado = resultado.filter(p => !p.nombre_orador || p.nombre_orador.trim() === '');
   }
   
-  // 3. TERCERO: Filtro por características
-  if (caracteristicas.betelita) {
-    resultado = resultado.filter(p => p.es_betelita === true);
-  }
-  if (caracteristicas.interprete) {
-    resultado = resultado.filter(p => p.es_interprete === true);
-  }
-  if (caracteristicas.visitante) {
-    resultado = resultado.filter(p => p.es_visitante === true);
+  // 3. Filtro por características (Si marcas varios, muestra oradores que cumplan con AL MENOS UNO)
+  let filtroCaracActivo = caracteristicas.betelita || caracteristicas.interprete || caracteristicas.visitante;
+  if (filtroCaracActivo) {
+    resultado = resultado.filter(p => 
+      (caracteristicas.betelita && p.es_betelita) ||
+      (caracteristicas.interprete && p.es_interprete) ||
+      (caracteristicas.visitante && p.es_visitante)
+    );
   }
   
-  // 4. CUARTO: Filtro por fuente
-  if (fuente.video) {
-    resultado = resultado.filter(p => p.es_video === true);
-  }
-  if (fuente.en_persona) {
-    resultado = resultado.filter(p => p.fuente === 'en_persona');
-  }
-  if (fuente.jw_stream) {
-    resultado = resultado.filter(p => p.fuente === 'jw_stream');
-  }
-  if (fuente.transmision_remota) {
-    resultado = resultado.filter(p => p.fuente === 'transmision_remota');
+  // 4. Filtro por fuente (Múltiple selección inteligente)
+  let filtroFuenteActivo = fuente.video || fuente.en_persona || fuente.jw_stream || fuente.transmision_remota;
+  if (filtroFuenteActivo) {
+    resultado = resultado.filter(p => {
+      let f = p.fuente || '';
+      let isVid = p.es_video === true || f.toLowerCase().includes('video') || f.toLowerCase().includes('vídeo');
+      let isStr = f === 'jw_stream' || f === 'Descarga de JW Stream';
+      let isRem = f === 'transmision_remota' || f === 'Transmisión remota en directo';
+      let isPer = !isVid && !isStr && !isRem; // Si no es ninguna de las otras, es en persona
+
+      return (fuente.video && isVid) ||
+             (fuente.jw_stream && isStr) ||
+             (fuente.transmision_remota && isRem) ||
+             (fuente.en_persona && isPer);
+    });
   }
   
   return resultado;
@@ -928,12 +929,14 @@ async function cargarTodosDias() {
               <span class="tema-txt">{parte.tema}</span>
               
               <div class="badges-row">
-                {#if parte.es_video || parte.fuente === 'video'}
+                {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
                   <span class="badge-fuente video"><Video size={10}/> Video</span>
-                {:else if parte.fuente === 'jw_stream'}
-                  <span class="badge-fuente stream"><Download size={10}/> Stream</span>
-                {:else if parte.fuente === 'transmision_remota'}
+                {:else if parte.fuente === 'jw_stream' || parte.fuente === 'Descarga de JW Stream'}
+                  <span class="badge-fuente stream"><Download size={10}/> JW Stream</span>
+                {:else if parte.fuente === 'transmision_remota' || parte.fuente === 'Transmisión remota en directo'}
                   <span class="badge-fuente remota"><Globe size={10}/> Remota</span>
+                {:else}
+                  <span class="badge-fuente en-persona"><UserCheck size={10}/> En persona</span>
                 {/if}
 
                 {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
@@ -950,51 +953,39 @@ async function cargarTodosDias() {
                   {#if parte.congregacion_orador}
                     <span class="cong-mini">{parte.congregacion_orador}</span>
                   {/if}
+                </div>
                   
-                  <div class="traits-container">
-                    {#if parte.es_betelita}
-                      <span class="trait-badge betel" title="Betelita">B</span>
-                    {/if}
-                    {#if parte.es_interprete}
-                      <span class="trait-badge interprete" title="Intérprete"><Languages size={9}/></span>
-                    {/if}
-                    {#if parte.es_visitante}
-                      <span class="trait-badge visitante" title="Visitante Orador"><Plane size={9}/></span>
-                    {/if}
-                  </div>
+                <div class="traits-container">
+                  {#if parte.es_betelita}
+                    <span class="trait-badge">Betelita</span>
+                  {/if}
+                  {#if parte.es_interprete}
+                    <span class="trait-badge">Intérprete</span>
+                  {/if}
+                  {#if parte.es_visitante}
+                    <span class="trait-badge">Visitante</span>
+                  {/if}
                 </div>
               {/if}
             </div>
 
             <div class="col-estados-mini">
               {#if parte.recibido_manual}
-                <div class="icon-indicator blue" title="Recibido">
-                  <FileCheck size={14} />
-                </div>
+                <div class="icon-indicator blue" title="Recibido"><FileCheck size={14} /></div>
               {/if}
               {#if parte.esta_presente}
-                <div class="icon-indicator green" title="Presente">
-                  <UserCheck size={14} />
-                </div>
+                <div class="icon-indicator green" title="Presente"><UserCheck size={14} /></div>
               {/if}
               {#if parte.ensayo_terminado}
-                <div class="icon-indicator orange" title="Ensayo terminado">
-                  <Mic size={14} />
-                </div>
+                <div class="icon-indicator orange" title="Ensayo terminado"><Mic size={14} /></div>
               {/if}
               {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
-                <div class="icon-indicator gray" title="Pendiente">
-                  <Clock size={14} />
-                </div>
+                <div class="icon-indicator gray" title="Pendiente"><Clock size={14} /></div>
               {/if}
             </div>
 
             <div class="col-toggle">
-              {#if parte._expanded}
-                <ChevronUp size={20} color="var(--text-secondary)"/>
-              {:else}
-                <ChevronDown size={20} color="var(--text-secondary)"/>
-              {/if}
+              {#if parte._expanded}<ChevronUp size={20} color="var(--text-secondary)"/>{:else}<ChevronDown size={20} color="var(--text-secondary)"/>{/if}
             </div>
           </div>
 
@@ -2877,20 +2868,35 @@ textarea {
 }
 .cong-mini { font-size: 11px; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 
-/* Contenedor de iconos de características */
+/* Color para Fuente "En persona" */
+.badge-fuente.en-persona { background: #f0fdf4; color: #166534; border-color: #bbf7d0; } 
+:global(html.dark-theme) .badge-fuente.en-persona { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+
+/* --- ETIQUETAS ESTILO JW (Gris claro) --- */
 .traits-container {
   display: flex;
-  gap: 3px;
+  gap: 5px;
+  margin-top: 5px;
+  flex-wrap: wrap;
 }
 .trait-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 800;
+  background: #e5e7eb; /* Gris claro igual a la foto */
+  color: #374151; /* Texto oscuro */
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500; /* Letra normal/mediana, no negrita fuerte */
+  letter-spacing: 0.2px;
+}
+
+/* Modo oscuro para las etiquetas */
+:global(html.dark-theme) .trait-badge {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 /* Colores para características */
 .trait-badge.betel { background: #1e293b; color: #f8fafc; } /* Oscuro para Betel */
