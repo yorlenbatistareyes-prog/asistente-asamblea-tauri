@@ -2262,26 +2262,56 @@ async function cargarTodosDias() {
   flex: 1;
 }
 
+/* =========================================================
+   TARJETAS DE ACCIÓN RÁPIDA (EMAIL / JWPUB)
+   ========================================================= */
 .opciones-email-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 20px;
-  background: #ffffff;
+  gap: 15px;
+  margin-bottom: 24px;
 }
+
 .opcion-email {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  gap: 14px;
+  padding: 16px;
+  background: #ffffff !important; /* Fondo blanco puro para que resalte */
+  border: 1px solid #cbd5e1 !important; /* Borde definido gris fino */
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #475569;
   text-align: left;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Sombra suave para darle volumen de tarjeta */
+  width: 100%;
 }
+
+.opcion-email span {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+  flex: 1;
+}
+
+/* Efecto al pasar el ratón (Hover) */
+.opcion-email:hover:not(:disabled) {
+  background: #f8fafc !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.12); /* Elevación con sombra azulada */
+  transform: translateY(-2px);
+}
+
+/* Estado deshabilitado */
+.opcion-email:disabled, .opcion-email[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+  box-shadow: none;
+  transform: none;
+}
+
 .opcion-email:hover {
   background: #eff6ff;
   border-color: #3b82f6;
@@ -2378,6 +2408,19 @@ async function cargarTodosDias() {
   transform: scale(1.02);
 }
 
+
+/* Ajustes para Modo Oscuro en las tarjetas */
+:global(html.dark-theme) .opcion-email {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+:global(html.dark-theme) .opcion-email:hover:not(:disabled) {
+  background: var(--hover-bg) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+}
 /* Modal de emails */
 :global(html.dark-theme) .modal-emails {
   background: var(--bg-card);
@@ -2398,11 +2441,6 @@ async function cargarTodosDias() {
   background: var(--bg-card);
 }
 
-:global(html.dark-theme) .opcion-email {
-  background: var(--bg-secondary);
-  border-color: var(--border-color);
-  color: var(--text-main);
-}
 
 :global(html.dark-theme) .opcion-email:hover {
   background: var(--hover-bg);
@@ -2633,18 +2671,8 @@ async function cargarTodosDias() {
   width: 100%;
 }
 
-.opcion-email:hover:not(:disabled) {
-  background: var(--hover-bg);
-  border-color: var(--primary);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px var(--shadow-color);
-}
 
-.opcion-email:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  filter: grayscale(0.3);
-}
+
 
 .icon-wrapper {
   position: relative;
@@ -2686,13 +2714,6 @@ async function cargarTodosDias() {
   justify-content: center;
 }
 
-.opcion-email span {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-main);
-  line-height: 1.3;
-  flex: 1;
-}
 
 /* Sección editor */
 .seccion-editor {
