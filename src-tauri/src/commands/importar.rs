@@ -66,11 +66,11 @@ struct FilaProgramaJW {
     #[serde(alias = "Correo electrónico", alias = "Email address")]
     email: Option<String>,
     // ✅ NUEVAS COLUMNAS CAPTURADAS DEL CSV
-    #[serde(alias = "Speaker Bethelite", alias = "Orador betelita")]
+    #[serde(alias = "Speaker Bethelite", alias = "Orador betelita", alias = "Betelita")]
     es_betelita: Option<String>,
-    #[serde(alias = "Interpreter", alias = "Intérprete")]
+    #[serde(alias = "Interpreter", alias = "Intérprete", alias = "Interprete")]
     es_interprete: Option<String>,
-    #[serde(alias = "Visiting speaker", alias = "Orador visitante")]
+    #[serde(alias = "Visiting speaker", alias = "Orador visitante", alias = "Visitante")]
     es_visitante: Option<String>,
 }
 

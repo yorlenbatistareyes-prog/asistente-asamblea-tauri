@@ -107,7 +107,11 @@ onDestroy(() => {
           recordatorio_enviado: false, 
           ensayo_terminado: p.ensayo_terminado || false,
           whatsapp_enviado: false,
-          recordatorio_whatsapp_enviado: false
+          recordatorio_whatsapp_enviado: false,
+          fuente: p.fuente || 'en_persona',
+          es_betelita: p.es_betelita || false,
+          es_interprete: p.es_interprete || false,
+          es_visitante: p.es_visitante || false
         }));
         const pendientes = partes
           .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
@@ -776,7 +780,7 @@ async function cargarTodosDias() {
       const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
       const partesConDia = res.map(p => ({ 
         ...p, 
-        dia: dia, // Agregar el día a cada parte
+        dia: dia,
         _expanded: abiertos.has(p.id),
         recibido_manual: p.estado === 'Confirmado',
         estado: p.estado || 'Pendiente',
@@ -788,7 +792,12 @@ async function cargarTodosDias() {
         recordatorio_enviado: false,
         ensayo_terminado: p.ensayo_terminado || false,
         whatsapp_enviado: false,
-        recordatorio_whatsapp_enviado: false
+        recordatorio_whatsapp_enviado: false,
+        // ✅ NUEVOS CAMPOS PARA FILTROS
+        fuente: p.fuente || 'en_persona',
+        es_betelita: p.es_betelita || false,
+        es_interprete: p.es_interprete || false,
+        es_visitante: p.es_visitante || false
       }));
       todasLasPartes = [...todasLasPartes, ...partesConDia];
     }
@@ -1442,8 +1451,6 @@ async function cargarTodosDias() {
           <h4>Filtros activos</h4>
           <p class="texto-secundario">Los filtros no están activos</p>
         </div>
-
-        <!-- ELIMINAR SECCIÓN DE DÍA -->
 
         <!-- ESTADO DE LA ASIGNACIÓN -->
         <div class="grupo-filtro">
