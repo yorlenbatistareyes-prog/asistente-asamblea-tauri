@@ -644,8 +644,8 @@ onDestroy(() => {
 
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
 
- // --- FUNCIONES DE FILTRADO ---
-function aplicarFiltros(listaPartes, dias, estado, caracteristicas, fuente, orden) {
+// --- FUNCIONES DE FILTRADO ---
+function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, orden: string) {
   let resultado = [...listaPartes];
   
   // 1. PRIMERO: Filtro por día seleccionado
@@ -740,23 +740,28 @@ function toggleDia(dia: string) {
 // Al incluir `partes` en los argumentos de la función, Svelte detecta el cambio
 $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, filtroEstado, filtrosCaracteristicas, filtrosFuente, ordenarPor));
 
-function getLabelDia() {
-  if (diasSeleccionados.length === 0) return 'Seleccionar día';
-  if (diasSeleccionados.length === 3) return 'Todos';
-  if (diasSeleccionados.length === 1) return diasSeleccionados[0];
-  if (diasSeleccionados.length === 2) {
-    return diasSeleccionados.join(' y ');
-  }
-  return `${diasSeleccionados.length} días`;
-}
+// Variable para controlar el nuevo modal de Ordenar
+  let mostrarSelectorOrdenar = false;
 
-// Cerrar dropdown al hacer clic fuera
-function handleClickOutside(event: MouseEvent) {
-  const target = event.target as HTMLElement;
-  if (mostrarSelectorDia && !target.closest('.selector-dia-container')) {
-    mostrarSelectorDia = false;
+  // Reactividad: Esto hace que el texto cambie automáticamente si marcas o desmarcas días
+  $: labelDia = (() => {
+    if (diasSeleccionados.length === 0) return 'Seleccionar día';
+    if (diasSeleccionados.length === 3) return 'Todos los días';
+    if (diasSeleccionados.length === 1) return diasSeleccionados[0];
+    if (diasSeleccionados.length === 2) return diasSeleccionados.join(' y ');
+    return `${diasSeleccionados.length} días`;
+  })();
+
+  // Función mejorada para cerrar cualquiera de los dos menús si haces clic fuera
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (mostrarSelectorDia && !target.closest('.dia-sel')) {
+      mostrarSelectorDia = false;
+    }
+    if (mostrarSelectorOrdenar && !target.closest('.ord-sel')) {
+      mostrarSelectorOrdenar = false;
+    }
   }
-}
 
 // Cargar todos los días
 async function cargarTodosDias() {
@@ -804,54 +809,66 @@ async function cargarTodosDias() {
   <main class="panel-discursos">
 
     <div class="header-sesion">
-  <div class="header-sesion-left">
+<div class="header-sesion-left">
     <h2>Programa</h2>
       
-      <!-- SELECTOR DE DÍA -->
-<div class="selector-dia-container">
-  <button class="btn-selector-dia" on:click|stopPropagation={() => mostrarSelectorDia = !mostrarSelectorDia}>
-  <div style="display:flex; align-items:center; gap:8px;">
-    <Calendar size={16}/>
-    <span>{getLabelDia()}</span>
-  </div>
-  <ChevronDown size={16}/>
-</button>
-  
-  {#if mostrarSelectorDia}
-    <div class="dropdown-dias" on:click|stopPropagation>
-      <button class="dia-opcion" on:click={() => toggleDia('Todos')}>
-        <input type="checkbox" checked={diasSeleccionados.length === 3} readonly>
-        <span>Todos</span>
+    <div class="selector-dia-container dia-sel">
+      <button class="btn-selector-dia" on:click|stopPropagation={() => {mostrarSelectorDia = !mostrarSelectorDia; mostrarSelectorOrdenar = false;}}>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <Calendar size={16}/>
+          <span>{labelDia}</span>
+        </div>
+        <ChevronDown size={16}/>
       </button>
-      <div class="separator-dropdown"></div>
-      <button class="dia-opcion" on:click={() => toggleDia('Viernes')}>
-        <input type="checkbox" checked={diasSeleccionados.includes('Viernes')} readonly>
-        <span>Viernes</span>
-      </button>
-      <button class="dia-opcion" on:click={() => toggleDia('Sábado')}>
-        <input type="checkbox" checked={diasSeleccionados.includes('Sábado')} readonly>
-        <span>Sábado</span>
-      </button>
-      <button class="dia-opcion" on:click={() => toggleDia('Domingo')}>
-        <input type="checkbox" checked={diasSeleccionados.includes('Domingo')} readonly>
-        <span>Domingo</span>
-      </button>
+      
+      {#if mostrarSelectorDia}
+        <div class="dropdown-dias" on:click|stopPropagation>
+          <button class="dia-opcion" on:click={() => toggleDia('Todos')}>
+            <input type="checkbox" checked={diasSeleccionados.length === 3} readonly>
+            <span>Todos los días</span>
+          </button>
+          <div class="separator-dropdown"></div>
+          <button class="dia-opcion" on:click={() => toggleDia('Viernes')}>
+            <input type="checkbox" checked={diasSeleccionados.includes('Viernes')} readonly>
+            <span>Viernes</span>
+          </button>
+          <button class="dia-opcion" on:click={() => toggleDia('Sábado')}>
+            <input type="checkbox" checked={diasSeleccionados.includes('Sábado')} readonly>
+            <span>Sábado</span>
+          </button>
+          <button class="dia-opcion" on:click={() => toggleDia('Domingo')}>
+            <input type="checkbox" checked={diasSeleccionados.includes('Domingo')} readonly>
+            <span>Domingo</span>
+          </button>
+        </div>
+      {/if}
     </div>
-  {/if}
-</div>
 
-    <!-- BOTÓN FILTROS -->
     <button class="btn-header-filtros" on:click={() => mostrarPanelFiltros = true}>
-      <Settings size={18}/> <span>Filtros</span>
+      <ListFilter size={18}/> <span>Otros Filtros</span>
     </button>
 
-    <!-- ORDENAR POR -->
-    <div class="ordenar-container">
-      <label for="ordenar">Ordenar:</label>
-      <select id="ordenar" bind:value={ordenarPor} class="select-ordenar">
-        <option value="secuencia">Secuencia</option>
-        <option value="orador">Orador</option>
-      </select>
+    <div class="selector-dia-container ord-sel">
+      <button class="btn-selector-dia" style="min-width: 180px;" on:click|stopPropagation={() => {mostrarSelectorOrdenar = !mostrarSelectorOrdenar; mostrarSelectorDia = false;}}>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>Ordenar: <strong style="color:var(--primary);">{ordenarPor === 'secuencia' ? 'Secuencia' : 'Orador'}</strong></span>
+        </div>
+        <ChevronDown size={16}/>
+      </button>
+      
+      {#if mostrarSelectorOrdenar}
+        <div class="dropdown-dias" style="min-width: 180px;" on:click|stopPropagation>
+          <button class="dia-opcion" on:click={() => { ordenarPor = 'secuencia'; mostrarSelectorOrdenar = false; }}>
+            <input type="checkbox" checked={ordenarPor === 'secuencia'} readonly>
+            <span style={ordenarPor === 'secuencia' ? 'font-weight:bold; color:var(--text-main);' : ''}>Secuencia de discursos</span>
+          </button>
+          <div class="separator-dropdown"></div>
+          <button class="dia-opcion" on:click={() => { ordenarPor = 'orador'; mostrarSelectorOrdenar = false; }}>
+            <input type="checkbox" checked={ordenarPor === 'orador'} readonly>
+            <span style={ordenarPor === 'orador' ? 'font-weight:bold; color:var(--text-main);' : ''}>Orador</span>
+          </button>
+        </div>
+      {/if}
     </div>
   </div>
   
