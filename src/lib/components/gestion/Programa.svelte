@@ -37,8 +37,12 @@
   
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
-  let nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '' };
-  
+  let nuevaParte = { 
+    dia: 'Viernes', hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', 
+    nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '',
+    fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false 
+  };
+
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
 
@@ -406,16 +410,22 @@ onDestroy(() => {
       parteEditando = null; 
   }
 
-  async function actualizarBosquejo(parteId: number, numeroBosquejo: string) {
+async function actualizarDetallesParte(parteId: number) {
+    if (!parteEditando) return;
     try {
-        await invoke('actualizar_numero_bosquejo', { 
+        await invoke('actualizar_detalles_parte', { 
             idParte: parteId, 
-            numeroBosquejo: numeroBosquejo.trim() || null 
+            numeroBosquejo: parteEditando.numero_bosquejo?.trim() || null,
+            fuente: parteEditando.fuente || 'en_persona',
+            esBetelita: parteEditando.es_betelita || false,
+            esInterprete: parteEditando.es_interprete || false,
+            esVisitante: parteEditando.es_visitante || false
         });
         await cargarDatos();
+        alert("✅ Datos de la parte actualizados correctamente.");
     } catch (e) {
-        console.error("Error al actualizar número de bosquejo:", e);
-        alert("Error al guardar el número de bosquejo: " + e);
+        console.error("Error al actualizar detalles:", e);
+        alert("Error al guardar: " + e);
     }
   }
 
@@ -442,7 +452,7 @@ onDestroy(() => {
     try {
       await invoke('crear_parte', { 
         asambleaId, 
-        dia: diaSeleccionado, 
+        dia: nuevaParte.dia, // Ahora usamos el día del modal
         sesion: nuevaParte.sesion, 
         hora: nuevaParte.hora, 
         tema: nuevaParte.tema, 
@@ -452,10 +462,15 @@ onDestroy(() => {
         congregacion: nuevaParte.congregacion.trim() || null, 
         email: nuevaParte.email.trim() || null, 
         telefono: nuevaParte.telefono.trim() || null,
-        numero_bosquejo: nuevaParte.numero_bosquejo.trim() || null 
+        numero_bosquejo: nuevaParte.numero_bosquejo.trim() || null,
+        // ✅ ENVIAMOS LOS NUEVOS DATOS AL BACKEND
+        fuente: nuevaParte.fuente,
+        esBetelita: nuevaParte.es_betelita,
+        esInterprete: nuevaParte.es_interprete,
+        esVisitante: nuevaParte.es_visitante
       });
       mostrarModalCrear = false; 
-      nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '' };
+      nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false };
       await cargarDatos(); 
     } catch (e) { 
       alert("Error al crear parte: " + e); 
@@ -1118,8 +1133,17 @@ async function cargarTodosDias() {
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body form-body">
-        <h4 class="form-title">Detalles</h4>
+        <h4 class="form-title">Detalles Base</h4>
+        
         <div class="fila">
+          <div class="campo">
+            <label for="dia_select">Día</label>
+            <select id="dia_select" bind:value={nuevaParte.dia}>
+              <option value="Viernes">Viernes</option>
+              <option value="Sábado">Sábado</option>
+              <option value="Domingo">Domingo</option>
+            </select>
+          </div>
           <div class="campo">
             <label for="sesion_select">Sesión</label>
             <select id="sesion_select" bind:value={nuevaParte.sesion}>
@@ -1127,6 +1151,9 @@ async function cargarTodosDias() {
               <option>Tarde</option>
             </select>
           </div>
+        </div>
+
+        <div class="fila">
           <div class="campo">
             <label for="hora_input">Hora</label>
             <input id="hora_input" type="time" bind:value={nuevaParte.hora} />
@@ -1136,16 +1163,29 @@ async function cargarTodosDias() {
             <input id="duracion_input" type="number" bind:value={nuevaParte.duracion} />
           </div>
         </div>
-        <div class="campo">
-          <label for="tipo_select">Tipo</label>
-          <select id="tipo_select" bind:value={nuevaParte.tipo}>
-            <option>Música</option>
-            <option>Oración</option>
-            <option>Presidente</option>
-            <option>Discurso</option>
-            <option>Video</option>
-          </select>
+
+        <div class="fila">
+          <div class="campo">
+            <label for="tipo_select">Tipo</label>
+            <select id="tipo_select" bind:value={nuevaParte.tipo}>
+              <option>Música</option>
+              <option>Oración</option>
+              <option>Presidente</option>
+              <option>Discurso</option>
+              <option>Video</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fuente_select">Fuente</label>
+            <select id="fuente_select" bind:value={nuevaParte.fuente} disabled={nuevaParte.tipo === 'Video'}>
+              <option value="en_persona">En persona</option>
+              <option value="jw_stream">Descarga de JW Stream</option>
+              <option value="transmision_remota">Transmisión remota en directo</option>
+              <option value="video">Video</option>
+            </select>
+          </div>
         </div>
+
         <div class="campo">
           <label for="tema_input">Tema</label>
           <input id="tema_input" type="text" placeholder="Tema..." bind:value={nuevaParte.tema} />
@@ -1178,7 +1218,17 @@ async function cargarTodosDias() {
               </div>
             {/if}
           </div>
+          
           {#if nuevaParte.nombre_orador.length > 0}
+            <div class="campo" style="margin-top: 5px; margin-bottom: 15px;">
+              <label>Características del Orador</label>
+              <div style="display: flex; gap: 15px; margin-top: 8px;">
+                <label class="checkbox-label"><input type="checkbox" bind:checked={nuevaParte.es_betelita}> Betelita</label>
+                <label class="checkbox-label"><input type="checkbox" bind:checked={nuevaParte.es_interprete}> Intérprete</label>
+                <label class="checkbox-label"><input type="checkbox" bind:checked={nuevaParte.es_visitante}> Visitante</label>
+              </div>
+            </div>
+
             <div class="campo">
               <label for="cong_input">Congregación</label>
               <div class="input-icon">
@@ -1204,7 +1254,7 @@ async function cargarTodosDias() {
             </div>
           {/if}
         {/if}
-        <button class="btn-guardar" on:click={guardarNuevaParte}>Guardar</button>
+        <button class="btn-guardar" on:click={guardarNuevaParte}>Guardar Parte</button>
       </div>
     </div>
   </div>
@@ -1216,36 +1266,67 @@ async function cargarTodosDias() {
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header">
-        <h3>Asignar Orador</h3>
+        <h3>Asignar Orador / Editar Datos</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body">
         
         {#if parteEditando}
-          <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-            <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-              Número de Bosquejo
-            </label>
-            <div class="input-icon" style="margin-top: 8px; position: relative; display: flex; align-items: center;">
-              <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
-              <input 
-                id="edit_bosquejo" 
-                type="text" 
-                placeholder="Ej: 178" 
-                bind:value={parteEditando.numero_bosquejo} 
-                style="padding-left: 35px; width: 100%; height: 38px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
-              />
+          <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 12px;">
+              <div>
+                <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Núm. Bosquejo
+                </label>
+                <div class="input-icon" style="margin-top: 6px; position: relative; display: flex; align-items: center;">
+                  <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
+                  <input 
+                    id="edit_bosquejo" 
+                    type="text" 
+                    placeholder="Ej: 178" 
+                    bind:value={parteEditando.numero_bosquejo} 
+                    style="padding-left: 35px; width: 100%; height: 36px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Fuente
+                </label>
+                <select bind:value={parteEditando.fuente} disabled={parteEditando.es_video} style="margin-top: 6px; width: 100%; height: 36px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); padding-left: 10px; outline: none;">
+                  <option value="en_persona">En persona</option>
+                  <option value="jw_stream">Descarga JW Stream</option>
+                  <option value="transmision_remota">Transmisión remota</option>
+                  <option value="video">Video</option>
+                </select>
+              </div>
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
+
+            {#if !parteEditando.es_video}
+              <div style="margin-bottom: 15px;">
+                <label style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Características del Orador
+                </label>
+                <div style="display: flex; gap: 15px; margin-top: 8px;">
+                  <label class="checkbox-label" style="font-size: 12px;"><input type="checkbox" bind:checked={parteEditando.es_betelita}> Betelita</label>
+                  <label class="checkbox-label" style="font-size: 12px;"><input type="checkbox" bind:checked={parteEditando.es_interprete}> Intérprete</label>
+                  <label class="checkbox-label" style="font-size: 12px;"><input type="checkbox" bind:checked={parteEditando.es_visitante}> Visitante</label>
+                </div>
+              </div>
+            {/if}
+
+            <div style="display: flex; flex-direction: column; gap: 5px;">
               <button 
                 class="btn-guardar-bosquejo" 
-                style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;"
-                on:click={() => actualizarBosquejo(parteEditando.id, parteEditando.numero_bosquejo || '')}
+                style="background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; width: 100%;"
+                on:click={() => actualizarDetallesParte(parteEditando.id)}
               >
-                Guardar Solo Bosquejo
+                Guardar Cambios de la Parte
               </button>
-              <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; flex: 1;">
-                * El número se guardará independientemente de asignar orador
+              <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; text-align: center;">
+                * Estos datos se guardan independientemente de quién sea el orador asignado abajo.
               </small>
             </div>
           </div>
@@ -1253,13 +1334,13 @@ async function cargarTodosDias() {
 
         <div class="buscador">
           <Search size={16} color="var(--text-secondary)"/>
-          <input type="text" placeholder="Buscar hermano..." bind:value={terminoBusqueda} />
+          <input type="text" placeholder="Buscar hermano para asignar..." bind:value={terminoBusqueda} />
         </div>
         
         <div class="lista-opciones">
           <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
             <div class="icono-video"><Video size={18}/></div>
-            <span>Video</span>
+            <span>Asignar como Video</span>
           </button>
           
           {#each getHermanosFiltrados() as h}
@@ -1816,16 +1897,108 @@ async function cargarTodosDias() {
 .avatar { width: 32px; height: 32px; background: var(--hover-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-secondary); }
 .nombre { font-weight: 600; font-size: 14px; color: var(--text-main); }
 .detalle { font-size: 12px; color: var(--text-secondary); }
-.form-title { margin: 0; font-size: 14px; border-left: 3px solid var(--primary); padding-left: 8px; color: var(--text-main); }
-.separator-line { height: 1px; background: var(--border-color); margin: 10px 0; }
-.campo { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-.campo label { font-size: 12px; font-weight: bold; color: var(--text-secondary); }
-.campo input, .campo select { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: var(--bg-body); color: var(--text-main); }
-.input-icon { position: relative; display: flex; align-items: center; }
-.input-icon :global(svg) { position: absolute; left: 10px; color: var(--text-secondary); }
-.input-icon input { padding-left: 32px; width: 100%; }
-.fila { display: flex; gap: 15px; }
-.fila .campo { flex: 1; }
+
+/* =========================================================
+   MEJORAS VISUALES PARA LOS MODALES Y FORMULARIOS
+   ========================================================= */
+.form-title { 
+  margin: 0 0 16px 0; 
+  font-size: 13px; 
+  font-weight: 800; 
+  color: var(--primary); 
+  text-transform: uppercase; 
+  letter-spacing: 0.8px; 
+  border-bottom: 2px solid var(--border-color); 
+  padding-bottom: 8px; 
+}
+
+.separator-line { 
+  height: 1px; 
+  background: transparent; 
+  margin: 10px 0 20px 0; 
+}
+
+.campo { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+  margin-bottom: 20px; 
+  width: 100%; 
+}
+
+.campo label { 
+  font-size: 12px; 
+  font-weight: 700; 
+  color: var(--text-secondary); 
+}
+
+/* Diseño de los inputs y selects */
+.campo input, 
+.campo select,
+.input-icon input { 
+  padding: 10px 14px !important; 
+  border: 1px solid #cbd5e1 !important; /* Fuerza el borde en TODOS los campos */
+  border-radius: 8px !important; 
+  outline: none !important; 
+  background: #f8fafc !important; /* Fuerza el fondo claro */
+  color: var(--text-main) !important; 
+  font-size: 14px;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Efecto al hacer clic (Focus) para todos */
+.campo input:focus, 
+.campo select:focus,
+.input-icon input:focus {
+  border-color: var(--primary) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important; /* Resplandor azul */
+}
+
+/* Solución definitiva al ícono montado sobre el texto */
+.input-icon { 
+  position: relative; 
+  display: flex; 
+  align-items: center; 
+  width: 100%; 
+}
+.input-icon :global(svg) { 
+  position: absolute; 
+  left: 12px; 
+  color: #64748b; 
+  pointer-events: none; /* Permite hacer clic "a través" del ícono */
+}
+.input-icon input { 
+  padding-left: 38px !important; /* Forza el espacio para el ícono */
+}
+
+.fila { 
+  display: flex; 
+  gap: 16px; 
+  width: 100%; 
+}
+.fila .campo { 
+  flex: 1; 
+  margin-bottom: 0; 
+}
+
+/* Ajustes para modo oscuro en los formularios */
+:global(html.dark-theme) .campo input, 
+:global(html.dark-theme) .campo select,
+:global(html.dark-theme) .input-icon input {
+  background: var(--bg-body) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+:global(html.dark-theme) .campo input:focus, 
+:global(html.dark-theme) .campo select:focus,
+:global(html.dark-theme) .input-icon input:focus {
+  background: var(--bg-card) !important;
+  border-color: var(--primary) !important;
+}
+
 .autocomplete-container { position: relative; }
 .sugerencias-lista { position: absolute; top: 100%; left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 10px var(--shadow-color); z-index: 100; max-height: 200px; overflow-y: auto; margin-top: 5px; }
 .sugerencia-item { display: flex; justify-content: space-between; width: 100%; padding: 10px; border: none; background: var(--bg-card); text-align: left; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
