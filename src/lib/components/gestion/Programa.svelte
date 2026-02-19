@@ -15,7 +15,7 @@
     Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
     FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
-    FileText, Download, ListFilter 
+    FileText, Download, ListFilter, Calendar  
   } from 'lucide-svelte';
 
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
@@ -45,7 +45,7 @@
 // --- FILTROS Y ORDENAMIENTO ---
 let mostrarPanelFiltros = false;
 let mostrarSelectorDia = false;
-let diasSeleccionados = ['Viernes', 'Sábado', 'Domingo']; // Por defecto todos
+let diasSeleccionados: string[] = []; // Por defecto todos
 let filtroEstado = 'todos'; // 'todos', 'asignada', 'sin_asignar'
 let filtrosCaracteristicas = {
   betelita: false,
@@ -741,11 +741,11 @@ function toggleDia(dia: string) {
 $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, filtroEstado, filtrosCaracteristicas, filtrosFuente, ordenarPor));
 
 function getLabelDia() {
-  if (diasSeleccionados.length === 0) return 'Ningún día';
+  if (diasSeleccionados.length === 0) return 'Seleccionar día';
   if (diasSeleccionados.length === 3) return 'Todos';
   if (diasSeleccionados.length === 1) return diasSeleccionados[0];
   if (diasSeleccionados.length === 2) {
-    return diasSeleccionados.join(', ');
+    return diasSeleccionados.join(' y ');
   }
   return `${diasSeleccionados.length} días`;
 }
@@ -810,9 +810,12 @@ async function cargarTodosDias() {
       <!-- SELECTOR DE DÍA -->
 <div class="selector-dia-container">
   <button class="btn-selector-dia" on:click|stopPropagation={() => mostrarSelectorDia = !mostrarSelectorDia}>
-    <span>📅 {getLabelDia()}</span>
-    <ChevronDown size={16}/>
-  </button>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <Calendar size={16}/>
+    <span>{getLabelDia()}</span>
+  </div>
+  <ChevronDown size={16}/>
+</button>
   
   {#if mostrarSelectorDia}
     <div class="dropdown-dias" on:click|stopPropagation>
@@ -2536,24 +2539,24 @@ textarea {
   }
 }
 
-/* === FILTROS === */
+/* === BOTÓN FILTROS (Borde fino, sin morado) === */
 .btn-header-filtros {
   background: var(--bg-card);
-  border: 1px solid #8b5cf6;
-  color: #8b5cf6;
+  border: 1px solid #cbd5e1; /* Borde gris fino */
+  color: var(--text-main);   /* Texto oscuro */
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   transition: all 0.2s;
 }
-
 .btn-header-filtros:hover {
-  background: rgba(139, 92, 246, 0.1);
+  background: var(--hover-bg);
+  border-color: #94a3b8;
 }
 
 .ordenar-container {
@@ -2569,14 +2572,26 @@ textarea {
   white-space: nowrap;
 }
 
+/* === SELECT ORDENAR (Estilo botón con borde fino) === */
 .select-ordenar {
-  padding: 6px 10px;
-  border: 1px solid var(--border-color);
+  padding: 8px 30px 8px 12px; /* Más padding a la derecha para la flecha */
+  border: 1px solid #cbd5e1;  /* Borde gris fino */
   border-radius: 6px;
   background: var(--bg-card);
   color: var(--text-main);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  outline: none;
+  /* Personalizar la flecha del select */
+  appearance: none; 
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: all 0.2s;
+}
+.select-ordenar:hover {
+  border-color: #94a3b8;
 }
 
 .modal-filtros {
@@ -2728,21 +2743,29 @@ textarea {
 
 .btn-selector-dia {
   background: var(--bg-card);
-  border: 1px solid var(--primary);
-  color: var(--primary);
+  border: 1px solid #cbd5e1; /* Borde gris fino */
+  color: var(--text-main);   /* Texto oscuro normal */
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: space-between; /* Flecha a la derecha */
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
+  min-width: 200px; /* Hace el botón más largo */
   transition: all 0.2s;
 }
-
 .btn-selector-dia:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--hover-bg);
+  border-color: #94a3b8; /* Borde se oscurece al pasar el mouse */
+}
+
+.btn-selector-dia span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Si seleccionas muchos textos, pone "..." en vez de romper el botón */
 }
 
 .dropdown-dias {
