@@ -1897,6 +1897,8 @@ async function cargarTodosDias() {
   gap: 10px; 
   align-items: center;
   flex-wrap: wrap;
+  width: 100%; /* <-- LA SOLUCIÓN: Abre la pista completa de izquierda a derecha */
+  margin-top: 5px; /* Da un pequeñísimo respiro con la fila de arriba */
 }
 
 .header-sesion button {
@@ -3395,11 +3397,11 @@ textarea {
 
 /* BOTÓN EXPANDIR/CONTRAER (Estilo Sólido) */
 .btn-expandir-todos {
-  background: #475569; /* Fondo sólido Pizarra */
-  color: white;        /* Texto e icono en blanco */
+  background: #475569; 
+  color: white;        
   padding: 8px 12px;
   border-radius: 6px;
-  border: none;        /* Sin borde, igual que Añadir */
+  border: none;        
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3407,10 +3409,13 @@ textarea {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  margin-left: auto; /* <-- ESTA ES LA MAGIA: Se separa de los demás y se va al extremo derecho */
 }
 
 .btn-expandir-todos:hover {
   background: #334155; /* Se oscurece un poco al pasar el mouse */
   transform: translateY(-1px);
 }
+
+
 </style>
