@@ -968,7 +968,7 @@ async function cargarTodosDias() {
       <Mail size={18}/> <span>Email a Todos</span>
     </button>
 
-    <button class="btn-header-filtros" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
+    <button class="btn-expandir-todos" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
       {#if todasExpandidas}
         <FoldVertical size={18}/> <span>Contraer</span>
       {:else}
@@ -2175,24 +2175,25 @@ async function cargarTodosDias() {
 .col-tema { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* Botón PDF */
+/* Estilo específico para el botón PDF (Rojo Oscuro Sólido) */
 .btn-header-pdf {
+  background: #991b1b; /* Rojo oscuro sólido */
+  color: white;        /* Texto e icono blancos */
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;        /* Sin borde */
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border-radius: 6px;
-  background-color: transparent; 
-  border: 1px solid #ef4444;
-  color: #ef4444;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s;
 }
+
 .btn-header-pdf:hover {
-  background-color: rgba(239, 68, 68, 0.08);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+  background: #7f1d1d; /* Un poco más oscuro al pasar el mouse */
+  transform: translateY(-1px);
 }
 
 /* Responsividad */
@@ -3390,5 +3391,26 @@ textarea {
   font-weight: 600;
   font-size: 0.9em; /* Un poquito más pequeño que el título */
   margin-left: 5px;
+}
+
+/* BOTÓN EXPANDIR/CONTRAER (Estilo Sólido) */
+.btn-expandir-todos {
+  background: #475569; /* Fondo sólido Pizarra */
+  color: white;        /* Texto e icono en blanco */
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;        /* Sin borde, igual que Añadir */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-expandir-todos:hover {
+  background: #334155; /* Se oscurece un poco al pasar el mouse */
+  transform: translateY(-1px);
 }
 </style>
