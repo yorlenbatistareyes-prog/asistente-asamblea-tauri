@@ -49,7 +49,7 @@
 // --- FILTROS Y ORDENAMIENTO ---
 let mostrarPanelFiltros = false;
 let mostrarSelectorDia = false;
-let diasSeleccionados: string[] = []; // Por defecto todos
+let diasSeleccionados: string[] = ['Viernes', 'Sábado', 'Domingo']; // Ahora sí, por defecto muestra todos
 let filtroEstado = 'todos'; // 'todos', 'asignada', 'sin_asignar'
 let filtrosCaracteristicas = {
   betelita: false,
@@ -66,6 +66,12 @@ let ordenarPor = 'secuencia'; // 'secuencia' o 'orador'
 
   // --- onMount ---
   onMount(async () => {
+
+  const diasGuardados = localStorage.getItem('memoriaDias');
+  if (diasGuardados) {
+      diasSeleccionados = JSON.parse(diasGuardados);
+  }
+
   const datosGuardados = localStorage.getItem('asambleaActiva');
   if (datosGuardados) {
       asambleaId = JSON.parse(datosGuardados).id;
@@ -772,6 +778,8 @@ function toggleDia(dia: string) {
     }
   }
   // NO cerrar el modal aquí
+  
+  localStorage.setItem('memoriaDias', JSON.stringify(diasSeleccionados));
 }
 
 // Al incluir `partes` en los argumentos de la función, Svelte detecta el cambio
