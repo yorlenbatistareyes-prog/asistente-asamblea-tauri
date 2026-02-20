@@ -915,25 +915,28 @@ async function cargarTodosDias() {
   </div>
   
   <div class="acciones-header">
-    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }}>
-      <Mail size={18}/> <span>Email a Todos</span>
-    </button>
 
-    <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
-      <FileSpreadsheet size={18}/> <span>Importar CSV</span>
+     <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
+      <FileSpreadsheet size={18}/> <span>Importar desde CSV</span>
     </button>
+    
+    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Añadir nueva parte al programa">
+      <Plus size={18}/> <span>Añadir parte</span>
+    </button>
+   
 
     <button class="btn-header-pdf" title="Exportar lista de discursos a PDF" on:click={handleExportarPrograma}>
       <FileUp size={18}/> <span>Generar PDF</span>
     </button>
 
     <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
-      <Trash2 size={18}/> <span>Limpiar toada la lista</span>
+      <Trash2 size={18}/> <span>Limpiar toda la lista</span>
+    </button>
+
+    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }}>
+      <Mail size={18}/> <span>Email a Todos</span>
     </button>
     
-    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
-      <Plus size={18}/> <span>Agregar parte</span>
-    </button>
   </div>
 </div>
 
@@ -952,13 +955,17 @@ async function cargarTodosDias() {
           <div class="header-parte" role="button" tabindex="0" 
                on:click={() => toggleExpandir(parte.id)} 
                on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
-            <div class="col-tiempo">
-              <span class="hora">{parte.hora_inicio}</span>
-              <span class="duracion">({parte.duracion}m)</span>
-            </div>
             
-            <div class="col-tema">
-              <span class="tema-txt">{parte.tema}</span>
+              <div class="col-main-info">
+                <div class="meta-programacion">
+                  <span class="dia-badge">{parte.dia}</span>
+                  <span class="hora-inicio">{parte.hora_inicio}</span>
+                  <span class="separador-dot">•</span>
+                  <span class="minutos-duracion">{parte.duracion} min</span>
+                </div>
+
+                <div class="col-tema-bloque">
+                   <span class="tema-txt">{parte.tema}</span>
               
               <div class="badges-row">
                 {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
@@ -976,6 +983,8 @@ async function cargarTodosDias() {
                 {/if}
               </div>
             </div>
+
+          </div>
 
             <div class="col-orador-mini">
               {#if !parte.es_video}
@@ -1857,9 +1866,15 @@ async function cargarTodosDias() {
 .btn-status-toggle.green.active { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #059669; }
 .btn-status-toggle.orange.active { background: rgba(249, 115, 22, 0.15); border-color: #f97316; color: #f97316; }
 
-/* Utilidades varias */
-.col-tiempo { display: flex; flex-direction: column; min-width: 60px; }
-.col-tema { flex: 1; display: flex; flex-direction: column; }
+
+/* NUEVOS ESTILOS DE LA TARJETA (Día / Hora arriba) */
+.col-main-info { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.meta-programacion { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.dia-badge { font-weight: 800; text-transform: uppercase; color: var(--text-secondary); font-size: 10px; letter-spacing: 0.5px; }
+.hora-inicio { font-weight: 700; color: var(--primary); font-size: 12px; }
+.separador-dot { color: var(--border-color); font-size: 12px; }
+.minutos-duracion { color: var(--text-secondary); font-weight: 500; }
+.col-tema-bloque { display: flex; flex-direction: column; }
 .col-orador-mini { width: 180px; display: flex; flex-direction: column; }
 .col-toggle { color: var(--text-secondary); margin-left: 10px; }
 .fila-superior-control { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }

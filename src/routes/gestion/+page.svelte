@@ -116,7 +116,7 @@ if (asambleaActual?.id) {
 
     <nav class="menu">
       <button class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')} title="Inicio / Resumen">
-        <LayoutDashboard size={20} class="icono-nav" /> <span class="texto-menu">Inicio/Estadísticas</span>
+        <LayoutDashboard size={20} class="icono-nav" /> <span class="texto-menu">Panel de control</span>
       </button>
 
       <button class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')} title="Información Evento">
@@ -156,10 +156,10 @@ if (asambleaActual?.id) {
     
     <header>
       <h2>
-        {#if seccionActiva === 'inicio'} Resumen General {/if}
+        {#if seccionActiva === 'inicio'} Panel de control {/if}
         {#if seccionActiva === 'info_evento'} Detalles de la Asamblea {/if} 
-        {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
-        {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
+        {#if seccionActiva === 'congregaciones'} Congregaciones asignadas {/if}
+        {#if seccionActiva === 'personas'} Registro de personas {/if}
         {#if seccionActiva === 'comite'} Responsabilidades {/if}
         {#if seccionActiva === 'programa'} Programa {/if}
         {#if seccionActiva === 'oficina'} Oficina {/if}
