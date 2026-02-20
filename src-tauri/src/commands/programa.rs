@@ -202,6 +202,7 @@ pub fn actualizar_detalles_parte(
     es_betelita: bool,
     es_interprete: bool,
     es_visitante: bool,
+    duracion: i32, // <-- NUEVO PARÁMETRO
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
@@ -211,14 +212,16 @@ pub fn actualizar_detalles_parte(
             fuente = ?2, 
             es_betelita = ?3, 
             es_interprete = ?4, 
-            es_visitante = ?5 
-         WHERE id = ?6",
+            es_visitante = ?5,
+            duracion = ?6 
+         WHERE id = ?7",
         params![
             numero_bosquejo.as_deref(), 
             fuente, 
             es_betelita, 
             es_interprete, 
-            es_visitante, 
+            es_visitante,
+            duracion, 
             id_parte
         ],
     )

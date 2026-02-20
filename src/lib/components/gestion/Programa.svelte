@@ -38,7 +38,7 @@
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
   let nuevaParte = { 
-    dia: 'Viernes', hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', 
+    dia: 'Viernes', hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', 
     nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '',
     fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false 
   };
@@ -425,7 +425,8 @@ async function actualizarDetallesParte(parteId: number) {
             fuente: parteEditando.fuente || 'en_persona',
             esBetelita: parteEditando.es_betelita || false,
             esInterprete: parteEditando.es_interprete || false,
-            esVisitante: parteEditando.es_visitante || false
+            esVisitante: parteEditando.es_visitante || false,
+            duracion: Number(parteEditando.duracion) || 0 // Envía los minutos
         });
         await cargarDatos();
         alert("✅ Datos de la parte actualizados correctamente.");
@@ -439,12 +440,25 @@ async function actualizarDetallesParte(parteId: number) {
     if (parteEditando) {
         const bsq = parteEditando?.numero_bosquejo?.trim() || "";
         try {
+          // 1. Guardar primero los minutos y detalles en segundo plano
+          await invoke('actualizar_detalles_parte', { 
+              idParte: parteEditando.id, 
+              numeroBosquejo: bsq || null,
+              fuente: parteEditando.fuente || 'en_persona',
+              esBetelita: parteEditando.es_betelita || false,
+              esInterprete: parteEditando.es_interprete || false,
+              esVisitante: parteEditando.es_visitante || false,
+              duracion: Number(parteEditando.duracion) || 0 // Guarda los minutos
+          });
+
+          // 2. Guardar el orador asignado y cerrar
           await invoke('asignar_parte', { 
             idParte: parteEditando.id, 
             oradorId: oradorId, 
             esVideo: esVideo,
             numeroBosquejo: bsq || null
           });
+          
           cerrarModales();
           await cargarDatos(); 
         } catch (e) {
@@ -476,7 +490,7 @@ async function actualizarDetallesParte(parteId: number) {
         esVisitante: nuevaParte.es_visitante
       });
       mostrarModalCrear = false; 
-      nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false };
+      nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false };
       await cargarDatos(); 
     } catch (e) { 
       alert("Error al crear parte: " + e); 
@@ -778,7 +792,7 @@ function toggleDia(dia: string) {
     }
   }
   // NO cerrar el modal aquí
-  
+
   localStorage.setItem('memoriaDias', JSON.stringify(diasSeleccionados));
 }
 
@@ -966,11 +980,15 @@ async function cargarTodosDias() {
             
               <div class="col-main-info">
                 <div class="meta-programacion">
-                  <span class="dia-badge">{parte.dia}</span>
-                  <span class="hora-inicio">{parte.hora_inicio}</span>
+                <span class="dia-badge">{parte.dia}</span>
+                <span class="separador-dot">•</span>
+                <span class="hora-inicio">{parte.hora_inicio}</span>
+                
+                {#if parte.duracion && parte.duracion > 0}
                   <span class="separador-dot">•</span>
                   <span class="minutos-duracion">{parte.duracion} min</span>
-                </div>
+                {/if}
+              </div>
 
                 <div class="col-tema-bloque">
                    <span class="tema-txt">
@@ -1305,8 +1323,17 @@ async function cargarTodosDias() {
           <div class="campo-bosquejo" style="margin-bottom: 10px; background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
             
             <div class="fila" style="margin-bottom: 15px;">
+              <div class="campo" style="margin-bottom: 0; max-width: 90px;">
+                <label>Minutos</label>
+                <div class="input-icon">
+                  <Clock size={16}/>
+                  <input type="number" min="0" placeholder="0" bind:value={parteEditando.duracion} />
+                </div>
+              </div>
+              
               <div class="campo" style="margin-bottom: 0;">
                 <label>Núm. Bosquejo</label>
+
                 <div class="input-icon">
                   <FileText size={16}/>
                   <input 
