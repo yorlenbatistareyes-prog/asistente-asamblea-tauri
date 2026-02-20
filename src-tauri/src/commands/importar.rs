@@ -242,7 +242,7 @@ pub fn importar_programa_jw(
                 asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, 
                 orador_id, es_video, estado, esta_presente, 
                 fuente, es_betelita, es_interprete, es_visitante
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 10, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12)
         ").map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
