@@ -965,7 +965,12 @@ async function cargarTodosDias() {
                 </div>
 
                 <div class="col-tema-bloque">
-                   <span class="tema-txt">{parte.tema}</span>
+                   <span class="tema-txt">
+                      {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+                        <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
+                      {/if}
+                      {parte.tema}
+                   </span>
               
               <div class="badges-row">
                 {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
@@ -978,9 +983,6 @@ async function cargarTodosDias() {
                   <span class="badge-fuente en-persona"><UserCheck size={10}/> En persona</span>
                 {/if}
 
-                {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                  <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
-                {/if}
               </div>
             </div>
 
@@ -3329,5 +3331,12 @@ textarea {
   background: var(--bg-secondary) !important;
   border-color: var(--border-color) !important;
   color: var(--text-secondary) !important;
+}
+
+.bosquejo-parentesis {
+  color: var(--text-secondary); /* Un color un poco más suave que el título */
+  font-weight: 600;
+  font-size: 0.9em; /* Un poquito más pequeño que el título */
+  margin-left: 5px;
 }
 </style>
