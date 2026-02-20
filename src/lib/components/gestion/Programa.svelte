@@ -12,7 +12,7 @@
   import { exportarProgramaPDF } from '$lib/utils/exportar';
   
   import { 
-    Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
+    UnfoldVertical, FoldVertical, Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
     FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
     FileText, Download, ListFilter, Calendar, Globe, Languages, Plane  
@@ -161,6 +161,15 @@ onDestroy(() => {
           if (p.id === id) return { ...p, _expanded: !p._expanded };
           return p; 
       });
+  }
+
+  // --- NUEVO: Lógica para Expandir/Contraer Todo ---
+  // Verifica si TODAS las tarjetas actualmente visibles están abiertas
+  $: todasExpandidas = partesFiltradas.length > 0 && partesFiltradas.every(p => p._expanded);
+
+  function toggleExpandirTodas() {
+      const nuevoEstado = !todasExpandidas;
+      partes = partes.map(p => ({ ...p, _expanded: nuevoEstado }));
   }
 
   // --- FUNCIONES DE ESTADO (sin oficina) ---
@@ -957,6 +966,14 @@ async function cargarTodosDias() {
 
     <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }}>
       <Mail size={18}/> <span>Email a Todos</span>
+    </button>
+
+    <button class="btn-header-filtros" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
+      {#if todasExpandidas}
+        <FoldVertical size={18}/> <span>Contraer</span>
+      {:else}
+        <UnfoldVertical size={18}/> <span>Expandir</span>
+      {/if}
     </button>
     
   </div>
