@@ -17,6 +17,7 @@
   import FontFamily from '@tiptap/extension-font-family';
   import Placeholder from '@tiptap/extension-placeholder';
 
+  import Panel from '$lib/components/ui/Panel.svelte';
   // --- ICONOS ---
   import { 
     Save, Calendar, MapPin, Bookmark, Clock, Info, 
@@ -114,6 +115,7 @@
 let editGeneral = false;
 let editEnsayos = false;
 let editOrientaciones = false;
+let editTransmision = false;
 
 // Datos temporales para cada sección
 let tempGeneral = {
@@ -440,10 +442,10 @@ async function guardarOrientaciones() {
   }
 </script>
 
-<div class="contenedor">
+<div>
   
   <!-- TARJETA 1: Información General -->
-  <div class="card-config">
+  <Panel padding="30px" clasesExtra="tarjeta-evento">
     <div class="header-card">
       <h3><Bookmark size={20} color="var(--primary)"/> Detalles de la Asamblea</h3>
       {#if !editGeneral}
@@ -502,11 +504,11 @@ async function guardarOrientaciones() {
           </div>
         {/if}
       </div>
-    </div>
+   </Panel>
   </div>
 
   <!-- TARJETA 2: Programación de Ensayos -->
-<div class="card-config">
+<Panel padding="30px" clasesExtra="tarjeta-evento">
   <div class="header-card">
     <h3><Clock size={20} color="var(--primary)"/> Programación de Ensayos</h3>
     {#if !editEnsayos}
@@ -604,10 +606,10 @@ async function guardarOrientaciones() {
       <div bind:this={elementNotas} class="editor-content"></div>
     </div>
   </div>
-</div>
+</Panel>
 
 <!-- TARJETA 3: Orientaciones en Plataforma -->
-<div class="card-config">
+<Panel padding="30px" clasesExtra="tarjeta-evento">
   <div class="header-card">
     <h3><FileText size={20} color="var(--primary)"/> Orientaciones en Plataforma</h3>
     {#if !editOrientaciones}
@@ -684,35 +686,37 @@ async function guardarOrientaciones() {
       <div bind:this={elementOrientaciones} class="editor-content"></div>
     </div>
   </div>
-</div>
+</Panel>
 
 <!-- TARJETA 4: Transmisión -->
-<div class="card-config">
+<Panel padding="30px" clasesExtra="tarjeta-evento">
   <div class="header-card">
     <h3><MonitorPlay size={20} color="var(--primary)"/> Transmisión</h3>
-    {#if !editOrientaciones}
-      <button class="btn-edit" on:click={iniciarEdicionOrientaciones}><Edit size={16}/> Editar</button>
-    {:else}
-      <div style="display: flex; gap: 8px;">
-        <button class="btn-cancel" on:click={cancelarEdicionOrientaciones}><X size={16}/> Cancelar</button>
-        <button class="btn-save" on:click={guardarOrientaciones}><Save size={16}/> Guardar</button>
-      </div>
-    {/if}
+    
+    <div class="acciones-header"> 
+      {#if !editTransmision}
+        <button class="btn-edit" on:click={() => editTransmision = true}><Edit size={16}/> Editar</button>
+      {:else}
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-cancel" on:click={() => editTransmision = false}><X size={16}/> Cancelar</button>
+          <button class="btn-save" on:click={guardarOrientaciones}><Save size={16}/> Guardar</button>
+        </div>
+      {/if}
+    </div>
   </div>
 
   <label class="stream-check-compact">
-    <input type="checkbox" bind:checked={tempOrientaciones.jwStreamStudio} disabled={!editOrientaciones} />
+    <input type="checkbox" bind:checked={tempOrientaciones.jwStreamStudio} disabled={!editTransmision} />
     <div class="label-check">
       <MonitorPlay size={16} />
       <span>Transmitir por <strong>JW Stream Studio</strong></span>
     </div>
   </label>
-</div>
+</Panel>
 
-</div>
 {#if mostrarModalSalon}
     <div class="modal-backdrop">
-        <div class="modal">
+        <Panel padding="25px" clasesExtra="modal-ancho">
             <div class="modal-header"><h3>Nuevo Salón</h3><button on:click={() => mostrarModalSalon = false}><X size={18}/></button></div>
             <div class="modal-body">
                 <label for="nuevoSalonNombre">Nombre</label><input id="nuevoSalonNombre" type="text" bind:value={nuevoSalon.nombre} placeholder="Ej: Salón Cotorro"/>
@@ -720,7 +724,7 @@ async function guardarOrientaciones() {
                 <label for="nuevoSalonCapacidad">Capacidad</label><input id="nuevoSalonCapacidad" type="number" bind:value={nuevoSalon.capacidad}/>
                 <button class="btn-create" on:click={guardarNuevoSalon}>Crear y Asignar</button>
             </div>
-        </div>
+        </Panel>
     </div>
 {/if}
 
@@ -737,13 +741,10 @@ async function guardarOrientaciones() {
   background: #f1f5f9;
 }
 
-.card-config { 
-  background: #ffffff; /* <--- Blanco puro */
-  padding: 30px; 
-  border-radius: 12px; 
-  border: 1px solid #cbd5e1; /* <--- El borde gris sólido que te gustó */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* <--- Sombra sutil pero elegante */
-  margin-bottom: 20px;
+/* Usamos :global porque la clase se aplica a nuestro componente Panel */
+:global(.tarjeta-evento) {
+    margin-bottom: 25px !important; /* Esto las separa una de otra */
+    display: block;
 }
 
 .card-config:last-child {
@@ -790,26 +791,36 @@ label {
 }
 
 input, select { 
-  padding: 10px 12px; 
-  border: 1px solid var(--border-color); 
-  border-radius: 6px; 
-  width: 100%; 
-  box-sizing: border-box; 
-  font-size: 14px; 
-  color: var(--text-main); 
-  background: var(--input-bg);
-  transition: border 0.2s; 
+    padding: 10px 12px; 
+    border: 1px solid var(--border); /* Usamos la variable global de borde fino */
+    border-radius: 8px; /* Un poco más redondeado para que sea moderno */
+    width: 100%; 
+    box-sizing: border-box; 
+    font-size: 14px; 
+    color: var(--text-main); 
+    background: var(--bg-body); /* Fondo gris sutil en modo claro, oscuro en modo noche */
+    transition: all 0.2s ease; 
 }
 
-input:disabled, select:disabled {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: not-allowed;
+/* Efecto cuando pasas el ratón o haces clic */
+input:hover, select:hover {
+    border-color: var(--primary);
 }
 
 input:focus, select:focus { 
-  border-color: var(--primary); 
-  outline: none; 
+    border-color: var(--primary); 
+    background: var(--bg-card); /* Se pone blanco puro al escribir */
+    outline: none; 
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1); /* Brillo azul muy suave */
+}
+
+/* Cuando están desactivados (modo lectura) */
+input:disabled, select:disabled {
+    background: var(--bg-secondary);
+    border-color: var(--border);
+    color: var(--text-sec);
+    cursor: not-allowed;
+    opacity: 0.8;
 }
 
 .input-big { 
@@ -1151,6 +1162,8 @@ input:focus, select:focus {
   text-transform: none; 
   font-weight: 500; 
 }
+
+
 
 .stream-check-compact input { 
   width: 16px; 
