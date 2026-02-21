@@ -166,73 +166,71 @@
             </div>
     </div>
 
-        <div class="list-container">
-            <div class="list-header"><Lectern size={20}/> ASAMBLEAS REGISTRADAS</div>
-            
-            {#if asambleasFiltradas.length === 0}
-                <div class="empty">
-                    {#if terminoBusqueda}
-                        No se encontraron asambleas con la búsqueda "{terminoBusqueda}".
-                    {:else}
-                        No hay asambleas registradas. <button class="btn-empty" on:click={abrirModal}>Crear una</button>
-                    {/if}
+        <div class="list-header"><Lectern size={20}/> ASAMBLEAS REGISTRADAS</div>
+
+{#if asambleasFiltradas.length === 0}
+    <div class="empty">
+        {#if terminoBusqueda}
+            No se encontraron asambleas con la búsqueda "{terminoBusqueda}".
+        {:else}
+            No hay asambleas registradas. <button class="btn-empty" on:click={abrirModal}>Crear una</button>
+        {/if}
+    </div>
+{:else}
+    <div class="grid">
+        {#each asambleasFiltradas as item}
+            <div class="card-blue">
+                <div class="card-header-integrated">
+                    <span class="badge-pill">{item.identificador || '000'}</span>
                 </div>
-            {:else}
-                <div class="grid">
-                    {#each asambleasFiltradas as item}
-                        <div class="card-blue">
-                            <div class="card-header-integrated">
-                                <span class="badge-pill">{item.identificador || '000'}</span>
-                            </div>
 
-                            <div class="card-content">
-                                <div class="text-section">
-                                    <h3>"{item.tema}"</h3>
-                                    
-                                    <div class="info-line">
-                                        <Building size={16} class="ico-dark"/> 
-                                        <div class="info-col">
-                                            <b>{obtenerNombreLugar(item.local_id)}</b>
-                                            <span>Ubicación</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="info-line">
-                                        <Calendar size={16} class="ico-dark"/> 
-                                        <div class="info-col">
-                                            <b>{item.fecha}</b>
-                                            <span>Fecha</span>
-                                        </div>
-                                    </div>
-
-                                    <div class="info-line">
-                                        <Globe size={16} class="ico-dark"/> 
-                                        <div class="info-col">
-                                            <b>{item.idioma || 'Español'}</b>
-                                            <span>Idioma</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="icon-section">
-                                    <Lectern size={78} strokeWidth={0.3} />
-                                </div>
-                            </div>
-
-                            <div class="card-hover-footer">
-                                <button class="btn-trash" on:click={(e)=>borrar(item.id, e)} title="Eliminar">
-                                    <Trash2 size={18}/>
-                                </button>
-                                <button class="btn-manage-blue" on:click={()=>gestionar(item)}>
-                                    Gestionar Asamblea &rarr;
-                                </button>
+                <div class="card-content">
+                    <div class="text-section">
+                        <h3>"{item.tema}"</h3>
+                        
+                        <div class="info-line">
+                            <Building size={16} class="ico-dark"/> 
+                            <div class="info-col">
+                                <b>{obtenerNombreLugar(item.local_id)}</b>
+                                <span>Ubicación</span>
                             </div>
                         </div>
-                    {/each}
+
+                        <div class="info-line">
+                            <Calendar size={16} class="ico-dark"/> 
+                            <div class="info-col">
+                                <b>{item.fecha}</b>
+                                <span>Fecha</span>
+                            </div>
+                        </div>
+
+                        <div class="info-line">
+                            <Globe size={16} class="ico-dark"/> 
+                            <div class="info-col">
+                                <b>{item.idioma || 'Español'}</b>
+                                <span>Idioma</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="icon-section">
+                        <Lectern size={78} strokeWidth={0.3} />
+                    </div>
                 </div>
-            {/if}
-        </div>
+
+                <div class="card-hover-footer">
+                    <button class="btn-trash" on:click={(e)=>borrar(item.id, e)} title="Eliminar">
+                        <Trash2 size={18}/>
+                    </button>
+                    <button class="btn-manage-blue" on:click={()=>gestionar(item)}>
+                        Gestionar Asamblea &rarr;
+                    </button>
+                </div>
+            </div>
+        {/each}
     </div>
+{/if}
+        </div>
 
     {#if mostrarModal}
         <div class="modal-bg" on:click|self={()=>mostrarModal=false}>
@@ -302,21 +300,35 @@
     .btn-new:hover { 
         background: #1e3a8a; /* Un azul un poco más oscuro al pasar el mouse */
     }
-    
-   .list-container { 
-    background: var(--bg-card); 
-    padding: 30px; 
-    border-radius: 16px; 
-    border: 1px solid var(--border-color); 
-    /* 👇 Sombra más pronunciada para crear contraste en modo claro */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04); 
-    min-height: 400px; 
+
+    /* Encabezado de la lista (ahora independiente) */
+.list-header {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 
-    .list-header { font-size: 11px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 20px; display: flex; gap: 8px; align-items: center; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 25px; }
-    .empty { text-align: center; color: var(--text-secondary); padding: 40px; }
+/* Grid de tarjetas */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 25px;
+}
 
+/* Ajuste del mensaje vacío para que no tenga fondo extra */
+.empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 40px;
+    background: transparent; /* Asegura que no herede fondo */
+    border: none;
+    box-shadow: none;
+}
     /* === TARJETA === */
     .card-blue { 
         background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
