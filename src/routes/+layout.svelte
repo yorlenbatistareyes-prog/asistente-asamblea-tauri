@@ -1,7 +1,8 @@
 <script lang="ts">
+// 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
+  import '../app.css';
   import { onMount } from 'svelte';
-  import { 
-    User, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  import { User, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
@@ -233,25 +234,12 @@
 </div>
 
 <style>
-  /* VARIABLES GLOBALES */
-  :global(:root) {
-      --bg-body: #f8fafc; --bg-card: #ffffff; --text-main: #1e293b; --text-sec: #64748b;
-      --border: #e2e8f0; --primary: #0078d4; --input-bg: #ffffff;
-      --status-bg: #EBEBEB; --status-text: #000000;
-  }
-  :global(html.dark-theme) {
-      --bg-body: #0f172a; --bg-card: #1e293b; --text-main: #f8fafc; --text-sec: #cbd5e1;
-      --border: #334155; --primary: #3b82f6; --input-bg: #0f172a;
-      --status-bg: #1e293b; --status-text: #f1f5f9;
-  }
-  :global(body) { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); overflow: hidden; }
-
   /* LAYOUT */
   .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
   .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
 
   /* HEADER */
-  .top-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); border-bottom: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 50; }
+  .top-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm); z-index: 50; }
   .header-left { display: flex; gap: 12px; align-items: center; }
   .avatar { width: 40px; height: 40px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
   .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
@@ -275,7 +263,8 @@
   }
   .modal-box { 
       background: var(--bg-card); padding: 25px; border-radius: 12px; width: 550px; 
-      box-shadow: 0 20px 50px rgba(0,0,0,0.4); border: 1px solid var(--border); 
+      box-shadow: var(--shadow-premium); /* <-- ¡Aquí aplicamos la nueva sombra! */
+      border: 1px solid var(--border); 
       display: flex; flex-direction: column; gap: 15px;
   }
   .modal-top { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -286,7 +275,7 @@
   /* GRID DEL FORMULARIO */
   .form-grid { 
       display: grid; 
-      grid-template-columns: 1fr 1fr; /* Dos columnas */
+      grid-template-columns: 1fr 1fr; 
       gap: 15px; 
       background: var(--bg-body); 
       padding: 15px; 
@@ -295,13 +284,13 @@
   }
   
   .input-group { display: flex; flex-direction: column; gap: 5px; }
-  .input-group.full-width { grid-column: span 2; } /* Ocupa todo el ancho */
+  .input-group.full-width { grid-column: span 2; } 
   
   .input-group label { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; }
   .input-group input { padding: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); border-radius: 6px; font-size: 13px; }
   
   .btn-blue { 
-      grid-column: span 2; /* Botón ancho completo */
+      grid-column: span 2; 
       background: var(--primary); color: white; border: none; 
       padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 700; 
       display: flex; justify-content: center; gap: 8px; align-items: center;
