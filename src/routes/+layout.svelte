@@ -89,7 +89,17 @@
 
   // --- NAVEGACIÓN ---
   function irInicio() { vistaActual.set('inicio'); goto('/'); }
-  function irConfig() { vistaActual.set('configuracion'); }
+
+  function irConfig() {
+  // Guardar la ruta actual (si no es la página de inicio)
+  const currentPath = window.location.pathname;
+  if (currentPath !== '/') {
+    localStorage.setItem('rutaAnterior', currentPath);
+  }
+  vistaActual.set('configuracion');
+  goto('/');
+}
+
 </script>
 
 <div class="app-layout">

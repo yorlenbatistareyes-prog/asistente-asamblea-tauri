@@ -103,6 +103,16 @@
       goto('/gestion');
   }
 
+  function volverDeConfiguracion() {
+  const rutaAnterior = localStorage.getItem('rutaAnterior');
+  if (rutaAnterior) {
+    localStorage.removeItem('rutaAnterior');
+    goto(rutaAnterior);
+  } else {
+    vistaActual.set('inicio');
+  }
+}
+
   // ESTA FUNCIÓN ES LA CLAVE PARA QUE SALGA EL NOMBRE
   function obtenerNombreLugar(idLocal: any) {
       if (!idLocal) return "Sin asignar";
@@ -267,7 +277,7 @@
     {/if}
 
 {:else}
-    <Configuracion on:close={() => vistaActual.set('inicio')} />
+    <Configuracion on:close={volverDeConfiguracion} />
 {/if}
 
 <style>
@@ -466,27 +476,38 @@
 
 .controles-busqueda {
     display: flex;
-    gap: 15px;
+    gap: 18px;
     align-items: center;
-    flex-wrap: wrap; /* En pantallas pequeñas se pone uno abajo de otro */
-    margin-bottom: 25px;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
 }
 
 .search-box {
-    flex: 1; /* Ocupa el espacio disponible mayoritario */
-    min-width: 300px;
+    flex: 1;
+    min-width: 280px;
     display: flex;
     align-items: center;
+
     background: var(--bg-card);
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 0 15px;
-    transition: all 0.2s;
+    border-radius: 14px;
+    padding: 0 16px;
+
+    /* 👇 LEVANTADO REAL */
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow:
+        0 6px 12px rgba(0,0,0,0.06),
+        0 1px 2px rgba(0,0,0,0.08);
+
+    transition: all 0.15s ease;
 }
+
 .search-box:focus-within {
-    border-color: #1e40af;
-    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+    transform: translateY(-1px);
+    box-shadow:
+        0 10px 18px rgba(0,0,0,0.08),
+        0 2px 4px rgba(0,0,0,0.1);
 }
+
 .icon-search { color: var(--text-secondary); }
 .search-box input {
     width: 100%;
@@ -499,19 +520,38 @@
 }
 
 .filtros-box { display: flex; gap: 10px; }
+
 .filter-select {
-    padding: 12px 15px;
-    border: 1px solid #cbd5e1;
-    background: var(--bg-card);
-    color: var(--text-main);
-    border-radius: 10px;
+    padding: 12px 16px;
+    border-radius: 14px;
     font-size: 13px;
     font-weight: 600;
-    outline: none;
     cursor: pointer;
-    transition: border 0.2s;
+
+    background: var(--bg-card);
+    color: var(--text-main);
+
+    /* 👇 MISMO LEVANTADO NÍTIDO */
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow:
+        0 6px 12px rgba(0,0,0,0.06),
+        0 1px 2px rgba(0,0,0,0.08);
+
+    transition: all 0.15s ease;
 }
-.filter-select:hover { border-color: #1e40af; }
+
+.filter-select:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 10px 18px rgba(0,0,0,0.08),
+        0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: rgba(30,64,175,0.35);
+}
+
 .btn-empty { background: transparent; border: none; color: #1e40af; font-weight: bold; cursor: pointer; text-decoration: underline; font-size: 15px; padding: 0;}
 
 </style>
