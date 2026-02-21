@@ -761,12 +761,12 @@
     color: #ef4444;
 }
 
-/* BOTÓN "SELECCIONAR" (HUECO VACÍO) */
+/* BOTÓN "SELECCIONAR" (HUECO VACÍO) - Con borde más visible */
 .btn-select { 
     width: 100%; 
     padding: 14px 15px; 
     background: var(--bg-body);
-    border: 1px solid var(--border-color);
+    border: 1.5px solid rgba(0, 0, 0, 0.15);  /* Borde más grueso y visible */
     border-radius: 8px; 
     color: var(--text-secondary);
     font-size: 13px; font-weight: 500;
@@ -778,6 +778,7 @@
 .btn-select:hover { 
     background: var(--bg-card); 
     border-color: var(--primary); 
+    border-width: 1.5px;  /* Mantener el mismo grosor en hover */
     color: var(--primary); 
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     transform: translateY(-1px);

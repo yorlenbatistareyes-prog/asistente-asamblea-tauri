@@ -215,7 +215,7 @@ async function guardarYcerrar() {
 </div>
 
 <style>
- /* ===== ESTILOS MEJORADOS PARA CONGREGACIONES ===== */
+/* ===== ESTILOS MEJORADOS PARA CONGREGACIONES ===== */
 
 /* CONTENEDOR PRINCIPAL */
 .contenedor-cong { 
@@ -243,12 +243,12 @@ async function guardarYcerrar() {
   align-items: center;
   gap: 8px;
   background: var(--bg-body);
-  padding: 6px 12px;      /* Menos padding vertical para hacerla más fina */
+  padding: 6px 12px;
   border-radius: 6px;
-  border: 1.5px solid rgba(0, 0, 0, 0.15);  /* Borde más visible */
-  flex: 1;                /* Ocupa todo el espacio disponible */
-  min-width: 300px;       /* Ancho mínimo */
-  height: 32px;           /* Más fina (era 36px) */
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  flex: 1;
+  min-width: 300px;
+  height: 32px;
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
@@ -276,7 +276,7 @@ async function guardarYcerrar() {
   background: transparent;
   outline: none;
   width: 100%;
-  font-size: 13px;        /* Texto un poco más pequeño */
+  font-size: 13px;
   color: var(--text-main);
   height: 100%;
 }
@@ -299,7 +299,7 @@ async function guardarYcerrar() {
   align-items: center;
   font-weight: 500;
   font-size: 13px;
-  height: 36px;  /* Altura normal para botones */
+  height: 36px;
   transition: all 0.2s ease;
 }
 
@@ -350,7 +350,7 @@ async function guardarYcerrar() {
   transform: translateY(-1px);
 }
 
-/* ===== LISTA DE CONGREGACIONES - MEJORADA ===== */
+/* ===== LISTA DE CONGREGACIONES - MÁS DEFINIDA Y ELEVADA ===== */
 .lista { 
   flex: 1; 
   display: flex; 
@@ -358,8 +358,13 @@ async function guardarYcerrar() {
   overflow: hidden; 
   background: var(--bg-card); 
   border-radius: 8px; 
-  border: 1px solid var(--border-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Borde más visible y definido */
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  /* Sombra más pronunciada para mayor elevación */
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .header-lista { 
@@ -402,7 +407,7 @@ async function guardarYcerrar() {
   border-bottom: 1px solid var(--border-color); 
   align-items: center; 
   font-size: 13px; 
-  background: var(--bg-card);
+  background: #ffffff;  /* Fondo blanco explícito */
   transition: all 0.2s ease;
   position: relative;
 }
@@ -419,12 +424,13 @@ async function guardarYcerrar() {
   transition: opacity 0.2s ease;
 }
 
+/* Hover con tono gris suave */
+/* Hover con tono gris más visible */
 .fila:hover {
-  background: var(--hover-bg);
+  background: #e2e8f0;  /* Gris más visible (Slate 200) */
   transform: translateX(2px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
-
 .fila:hover::before {
   opacity: 1;
 }
