@@ -13,6 +13,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@mdi/js": "^7.4.47",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "~2.6.0",
     "@tauri-apps/plugin-fs": "~2",
@@ -38,6 +39,7 @@
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-svelte": "^0.563.0",
+    "mdi-svelte": "^1.1.2",
     "svelte-routing": "^2.13.0"
   },
   "devDependencies": {

@@ -9,6 +9,9 @@
     IdCard, UserCheck, ListChecks, ClipboardList, Network, Layers, Key, HeartHandshake, 
     Workflow, Briefcase, LayoutDashboard, UsersRound } from 'lucide-svelte';
   
+  import Icon from 'mdi-svelte';
+  import { IconosMDI } from '$lib/data/iconosMDI';
+
   // --- COMPONENTES ---
   import Resumen from '$lib/components/gestion/Resumen.svelte';
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
@@ -132,7 +135,10 @@ if (asambleaActual?.id) {
       </button>
 
       <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Responsabilidades">
-        <UserCog size={20} class="icono-nav" /> <span class="texto-menu">Responsabilidades</span>
+         <div class="icono-nav">
+         <Icon path={IconosMDI.Responsabilidades} size={0.85} />
+         </div>
+         <span class="texto-menu">Responsabilidades</span>
       </button>
 
       <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa">
@@ -404,4 +410,15 @@ if (asambleaActual?.id) {
   header h2 { margin: 0; font-size: 1.2rem; color: var(--text-main); }
   
   .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
+
+  /* Busca tu regla :global(.icono-nav) y asegúrate de que se vea así */
+  :global(.icono-nav) {
+    min-width: 20px;
+    height: 20px; /* Añade altura fija para que MDI se centre bien */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 16px;
+    flex-shrink: 0;
+  }
 </style>

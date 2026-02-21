@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@mdi/js':
+        specifier: ^7.4.47
+        version: 7.4.47
       '@tauri-apps/api':
         specifier: ^2.10.1
         version: 2.10.1
@@ -83,6 +86,9 @@ importers:
       lucide-svelte:
         specifier: ^0.563.0
         version: 0.563.0(svelte@5.49.1)
+      mdi-svelte:
+        specifier: ^1.1.2
+        version: 1.1.2
       svelte-routing:
         specifier: ^2.13.0
         version: 2.13.0
@@ -292,6 +298,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@mdi/js@7.4.47':
+    resolution: {integrity: sha512-KPnNOtm5i2pMabqZxpUz7iQf+mfrYZyKCZ8QNz85czgEt7cuHcGorWfdzUMWYA0SD+a6Hn4FmJ+YhzzzjkTZrQ==}
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
@@ -905,6 +914,9 @@ packages:
     resolution: {integrity: sha512-a54IwgWPaeBCAAsv13YgmALOF1elABB08FxO9i+r4VFk5Vl4pKokRPeX8u5TCgSsPi6ec1otfLjdOpVcgbpshg==}
     hasBin: true
 
+  mdi-svelte@1.1.2:
+    resolution: {integrity: sha512-jVn/CxVzOXTVWDJpUgkgbL/Dt3GTcxa51bOZHQtmrW+lPNypKXddNJIvcqSX+xW6KRIgjB4m715XjaqbDT/mFA==}
+
   mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
 
@@ -1279,6 +1291,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@mdi/js@7.4.47': {}
 
   '@polka/url@1.0.0-next.29': {}
 
@@ -1848,6 +1862,8 @@ snapshots:
       mdurl: 2.0.0
       punycode.js: 2.3.1
       uc.micro: 2.1.0
+
+  mdi-svelte@1.1.2: {}
 
   mdurl@2.0.0: {}
 
