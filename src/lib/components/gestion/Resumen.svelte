@@ -292,7 +292,7 @@
     </div>
 
     <div class="col-right">
-        <div class="card live-monitor">
+        <Panel padding="0" clasesExtra="live-monitor-container">
             <div class="monitor-header">
                 <div class="header-left">
                     <div class="live-badge">
@@ -327,7 +327,7 @@
                     </div>
                 {:else}
                     <div class="descanso-mode">
-                        <Activity size={40} color="var(--text-secondary)"/>
+                        <Activity size={40} color="var(--text-sec)"/>
                         <h3>En pausa</h3>
                         <p>Esperando siguiente sesión...</p>
                     </div>
@@ -343,13 +343,13 @@
                             <span class="next-tema">{siguienteParte.tema}</span>
                             <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
                         </div>
-                        <ArrowRight size={16} color="var(--text-secondary)"/>
+                        <ArrowRight size={16} color="var(--text-sec)"/>
                     </div>
                 {:else}
                     <span class="text-muted">Fin del programa.</span>
                 {/if}
             </div>
-        </div>
+       </Panel>
 
         <div class="accesos-grid">
             <button class="btn-acceso" on:click={cargarDatosDB}>
@@ -403,15 +403,15 @@
   
   .header-torre {
     display: flex; justify-content: space-between; align-items: flex-end;
-    padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
   }
   h2 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
-  .subtitulo-header { font-size: 0.9rem; color: var(--text-secondary); }
+  .subtitulo-header { font-size: 0.9rem; color: var(--text-sec); }
   .reloj-badge {
     font-size: 1.5rem; font-weight: 800; color: var(--primary);
     display: flex; align-items: center; gap: 10px;
     background: var(--bg-card); padding: 5px 15px; border-radius: 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
   }
 
   .main-grid {
@@ -454,8 +454,8 @@
     width: 100%;
 }
 
-.label { font-size: 0.7rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
-  .subtext { font-size: 0.65rem; color: var(--text-secondary); }
+.label { font-size: 0.7rem; color: var(--text-sec); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
+  .subtext { font-size: 0.65rem; color: var(--text-sec); }
 
   .editable-num {
     border: none; background: transparent; font-size: 1.4rem; font-weight: 800;
@@ -465,7 +465,7 @@
   
   /* --- ZONA DE PENDIENTES --- */
   .alertas-section {
-    background: var(--bg-card); border: 1px solid var(--border-color);
+    background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; flex: 1;
   }
   .card-header-red {
@@ -476,7 +476,7 @@
   
   .table-container { width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; }
+  th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-sec); font-size: 0.7rem; text-transform: uppercase; }
   
   td { 
     padding: 10px 15px; 
@@ -485,28 +485,17 @@
     vertical-align: middle; 
 }
   .fw-bold { font-weight: 600; font-size: 0.9rem; }
-  .tema-mini { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 2px; }
-  .badge-dia { background: var(--bg-body); padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; border: 1px solid var(--border-color); }
+  .tema-mini { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 2px; }
+  .badge-dia { background: var(--bg-body); padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; border: 1px solid var(--border); }
   .btn-sm-confirmar {
       background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb;
       padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
   }
   .btn-sm-confirmar:hover { background: #2563eb; color: white; }
-  .empty-state { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text-secondary); }
-  .ver-mas { text-align: center; padding: 10px; font-size: 0.8rem; color: var(--text-secondary); font-style: italic; }
+  .empty-state { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text-sec); }
+  .ver-mas { text-align: center; padding: 10px; font-size: 0.8rem; color: var(--text-sec); font-style: italic; }
 
   /* --- MONITOR EN VIVO --- */
- .monitor-header {
-    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: white;
-    /* Esto es clave para que no tape las esquinas del Panel */
-    border-radius: 12px 12px 0 0; 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
 
 :global(.live-monitor-container) {
     overflow: hidden;
@@ -545,30 +534,30 @@
   }
   .valor-ajuste.activo { color: #fbbf24; opacity: 1; font-weight: 800; }
 
-  .monitor-body { padding: 30px; text-align: center; border-bottom: 1px dashed var(--border-color); }
+  
   .hora-big { font-size: 2.5rem; font-weight: 900; color: var(--primary); line-height: 1; display: block; margin-bottom: 10px; }
   .tema-big { font-size: 1.3rem; margin: 0 0 15px 0; color: var(--text-main); line-height: 1.3; }
   .orador-box { 
     display: inline-flex; align-items: center; gap: 10px; 
     background: var(--bg-body); padding: 8px 16px; border-radius: 50px;
-    border: 1px solid var(--border-color); color: var(--text-main); font-weight: 600;
+    border: 1px solid var(--border); color: var(--text-main); font-weight: 600;
   }
   .descanso-mode { padding: 20px; opacity: 0.6; }
 
   .monitor-footer { padding: 20px; background: var(--bg-body); }
-  .label-next { font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 10px; display: block; letter-spacing: 1px; }
+  .label-next { font-size: 0.7rem; font-weight: 800; color: var(--text-sec); margin-bottom: 10px; display: block; letter-spacing: 1px; }
   .next-row { display: flex; align-items: center; gap: 15px; }
   .next-hora { font-weight: 800; font-size: 1.1rem; color: var(--text-main); }
   .next-info { display: flex; flex-direction: column; flex: 1; }
   .next-tema { font-weight: 600; font-size: 0.9rem; color: var(--text-main); }
-  .next-orador { font-size: 0.8rem; color: var(--text-secondary); }
-  .text-muted { font-size: 0.8rem; color: var(--text-secondary); font-style: italic; }
+  .next-orador { font-size: 0.8rem; color: var(--text-sec); }
+  .text-muted { font-size: 0.8rem; color: var(--text-sec); font-style: italic; }
 
   .accesos-grid { margin-top: 15px; }
   .btn-acceso {
-      width: 100%; background: var(--bg-card); border: 1px solid var(--border-color);
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
       padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
-      justify-content: center; gap: 10px; font-weight: 600; color: var(--text-secondary);
+      justify-content: center; gap: 10px; font-weight: 600; color: var(--text-sec);
   }
   .btn-acceso:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
 
@@ -580,8 +569,16 @@
     display: flex; 
     align-items: center; 
     gap: 12px;
-    background: transparent; /* Deja que el Panel de abajo se vea */
-    border: none;
+    padding: 15px !important;
+    border-radius: 12px !important;
+    background-color: var(--bg-card) !important;
+    
+    /* Forzamos el borde en los 4 lados para que no desaparezca arriba en modo oscuro */
+    border: 1px solid var(--border) !important;
+    outline: none !important; /* Evita que el navegador ponga su propio borde de botón */
+    
+    box-shadow: var(--shadow-premium) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 
@@ -599,16 +596,16 @@
   }
   .modal-content-asistencia {
     background: var(--bg-card); width: 600px; max-width: 95%;
-    border-radius: 12px; border: 1px solid var(--border-color);
+    border-radius: 12px; border: 1px solid var(--border);
     box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden;
   }
   .modal-header {
-    padding: 15px 20px; border-bottom: 1px solid var(--border-color);
+    padding: 15px 20px; border-bottom: 1px solid var(--border);
     display: flex; justify-content: space-between; align-items: center;
     background: var(--bg-body);
   }
   .modal-header h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
-  .btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
+  .btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-sec); }
 
   .grid-dias {
     display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 25px;
@@ -617,19 +614,19 @@
   .col-dia h4 { 
     text-align: center; color: var(--primary); margin: 0; 
     font-size: 0.9rem; text-transform: uppercase; font-weight: 700; 
-    border-bottom: 2px solid var(--border-color); padding-bottom: 5px;
+    border-bottom: 2px solid var(--border); padding-bottom: 5px;
   }
 
-  .input-group-modal label { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 5px; font-weight: 600; }
+  .input-group-modal label { font-size: 0.75rem; color: var(--text-sec); display: block; margin-bottom: 5px; font-weight: 600; }
   .input-group-modal input {
-    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px;
+    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
     background: var(--bg-body); color: var(--text-main); font-weight: bold; text-align: center; font-size: 1.1rem;
   }
   .input-group-modal input:focus { border-color: var(--primary); outline: none; }
 
   .modal-footer {
     padding: 15px; background: var(--bg-body); text-align: center;
-    border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-secondary);
+    border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-sec);
   }
 
   /* Esto asegura que los paneles de esta página usen la sombra premium */
@@ -656,5 +653,35 @@
     gap: 12px;
     cursor: pointer;
     border-radius: 12px;
+}
+
+/* En modo oscuro, el borde del botón asistencia debe ser más claro */
+:global(.dark-theme) :global(.btn-card-asistencia) {
+    border-color: var(--text-sec) !important; /* Usa el texto secundario que en oscuro es #cbd5e1 */
+}
+
+.live-monitor {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-premium);
+    overflow: hidden;
+}
+
+/* Ajuste para que el header mantenga sus bordes redondeados arriba */
+.monitor-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-acceso:hover {
+    background-color: var(--bg-body);
+    border-color: var(--primary);
+    color: var(--primary);
 }
 </style>
