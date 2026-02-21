@@ -3,6 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2, X  } from 'lucide-svelte';
   import { open } from '@tauri-apps/plugin-dialog';
+  import Panel from '$lib/components/ui/Panel.svelte';
 
   // --- VARIABLES ---
   let asambleaId = 0; 
@@ -121,7 +122,7 @@ async function guardarYcerrar() {
 
 <div class="contenedor-cong">
   
-  <div class="toolbar">
+  <Panel padding="15px" clasesExtra="toolbar">
     <div class="busqueda">
       <Search size={18} strokeWidth={2} />
       <input type="text" bind:value={terminoBusqueda} placeholder="Buscar congregación (nombre, número, circuito)" />
@@ -139,9 +140,9 @@ async function guardarYcerrar() {
         <Trash2 size={16}/> Limpiar Lista
     </button>
 
-  </div>
+ </Panel>
 
-  <div class="lista">
+  <Panel padding="0" clasesExtra="lista-panel">
     <div class="header-lista">
         <h4>Congregaciones (Asamblea #{asambleaId}) - Total: {listaFiltrada.length}</h4>
     </div>
@@ -172,7 +173,7 @@ async function guardarYcerrar() {
           o importando un archivo CSV.</small>
       {/each}
     </div>
-  </div>
+ </Panel>
 
   {#if mostrarModal}
   <div class="modal-backdrop" on:click|self={() => { mostrarModal = false; resetFormulario(); }}>
@@ -226,15 +227,12 @@ async function guardarYcerrar() {
 }
 
 /* ===== TOOLBAR MEJORADO ===== */
-.toolbar { 
+:global(.toolbar) { 
   display: flex; 
   gap: 10px; 
-  background: var(--bg-card); 
-  padding: 10px; 
-  border-radius: 8px; 
-  border: 1px solid var(--border-color); 
   align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 20px; /* Separación con la lista */
 }
 
 /* BARRA DE BÚSQUEDA - Más ancha y fina con lupa */
@@ -245,7 +243,7 @@ async function guardarYcerrar() {
   background: var(--bg-body);
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
   flex: 1;
   min-width: 300px;
   height: 32px;
@@ -351,26 +349,18 @@ async function guardarYcerrar() {
 }
 
 /* ===== LISTA DE CONGREGACIONES - MÁS DEFINIDA Y ELEVADA ===== */
-.lista { 
+/* ===== LISTA DE CONGREGACIONES ===== */
+:global(.lista-panel) { 
   flex: 1; 
   display: flex; 
   flex-direction: column; 
-  overflow: hidden; 
-  background: var(--bg-card); 
-  border-radius: 8px; 
-  /* Borde más visible y definido */
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  /* Sombra más pronunciada para mayor elevación */
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -2px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
+  overflow: hidden; /* Esto mantiene las esquinas redondeadas */
 }
 
 .header-lista { 
   padding: 15px; 
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(to bottom, var(--bg-card), var(--bg-body));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-body); /* Un gris sutil para diferenciar el encabezado */
 }
 
 .lista h4 { 
@@ -385,7 +375,7 @@ async function guardarYcerrar() {
   grid-template-columns: 2fr 1fr 1fr 80px; 
   padding: 12px 15px; 
   background: var(--bg-body); 
-  border-bottom: 2px solid var(--border-color); 
+  border-bottom: 2px solid var(--border); 
   font-size: 11px; 
   font-weight: 700; 
   color: var(--text-secondary); 
@@ -404,33 +394,19 @@ async function guardarYcerrar() {
   display: grid; 
   grid-template-columns: 2fr 1fr 1fr 80px; 
   padding: 14px 15px; 
-  border-bottom: 1px solid var(--border-color); 
+  border-bottom: 1px solid var(--border); /* Usar variable global */
   align-items: center; 
   font-size: 13px; 
-  background: #ffffff;  /* Fondo blanco explícito */
+  background: var(--bg-card); /* Usar variable para modo oscuro */
   transition: all 0.2s ease;
   position: relative;
 }
 
-.fila::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--primary);
-  opacity: 0;
-  transition: opacity 0.2s ease;
+.fila:hover {
+  background: var(--hover-bg); /* Variable global de hover */
+  transform: translateX(2px);
 }
 
-/* Hover con tono gris suave */
-/* Hover con tono gris más visible */
-.fila:hover {
-  background: #e2e8f0;  /* Gris más visible (Slate 200) */
-  transform: translateX(2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
 .fila:hover::before {
   opacity: 1;
 }
@@ -556,7 +532,7 @@ async function guardarYcerrar() {
   width: 480px;
   max-width: 90vw;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   animation: slideUp 0.3s ease;
 }
 
@@ -577,7 +553,7 @@ async function guardarYcerrar() {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--border);
 }
 
 .modal-header h3 {
@@ -638,7 +614,7 @@ label {
 input { 
   width: 100%; 
   padding: 10px 12px; 
-  border: 1px solid var(--border-color); 
+  border: 1px solid var(--border); 
   border-radius: 6px; 
   box-sizing: border-box; 
   font-size: 14px; 
@@ -674,12 +650,12 @@ input:focus {
   gap: 10px;
   margin-top: 10px;
   padding-top: 15px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border);
 }
 
 .btn-cancel {
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 10px 20px;
   border-radius: 6px;
@@ -724,7 +700,7 @@ input:focus {
 }
 
 .tabla-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--border);
   border-radius: 4px;
   transition: background 0.2s ease;
 }

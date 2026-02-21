@@ -3,6 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { User, Users, Phone, Mail, Plus, Save, Upload, Search, Trash2, MapPin, X } from 'lucide-svelte';
   import { open } from '@tauri-apps/plugin-dialog';
+  import Panel from '$lib/components/ui/Panel.svelte';
 
   // --- VARIABLES ---
   let asambleaId = 0; 
@@ -124,7 +125,7 @@ async function guardarYcerrar() {
 
 <div class="contenedor">
   
-  <div class="toolbar">
+  <Panel padding="15px" clasesExtra="toolbar">
     <div class="busqueda">
       <Search size={18} strokeWidth={2} />
       <input type="text" bind:value={terminoBusqueda} placeholder="Buscar persona..." />
@@ -142,9 +143,9 @@ async function guardarYcerrar() {
         <Trash2 size={16}/> Limpiar Lista
     </button>
 
-  </div>
+  </Panel>
 
-  <div class="lista">
+  <Panel padding="0" clasesExtra="lista-panel">
     <div class="header-lista">
         <h4>Personas Registradas (Asamblea #{asambleaId}) - Total: {listaFiltrada.length}</h4>
     </div>
@@ -176,7 +177,7 @@ async function guardarYcerrar() {
         <div class="vacio">No hay personas registradas en esta asamblea.</div>
       {/each}
     </div>
-  </div>
+ </Panel>
 
   {#if mostrarModal}
   <div class="modal-backdrop" on:click|self={() => { mostrarModal = false; resetFormulario(); }}>
@@ -258,15 +259,12 @@ async function guardarYcerrar() {
 }
 
 /* ===== TOOLBAR MEJORADO ===== */
-.toolbar { 
+:global(.toolbar) { 
   display: flex; 
   gap: 10px; 
-  background: var(--bg-card); 
-  padding: 10px; 
-  border-radius: 8px; 
-  border: 1px solid var(--border-color); 
   align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
 /* BARRA DE BÚSQUEDA - Más ancha y fina con lupa visible */
@@ -277,7 +275,7 @@ async function guardarYcerrar() {
   background: var(--bg-body);
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
   flex: 1;
   min-width: 300px;
   height: 32px;
@@ -391,7 +389,7 @@ async function guardarYcerrar() {
   background: var(--bg-card); 
   padding: 15px; 
   border-radius: 10px; 
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -422,7 +420,7 @@ label {
 input, select { 
   width: 100%; 
   padding: 8px 10px; 
-  border: 1px solid var(--border-color); 
+  border: 1px solid var(--border); 
   border-radius: 6px; 
   box-sizing: border-box; 
   font-size: 13px; 
@@ -479,26 +477,17 @@ input:focus, select:focus {
 }
 
 /* ===== LISTA DE PERSONAS - MÁS DEFINIDA Y ELEVADA ===== */
-.lista { 
+:global(.lista-panel) { 
   flex: 1; 
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
-  background: var(--bg-card); 
-  border-radius: 8px; 
-  /* Borde más visible y definido */
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  /* Sombra más pronunciada para mayor elevación */
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -2px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .header-lista { 
   padding: 15px; 
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(to bottom, var(--bg-card), var(--bg-body));
+  border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 
 .lista h4 { 
@@ -513,7 +502,7 @@ input:focus, select:focus {
   grid-template-columns: 2fr 2fr 1fr 80px; 
   padding: 12px 15px; 
   background: var(--bg-body); 
-  border-bottom: 2px solid var(--border-color); 
+  border-bottom: 2px solid var(--border); 
   font-size: 11px; 
   font-weight: 700; 
   color: var(--text-secondary); 
@@ -532,10 +521,10 @@ input:focus, select:focus {
   display: grid; 
   grid-template-columns: 2fr 2fr 1fr 80px; 
   padding: 14px 15px; 
-  border-bottom: 1px solid var(--border-color); 
+  border-bottom: 1px solid var(--border); 
   align-items: center; 
   font-size: 13px; 
-  background: #ffffff;  /* Fondo blanco explícito */
+  background: transparent; /* Ahora hereda el color del Panel */
   transition: all 0.2s ease;
   position: relative;
 }
@@ -552,11 +541,9 @@ input:focus, select:focus {
   transition: opacity 0.2s ease;
 }
 
-/* Hover con tono gris más visible */
 .fila:hover {
-  background: #e2e8f0;  /* Gris Slate 200 - más visible */
+  background: var(--hover-bg); /* Variable global */
   transform: translateX(2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .fila:hover::before {
@@ -653,7 +640,7 @@ input:focus, select:focus {
 }
 
 .tabla-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--border);
   border-radius: 4px;
   transition: background 0.2s ease;
 }
@@ -692,7 +679,7 @@ input:focus, select:focus {
   max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   animation: slideUp 0.3s ease;
 }
 
@@ -713,7 +700,7 @@ input:focus, select:focus {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--border);
 }
 
 .modal-header h3 {
@@ -762,12 +749,12 @@ input:focus, select:focus {
   gap: 10px;
   margin-top: 10px;
   padding-top: 15px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border);
 }
 
 .btn-cancel {
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   color: var(--text-secondary);
   padding: 10px 20px;
   border-radius: 6px;
