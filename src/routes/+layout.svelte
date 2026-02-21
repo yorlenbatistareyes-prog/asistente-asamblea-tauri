@@ -7,6 +7,7 @@
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
+  import Panel from '$lib/components/ui/Panel.svelte';
 
   // --- VARIABLES DE ESTADO ---
   let horaActual = "";
@@ -150,7 +151,7 @@
 
     {#if mostrarModalLocales}
       <div class="modal-backdrop" on:click|self={()=>mostrarModalLocales=false}>
-        <div class="modal-box">
+        <Panel padding="25px" clasesExtra="modal-salones">
             <div class="modal-top">
                 <h3><Building size={20} class="ico-blue"/> Gestión de Salones</h3>
                 <button class="btn-close" on:click={()=>mostrarModalLocales=false}><X size={20}/></button>
@@ -228,7 +229,7 @@
                     {/each}
                 {/if}
             </div>
-        </div>
+        </Panel>
       </div>
     {/if}
 </div>
@@ -239,7 +240,16 @@
   .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
 
   /* HEADER */
-  .top-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-card); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-sm); z-index: 50; }
+ .top-header { 
+      display: flex; justify-content: space-between; align-items: center; 
+      padding: 15px 30px; 
+      background-color: var(--bg-card); 
+      background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)); /* El mismo "tinte" gris de las tarjetas */
+      border-bottom: 1px solid var(--border); 
+      box-shadow: var(--shadow-sm); 
+      z-index: 50; 
+  }
+
   .header-left { display: flex; gap: 12px; align-items: center; }
   .avatar { width: 40px; height: 40px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
   .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
@@ -261,12 +271,13 @@
       display: flex; align-items: center; justify-content: center; 
       z-index: 9999; backdrop-filter: blur(2px); 
   }
-  .modal-box { 
-      background: var(--bg-card); padding: 25px; border-radius: 12px; width: 550px; 
-      box-shadow: var(--shadow-premium); /* <-- ¡Aquí aplicamos la nueva sombra! */
-      border: 1px solid var(--border); 
-      display: flex; flex-direction: column; gap: 15px;
+  :global(.modal-salones) { 
+      width: 550px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 15px;
   }
+  
   .modal-top { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
   .modal-top h3 { margin: 0; font-size: 18px; display: flex; gap: 10px; align-items: center; color: var(--text-main); }
   .ico-blue { color: var(--primary); }
