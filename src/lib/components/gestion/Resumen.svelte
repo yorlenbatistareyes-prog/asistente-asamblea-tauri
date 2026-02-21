@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import Panel from '$lib/components/ui/Panel.svelte';
   
   // Iconos
   import { 
@@ -226,7 +227,7 @@
               </div>
             </button>
 
-            <div class="card stat-card">
+            <Panel padding="15px" clasesExtra="stat-card">
                 <div class="icon-wrapper cyan"><Droplets size={22} /></div>
                 <div class="stat-info">
                     <span class="label">Bautismos</span>
@@ -234,9 +235,9 @@
                            bind:value={bautismosTotal} 
                            on:input={() => guardarDato('bautismos', bautismosTotal)}>
                 </div>
-            </div>
+            </Panel>
             
-            <div class="card stat-card">
+            <Panel padding="15px" clasesExtra="stat-card">
                 <div class="icon-wrapper purple">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
                 </div>
@@ -245,10 +246,10 @@
                     <span class="numero-grande">{totalCongregacionesReales}</span>
                     <span class="subtext">Registradas</span>
                 </div>
-            </div>
+            </Panel>
         </div>
 
-        <div class="card alertas-section">
+        <Panel padding="0" clasesExtra="alertas-section">
             <div class="card-header-red">
                 <h4><AlertCircle size={18} /> Oradores Pendientes ({estadisticasPrograma.pendientes})</h4>
             </div>
@@ -287,7 +288,7 @@
                     </div>
                 {/if}
             </div>
-        </div>
+        </Panel>
     </div>
 
     <div class="col-right">
@@ -422,20 +423,38 @@
 
   /* --- TARJETAS STATS --- */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .stat-card {
-    background: var(--bg-card); border: 1px solid var(--border-color);
-    border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px;
-  }
-  .icon-wrapper {
-    min-width: 40px; height: 40px; border-radius: 10px; display: flex; 
-    align-items: center; justify-content: center; color: white;
-  }
+ 
+ .icon-wrapper {
+    min-width: 40px !important;
+    height: 40px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    position: static !important; /* Quitamos el position absolute */
+    margin-bottom: 0 !important;
+}
+
   .icon-wrapper.blue { background: #3b82f6; }
   .icon-wrapper.cyan { background: #06b6d4; }
   .icon-wrapper.purple { background: #8b5cf6; } /* Violeta */
+:global(.stat-card) {
+    display: flex !important;
+    flex-direction: row !important; /* Vuelve a ponerlos uno al lado del otro */
+    align-items: center !important;
+    gap: 12px;
+    padding: 15px !important; /* Restauramos el relleno original */
+}
 
-  .stat-info { display: flex; flex-direction: column; width: 100%; overflow: hidden; }
-  .label { font-size: 0.7rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
+.stat-info {
+    padding: 0 !important; /* Quitamos el relleno extra que no necesitamos */
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.label { font-size: 0.7rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
   .subtext { font-size: 0.65rem; color: var(--text-secondary); }
 
   .editable-num {
@@ -458,7 +477,13 @@
   .table-container { width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; }
-  td { padding: 8px 15px; border-bottom: 1px solid var(--border-color); color: var(--text-main); vertical-align: middle; }
+  
+  td { 
+    padding: 10px 15px; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08); /* Línea interna muy suave */
+    color: var(--text-main); 
+    vertical-align: middle; 
+}
   .fw-bold { font-weight: 600; font-size: 0.9rem; }
   .tema-mini { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 2px; }
   .badge-dia { background: var(--bg-body); padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; border: 1px solid var(--border-color); }
@@ -471,16 +496,24 @@
   .ver-mas { text-align: center; padding: 10px; font-size: 0.8rem; color: var(--text-secondary); font-style: italic; }
 
   /* --- MONITOR EN VIVO --- */
-  .live-monitor {
-    background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color);
-    overflow: hidden; display: flex; flex-direction: column;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-  }
-  .monitor-header {
+ .monitor-header {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-    padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     color: white;
-  }
+    /* Esto es clave para que no tape las esquinas del Panel */
+    border-radius: 12px 12px 0 0; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+:global(.live-monitor-container) {
+    overflow: hidden;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-premium) !important; /* Esto lo hace flotar */
+}
+
   .header-left { display: flex; flex-direction: column; gap: 2px; }
 
   .live-badge {
@@ -540,17 +573,18 @@
   .btn-acceso:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
 
   /* ESTILOS NUEVOS PARA LA TARJETA CLICKABLE */
-  .btn-card-asistencia {
-    width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border-color);
-    background: var(--bg-card); padding: 15px; border-radius: 12px;
-    display: flex; align-items: center; gap: 12px;
-    transition: transform 0.2s, border-color 0.2s;
-    font-family: inherit; 
-  }
-  .btn-card-asistencia:hover {
-    transform: translateY(-3px); border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
+:global(.btn-card-asistencia) {
+    width: 100%; 
+    text-align: left; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+    background: transparent; /* Deja que el Panel de abajo se vea */
+    border: none;
+}
+
+
   .numero-grande {
     font-size: 1.8rem; font-weight: 800; color: var(--text-main);
     display: block; line-height: 1.2;
@@ -597,4 +631,30 @@
     padding: 15px; background: var(--bg-body); text-align: center;
     border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-secondary);
   }
+
+  /* Esto asegura que los paneles de esta página usen la sombra premium */
+:global(.stat-card), 
+:global(.live-monitor-container), 
+:global(.alertas-section),
+:global(.btn-card-asistencia) { /* Añadimos la asistencia aquí para unificarlas */
+    box-shadow: var(--shadow-premium) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    /* Usamos la variable global para que se vea tanto en claro como en oscuro */
+    border: 1px solid var(--border) !important; 
+    background-color: var(--bg-card) !important;
+}
+
+/* Ajuste específico para el botón de asistencia para que no pierda sus curvas */
+:global(.btn-card-asistencia) {
+    width: 100%;
+    background: transparent !important;
+    border: 1px solid rgba(0, 0, 0, 0.16) !important; /* Un poco más de fuerza para que se vea nítido */
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    border-radius: 12px;
+}
 </style>
