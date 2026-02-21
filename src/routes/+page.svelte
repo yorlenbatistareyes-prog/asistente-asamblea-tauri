@@ -335,15 +335,15 @@
         border-top: 5px solid #1e40af; 
         border-radius: 16px; 
         overflow: hidden; 
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1); 
         display: flex; 
         flex-direction: column; 
-        transition: transform 0.2s, box-shadow 0.2s; 
+        transition: box-shadow 0.3s ease, transform 0.3s ease; 
         min-height: 220px;
         position: relative;
         border: 1px solid #bfdbfe;
     }
-    .card-blue:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(37, 99, 235, 0.2); }
+    .card-blue:hover { transform: translateY(-5px); box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.2), 0 10px 15px -6px rgba(0, 0, 0, 0.15); }
 
     /* CABECERA */
     .card-header-integrated { 
