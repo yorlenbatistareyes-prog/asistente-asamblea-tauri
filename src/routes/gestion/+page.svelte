@@ -202,7 +202,7 @@ if (asambleaActual?.id) {
   .sidebar { 
       width: 260px; /* ANCHO NORMAL */
       background-color: var(--bg-card); 
-      border-right: 1px solid var(--border-color); 
+      border-right: 1px solid var(--border); 
       display: flex; flex-direction: column; 
       transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transición súper suave */
       overflow-x: hidden; /* CRUCIAL: Para que el texto no se asome al achicar */
@@ -211,7 +211,7 @@ if (asambleaActual?.id) {
   
   .logo-area { 
       padding: 20px 24px; 
-      border-bottom: 1px solid var(--border-color); 
+      border-bottom: 1px solid var(--border); 
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -226,7 +226,7 @@ if (asambleaActual?.id) {
   .btn-toggle {
       background: transparent;
       border: none;
-      color: var(--text-secondary);
+      color: var(--text-sec);
       cursor: pointer;
       padding: 6px;
       border-radius: 6px;
@@ -237,7 +237,7 @@ if (asambleaActual?.id) {
   }
 
   .btn-toggle:hover {
-      background: var(--hover-bg);
+      background: var(--border); /* Usamos el color del borde como fondo sutil */
       color: var(--primary);
   }
 
@@ -249,7 +249,7 @@ if (asambleaActual?.id) {
   }
 
   .texto-logo h3 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1.1rem;}
-  .subtitulo { margin: 5px 0 0; font-size: 12px; color: var(--text-secondary); opacity: 0.8; }
+  .subtitulo { margin: 5px 0 0; font-size: 12px; color: var(--text-sec); opacity: 0.8; }
 
   .menu { flex: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
   
@@ -258,7 +258,7 @@ if (asambleaActual?.id) {
       padding: 12px 14px; border: none; background: none; 
       text-align: left; cursor: pointer;
       gap: 16px; 
-      color: var(--text-secondary); 
+      color: var(--text-sec); 
       border-radius: 8px; font-size: 14px; font-weight: 500; 
       transition: all 0.2s; 
       white-space: nowrap; /* CRUCIAL para el colapso */
@@ -276,14 +276,16 @@ if (asambleaActual?.id) {
   }
 
   .menu button:hover { 
-      background-color: var(--hover-bg); 
+      background-color: var(--border); /* Fondo gris claro en hover */
       color: var(--text-main); 
   }
   
   .menu button.activo { 
-      background-color: var(--bg-secondary); 
+      background-color: var(--bg-body); /* Usamos el fondo oscuro/claro global */
+      border: 1px solid var(--border);
       color: var(--primary); 
-      font-weight: 600; 
+      font-weight: 700; 
+      box-shadow: var(--shadow-sm); /* Le damos relieve al botón seleccionado */
   }
 
   /* --- FOOTER DEL SIDEBAR (PROFESIONAL) --- */
@@ -291,14 +293,14 @@ if (asambleaActual?.id) {
   .footer-sidebar {
       padding: 20px 10px; /* Un poco más de aire */
       padding-bottom: 55px;
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--border);
       /* Opcional: un fondo muy sutil para separar el footer */
       background-color: rgba(0, 0, 0, 0.02); 
   }
   
   .btn-salir { 
       text-decoration: none; 
-      color: var(--text-secondary); 
+      color: var(--text-sec); 
       display: flex; align-items: center;
       padding: 12px 14px; border-radius: 8px;
       font-size: 14px; font-weight: 500;
@@ -315,7 +317,7 @@ if (asambleaActual?.id) {
       padding: 12px 14px; /* 👈 CORRECCIÓN 3: Igualamos el padding interno al de los botones del menú */
       
       background-color: var(--bg-body); 
-      border: 1px solid var(--border-color); 
+      border: 1px solid var(--border); 
       border-radius: 12px; 
       
       text-decoration: none; 
@@ -401,10 +403,13 @@ if (asambleaActual?.id) {
   .contenido { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-body); overflow: hidden; }
   
   header { 
-      background: var(--bg-card); 
+      background-color: var(--bg-card); 
+      background-image: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)); /* Tinte premium */
       padding: 20px 30px; 
-      border-bottom: 1px solid var(--border-color); 
+      border-bottom: 1px solid var(--border); 
+      box-shadow: var(--shadow-sm); /* Sombra sutil que despega el header */
       flex-shrink: 0;
+      z-index: 10;
   }
   
   header h2 { margin: 0; font-size: 1.2rem; color: var(--text-main); }
