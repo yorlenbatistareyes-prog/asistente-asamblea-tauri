@@ -247,7 +247,7 @@ async function guardarYcerrar() {
 </div>
 
 <style>
-  /* ===== ESTILOS MEJORADOS PARA PERSONAS ===== */
+/* ===== ESTILOS MEJORADOS PARA PERSONAS ===== */
 
 /* CONTENEDOR PRINCIPAL */
 .contenedor { 
@@ -275,12 +275,12 @@ async function guardarYcerrar() {
   align-items: center;
   gap: 8px;
   background: var(--bg-body);
-  padding: 6px 12px;      /* Menos padding vertical para hacerla más fina */
+  padding: 6px 12px;
   border-radius: 6px;
-  border: 1.5px solid rgba(0, 0, 0, 0.15);  /* Borde fino visible */
-  flex: 1;                /* Ocupa todo el espacio disponible */
-  min-width: 300px;       /* Ancho mínimo */
-  height: 32px;           /* Más fina */
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  flex: 1;
+  min-width: 300px;
+  height: 32px;
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
@@ -323,6 +323,27 @@ async function guardarYcerrar() {
 }
 
 /* BOTONES */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-weight: 500;
+  font-size: 13px;
+  height: 36px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
 .btn-importar { 
   background: #10b981; 
   color: white; 
@@ -457,7 +478,7 @@ input:focus, select:focus {
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-/* ===== LISTA DE PERSONAS - MEJORADA ===== */
+/* ===== LISTA DE PERSONAS - MÁS DEFINIDA Y ELEVADA ===== */
 .lista { 
   flex: 1; 
   display: flex; 
@@ -465,8 +486,13 @@ input:focus, select:focus {
   overflow: hidden; 
   background: var(--bg-card); 
   border-radius: 8px; 
-  border: 1px solid var(--border-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Borde más visible y definido */
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  /* Sombra más pronunciada para mayor elevación */
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .header-lista { 
@@ -509,7 +535,7 @@ input:focus, select:focus {
   border-bottom: 1px solid var(--border-color); 
   align-items: center; 
   font-size: 13px; 
-  background: var(--bg-card);
+  background: #ffffff;  /* Fondo blanco explícito */
   transition: all 0.2s ease;
   position: relative;
 }
@@ -526,8 +552,9 @@ input:focus, select:focus {
   transition: opacity 0.2s ease;
 }
 
+/* Hover con tono gris más visible */
 .fila:hover {
-  background: var(--hover-bg);
+  background: #e2e8f0;  /* Gris Slate 200 - más visible */
   transform: translateX(2px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
@@ -752,26 +779,5 @@ input:focus, select:focus {
 .btn-cancel:hover {
   background: var(--hover-bg);
   border-color: var(--text-secondary);
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  font-weight: 500;
-  font-size: 13px;
-  height: 36px;
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
 }
 </style>
