@@ -97,7 +97,7 @@ onDestroy(() => {
 });
 
 // ELIMINA esta línea que está más abajo:
-// $: if (diaSeleccionado && asambleaId) cargarDatos();
+
 
   async function cargarDatos() {
     if (!asambleaId) return;
@@ -154,8 +154,6 @@ onDestroy(() => {
     if (!asambleaId) return;
     listaHermanos = await invoke('obtener_personas', { asambleaId }) as any[]; 
   }
-
-  $: if (diaSeleccionado && asambleaId) cargarDatos();
 
   function toggleExpandir(id: number) {
       partes = partes.map(p => {
@@ -438,7 +436,7 @@ async function actualizarDetallesParte(parteId: number) {
             esVisitante: parteEditando.es_visitante || false,
             duracion: Number(parteEditando.duracion) || 0 // Envía los minutos
         });
-        await cargarDatos();
+        await cargarTodosDias();
         alert("✅ Datos de la parte actualizados correctamente.");
     } catch (e) {
         console.error("Error al actualizar detalles:", e);
@@ -470,7 +468,7 @@ async function actualizarDetallesParte(parteId: number) {
           });
           
           cerrarModales();
-          await cargarDatos(); 
+          await cargarTodosDias(); 
         } catch (e) {
           alert("Error al guardar parte: " + e);
         }
@@ -501,7 +499,7 @@ async function actualizarDetallesParte(parteId: number) {
       });
       mostrarModalCrear = false; 
       nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false };
-      await cargarDatos(); 
+      await cargarTodosDias(); 
     } catch (e) { 
       alert("Error al crear parte: " + e); 
     }
@@ -513,7 +511,7 @@ async function actualizarDetallesParte(parteId: number) {
     mostrarModalLimpiar = false;
     try {
         await invoke('limpiar_programa', { asambleaId });
-        await cargarDatos();
+        await cargarTodosDias();
     } catch (e) {
         alert('Error al limpiar: ' + e);
     }
@@ -527,7 +525,7 @@ async function actualizarDetallesParte(parteId: number) {
     mostrarModalEliminar = false;
     try {
         await invoke('eliminar_parte', { id: idParteAEliminar });
-        await cargarDatos();
+        await cargarTodosDias();
         idParteAEliminar = null;
     } catch (e) {
         alert('Error al eliminar: ' + e);
