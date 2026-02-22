@@ -14,6 +14,7 @@
   let fechaActual = "";
   let saludo = "Hola"; 
   let temaActual = 'sistema';
+  let nombreUsuario = "Usuario";
   
   // --- VARIABLES GESTIÓN SALONES ---
   let mostrarModalLocales = false;
@@ -22,10 +23,29 @@
 
   onMount(async () => {
     await cargarDatosGlobales();
+    await cargarNombreUsuario();
     iniciarReloj(); 
     cargarTemaGuardado();
     cargarLocales(); 
   });
+
+  // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
+  async function cargarNombreUsuario() {
+    try {
+        const config: any = await invoke('obtener_configuracion_general');
+        if (config && config.nombre) {
+            nombreUsuario = config.nombre;
+        }
+    } catch (e) {
+        console.error("No se pudo cargar el nombre del usuario:", e);
+    }
+  }
+
+  // MAGIA REACTIVA: Si el appStore cambia (ej: cuando le das "Guardar" en Configuración),
+  // se vuelve a buscar el nombre automáticamente sin recargar la página.
+  $: if ($appStore) {
+      cargarNombreUsuario();
+  }
 
   // --- FUNCIÓN QUE ARREGLA EL BOTÓN ---
   function abrirModalSalones() {
@@ -109,7 +129,7 @@
         <div class="header-left">
             <div class="avatar"><User size={24} /></div>
             <div class="user-data">
-                <h2>{saludo}, {$appStore.usuario}</h2>
+                <h2>{saludo}, {$appStore.usuario}!</h2>
                 <span>{fechaActual}</span>
             </div>
         </div>
