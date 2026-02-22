@@ -14,6 +14,8 @@
     Briefcase, CalendarClock, ClipboardList, LayoutList
   } from 'lucide-svelte';
 
+  import Panel from '$lib/components/ui/Panel.svelte';
+
   // --- ESTADO ---
   let asambleaId = 0; 
   let tabPrincipal = 'auxiliares'; 
@@ -188,7 +190,7 @@
 
 <div class="contenedor-oficina">
     <div class="top-bar">
-        <div class="titulo-seccion">
+        <div class="titulo-pagina">
             <h2><Briefcase size={22}/> Organización de la Oficina</h2>
             <p>Personal, horario, formularios, etc.</p>
         </div>
@@ -213,7 +215,7 @@
     <div class="area-contenido">
         
         {#if tabPrincipal === 'auxiliares'}
-            <div class="panel-full">
+            <Panel padding="20px" clasesExtra="panel-full-override">
                 <div class="header-panel">
                     <div class="header-textos">
                         <h4><Users size={16}/> Auxiliares añadidos</h4>
@@ -248,17 +250,17 @@
                         </div>
                     {/if}
                 </div>
-            </div>
+            </Panel>
         {/if}
 
         {#if tabPrincipal === 'horario'}
-            <div class="panel-full center-content">
+            <Panel padding="20px" clasesExtra="panel-full-override center-content">
                 <div class="placeholder-horario">
                     <CalendarClock size={48} color="var(--text-secondary)"/>
                     <h3>Horario de la Oficina</h3>
                     <p>Funcionalidad en construcción...</p>
                 </div>
-            </div>
+            </Panel>
         {/if}
 
         {#if tabPrincipal === 'asignaciones'}
@@ -280,7 +282,7 @@
                 </div>
 
                 <div class="grid-sesiones">
-                    <div class="panel-seccion">
+                    <Panel padding="20px" clasesExtra="panel-seccion-override">
                         <div class="header-panel sun"><h4>☀️ Sesión de Mañana</h4></div>
                         <div class="lista-puestos">
                             {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item}
@@ -293,9 +295,9 @@
                                 </div>
                             {/each}
                         </div>
-                    </div>
+                    </Panel>
 
-                    <div class="panel-seccion">
+                    <Panel padding="20px" clasesExtra="panel-seccion-override">
                         <div class="header-panel sunset"><h4>🌅 Sesión de Tarde</h4></div>
                         <div class="lista-puestos">
                             {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item}
@@ -308,7 +310,7 @@
                                 </div>
                             {/each}
                         </div>
-                    </div>
+                    </Panel>
                 </div>
             </div>
         {/if}
@@ -376,72 +378,57 @@
 {/if}
 
 <style>
-    /* VARIABLES */
-    :root { --bg-aux: #f8fafc; }
-
-    .contenedor-oficina { padding: 20px 40px; height: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
+   .contenedor-oficina { padding: 20px 40px; height: 100%; display: flex; flex-direction: column; gap: 20px; max-width: 1200px; margin: 0 auto; }
     
     /* TOP BAR */
-    .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
     .titulo-seccion h2 { margin: 0; display: flex; align-items: center; gap: 10px; color: var(--text-main); font-size: 22px; }
     .titulo-seccion p { margin: 4px 0 0 0; color: var(--text-secondary); font-size: 13px; margin-left: 34px; }
-    .btn-exportar { display: flex; gap: 8px; align-items: center; background: white; border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; color: var(--text-main); transition: all 0.2s; }
+    .btn-exportar { display: flex; gap: 8px; align-items: center; background: transparent; border: 1px solid var(--border); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; color: var(--text-main); transition: all 0.2s; }
     .btn-exportar:hover { background: var(--hover-bg); border-color: var(--primary); }
 
     /* PESTAÑAS PRINCIPALES */
-    .tabs-principales { display: flex; gap: 5px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+    .tabs-principales { display: flex; gap: 5px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
     .tabs-principales button {
-        padding: 12px 20px;
-        background: transparent;
-        border: none;
-        border-bottom: 3px solid transparent;
-        color: var(--text-secondary);
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        transition: all 0.2s;
-        font-size: 14px;
+        padding: 12px 20px; background: transparent; border: none; border-bottom: 3px solid transparent;
+        color: var(--text-secondary); font-weight: 600; cursor: pointer; display: flex; gap: 8px; align-items: center; transition: all 0.2s; font-size: 14px;
     }
     .tabs-principales button:hover { color: var(--primary); background: var(--hover-bg); }
     .tabs-principales button.active { border-bottom-color: var(--primary); color: var(--primary); }
 
-    /* CONTENIDOS */
+    /* CONTENIDOS Y BLINDAJE DE PANELES */
     .area-contenido { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-    .panel-full { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; flex: 1; display: flex; flex-direction: column; }
-    .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+    
+    :global(.panel-full-override) { flex: 1 !important; display: flex !important; flex-direction: column !important; }
+    :global(.center-content) { align-items: center !important; justify-content: center !important; }
+    
+    .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
     .header-textos h4 { margin: 0; font-size: 15px; color: var(--text-main); display: flex; gap: 8px; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; }
     .header-textos .subtitulo-suave { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 400; }
     
     .header-panel.sun h4 { color: #d97706; }
     .header-panel.sunset h4 { color: #ea580c; }
 
-    /* DESCRIPCIÓN SIMPLE */
-    .descripcion-seccion {
-        color: var(--text-secondary);
-        font-size: 13px;
-        margin: 0 0 5px 0;
-        padding-left: 5px;
-    }
+    .descripcion-seccion { color: var(--text-secondary); font-size: 13px; margin: 0 0 5px 0; padding-left: 5px; }
 
     /* AUXILIARES GRID */
     .lista-personal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; overflow-y: auto; padding: 5px; }
     .card-personal { 
-        background: var(--bg-body); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; 
+        background: transparent; border: 1px solid var(--border); border-radius: 8px; padding: 15px; 
         display: flex; gap: 12px; align-items: center; cursor: pointer; transition: all 0.2s; position: relative;
     }
-    .card-personal:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-color: var(--primary); }
+    .card-personal:hover { transform: translateY(-2px); box-shadow: var(--shadow-premium); border-color: var(--primary); }
     
-    .avatar-placeholder { width: 40px; height: 40px; background: #e0f2fe; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
+    /* Adaptado para Modo Oscuro con rgba */
+    .avatar-placeholder { width: 40px; height: 40px; background: rgba(59, 130, 246, 0.1); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
     .info { flex: 1; display: flex; flex-direction: column; }
     .nombre { font-weight: 700; color: var(--text-main); font-size: 14px; }
     .cong { font-size: 11px; color: var(--text-secondary); }
     
     .badges-estado { display: flex; gap: 6px; margin-top: 6px; }
     .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
-    .badge.blue { background: #dbeafe; color: #1e40af; }
-    .badge.green { background: #dcfce7; color: #166534; }
+    .badge.blue { background: rgba(59, 130, 246, 0.15); color: var(--primary); }
+    .badge.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
     .ico-gear { color: var(--text-secondary); opacity: 0.5; }
     .card-personal:hover .ico-gear { opacity: 1; color: var(--primary); }
 
@@ -450,45 +437,53 @@
 
     /* ASIGNACIONES LAYOUT */
     .layout-asignaciones { display: flex; flex-direction: column; gap: 15px; height: 100%; }
-    .bar-dias { display: flex; align-items: center; gap: 15px; background: var(--bg-card); padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border-color); }
+    .bar-dias { display: flex; align-items: center; gap: 15px; background: var(--bg-card); padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-premium); }
     .label-dia { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
     .tabs-dias { display: flex; gap: 5px; }
-    .tabs-dias button { padding: 6px 12px; border: 1px solid var(--border-color); background: var(--bg-body); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-main); transition: all 0.2s; }
+    .tabs-dias button { padding: 6px 12px; border: 1px solid var(--border); background: transparent; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-main); transition: all 0.2s; }
     .tabs-dias button.active { background: var(--primary); color: white; border-color: var(--primary); }
 
     .grid-sesiones { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; }
-    .panel-seccion { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; overflow-y: auto; }
+    :global(.panel-seccion-override) { display: flex !important; flex-direction: column !important; overflow-y: auto !important; height: 100% !important; }
     
     .puesto-item { margin-bottom: 15px; }
     .puesto-item label { font-size: 11px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 5px; text-transform: uppercase; }
-    .btn-puesto { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-body); cursor: pointer; color: var(--text-main); transition: all 0.2s; }
+    .btn-puesto { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: transparent; cursor: pointer; color: var(--text-main); transition: all 0.2s; }
     .btn-puesto:hover { border-color: var(--primary); background: var(--hover-bg); }
-    .btn-puesto.ocupado { background: #eff6ff; border-color: #3b82f6; color: #1e40af; font-weight: 600; }
+    
+    /* Adaptado para Modo Oscuro */
+    .btn-puesto.ocupado { background: rgba(59, 130, 246, 0.1); border-color: var(--primary); color: var(--primary); font-weight: 600; }
 
     /* PLACEHOLDER HORARIO */
-    .center-content { align-items: center; justify-content: center; }
     .placeholder-horario { text-align: center; color: var(--text-secondary); }
     .placeholder-horario h3 { margin: 10px 0 5px 0; color: var(--text-main); }
 
     /* MODALES */
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .modal { background: var(--bg-card); padding: 20px; border-radius: 12px; width: 400px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal { background: var(--bg-card); padding: 20px; border-radius: 12px; width: 400px; max-height: 90vh; display: flex; flex-direction: column; border: 1px solid var(--border); box-shadow: var(--shadow-premium); }
     .modal-grande { width: 600px; }
     .modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; font-size: 18px; color: var(--text-main); }
     .estados-row { display: flex; gap: 10px; margin-bottom: 20px; }
-    .btn-estado { flex: 1; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-body); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; font-weight: 700; color: var(--text-secondary); }
-    .btn-estado.active.blue { background: #eff6ff; border-color: #3b82f6; color: #2563eb; }
-    .btn-estado.active.green { background: #f0fdf4; border-color: #22c55e; color: #166534; }
-    .btn-estado.active.yellow { background: #fefce8; border-color: #eab308; color: #a16207; }
+    .btn-estado { flex: 1; padding: 15px; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; font-weight: 700; color: var(--text-secondary); transition: all 0.2s; }
+    
+    /* Botones de Estado amigables con Modo Oscuro */
+    .btn-estado.active.blue { background: rgba(59, 130, 246, 0.1); border-color: var(--primary); color: var(--primary); }
+    .btn-estado.active.green { background: rgba(34, 197, 94, 0.1); border-color: #22c55e; color: #22c55e; }
+    .btn-estado.active.yellow { background: rgba(234, 179, 8, 0.1); border-color: #eab308; color: #eab308; }
+    
     .acciones-lista { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    .btn-accion { padding: 10px; border: 1px solid var(--border-color); background: white; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; font-weight: 600; }
-    .buscador { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; margin-bottom: 10px; }
+    .btn-accion { padding: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-main); border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; font-weight: 600; transition: background 0.2s;}
+    .btn-accion:hover { background: var(--hover-bg); }
+    .buscador { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--bg-body); padding: 8px; border-radius: 8px; margin-bottom: 10px; color: var(--text-secondary); }
     .buscador input { border: none; outline: none; background: transparent; flex: 1; color: var(--text-main); }
     .lista-opciones { max-height: 300px; overflow-y: auto; }
-    .item-opcion { display: flex; align-items: center; gap: 10px; padding: 8px; width: 100%; border: none; background: transparent; cursor: pointer; text-align: left; border-bottom: 1px solid var(--border-color); }
+    .item-opcion { display: flex; align-items: center; gap: 10px; padding: 8px; width: 100%; border: none; background: transparent; cursor: pointer; text-align: left; border-bottom: 1px solid var(--border); transition: background 0.2s; }
     .item-opcion:hover { background: var(--hover-bg); }
-    .avatar { width: 30px; height: 30px; background: #e0f2fe; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0284c7; }
+    .avatar { width: 30px; height: 30px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
     .datos { display: flex; flex-direction: column; } .n { font-weight: 600; font-size: 14px; color: var(--text-main); } .c { font-size: 11px; color: var(--text-secondary); }
-    .btn-delete { width: 100%; padding: 10px; background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px; }
-    .btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
+    
+    .btn-delete { width: 100%; padding: 10px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; cursor: pointer; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px; transition: all 0.2s; }
+    .btn-delete:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
+    .btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); transition: color 0.2s; }
+    .btn-close:hover { color: var(--text-main); }
 </style>

@@ -685,5 +685,6 @@
 .btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;}
 .btn-confirmar:hover { opacity: 0.9; }
 .btn-cancelar { flex: 1; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;}
-.btn-cancelar:hover { background: var(--hover-bg); }
+.btn-cancelar:hover { background: var(--hover-bg); 
+}
 </style>
