@@ -16,6 +16,11 @@
   let horaActual = '';
   let asambleaIdActual = 0; 
   let nombreAsamblea = '';
+
+  // ✅ Estado de la asamblea
+  let estadoAsamblea: 'en_curso' | 'futura' | 'finalizada' = 'en_curso';
+  let fechaInicioAsamblea: Date | null = null;
+  let fechaFinAsamblea: Date | null = null;
   
   // --- 1. ASISTENCIA DETALLADA (6 SESIONES) ---
   let mostrarModalAsistencia = false; 
@@ -35,13 +40,13 @@
 
   // --- 2. RESTO DE DATOS MANUALES ---
   let bautismosTotal = 0;
-  let totalCongregacionesReales = 0; // Se carga desde DB
+  let totalCongregacionesReales = 0;
 
   // --- 3. DATOS AUTOMÁTICOS ---
   let oradoresPendientesLista: any[] = []; 
   let estadisticasPrograma = { confirmados: 0, pendientes: 0 };
   
-  // --- 4. MONITOR Y DESFASE DE TIEMPO (NUEVO) ---
+  // --- 4. MONITOR Y DESFASE DE TIEMPO ---
   let parteActual: any = null;
   let siguienteParte: any = null;
   let programaCompletoCache: any[] = [];
@@ -49,13 +54,70 @@
   // Variable para adelantar/atrasar el reloj del monitor
   let offsetMinutos = 0; 
 
+  // ✅ NUEVA FUNCIÓN: Parsear fecha del formato "20 - 22 DE MARZO DE 2026"
+  function parsearFechaAsamblea(fechaString: string): { inicio: Date | null, fin: Date | null } {
+    try {
+      console.log("🔄 Parseando fecha:", fechaString);
+      
+      // Mapa de meses en español
+      const meses: { [key: string]: number } = {
+        'ENERO': 0, 'FEBRERO': 1, 'MARZO': 2, 'ABRIL': 3,
+        'MAYO': 4, 'JUNIO': 5, 'JULIO': 6, 'AGOSTO': 7,
+        'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11
+      };
+      
+      // Regex para capturar: "20 - 22 DE MARZO DE 2026"
+      const regex = /(\d+)\s*-\s*(\d+)\s+DE\s+([A-ZÁÉÍÓÚ]+)\s+DE\s+(\d{4})/i;
+      const match = fechaString.match(regex);
+      
+      if (!match) {
+        console.error("❌ No se pudo parsear la fecha");
+        return { inicio: null, fin: null };
+      }
+      
+      const [, diaInicio, diaFin, mesNombre, año] = match;
+      const mesIndex = meses[mesNombre.toUpperCase()];
+      
+      if (mesIndex === undefined) {
+        console.error("❌ Mes no reconocido:", mesNombre);
+        return { inicio: null, fin: null };
+      }
+      
+      const inicio = new Date(parseInt(año), mesIndex, parseInt(diaInicio));
+      const fin = new Date(parseInt(año), mesIndex, parseInt(diaFin));
+      
+      console.log("✅ Fecha parseada - Inicio:", inicio.toLocaleDateString());
+      console.log("✅ Fecha parseada - Fin:", fin.toLocaleDateString());
+      
+      return { inicio, fin };
+    } catch (e) {
+      console.error("❌ Error al parsear fecha:", e);
+      return { inicio: null, fin: null };
+    }
+  }
+
   // --- INICIO ---
   onMount(async () => {
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
         const data = JSON.parse(datosGuardados);
+        console.log("📅 Datos de asamblea:", data); 
+        
         asambleaIdActual = data.id;
         nombreAsamblea = data.nombre || data.tema || "Asamblea";
+
+        // ✅ Parsear el campo "fecha" si existe
+        if (data.fecha) {
+          const { inicio, fin } = parsearFechaAsamblea(data.fecha);
+          fechaInicioAsamblea = inicio;
+          fechaFinAsamblea = fin;
+        }
+        
+        console.log("📅 Fecha inicio:", fechaInicioAsamblea);
+        console.log("📅 Fecha fin:", fechaFinAsamblea);
+        
+        determinarEstadoAsamblea();
+        console.log("📅 Estado detectado:", estadoAsamblea);
     } else {
         asambleaIdActual = 1; 
     }
@@ -67,6 +129,39 @@
     actualizarReloj();
     setInterval(actualizarReloj, 30000); 
   });
+
+  // --- DETERMINAR ESTADO DE LA ASAMBLEA ---
+  function determinarEstadoAsamblea() {
+    console.log("🔍 Verificando estado de asamblea...");
+    
+    if (!fechaInicioAsamblea || !fechaFinAsamblea) {
+      console.warn("⚠️ No hay fechas definidas, asumiendo EN CURSO");
+      estadoAsamblea = 'en_curso';
+      return;
+    }
+
+    const ahora = new Date();
+    
+    // Resetear horas para comparar solo fechas
+    const hoyInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const inicioSolo = new Date(fechaInicioAsamblea.getFullYear(), fechaInicioAsamblea.getMonth(), fechaInicioAsamblea.getDate());
+    const finSolo = new Date(fechaFinAsamblea.getFullYear(), fechaFinAsamblea.getMonth(), fechaFinAsamblea.getDate());
+    
+    console.log("📅 Hoy:", hoyInicio.toLocaleDateString());
+    console.log("📅 Inicio:", inicioSolo.toLocaleDateString());
+    console.log("📅 Fin:", finSolo.toLocaleDateString());
+
+    if (hoyInicio < inicioSolo) {
+      console.log("✅ ASAMBLEA FUTURA");
+      estadoAsamblea = 'futura';
+    } else if (hoyInicio > finSolo) {
+      console.log("✅ ASAMBLEA FINALIZADA");
+      estadoAsamblea = 'finalizada';
+    } else {
+      console.log("✅ ASAMBLEA EN CURSO");
+      estadoAsamblea = 'en_curso';
+    }
+  }
 
   // --- FUNCIÓN CARGAR DATOS LOCALES ---
   function cargarDatosLocales() {
@@ -83,7 +178,7 @@
     // B. Bautismos
     bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
 
-    // C. Desfase de tiempo (NUEVO)
+    // C. Desfase de tiempo
     offsetMinutos = Number(localStorage.getItem(`dash_offset_${asambleaIdActual}`)) || 0;
   }
 
@@ -99,8 +194,7 @@
     localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
   }
 
-  // --- LÓGICA DE CONTROL DE TIEMPO (NUEVO) ---
-  
+  // --- LÓGICA DE CONTROL DE TIEMPO ---
   function ajustarDesfase(valor: number) {
       offsetMinutos += valor;
       localStorage.setItem(`dash_offset_${asambleaIdActual}`, offsetMinutos.toString());
@@ -293,29 +387,41 @@
 
     <div class="col-right">
         <Panel padding="0" clasesExtra="live-monitor-container">
-            <div class="monitor-header">
-                <div class="header-left">
-                    <div class="live-badge">
-                        <span class="blink-dot"></span> EN CURSO
-                    </div>
-                    {#if parteActual}
-                        <span class="monitor-dia">{parteActual.dia}</span>
-                    {/if}
-                </div>
-                
-                <div class="ajuste-tiempo">
-                    <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
-                    
-                    <button class="valor-ajuste" 
-                            class:activo={offsetMinutos !== 0} 
-                            on:click={resetearDesfase}
-                            title="Clic para volver a la Hora Real (0m)">
-                        {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
-                    </button>
-                    
-                    <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
-                </div>
+            <div class="monitor-header" class:header-futura={estadoAsamblea === 'futura'} 
+                            class:header-finalizada={estadoAsamblea === 'finalizada'}>
+    <div class="header-left">
+        {#if estadoAsamblea === 'en_curso'}
+            <div class="live-badge">
+                <span class="blink-dot"></span> EN CURSO
             </div>
+        {:else if estadoAsamblea === 'futura'}
+            <div class="live-badge futura-badge">
+                <span class="future-icon">📅</span> PRÓXIMA
+            </div>
+        {:else}
+            <div class="live-badge finalizada-badge">
+                <span class="check-icon">✓</span> FINALIZADA
+            </div>
+        {/if}
+        
+        {#if parteActual}
+            <span class="monitor-dia">{parteActual.dia}</span>
+        {/if}
+    </div>
+    
+    <div class="ajuste-tiempo">
+        <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
+        
+        <button class="valor-ajuste" 
+                class:activo={offsetMinutos !== 0} 
+                on:click={resetearDesfase}
+                title="Clic para volver a la Hora Real (0m)">
+            {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+        </button>
+        
+        <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+    </div>
+</div>
 
             <div class="monitor-body">
                 {#if parteActual}
