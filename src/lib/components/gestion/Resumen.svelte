@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
   
-  // Iconos
+  // Iconos (¡Agregamos Film para los videos!)
   import { 
     Users, Droplets, Mic, CheckCircle, AlertCircle, 
-    Clock, Activity, ArrowRight 
+    Clock, Activity, ArrowRight, Film 
   } from 'lucide-svelte';
 
   // Importamos el Store Global
@@ -53,12 +53,12 @@
   
   // Variable para adelantar/atrasar el reloj del monitor
   let offsetMinutos = 0; 
+  let intervalReloj: any;
+  let intervalDetector: any;
 
   // ✅ NUEVA FUNCIÓN: Parsear fecha del formato "20 - 22 DE MARZO DE 2026"
   function parsearFechaAsamblea(fechaString: string): { inicio: Date | null, fin: Date | null } {
     try {
-      console.log("🔄 Parseando fecha:", fechaString);
-      
       // Mapa de meses en español
       const meses: { [key: string]: number } = {
         'ENERO': 0, 'FEBRERO': 1, 'MARZO': 2, 'ABRIL': 3,
@@ -66,28 +66,18 @@
         'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11
       };
       
-      // Regex para capturar: "20 - 22 DE MARZO DE 2026"
       const regex = /(\d+)\s*-\s*(\d+)\s+DE\s+([A-ZÁÉÍÓÚ]+)\s+DE\s+(\d{4})/i;
       const match = fechaString.match(regex);
       
-      if (!match) {
-        console.error("❌ No se pudo parsear la fecha");
-        return { inicio: null, fin: null };
-      }
+      if (!match) return { inicio: null, fin: null };
       
       const [, diaInicio, diaFin, mesNombre, año] = match;
       const mesIndex = meses[mesNombre.toUpperCase()];
       
-      if (mesIndex === undefined) {
-        console.error("❌ Mes no reconocido:", mesNombre);
-        return { inicio: null, fin: null };
-      }
+      if (mesIndex === undefined) return { inicio: null, fin: null };
       
       const inicio = new Date(parseInt(año), mesIndex, parseInt(diaInicio));
       const fin = new Date(parseInt(año), mesIndex, parseInt(diaFin));
-      
-      console.log("✅ Fecha parseada - Inicio:", inicio.toLocaleDateString());
-      console.log("✅ Fecha parseada - Fin:", fin.toLocaleDateString());
       
       return { inicio, fin };
     } catch (e) {
@@ -96,69 +86,77 @@
     }
   }
 
-  // --- INICIO ---
-  onMount(async () => {
-    const datosGuardados = localStorage.getItem('asambleaActiva');
-    if (datosGuardados) {
-        const data = JSON.parse(datosGuardados);
-        console.log("📅 Datos de asamblea:", data); 
-        
-        asambleaIdActual = data.id;
-        nombreAsamblea = data.nombre || data.tema || "Asamblea";
+  // --- INICIO Y DETECTOR MÁGICO ---
+  onMount(() => {
+    cargarAsambleaActiva();
 
-        // ✅ Parsear el campo "fecha" si existe
-        if (data.fecha) {
-          const { inicio, fin } = parsearFechaAsamblea(data.fecha);
-          fechaInicioAsamblea = inicio;
-          fechaFinAsamblea = fin;
+    // Actualizamos el reloj cada 10 segundos para mayor precisión
+    intervalReloj = setInterval(actualizarReloj, 10000); 
+
+    // DETECTOR MÁGICO: Revisa si cambiaste de asamblea en el menú
+    intervalDetector = setInterval(() => {
+        const guardado = localStorage.getItem('asambleaActiva');
+        if (guardado) {
+            const data = JSON.parse(guardado);
+            if (data.id && data.id !== asambleaIdActual) {
+                console.log("🔄 Cambio de asamblea detectado. Actualizando pantalla...");
+                cargarAsambleaActiva(); 
+            }
         }
-        
-        console.log("📅 Fecha inicio:", fechaInicioAsamblea);
-        console.log("📅 Fecha fin:", fechaFinAsamblea);
-        
-        determinarEstadoAsamblea();
-        console.log("📅 Estado detectado:", estadoAsamblea);
-    } else {
-        asambleaIdActual = 1; 
-    }
+    }, 500);
 
-    await cargarDatosGlobales();
-    cargarDatosLocales(); 
-    await cargarDatosDB();
-
-    actualizarReloj();
-    setInterval(actualizarReloj, 30000); 
+    return () => {
+        clearInterval(intervalReloj);
+        clearInterval(intervalDetector);
+    };
   });
+
+  // --- FUNCIÓN MAESTRA QUE RECARGA TODO ---
+  async function cargarAsambleaActiva() {
+      const datosGuardados = localStorage.getItem('asambleaActiva');
+      if (datosGuardados) {
+          const data = JSON.parse(datosGuardados);
+          asambleaIdActual = data.id;
+          nombreAsamblea = data.nombre || data.tema || "Asamblea";
+
+          if (data.fecha) {
+            const { inicio, fin } = parsearFechaAsamblea(data.fecha);
+            fechaInicioAsamblea = inicio;
+            fechaFinAsamblea = fin;
+          } else {
+            fechaInicioAsamblea = null;
+            fechaFinAsamblea = null;
+          }
+          
+          determinarEstadoAsamblea();
+      } else {
+          asambleaIdActual = 1; 
+      }
+
+      await cargarDatosGlobales();
+      cargarDatosLocales(); 
+      await cargarDatosDB();
+
+      actualizarReloj();
+  }
 
   // --- DETERMINAR ESTADO DE LA ASAMBLEA ---
   function determinarEstadoAsamblea() {
-    console.log("🔍 Verificando estado de asamblea...");
-    
     if (!fechaInicioAsamblea || !fechaFinAsamblea) {
-      console.warn("⚠️ No hay fechas definidas, asumiendo EN CURSO");
       estadoAsamblea = 'en_curso';
       return;
     }
 
     const ahora = new Date();
-    
-    // Resetear horas para comparar solo fechas
     const hoyInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     const inicioSolo = new Date(fechaInicioAsamblea.getFullYear(), fechaInicioAsamblea.getMonth(), fechaInicioAsamblea.getDate());
     const finSolo = new Date(fechaFinAsamblea.getFullYear(), fechaFinAsamblea.getMonth(), fechaFinAsamblea.getDate());
     
-    console.log("📅 Hoy:", hoyInicio.toLocaleDateString());
-    console.log("📅 Inicio:", inicioSolo.toLocaleDateString());
-    console.log("📅 Fin:", finSolo.toLocaleDateString());
-
     if (hoyInicio < inicioSolo) {
-      console.log("✅ ASAMBLEA FUTURA");
       estadoAsamblea = 'futura';
     } else if (hoyInicio > finSolo) {
-      console.log("✅ ASAMBLEA FINALIZADA");
       estadoAsamblea = 'finalizada';
     } else {
-      console.log("✅ ASAMBLEA EN CURSO");
       estadoAsamblea = 'en_curso';
     }
   }
@@ -166,29 +164,21 @@
   // --- FUNCIÓN CARGAR DATOS LOCALES ---
   function cargarDatosLocales() {
     if (!asambleaIdActual) return;
-
-    // A. Asistencia
     const rawAsis = localStorage.getItem(`dash_asistencia_obj_${asambleaIdActual}`);
     if (rawAsis) {
         asistenciaDetalle = JSON.parse(rawAsis);
     } else {
         asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
     }
-
-    // B. Bautismos
     bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
-
-    // C. Desfase de tiempo
     offsetMinutos = Number(localStorage.getItem(`dash_offset_${asambleaIdActual}`)) || 0;
   }
 
-  // Guardar ASISTENCIA
   function guardarAsistencia() {
       if (!asambleaIdActual) return;
       localStorage.setItem(`dash_asistencia_obj_${asambleaIdActual}`, JSON.stringify(asistenciaDetalle));
   }
 
-  // Guardar OTROS DATOS
   function guardarDato(tipo: string, valor: number) {
     if (!asambleaIdActual) return;
     localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
@@ -211,39 +201,72 @@
   function actualizarReloj() {
     const ahora = new Date();
     horaActual = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    determinarEstadoAsamblea(); // Refresca el estado por si pasamos de medianoche
     calcularParteEnVivo(ahora);
   }
 
   function calcularParteEnVivo(ahora: Date) {
     if (!programaCompletoCache || programaCompletoCache.length === 0) return;
     
-    // 1. Minutos REALES
+    // 1. BLOQUEAR SI NO ESTÁ EN CURSO (Asamblea Futura o Pasada)
+    if (estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada') {
+        parteActual = null;
+        siguienteParte = null;
+        return;
+    }
+
+    // 2. VERIFICAR DÍA DE LA SEMANA
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diaHoyStr = diasSemana[ahora.getDay()]; 
+    const programaDeHoy = programaCompletoCache.filter(p => p.dia === diaHoyStr);
+
+    if (programaDeHoy.length === 0) {
+        parteActual = null;
+        siguienteParte = null; 
+        return;
+    }
+
+    // 3. CÁLCULO DE HORA INTELIGENTE (Preparado para duraciones manuales)
     const minutosReales = ahora.getHours() * 60 + ahora.getMinutes();
-    
-    // 2. Minutos VIRTUALES (Aplicando el ajuste manual)
     const minutosSistema = minutosReales + offsetMinutos;
 
-    const actual = programaCompletoCache.find((p: any) => {
-        if (!p.hora_inicio) return false;
-        const [hStr, mStr] = p.hora_inicio.split(':');
-        const inicio = parseInt(hStr) * 60 + parseInt(mStr);
-        const duracion = Number(p.duracion) || 10; 
-        
-        // Comparamos con el tiempo ajustado
-        return minutosSistema >= inicio && minutosSistema < (inicio + duracion);
-    });
+    parteActual = null;
+    siguienteParte = null;
 
-    if (actual) {
-        parteActual = actual;
-        const idx = programaCompletoCache.findIndex(p => p.id === actual.id);
-        siguienteParte = programaCompletoCache[idx + 1] || null;
-    } else {
-        parteActual = null;
-        siguienteParte = programaCompletoCache.find((p: any) => {
-            if (!p.hora_inicio) return false;
-            const [hStr, mStr] = p.hora_inicio.split(':');
-            return (parseInt(hStr) * 60 + parseInt(mStr)) > minutosSistema;
-        });
+    for (let i = 0; i < programaDeHoy.length; i++) {
+        const p = programaDeHoy[i];
+        if (!p.hora_inicio) continue;
+        
+        const [hStr, mStr] = p.hora_inicio.split(':');
+        const inicioMin = parseInt(hStr) * 60 + parseInt(mStr);
+        
+        // Magia del tiempo continuo
+        let duracion = Number(p.duracion);
+        
+        if (!duracion || duracion <= 0) {
+            if (i + 1 < programaDeHoy.length && programaDeHoy[i+1].hora_inicio) {
+                const [nH, nM] = programaDeHoy[i+1].hora_inicio.split(':');
+                const inicioProximo = parseInt(nH) * 60 + parseInt(nM);
+                duracion = Math.max(5, inicioProximo - inicioMin);
+            } else {
+                duracion = 20; 
+            }
+        }
+        
+        const finMin = inicioMin + duracion;
+
+        // ¿Está transcurriendo ahora mismo?
+        if (minutosSistema >= inicioMin && minutosSistema < finMin) {
+            parteActual = p;
+            siguienteParte = programaDeHoy[i + 1] || null;
+            break;
+        }
+        
+        // ¿Es un receso antes de que empiece esta parte?
+        if (minutosSistema < inicioMin && !parteActual) {
+            siguienteParte = p;
+            break;
+        }
     }
   }
 
@@ -251,23 +274,13 @@
   async function cargarDatosDB() {
     if (!asambleaIdActual) return;
 
-    // 1. CARGAR TOTAL CONGREGACIONES
     try {
-        const listaCongregaciones: any = await invoke('obtener_congregaciones', { 
-            asambleaId: asambleaIdActual 
-        });
-        
-        if (Array.isArray(listaCongregaciones)) {
-            totalCongregacionesReales = listaCongregaciones.length;
-        } else {
-            totalCongregacionesReales = 0;
-        }
+        const listaCongregaciones: any = await invoke('obtener_congregaciones', { asambleaId: asambleaIdActual });
+        totalCongregacionesReales = Array.isArray(listaCongregaciones) ? listaCongregaciones.length : 0;
     } catch (e) {
-        console.error("Error al obtener congregaciones:", e);
         totalCongregacionesReales = 0;
     }
 
-    // 2. CARGAR PROGRAMA
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     let pendientes: any[] = []; 
     let confirmadosCount = 0;
