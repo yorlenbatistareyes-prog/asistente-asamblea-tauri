@@ -400,72 +400,103 @@
 
     <div class="col-right">
         <Panel padding="0" clasesExtra="live-monitor-container">
-            <div class="monitor-header" class:header-futura={estadoAsamblea === 'futura'} 
-                            class:header-finalizada={estadoAsamblea === 'finalizada'}>
-    <div class="header-left">
-        {#if estadoAsamblea === 'en_curso'}
-            <div class="live-badge">
-                <span class="blink-dot"></span> EN CURSO
+            <div class="monitor-header">
+                <div class="header-left">
+                    {#if estadoAsamblea === 'futura'}
+                        <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;">
+                            <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
+                        </div>
+                    {:else if estadoAsamblea === 'finalizada'}
+                        <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;">
+                            <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
+                        </div>
+                    {:else if parteActual}
+                        <div class="live-badge">
+                            <span class="blink-dot"></span> EN CURSO
+                        </div>
+                        <span class="monitor-dia">{parteActual.dia}</span>
+                    {:else}
+                        <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;">
+                            <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
+                        </div>
+                    {/if}
+                </div>
+                
+                <div class="ajuste-tiempo">
+                    <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
+                    
+                    <button class="valor-ajuste" 
+                            class:activo={offsetMinutos !== 0} 
+                            on:click={resetearDesfase}
+                            title="Clic para volver a la Hora Real (0m)">
+                        {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+                    </button>
+                    
+                    <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+                </div>
             </div>
-        {:else if estadoAsamblea === 'futura'}
-            <div class="live-badge futura-badge">
-                <span class="future-icon">📅</span> PRÓXIMA
-            </div>
-        {:else}
-            <div class="live-badge finalizada-badge">
-                <span class="check-icon">✓</span> FINALIZADA
-            </div>
-        {/if}
-        
-        {#if parteActual}
-            <span class="monitor-dia">{parteActual.dia}</span>
-        {/if}
-    </div>
-    
-    <div class="ajuste-tiempo">
-        <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
-        
-        <button class="valor-ajuste" 
-                class:activo={offsetMinutos !== 0} 
-                on:click={resetearDesfase}
-                title="Clic para volver a la Hora Real (0m)">
-            {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
-        </button>
-        
-        <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
-    </div>
-</div>
 
             <div class="monitor-body">
-                {#if parteActual}
+                {#if estadoAsamblea === 'futura'}
+                    <div class="descanso-mode">
+                        <Clock size={40} color="var(--primary)"/>
+                        <h3>Asamblea Futura</h3>
+                        <p>Programada para iniciar próximamente.</p>
+                    </div>
+                {:else if estadoAsamblea === 'finalizada'}
+                    <div class="descanso-mode">
+                        <CheckCircle size={40} color="var(--text-sec)"/>
+                        <h3>Asamblea Concluida</h3>
+                        <p>El programa de esta asamblea ha finalizado.</p>
+                    </div>
+                {:else if parteActual}
                     <span class="hora-big">{parteActual.hora_inicio}</span>
                     <h3 class="tema-big">{parteActual.tema}</h3>
-                    <div class="orador-box">
-                        <Mic size={18}/>
-                        <span>{parteActual.nombre_orador || "---"}</span>
-                    </div>
+                    
+                    {#if parteActual.es_video}
+                        <div class="orador-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: var(--primary);">
+                            <Film size={18}/>
+                            <span>Reproducción Multimedia</span>
+                        </div>
+                    {:else}
+                        <div class="orador-box">
+                            <Mic size={18}/>
+                            <span>{parteActual.nombre_orador || "---"}</span>
+                        </div>
+                    {/if}
                 {:else}
                     <div class="descanso-mode">
                         <Activity size={40} color="var(--text-sec)"/>
                         <h3>En pausa</h3>
-                        <p>Esperando siguiente sesión...</p>
+                        <p>Esperando la siguiente sesión del día...</p>
                     </div>
                 {/if}
             </div>
 
             <div class="monitor-footer">
-                <span class="label-next">A CONTINUACIÓN:</span>
-                {#if siguienteParte}
+                {#if siguienteParte && estadoAsamblea === 'en_curso'}
+                    <span class="label-next">A CONTINUACIÓN:</span>
                     <div class="next-row">
                         <span class="next-hora">{siguienteParte.hora_inicio}</span>
                         <div class="next-info">
                             <span class="next-tema">{siguienteParte.tema}</span>
-                            <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
+                            
+                            {#if siguienteParte.es_video}
+                                <span class="next-orador" style="color: var(--primary); font-weight: 600;">▶ Video / Canción</span>
+                            {:else}
+                                <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
+                            {/if}
                         </div>
                         <ArrowRight size={16} color="var(--text-sec)"/>
                     </div>
                 {:else}
-                    <span class="text-muted">Fin del programa.</span>
+                    <span class="text-muted" style="display: block; text-align: center;">
+                        {#if estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada'}
+                            Programa inactivo
+                        {:else}
+                            Fin del programa del día.
+                        {/if}
+                    </span>
                 {/if}
             </div>
        </Panel>
