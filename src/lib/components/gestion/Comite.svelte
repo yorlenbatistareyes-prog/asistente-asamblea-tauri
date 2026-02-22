@@ -8,6 +8,8 @@
      ListOrdered, NotepadText, ClipboardList, SlidersHorizontal   
   } from 'lucide-svelte';
 
+  import Panel from '$lib/components/ui/Panel.svelte';
+
   // --- ESTADO ---
   let asambleaId = 0; // <--- ID DE LA ASAMBLEA ACTUAL
   
@@ -182,9 +184,8 @@
 
   <div class="scroll-container">
     
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
        <h4 class="titulo-seccion"><User size={18} />PRESIDENTE</h4>
-     
       <div class="grid-uno">
          <div class="role-wrapper">
             <span class="label-rol">Presidente de la Asamblea</span>
@@ -207,11 +208,11 @@
             {/if}
          </div>
       </div>
-    </div>
+    </Panel>
 
     <h3 class="titulo-separador">Miembros del Comité de Asamblea</h3>
 
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
         <h4 class="titulo-seccion"><User size={18}/> COORDINACIÓN</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
@@ -251,10 +252,10 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('coord_a')}>Seleccionar... <ChevronDown size={16}/></button>{/if}
             </div>
         </div>
-    </div>
+    </Panel>
 
     <div class="grid-dos-grande">
-        <div class="seccion">
+        <Panel padding="24px" clasesExtra="seccion-comite">
             <h4 class="titulo-seccion"><NotepadText size={16}/> PROGRAMA</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
@@ -294,9 +295,9 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('prog_a')}>Seleccionar...</button>{/if}
                 </div>
             </div>
-        </div>
+        </Panel>
 
-        <div class="seccion">
+        <Panel padding="24px" clasesExtra="seccion-comite">
             <h4 class="titulo-seccion"><Home size={16}/> ALOJAMIENTO</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
@@ -336,12 +337,12 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('aloj_a')}>Seleccionar...</button>{/if}
                 </div>
             </div>
-        </div>
+        </Panel>
     </div>
 
     <h3 class="titulo-separador">Otras Responsabilidades</h3>
 
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
         <h4 class="titulo-seccion">DEPARTAMENTO DE AUDIO Y VIDEO</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
@@ -417,9 +418,9 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('plat')}>Seleccionar...</button>{/if}
             </div>
         </div>
-    </div>
+    </Panel>
 
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
         <h4 class="titulo-seccion"><Droplet size={16}/> DEPARTAMENTO DE BAUTISMO</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
@@ -460,10 +461,9 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('baut_a')}>Seleccionar...</button>{/if}
             </div>
         </div>
-    </div>
+    </Panel>
 
-  </div>
-</div>
+  </div> </div>
 
 {#if mostrarModal}
 <div class="modal-backdrop" on:click|self={() => mostrarModal = false}>
@@ -532,14 +532,14 @@
 {/if}
 
 <style>
-  /* APLICANDO VARIABLES GLOBALES DE TEMA */
-.panel-comite { display: flex; flex-direction: column; gap: 20px; height: 100%; background: var(--bg-body); }
+ /* ===== CONTENEDOR PRINCIPAL ===== */
+.panel-comite { display: flex; flex-direction: column; gap: 20px; height: 100%; background: transparent; }
 
 .header { 
     display: flex; justify-content: space-between; align-items: center; 
     background: var(--bg-card); 
     padding: 15px 20px; 
-    border-bottom: 1px solid var(--border-color); 
+    border-bottom: 1px solid var(--border); 
 }
 .header h3 { margin: 0; color: var(--text-main); display: flex; gap: 10px; align-items: center; } 
 
@@ -547,240 +547,143 @@
     background: var(--primary); color: white; border: none; 
     padding: 8px 16px; border-radius: 6px; cursor: pointer; 
     display: flex; gap: 6px; font-weight: 600; align-items: center; 
+    transition: transform 0.2s;
 }
+.btn-save:hover { transform: translateY(-2px); opacity: 0.9; }
 
-.scroll-container { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
-
-.titulo-seccion { 
-    margin: 0 0 15px 0; 
-    color: var(--text-secondary); 
-    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; 
-    display: flex; gap: 8px; align-items: center; 
-    border-bottom: 1px solid var(--border-color); 
-    padding-bottom: 8px; 
-}
-
-/* GRIDS */
-.grid-uno { display: grid; grid-template-columns: 1fr; }
-.grid-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.grid-dos-grande { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.stack-roles { display: flex; flex-direction: column; gap: 10px; }
-
-/* TARJETA */
-.role-wrapper { display: flex; flex-direction: column; gap: 5px; }
-
-/* MODAL */
-.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 999; }
-.modal { 
-    background: var(--bg-card); 
-    width: 350px; border-radius: 10px; overflow: hidden; 
-    display: flex; flex-direction: column; max-height: 80vh; 
-    box-shadow: 0 4px 15px var(--shadow-color);
-}
-.modal-header { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; }
-.modal-header h3 { color: var(--text-main); margin: 0; }
-.btn-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; }
-.btn-close:hover { color: var(--text-main); }
-
-.modal-body { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-
-.search-box { 
-    display: flex; align-items: center; gap: 8px; padding: 8px; 
-    background: var(--bg-body); 
-    border-radius: 6px; border: 1px solid var(--border-color);
-} 
-.search-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 13px; color: var(--text-main); }
-
-.item-persona { 
-    display: flex; align-items: center; gap: 10px; padding: 8px; 
-    background: var(--bg-card); 
-    border: none; text-align: left; cursor: pointer; 
-    border-bottom: 1px solid var(--border-color); 
-} 
-.item-persona:hover { background: var(--hover-bg); }
-
-.avatar-small { width: 28px; height: 28px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-secondary); font-size: 10px; }
-.datos { display: flex; flex-direction: column; } 
-.p-nombre { font-weight: 600; font-size: 12px; color: var(--text-main); } 
-.p-cong { font-size: 10px; color: var(--text-secondary); }
-
-/* ESTILOS CREACION RAPIDA (FORMULARIO) */
-.item-nuevo { 
-    display: flex; align-items: center; gap: 10px; padding: 10px; 
-    background: var(--bg-secondary); 
-    border: 1px dashed var(--primary); 
-    color: var(--primary); 
-    border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 5px; 
-}
-.item-nuevo:hover { opacity: 0.8; }
-
-.form-rapido { display: flex; flex-direction: column; gap: 10px; padding: 5px; }
-.form-title { margin: 0; color: var(--text-main); font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-
-.campo { display: flex; flex-direction: column; gap: 4px; }
-.campo label { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
-
-.input-std { 
-    width: 100%; padding: 8px; 
-    border: 1px solid var(--border-color); 
-    border-radius: 6px; font-size: 13px; box-sizing: border-box; 
-    background: var(--input-bg); color: var(--text-main);
-}
-.grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-.botones-form { display: flex; gap: 10px; margin-top: 5px; }
-.btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-.btn-cancelar { flex: 1; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.scroll-container { padding: 5px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
 
 .titulo-separador {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin: 40px 0 20px 0; 
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--border-color); 
-  width: 100%;
+    font-size: 16px; font-weight: 700; color: var(--text-main);
+    margin: 20px 0 5px 0; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border); width: 100%;
 }
 
-/* ===== SOLO MEJORA DE PANELES - MÁS DEFINIDOS Y ELEVADOS ===== */
-.seccion { 
-    background: var(--bg-card);
-    /* Borde más visible y definido */
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    border-radius: 14px; 
-    padding: 24px; 
-    margin-bottom: 25px; 
-    /* Sombra más pronunciada para mayor elevación */
-    box-shadow: 
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -2px rgba(0, 0, 0, 0.1),
-      0 0 0 1px rgba(0, 0, 0, 0.05);
-    transition: box-shadow 0.2s ease;
+/* ======================================================== */
+/* BLINDAJE CONTRA SVELTE (Usando :global y Flexbox Seguro) */
+/* ======================================================== */
+
+:global(.titulo-seccion) { 
+    margin: 0 0 15px 0 !important; 
+    color: var(--text-secondary) !important; 
+    font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: 1px !important; 
+    display: flex !important; gap: 8px !important; align-items: center !important; 
+    border-bottom: 1px solid var(--border) !important; 
+    padding-bottom: 8px !important; 
 }
 
-.seccion:hover {
-    /* Efecto de elevación al pasar el mouse */
-    box-shadow: 
-      0 10px 15px -3px rgba(0, 0, 0, 0.1),
-      0 4px 6px -4px rgba(0, 0, 0, 0.1),
-      0 0 0 1px rgba(0, 0, 0, 0.05);
+:global(.seccion-comite) { 
+    margin-bottom: 5px !important; 
+    width: 100% !important; 
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important; /* Evita que corte el contenido inferior */
 }
 
-.label-rol { 
-    font-size: 11px; font-weight: 700; 
-    color: var(--text-secondary);
-    display: flex; gap: 6px; align-items: center; 
-    margin-bottom: 2px; 
-    text-transform: uppercase;
+:global(.grid-uno) { display: flex !important; flex-direction: column !important; width: 100% !important; }
+
+/* Convertimos los grids a flex para evitar el colapso de altura */
+:global(.grid-dos) { display: flex !important; gap: 20px !important; width: 100% !important; align-items: flex-start !important; }
+:global(.grid-dos > div) { flex: 1 !important; min-width: 0 !important; }
+
+:global(.grid-dos-grande) { display: flex !important; gap: 20px !important; width: 100% !important; margin-bottom: 5px !important; }
+:global(.grid-dos-grande > div) { flex: 1 !important; min-width: 0 !important; }
+
+:global(.stack-roles) { display: flex !important; flex-direction: column !important; gap: 15px !important; width: 100% !important; }
+
+:global(.role-wrapper) { display: flex !important; flex-direction: column !important; gap: 8px !important; width: 100% !important; }
+
+:global(.label-rol) { 
+    font-size: 11px !important; font-weight: 700 !important; color: var(--text-secondary) !important;
+    display: flex !important; gap: 6px !important; align-items: center !important; text-transform: uppercase !important;
 }
 
-/* --- TARJETAS MÁS DEFINIDAS Y ELEVADAS --- */
-.tarjeta { 
-    background: var(--bg-card); 
-    /* Borde más visible */
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    border-left: 4px solid var(--primary);
-    border-radius: 10px; 
-    overflow: hidden; 
-    /* Sombra más pronunciada */
-    box-shadow: 
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-    display: flex;
-    flex-direction: column;
+/* ===== TARJETAS Y BOTONES DENTRO DEL PANEL ===== */
+:global(.tarjeta) { 
+    background: var(--bg-card) !important; 
+    border: 1px solid var(--border) !important;
+    border-left: 4px solid var(--primary) !important;
+    border-radius: 10px !important; 
+    overflow: hidden !important; 
+    display: flex !important; flex-direction: column !important;
+    transition: all 0.2s ease !important; 
+    width: 100% !important;
+}
+:global(.tarjeta:hover) { 
+    transform: translateY(-3px) !important;
+    box-shadow: var(--shadow-premium) !important;
+    border-color: var(--primary) !important;
 }
 
-.tarjeta:hover { 
-    transform: translateY(-4px);
-    /* Sombra mucho más grande en hover */
-    box-shadow: 
-      0 12px 24px -4px rgba(0, 0, 0, 0.15),
-      0 6px 12px -2px rgba(0, 0, 0, 0.1);
+:global(.card-top) { 
+    display: flex !important; align-items: center !important; gap: 12px !important; 
+    padding: 14px !important; background: transparent !important; 
+    border-bottom: 1px solid var(--border) !important;
 }
 
-/* ZONA SUPERIOR: Avatar y Nombre */
-.card-top { 
-    display: flex; align-items: center; gap: 12px; 
-    padding: 14px 14px 12px 14px;
-    background: var(--bg-card); 
-    border-bottom: 1px solid var(--border-color);
+:global(.avatar) { 
+    width: 38px !important; height: 38px !important; background: rgba(59, 130, 246, 0.1) !important;
+    color: var(--primary) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; 
 }
 
-.avatar { 
-    width: 38px; height: 38px; 
-    background: rgba(0, 120, 212, 0.1);
-    color: var(--primary); 
-    border-radius: 50%; 
-    display: flex; align-items: center; justify-content: center; 
-    flex-shrink: 0; 
+:global(.info) { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 4px !important; overflow: hidden !important; }
+
+:global(.t-nombre) { font-weight: 700 !important; color: var(--text-main) !important; font-size: 14px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.1 !important; }
+
+:global(.t-priv) { 
+    font-size: 10px !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: 0.5px !important;
+    color: var(--text-secondary) !important; background: var(--bg-body) !important; width: fit-content !important; padding: 3px 8px !important; border-radius: 12px !important; line-height: 1 !important; border: 1px solid var(--border) !important;
 }
 
-.info { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+:global(.card-bottom) { padding: 12px 14px !important; background: var(--bg-body) !important; display: flex !important; flex-direction: column !important; gap: 8px !important; }
 
-.t-nombre { 
-    font-weight: 700; color: var(--text-main); font-size: 14px; 
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-    line-height: 1.1;
+:global(.row) { font-size: 12px !important; color: var(--text-secondary) !important; display: flex !important; align-items: center !important; gap: 8px !important; }
+:global(.row svg) { flex-shrink: 0 !important; opacity: 0.7 !important; }
+
+:global(.btn-x) { 
+    background: transparent !important; border: none !important; color: var(--text-secondary) !important; cursor: pointer !important; 
+    padding: 6px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    transition: background 0.2s, color 0.2s !important;
 }
+:global(.btn-x:hover) { background: var(--hover-bg) !important; color: #ef4444 !important; }
 
-.t-priv { 
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    background: var(--bg-secondary);
-    width: fit-content; 
-    padding: 3px 8px; 
-    border-radius: 12px;
-    line-height: 1;
-}
-
-/* ZONA INFERIOR: Contacto */
-.card-bottom { 
-    padding: 12px 14px; 
-    background: var(--bg-body); 
-    display: flex; flex-direction: column; gap: 8px; 
-}
-
-.row { 
-    font-size: 12px; color: var(--text-secondary);
-    display: flex; align-items: center; gap: 8px; 
-}
-
-.row :global(svg) { flex-shrink: 0; opacity: 0.7; }
-
-/* BOTÓN CERRAR CON EFECTO HOVER ROJO */
-.btn-x { 
-    background: none; border: none; color: var(--text-secondary);
-    cursor: pointer; 
-    padding: 6px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s, color 0.2s;
+:global(.btn-select) { 
+    width: 100% !important; padding: 14px 15px !important; background: transparent !important;
+    border: 1.5px dashed var(--border) !important; border-radius: 8px !important; 
+    color: var(--text-secondary) !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; 
+    display: flex !important; justify-content: space-between !important; align-items: center !important; transition: all 0.2s ease !important;
 } 
-.btn-x:hover { 
-    background: #fee2e2;
-    color: #ef4444;
-}
+:global(.btn-select:hover) { background: var(--hover-bg) !important; border-color: var(--primary) !important; color: var(--primary) !important; }
 
-/* BOTÓN "SELECCIONAR" (HUECO VACÍO) - Con borde más visible */
-.btn-select { 
-    width: 100%; 
-    padding: 14px 15px; 
-    background: var(--bg-body);
-    border: 1.5px solid rgba(0, 0, 0, 0.15);  /* Borde más grueso y visible */
-    border-radius: 8px; 
-    color: var(--text-secondary);
-    font-size: 13px; font-weight: 500;
-    cursor: pointer; 
-    display: flex; justify-content: space-between; align-items: center;
-    transition: all 0.2s ease;
-} 
-
-.btn-select:hover { 
-    background: var(--bg-card); 
-    border-color: var(--primary); 
-    border-width: 1.5px;  /* Mantener el mismo grosor en hover */
-    color: var(--primary); 
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    transform: translateY(-1px);
-}
+/* ===== MODAL Y FORMULARIOS (Se quedan normales porque están fuera de los Paneles) ===== */
+.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+.modal { background: var(--bg-card); width: 400px; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; max-height: 85vh; border: 1px solid var(--border); box-shadow: var(--shadow-premium); }
+.modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { color: var(--text-main); margin: 0; font-size: 16px; }
+.btn-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 6px; }
+.btn-close:hover { background: var(--hover-bg); color: var(--text-main); }
+.modal-body { padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.search-box { display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border); }
+.search-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 14px; color: var(--text-main); }
+.lista-personas { display: flex; flex-direction: column; gap: 5px; }
+.item-persona { display: flex; align-items: center; gap: 12px; padding: 10px; background: transparent; border: 1px solid transparent; text-align: left; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+.item-persona:hover { background: var(--bg-body); border-color: var(--border); }
+.avatar-small { width: 32px; height: 32px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); font-size: 12px; }
+.datos { display: flex; flex-direction: column; }
+.p-nombre { font-weight: 600; font-size: 13px; color: var(--text-main); }
+.p-cong { font-size: 11px; color: var(--text-secondary); }
+.item-nuevo { display: flex; align-items: center; gap: 10px; padding: 12px; background: transparent; border: 1.5px dashed var(--primary); color: var(--primary); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 10px; transition: all 0.2s; }
+.item-nuevo:hover { background: rgba(59, 130, 246, 0.05); }
+.form-rapido { display: flex; flex-direction: column; gap: 12px; }
+.form-title { margin: 0; color: var(--text-main); font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
+.input-std { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; box-sizing: border-box; background: var(--bg-body); color: var(--text-main); transition: border 0.2s; }
+.input-std:focus { border-color: var(--primary); outline: none; }
+.grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.botones-form { display: flex; gap: 10px; margin-top: 10px; }
+.btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;}
+.btn-confirmar:hover { opacity: 0.9; }
+.btn-cancelar { flex: 1; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;}
+.btn-cancelar:hover { background: var(--hover-bg); }
 </style>
