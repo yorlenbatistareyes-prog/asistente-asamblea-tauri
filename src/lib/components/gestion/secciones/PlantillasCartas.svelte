@@ -842,6 +842,46 @@
   .color-swatch-theme, .color-swatch-standard { width: 12px; height: 12px; border: 1px solid #b0b0b0; cursor: pointer; padding: 0; margin: 0; position: relative; }
   .active { border: 2px solid var(--primary); box-shadow: 0 0 0 1px white inset; }
 
+  /* --- CORRECCIÓN: CAMPOS DE MÁRGENES EN LA CINTA --- */
+  .margins-group {
+      gap: 4px !important;
+  }
+  
+  .margin-row { 
+      display: flex; 
+      gap: 6px; 
+      align-items: center; 
+  }
+  
+  .margin-input { 
+      display: flex; 
+      align-items: center; 
+      gap: 4px; 
+      background: var(--bg-card); 
+      border: 1px solid var(--border); 
+      border-radius: 3px; 
+      padding: 0 6px; 
+      height: 24px; /* Forzamos una altura pequeña para que no rompa la cinta */
+      color: var(--text-secondary);
+      transition: all 0.2s;
+  }
+  
+  .margin-input:hover { 
+      border-color: var(--primary); 
+      color: var(--primary); 
+  }
+  
+  .margin-input input[type="number"] { 
+      width: 35px; /* Ancho restringido */
+      border: none; 
+      background: transparent; 
+      outline: none; 
+      font-size: 11px; 
+      color: var(--text-main); 
+      padding: 0;
+      margin: 0;
+  }
+  
   /* Marker Dropdown */
   .marker-dropdown-wrapper { position: relative; }
   .marker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border); width: 320px; box-shadow: var(--shadow-premium); z-index: 10000; font-family: 'Segoe UI', sans-serif; max-height: 500px; overflow-y: hidden; display: flex; flex-direction: column; border-radius: 6px; }
