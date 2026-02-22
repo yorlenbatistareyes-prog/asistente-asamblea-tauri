@@ -17,7 +17,9 @@
   import { 
     ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
     ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity, FileText 
-} from 'lucide-svelte';
+    } from 'lucide-svelte';
+
+  import Panel from '$lib/components/ui/Panel.svelte';
 
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
 
@@ -164,19 +166,19 @@
                         <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
                         
                         {#if !editorAbierto}
-                            <div class="config-group radio-group-box">
+                            <Panel padding="20px" clasesExtra="config-group">
                                 <label class="group-label">Configuraciones de PDF</label>
                                 <label class="radio-item" class:active-radio={config.accionPdf === 'nada'}><input type="radio" name="pdf" value="nada" bind:group={config.accionPdf}> <span>Sin acción</span></label>
                                 <label class="radio-item" class:active-radio={config.accionPdf === 'carpeta'}><input type="radio" name="pdf" value="carpeta" bind:group={config.accionPdf}> <span>Mostrar en Explorer</span></label>
                                 <label class="radio-item active-radio" class:active-radio={config.accionPdf === 'abrir'}><input type="radio" name="pdf" value="abrir" bind:group={config.accionPdf}> <span>Abrir predeterminado</span></label>
-                            </div>
+                            </Panel>
                             <div class="config-group"><label>Idioma</label><select bind:value={config.idioma} class="input-light"><option value="es">Español</option><option value="en">English</option></select></div>
                         {/if}
                     </div>                   
                 </div>
 
                 {#if !editorAbierto}
-                    <div class="user-info-section">
+                    <Panel padding="25px" clasesExtra="user-info-section-override">
                         <div class="user-info-header">
                             <h3>Información del usuario</h3>
                             <button class="btn-edit-user" on:click={abrirModalUsuario}>Editar</button>
@@ -189,7 +191,7 @@
                             <div class="ui-item"><label>Número de identificación</label><span>{usuario.id}</span></div>
                             <div class="ui-item"><label>Fecha de creación</label><span>{usuario.fechaCreacion}</span></div>
                         </div>
-                    </div>
+                    </Panel>
                 {/if}
 
                 <MembreteConfig />
@@ -238,239 +240,108 @@
 </div>
 
 <style>
-/* VARIABLES */
+/* ==========================================================================
+   LAYOUT PRINCIPAL
+   ========================================================================== */
 .config-layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; background: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', sans-serif; }
 
-/* Sidebar y Header */
-.config-sidebar { background: var(--bg-secondary); border-right: 1px solid var(--border-color); padding: 20px 0; display: flex; flex-direction: column; height: 100vh;}
-.config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
-.config-header h2 { margin: 15px 0 0; font-size: 1.2rem; }
-/* BOTÓN VOLVER (ESTILO DELINEADO AZUL) */
+/* === SIDEBAR === */
+.config-sidebar { background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; height: 100vh;}
+.config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border); }
+.config-header h2 { margin: 15px 0 0; font-size: 1.2rem; color: var(--text-main); }
+
+/* BOTÓN VOLVER */
 .btn-back-config { 
-    display: inline-flex; 
-    align-items: center; 
-    gap: 10px; 
-    
-    /* Forma y Tamaño */
-    padding: 8px 18px; 
-    border-radius: 50px; /* Cápsula perfecta */
-    
-    /* ESTILO VISIBLE POR DEFECTO */
-    background: rgba(59, 130, 246, 0.04); /* Un fondo azulito casi invisible */
-    border: 1px solid rgba(59, 130, 246, 0.3); /* Borde azul claro (visible siempre) */
-    color: var(--text-secondary); 
-    
-    /* Tipografía */
-    font-size: 14px; 
-    font-weight: 600; 
-    
-    cursor: pointer; 
-    transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-    margin-bottom: 15px; /* Separación con el título */
+    display: inline-flex; align-items: center; gap: 10px; padding: 8px 18px; border-radius: 50px; 
+    background: transparent; border: 1px solid var(--border); color: var(--text-secondary); 
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.25s ease; margin-bottom: 15px; 
 }
-
-/* EFECTO AL PASAR EL MOUSE */
 .btn-back-config:hover { 
-    background: white; /* Se vuelve sólido */
-    border-color: var(--primary); /* El borde se pone del azul fuerte de la marca */
-    color: var(--primary); /* El texto se pone azul */
-    
-    transform: translateX(-4px); /* Se mueve a la izquierda */
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15); /* Sombra suave azulada */
+    background: var(--hover-bg); border-color: var(--primary); color: var(--primary); 
+    transform: translateX(-4px); 
 }
+.btn-back-config:hover :global(svg) { stroke: var(--primary); }
 
-/* LA FLECHA TAMBIÉN CAMBIA DE COLOR */
-.btn-back-config:hover :global(svg) {
-    stroke: var(--primary);
-}
-
+/* NAVEGACIÓN LATERAL */
 .config-nav { padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
-.config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
+.config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; transition: all 0.2s; }
 .config-nav button:hover { background: var(--hover-bg); color: var(--text-main); }
 .config-nav button.active { background: var(--primary); color: white; font-weight: 600; }
-.config-footer {
-    padding: 20px 15px;
-    margin-top: auto; /* Esto lo empuja al fondo del aside */
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
+.nav-divider { height: 1px; background: var(--border); margin: 5px 10px; }
 
-/* Content */
+/* === FOOTER SIDEBAR (Información del Software) === */
+.config-footer { padding: 20px 15px; margin-top: auto; border-top: 1px solid var(--border); }
+.sidebar-about-card { background: var(--bg-body); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+
+.about-header { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 800; }
+.about-header span { color: var(--text-main); }
+.about-header :global(svg) { color: var(--text-main); }
+
+.about-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.about-label { color: var(--text-secondary); }
+.about-value { color: var(--text-main); font-weight: 600; }
+.tech-tag { color: var(--primary); font-weight: 700; } 
+
+.nav-divider-mini { height: 1px; background: var(--border); margin: 10px 0; }
+.about-disclaimer { margin-top: 12px; font-size: 11px; line-height: 1.4; color: var(--text-secondary); text-align: center; border-top: 1px solid var(--border); padding-top: 10px; }
+
+/* === CONTENIDO PRINCIPAL === */
 .config-content { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-body); }
-.config-title-bar { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
+.config-title-bar { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-card); }
 .config-title-bar h1 { margin: 0; font-size: 24px; color: var(--text-main); font-weight: 700; }
-.btn-save-config { background: #10b981; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+.btn-save-config { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+.btn-save-config:hover { opacity: 0.9; transform: translateY(-1px); }
 
 .config-scroll-area { flex: 1; overflow-y: auto; padding: 40px; }
-.config-grid { 
-    display: grid; 
-    /* Esta es la línea mágica que evita que se empuje todo a la derecha */
-    grid-template-columns: minmax(0, 60%) minmax(0, 40%); 
-    gap: 60px; 
-    max-width: 1200px; 
-    transition: all 0.3s ease; 
-}
+.config-grid { display: grid; grid-template-columns: minmax(0, 60%) minmax(0, 40%); gap: 60px; max-width: 1200px; transition: all 0.3s ease; }
 .config-grid.full-width { grid-template-columns: 1fr; gap: 0; max-width: 100%; }
 
-/* Inputs Generales */
-.config-group { margin-bottom: 30px; }
-.group-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
-.input-light { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 8px; }
-.radio-group-box { background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); }
-.radio-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); }
-.active-radio { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; }
+/* INPUTS Y RADIO BUTTONS (General) */
+:global(.config-group) { margin-bottom: 30px; }
+.group-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; }
-.slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-input:checked + .slider { background-color: #ea580c; }
-input:checked + .slider:before { transform: translateX(20px); }
-.toggle-item { display: flex; justify-content: space-between; align-items: center; color: var(--text-main); font-size: 14px; margin-bottom: 12px; }
-.description-toggle { align-items: center; margin-bottom: 8px; }
-.desc-text { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
-.mt-large { margin-top: 30px; }
-.group-label-icon { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 10px; }
+.input-light { width: 100%; background: var(--input-bg); border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 8px; outline: none; transition: all 0.2s; }
+.input-light:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
-/* User Info */
-.user-info-section { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; margin-top: 40px; margin-bottom: 40px; box-shadow: 0 2px 5px var(--shadow-color); }
+.radio-item { display: flex; align-items: center; gap: 10px; padding: 12px 15px; border-radius: 8px; cursor: pointer; color: var(--text-main); border: 1px solid transparent; transition: all 0.2s; }
+.radio-item:hover { background: var(--hover-bg); border-color: var(--border); }
+.radio-item input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; }
+
+.active-radio { background: rgba(59, 130, 246, 0.08); border: 1px solid var(--primary); color: var(--primary); font-weight: 600; }
+.active-radio:hover { background: rgba(59, 130, 246, 0.12); border-color: var(--primary); }
+
+/* === USER INFO SECTION === */
+:global(.user-info-section-override) { margin-top: 40px; margin-bottom: 40px; }
 .user-info-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
-.user-info-header h3 { margin: 0; font-size: 20px; color: var(--text-main); font-weight: 700; }
-.btn-edit-user { background: #ea580c; color: white; border: none; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; }
+.user-info-header h3 { margin: 0; font-size: 18px; color: var(--text-main); font-weight: 700; }
+.btn-edit-user { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+.btn-edit-user:hover { background: var(--hover-bg); border-color: var(--primary); color: var(--primary); }
+
 .user-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
 .ui-item { display: flex; flex-direction: column; gap: 4px; }
-.ui-item label { font-size: 12px; color: var(--text-secondary); text-transform: lowercase; }
-.ui-item label::first-letter { text-transform: uppercase; }
-.ui-item span { font-size: 15px; color: var(--text-main); font-weight: 400; }
+.ui-item label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.ui-item span { font-size: 14px; color: var(--text-main); font-weight: 500; }
 
-/* Modal, Datos & Ayuda */
-.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000; }
-.modal-content-user { background: var(--bg-card); padding: 0; border-radius: 8px; width: 800px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; border: 1px solid var(--border-color); }
-.modal-header-user { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-bottom: 1px solid var(--border-color); }
-.modal-header-user h3 { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); }
-.btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
-.modal-body-user { padding: 30px; background: var(--bg-card); }
+/* === MODAL DE EDICIÓN DE USUARIO === */
+.modal-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box; }
+.modal-content-user { background: var(--bg-card); border-radius: 12px; width: 800px; max-width: 100%; box-shadow: var(--shadow-premium); overflow: hidden; border: 1px solid var(--border); display: flex; flex-direction: column; max-height: 90vh; }
+.modal-header-user { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+.modal-header-user h3 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); }
+.btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); transition: color 0.2s; }
+.btn-close:hover { color: #ef4444; }
+
+.modal-body-user { padding: 30px; overflow-y: auto; background: var(--bg-body); }
 .form-user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 30px; }
-.input-group { display: flex; flex-direction: column; gap: 5px; }
-.input-group label { font-size: 13px; color: var(--text-secondary); font-weight: 400; }
-.input-group input { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 4px; width: 100%; box-sizing: border-box; background: var(--input-bg); font-size: 15px; color: var(--text-main); }
-.modal-footer-user { padding: 20px 30px; display: flex; justify-content: flex-end; gap: 15px; background: var(--bg-card); }
-.btn-cancel-user { background: white; border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; }
-.btn-save-user { background: #ea580c; border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; }
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-group label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
+.input-group input { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; width: 100%; box-sizing: border-box; background: var(--input-bg); font-size: 14px; color: var(--text-main); transition: all 0.2s; }
+.input-group input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
-/* Acordeones (Ayuda) */
-.help-container { max-width: 1000px; margin: 0 auto; }
-.help-text-content { color: var(--text-main); font-size: 14px; line-height: 1.6; }
-.accordion-list { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
-.accordion-item { border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
-.accordion-header { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: var(--bg-card); border: none; cursor: pointer; color: var(--text-main); }
-.acc-title { display: flex; align-items: center; gap: 10px; }
-.accordion-body { padding: 15px; background: var(--bg-body); border-top: 1px solid var(--border-color); }
-.toggle-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px; /* Un poco más de espacio entre interruptores */
-    max-height: 400px; /* Por si la lista crece mucho, permite hacer scroll */
-    overflow-y: auto;
-    padding-right: 5px;
-}
+.modal-footer-user { padding: 20px 30px; display: flex; justify-content: flex-end; gap: 15px; background: var(--bg-card); border-top: 1px solid var(--border); }
+.btn-cancel-user { background: transparent; border: 1px solid var(--border); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; transition: all 0.2s; }
+.btn-cancel-user:hover { background: var(--hover-bg); }
+.btn-save-user { background: var(--primary); border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; transition: transform 0.2s; }
+.btn-save-user:hover { opacity: 0.9; transform: translateY(-1px); }
 
-
-.about-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    /* Cambiamos a un color más oscuro y sólido */
-    color: #475569; 
-    font-size: 11px;
-    margin-bottom: 15px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 800; /* Más negrita para que resalte */
-}
-
-.about-header span {
-    color: #1e293b; /* Casi negro para máxima legibilidad */
-}
-
-
-.about-label {
-    color: #64748b;
-}
-
-.about-value {
-    color: #f8fafc;
-    font-weight: 600;
-}
-
-
-.about-disclaimer {
-    font-size: 10px;
-    line-height: 1.4; /* Un poco más de espacio entre líneas */
-    color: rgba(255, 255, 255, 0.5); /* Subimos la opacidad para que sea legible en Cuba */
-    text-align: center;
-    margin-top: 8px;
-}
-
-
-
-.config-footer {
-    margin-top: auto; /* Empuja todo al final del lateral */
-    padding: 15px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-.sidebar-about-card {
-    background: rgba(0, 0, 0, 0.06); 
-    border: 1px solid rgba(0, 0, 0, 0.12);
-    border-radius: 12px;
-    padding: 18px;
-    margin: 20px 15px;
-}
-
-.about-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #94a3b8;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 10px;
-}
-
-.about-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    margin-bottom: 4px;
-}
-
-.about-label { 
-    color: #64748b; /* Gris oscuro para las etiquetas */
-}
-
-.about-value { 
-    color: #1e293b; /* Azul casi negro para que resalte la versión */
-    font-weight: 600; 
-}
-
-.tech-tag { 
-    color: #059669; /* Un verde esmeralda más serio y legible */
-    font-weight: 700;
-}/* El verde que te gusta */
-
-.nav-divider-mini {
-    height: 1px;
-    background: rgba(255, 255, 255, 0.05);
-    margin: 10px 0;
-}
-
-.about-disclaimer {
-    margin-top: 12px;
-    font-size: 11px; /* Un poco más grande para facilitar la lectura */
-    line-height: 1.4;
-    color: #64748b; 
-    text-align: center;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    padding-top: 10px;
-}
 </style>
