@@ -5,6 +5,7 @@
   import { emailTemplates, marcadoresEmail, cargarPlantillasEmail, guardarPlantillaEmail, type PlantillaEmail as Plantilla } from '$lib/utils/plantillasEmail';
 
   // --- TIPTAP ---
+  import Panel from '$lib/components/ui/Panel.svelte';
   import { Editor } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
   import Underline from '@tiptap/extension-underline';
@@ -227,7 +228,7 @@
 </script>
 
 {#if !editando}
-    <div class="mail-templates-container">
+    <Panel padding="25px" clasesExtra="panel-plantillas-override">
         <div class="accordion-list">
             {#each $emailTemplates as plantilla (plantilla.id)}
                 <div class="accordion-item">
@@ -260,7 +261,7 @@
                 </div>
             {/each}
         </div>
-    </div>
+    </Panel>
 
 {:else if plantillaActual}
     <div class="editor-layout-wrapper">
@@ -364,171 +365,126 @@
 
 <style>
   /* --- ESTILOS GENERALES (LISTA) --- */
-  .accordion-list { border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 30px; }
-  .accordion-item { border-bottom: 1px solid var(--border-color); background: var(--bg-card); }
-  .accordion-header { width: 100%; display: flex; justify-content: space-between; padding: 12px 15px; background: var(--bg-card); border: none; cursor: pointer; color: var(--text-main); }
-  .acc-title { display: flex; align-items: center; gap: 10px; }
-  .accordion-body-template { padding: 25px; background: var(--bg-body); border-top: 1px solid var(--border-color); }
-  /* 1. Estilo simple para el INPUT (Asunto) */
+  :global(.panel-plantillas-override) {
+      display: flex !important;
+      flex-direction: column !important;
+      margin-bottom: 30px !important;
+  }
+
+  .accordion-list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; background: var(--bg-card); }
+  .accordion-item { border-bottom: 1px solid var(--border); }
+  .accordion-item:last-child { border-bottom: none; }
+  
+  .accordion-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: transparent; border: none; cursor: pointer; color: var(--text-main); font-weight: 600; font-size: 14px; transition: background 0.2s; }
+  .accordion-header:hover { background: var(--hover-bg); color: var(--primary); }
+  
+  .acc-title { display: flex; align-items: center; gap: 12px; }
+  .accordion-body-template { padding: 25px; background: var(--bg-body); border-top: 1px solid var(--border); }
+  
+  /* Inputs de la vista previa */
+  .preview-group { margin-bottom: 20px; }
+  .preview-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; }
+  
   .preview-input { 
-      width: 100%; 
-      padding: 10px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 4px; 
-      background: var(--bg-card); 
-      color: var(--text-main); 
-      margin-bottom: 10px; 
-      box-sizing: border-box;
+      width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; 
+      background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; 
+      box-sizing: border-box; font-size: 14px; font-family: inherit; transition: all 0.2s;
   }
+  .preview-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
 
-  /* 2. Estilo ROBUSTO para el TEXTAREA (Cuerpo del correo) */
   .preview-textarea {
-      /* Estructura */
-      display: block;
-      width: 100%;
-      box-sizing: border-box; /* Clave para que no se desborde */
-      padding: 15px;
-      margin-bottom: 15px;
-      
-      /* Scroll y tamaño */
-      min-height: 100px;
-      max-height: 400px;
-      overflow-y: auto;
-      overflow-x: hidden !important; /* Prohibido scroll horizontal */
-
-      /* Apariencia */
-      background: #ffffff; /* Los correos se ven mejor en fondo blanco (o usa var(--bg-card) si prefieres) */
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      color: #1e293b; /* Texto oscuro para legibilidad */
-      font-size: 14px;
-      line-height: 1.6;
-
-      /* MAGIA DE AJUSTE DE TEXTO */
-      white-space: pre-wrap;
-      word-break: break-word;
-      overflow-wrap: anywhere;
+      display: block; width: 100%; box-sizing: border-box; padding: 20px;
+      min-height: 100px; max-height: 300px; overflow-y: auto; overflow-x: hidden;
+      background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text-main); font-size: 14px; line-height: 1.6;
+      white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
   }
 
-  /* 3. Reglas para el contenido HTML interno (Párrafos, Listas, etc.) */
-  .preview-textarea :global(*) {
-      max-width: 100% !important;
-      white-space: pre-wrap !important;
-      word-break: break-word !important;
-      overflow-wrap: anywhere !important;
-  }
-
-  /* Arreglo extra para que las listas no pierdan los puntos */
-  .preview-textarea :global(ul), 
-  .preview-textarea :global(ol) {
-      padding-left: 20px;
-      margin: 10px 0;
-  }
+  .preview-textarea :global(*) { max-width: 100% !important; white-space: pre-wrap !important; word-wrap: break-word !important; overflow-wrap: anywhere !important; }
+  .preview-textarea :global(ul), .preview-textarea :global(ol) { padding-left: 20px; margin: 10px 0; }
+  .preview-textarea :global(p) { margin-bottom: 0.8em; }
   
-  .preview-textarea :global(p) {
-      margin-bottom: 0.8em;
+  /* --- BOTONES DE PLANTILLA UNIFICADOS AL TEMA --- */
+  .template-actions { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-top: 20px; width: 100%; }
+  .group-center { display: flex; flex-wrap: wrap; gap: 10px; flex: 1 1 auto; justify-content: center; }
+
+  .btn-template-action { 
+      background: #475569; /* Gris pizarra sólido para Exportar/Importar */
+      color: white; border: none; padding: 8px 16px; border-radius: 6px; 
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; 
+      white-space: nowrap; flex: 1 1 auto; font-size: 13px; font-weight: 600; transition: all 0.2s; 
   }
-  /* --- ESTILOS RESPONSIVOS PARA BOTONES DE PLANTILLA --- */
+  .btn-template-action:hover { background: #334155; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+  
+  /* Botón Editar (Izquierda) */
+  .btn-template-action.left { background: var(--primary); }
+  .btn-template-action.left:hover { background: #2563eb; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
-.template-actions { 
-    display: flex; 
-    flex-wrap: wrap; /* LA CLAVE: Permite que los botones bajen a otra línea si no caben */
-    gap: 15px;       /* Espacio uniforme entre todos los botones/grupos */
-    align-items: center; 
-    margin-top: 20px; 
-    width: 100%;
-}
+  /* Botón Restablecer (Derecha) */
+  .btn-template-action.right { background: #ef4444; }
+  .btn-template-action.right:hover { background: #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
 
-.group-center { 
-    display: flex; 
-    flex-wrap: wrap; /* Permite que Exportar/Importar también se separen si la pantalla es minúscula */
-    gap: 10px; 
-    flex: 1 1 auto;  /* Permite que el grupo ocupe el espacio flexible del medio */
-    justify-content: center;
-}
-
-.btn-template-action { 
-    background: #5f1d22; 
-    color: white; 
-    border: none; 
-    padding: 8px 16px; 
-    border-radius: 4px; 
-    cursor: pointer; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; /* Centra el texto y el icono */
-    gap: 8px; 
-    white-space: nowrap; /* Evita que el texto del botón se parta en dos líneas (ej: "Restablecer /n valores") */
-    flex: 1 1 auto;      /* LA MAGIA: Hace que el botón se estire y llene los huecos vacíos */
-}
-  .group-center { 
-    display: flex; 
-    flex-wrap: wrap; /* Permite que Exportar/Importar también se separen si la pantalla es minúscula */
-    gap: 10px; 
-    flex: 1 1 auto;  /* Permite que el grupo ocupe el espacio flexible del medio */
-    justify-content: center;
-}
   /* --- ESTILOS DEL EDITOR (MODO EDICIÓN) --- */
-  
-  /* Layout Principal más alto para evitar el "amontonado" */
   .editor-layout-wrapper { display: grid; grid-template-columns: 1fr 280px; gap: 20px; height: calc(100vh - 200px); min-height: 600px; margin-bottom: 40px; }
   
-  .editor-main { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+  .editor-main { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-premium); }
   
-  .editor-header-bar { padding: 12px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+  .editor-header-bar { padding: 15px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
   .title-wrap { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text-main); font-size: 15px; }
   .autosave-badge { margin-left: 15px; }
-  .status-pill { font-size: 11px; padding: 3px 8px; border-radius: 12px; display: flex; gap: 5px; align-items: center; font-weight: 500; }
+  .status-pill { font-size: 11px; padding: 4px 10px; border-radius: 12px; display: flex; gap: 5px; align-items: center; font-weight: 600; }
   .status-pill.saved { background: rgba(16, 185, 129, 0.15); color: #10b981; }
   .status-pill.saving { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
-  .status-pill.unsaved { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-  .btn-close-header { background: none; border: none; cursor: pointer; color: var(--text-secondary); }
-  .btn-close-header:hover { color: var(--text-main); }
+  .status-pill.unsaved { background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); }
+  .btn-close-header { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 6px; display: flex; align-items: center; transition: all 0.2s; }
+  .btn-close-header:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
-  /* Ajustes de espacio en el formulario */
-  .editor-form-area { padding: 25px; flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 15px; }
+  .editor-form-area { padding: 25px; flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 20px; background: var(--bg-body); }
   
-  .input-group-top label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
-  .input-subject { width: 100%; padding: 12px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+  .input-group-top label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; }
+  .input-subject { width: 100%; padding: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-size: 14px; transition: all 0.2s; }
+  .input-subject:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
 
-  /* Wrapper flexible para el área de contenido */
   .editor-wrapper-box { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-  .editor-wrapper-box label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+  .editor-wrapper-box label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; }
 
   /* Toolbar */
-  .toolbar-ribbon { display: flex; gap: 4px; padding: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-bottom: none; border-radius: 6px 6px 0 0; flex-wrap: wrap; }
-  .tool-btn { background: none; border: 1px solid transparent; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--text-secondary); cursor: pointer; }
-  .tool-btn:hover { background: var(--hover-bg); color: var(--text-main); }
-  .tool-btn.active { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); }
-  .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .sep { width: 1px; height: 20px; background: var(--border-color); margin: 0 4px; }
-
-  /* Tiptap Container: Ocupa todo el espacio restante */
-  .editor-container { flex: 1; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 0 0 6px 6px; overflow-y: auto; padding: 20px; cursor: text; min-height: 250px; }
+  .toolbar-ribbon { display: flex; gap: 4px; padding: 10px; background: var(--bg-card); border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; flex-wrap: wrap; align-items: center; }
+  .tool-btn { background: transparent; border: 1px solid transparent; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
   
-  :global(.ProseMirror) { height: 100%; outline: none; }
-  :global(.ProseMirror p) { margin-top: 0; margin-bottom: 0.8em; line-height: 1.5; }
-  :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 20px; margin: 10px 0; }
+  /* Hover visible igual que en PlantillasCartas */
+  .tool-btn:hover { background: rgba(128, 128, 128, 0.2); border-color: rgba(128, 128, 128, 0.3); color: var(--text-main); }
+  
+  .tool-btn.active { background: rgba(59, 130, 246, 0.15); color: var(--primary); border-color: rgba(59, 130, 246, 0.3); }
+  .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
 
-  .editor-footer { padding: 15px 25px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); }
-  .btn-cancel { background: #4b5563; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-  .btn-save { background: #ea580c; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-  .btn-save:hover { background: #c2410c; }
+  /* Editor TipTap */
+  .editor-container { flex: 1; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); border-radius: 0 0 8px 8px; overflow-y: auto; padding: 20px; cursor: text; min-height: 250px; font-size: 15px; line-height: 1.6; }
+  :global(.ProseMirror) { height: 100%; outline: none; }
+  :global(.ProseMirror p) { margin-top: 0; margin-bottom: 1em; }
+  :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5em; margin: 0.5em 0; }
+
+  .editor-footer { padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); }
+  .btn-cancel { background: transparent; color: var(--text-main); border: 1px solid var(--border); padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-cancel:hover { background: var(--hover-bg); }
+  .btn-save { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-save:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
   /* Sidebar Marcadores */
-  .editor-sidebar { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
-  .sidebar-header { padding: 15px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); font-weight: 600; color: var(--text-main); font-size: 14px; }
+  .editor-sidebar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-premium); }
+  .sidebar-header { padding: 15px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-weight: 700; color: var(--text-main); font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
   .markers-list { overflow-y: auto; flex: 1; }
-  .marker-group { border-bottom: 1px solid var(--border-color); }
-  .marker-group-btn { width: 100%; padding: 12px 15px; display: flex; justify-content: space-between; background: transparent; border: none; color: var(--text-main); cursor: pointer; font-size: 13px; font-weight: 500; }
-  .marker-group-btn:hover { background: var(--hover-bg); }
-  .marker-content { background: var(--bg-body); padding: 5px 0; }
+  .marker-group { border-bottom: 1px solid var(--border); }
+  .marker-group-btn { width: 100%; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: transparent; border: none; color: var(--text-main); cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
+  .marker-group-btn:hover { background: var(--hover-bg); color: var(--primary); }
+  .marker-content { background: var(--bg-body); padding: 8px 0; }
   
-  /* ESTILOS DE MARCADOR DETALLADO */
-  .marker-pill { display: block; width: 100%; padding: 10px 15px; text-align: left; background: none; border: none; cursor: pointer; color: var(--text-secondary); border-bottom: 1px solid rgba(255,255,255,0.02); }
-  .marker-pill:hover { background: var(--hover-bg); }
-  .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-  .m-label { font-size: 12px; font-weight: 600; color: var(--text-main); }
-  .marker-row-desc { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 4px; opacity: 0.8; }
-  .m-code { font-size: 10px; font-family: monospace; color: #3b82f6; background: rgba(59,130,246,0.1); padding: 3px 6px; border-radius: 4px; width: fit-content; }
+  .marker-pill { display: block; width: 100%; padding: 12px 20px; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); border-bottom: 1px solid var(--border); transition: all 0.2s; }
+  .marker-pill:last-child { border-bottom: none; }
+  .marker-pill:hover { background: var(--hover-bg); color: var(--primary); padding-left: 24px; }
+  .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .m-label { font-size: 13px; font-weight: 600; color: var(--text-main); }
+  .marker-row-desc { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 6px; opacity: 0.9; line-height: 1.4; }
+  .m-code { font-size: 11px; font-family: 'Courier New', Courier, monospace; color: var(--primary); background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px; width: fit-content; font-weight: 600; }
 </style>
