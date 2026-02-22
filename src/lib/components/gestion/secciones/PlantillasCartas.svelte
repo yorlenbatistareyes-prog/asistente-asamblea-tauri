@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
-  
+  import Panel from '$lib/components/ui/Panel.svelte';
   // --- TAURI & STORE ---
   import { invoke } from '@tauri-apps/api/core';
   import { cartasStore } from '$lib/stores/cartas'; 
@@ -417,29 +417,35 @@
 {#if !modoEditor}
     <div class="cards-container">
         <div class="cards-grid">
-            <button class="template-card" on:click={() => abrirEditor('oradores')}>
-                <div class="card-icon"><Mic size={32} /></div>
-                <div class="card-content">
-                    <h3>Oradores</h3>
-                    <p>Plantilla para asignaciones de discurso</p>
-                </div>
-            </button>
+            <Panel padding="0" clasesExtra="panel-tarjeta-hover">
+                <button class="template-card-btn" on:click={() => abrirEditor('oradores')}>
+                    <div class="card-icon blue"><Mic size={32} /></div>
+                    <div class="card-content">
+                        <h3>Oradores</h3>
+                        <p>Plantilla para asignaciones de discurso</p>
+                    </div>
+                </button>
+            </Panel>
 
-            <button class="template-card" on:click={() => abrirEditor('presidentes')}>
-                <div class="card-icon"><UserCheck size={32} /></div>
-                <div class="card-content">
-                    <h3>Presidentes</h3>
-                    <p>Plantilla para presidentes de sesión</p>
-                </div>
-            </button>
+            <Panel padding="0" clasesExtra="panel-tarjeta-hover">
+                <button class="template-card-btn" on:click={() => abrirEditor('presidentes')}>
+                    <div class="card-icon green"><UserCheck size={32} /></div>
+                    <div class="card-content">
+                        <h3>Presidentes</h3>
+                        <p>Plantilla para presidentes de sesión</p>
+                    </div>
+                </button>
+            </Panel>
 
-            <button class="template-card" on:click={() => abrirEditor('oraciones')}>
-                <div class="card-icon"><MessageSquare size={32} /></div>
-                <div class="card-content">
-                    <h3>Oraciones</h3>
-                    <p>Plantilla para asignaciones de oración</p>
-                </div>
-            </button>
+            <Panel padding="0" clasesExtra="panel-tarjeta-hover">
+                <button class="template-card-btn" on:click={() => abrirEditor('oraciones')}>
+                    <div class="card-icon purple"><MessageSquare size={32} /></div>
+                    <div class="card-content">
+                        <h3>Oraciones</h3>
+                        <p>Plantilla para asignaciones de oración</p>
+                    </div>
+                </button>
+            </Panel>
         </div>
         
         <div class="info-footer">
@@ -688,20 +694,39 @@
 {/if}
 
 <style>
-  /* --- ESTILOS DE LAS TARJETAS (NUEVO DASHBOARD) --- */
-  .cards-container {
-      padding: 0;
-      max-width: 1000px;
+ /* --- ESTILOS DE LAS TARJETAS (USANDO PANEL GLOBAL) --- */
+  .cards-container { padding: 0; max-width: 1000px; }
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+  
+  /* Le damos el poder del hover al Panel directamente */
+  :global(.panel-tarjeta-hover) {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      overflow: hidden !important;
+      border-radius: 12px !important;
   }
-  .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  
+  :global(.panel-tarjeta-hover:hover) {
+      transform: translateY(-4px) !important;
+      box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15), 0 6px 12px -2px rgba(0, 0, 0, 0.1) !important;
+      border-color: var(--primary) !important;
+  }
+
+  /* El botón interior se vuelve transparente y ocupa todo el espacio del panel */
+  .template-card-btn {
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 25px;
+      display: flex;
+      align-items: center;
       gap: 20px;
-      margin-bottom: 30px;
+      cursor: pointer;
+      text-align: left;
   }
+  
   .template-card {
       background: var(--bg-card);
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 25px;
       display: flex;
@@ -714,51 +739,31 @@
   }
   .template-card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-premium);
       border-color: var(--primary);
   }
-  .card-icon {
-      background: rgba(59, 130, 246, 0.1);
-      color: var(--primary);
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-  }
-  .card-content h3 {
-      margin: 0 0 5px 0;
-      font-size: 16px;
-      color: var(--text-main);
-      font-weight: 700;
-  }
-  .card-content p {
-      margin: 0;
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.4;
-  }
-  .info-footer {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--text-secondary);
-      font-size: 13px;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border-color);
-  }
+  
+  /* Iconos de las tarjetas con colores temáticos */
+  .card-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+  .card-icon.green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+  .card-icon.purple { background: rgba(147, 51, 234, 0.15); color: #9333ea; }
+
+  .card-content h3 { margin: 0 0 5px 0; font-size: 16px; color: var(--text-main); font-weight: 700; }
+  .card-content p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
+  
+  .info-footer { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); font-size: 13px; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }
 
   /* --- ESTILOS DEL EDITOR (WORD LAYOUT) --- */
   .word-layout { display: flex; flex-direction: row; height: 100vh; background: var(--bg-body); overflow: hidden; color: var(--text-main); width: 100%; }
   
   /* Sidebar */
-  .sidebar { width: 70px; background: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 100; flex-shrink: 0; }
+  .sidebar { width: 70px; background: var(--bg-secondary); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 100; flex-shrink: 0; }
   .sidebar-top { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; cursor: pointer; }
-  .back-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; transition: all 0.2s; }
-  .back-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+  
+  .back-btn { background: transparent; border: 1px solid transparent; color: var(--text-secondary); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; transition: all 0.2s; }
+  .back-btn:hover { background: var(--hover-bg); color: var(--text-main); border-color: var(--border); }
+  
   .back-label { font-size: 10px; font-weight: 700; color: var(--text-secondary); }
   .sidebar-content { display: flex; flex-direction: column; align-items: center; gap: 10px; }
   .icon-indicator { width: 45px; height: 45px; background: var(--primary); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
@@ -772,8 +777,9 @@
   .left-section { display: flex; align-items: center; gap: 12px; }
   .doc-info { display: flex; flex-direction: column; justify-content: center; }
   .doc-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: white; text-transform: uppercase; }
-  .save-btn { background: var(--bg-card); color: var(--primary); border: none; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-  .save-btn:hover { background: var(--hover-bg); }
+  
+  .save-btn { background: rgba(0, 0, 0, 0.2); color: white; border: 1px solid rgba(255, 255, 255, 0.3); font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 4px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; }
+  .save-btn:hover { background: rgba(0, 0, 0, 0.4); border-color: white; }
 
   /* Autosave & Status */
   .autosave-indicator { display: flex; align-items: center; margin-top: 2px; }
@@ -785,7 +791,7 @@
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
   /* Ribbon */
-  .ribbon { background: var(--bg-body); height: 105px; border-bottom: 1px solid var(--border-color); display: flex; padding: 5px 10px; gap: 5px; flex-shrink: 0; user-select: none; overflow-x: auto; }
+  .ribbon { background: var(--bg-body); height: 105px; border-bottom: 1px solid var(--border); display: flex; padding: 5px 10px; gap: 5px; flex-shrink: 0; user-select: none; overflow-x: auto; }
   .ribbon-group { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 0 6px; height: 100%; flex-shrink: 0; }
   .ribbon-group.grow-right { flex-grow: 1; align-items: flex-end; padding-right: 20px; }
   .ribbon-group.ml-auto { margin-left: auto; }
@@ -797,32 +803,36 @@
   .controls-row { display: flex; gap: 2px; align-items: center; }
   .controls-row.spacing { gap: 4px; }
   .group-label { font-size: 11px; color: var(--text-secondary); margin-top: -20px; text-align: center; width: 100%; pointer-events: none; }
-  .separator { width: 1px; background: var(--border-color); height: 75%; align-self: center; margin: 0 4px; }
-  .divider-v { width: 1px; height: 18px; background: var(--border-color); margin: 0 6px; }
+  .separator { width: 1px; background: var(--border); height: 75%; align-self: center; margin: 0 4px; }
+  .divider-v { width: 1px; height: 18px; background: var(--border); margin: 0 6px; }
 
   /* Buttons */
-  .ribbon-btn { border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-main); border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
-  .ribbon-btn:hover { background: var(--hover-bg); border-color: var(--border-color); color: var(--primary); }
-  .ribbon-btn.active { background: var(--bg-secondary); border-color: var(--primary); color: var(--primary); }
-  .ribbon-btn:disabled { opacity: 0.5; cursor: default; }
+  .ribbon-btn { border: 1px solid transparent; background: transparent; cursor: pointer; color: var(--text-secondary); border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+  .ribbon-btn:hover { background: var(--hover-bg); border-color: var(--border); color: var(--text-main); }
+  .ribbon-btn.active { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: var(--primary); }
+  .ribbon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .ribbon-btn.large { flex-direction: column; width: 55px; height: 65px; font-size: 11px; gap: 4px; }
   .ribbon-btn.small { width: 28px; height: 28px; }
   .ribbon-btn.list-item { width: 75px; height: 22px; justify-content: flex-start; gap: 6px; font-size: 11px; padding-left: 4px; }
 
   /* Inputs & Pickers */
   select { font-family: 'Segoe UI', sans-serif; border: 1px solid transparent; background: transparent; font-size: 12px; height: 22px; outline: none; cursor: pointer; color: var(--text-main); }
-  select:hover { border-color: var(--border-color); background: var(--bg-card); }
-  .font-select { width: 120px; border: 1px solid var(--border-color); background: var(--bg-card); height: 24px; padding-left: 4px; }
-  .size-select { width: 45px; border: 1px solid var(--border-color); background: var(--bg-card); height: 24px; margin-left: 2px; text-align: center; }
+  select:hover { border-color: var(--border); background: var(--bg-card); }
+  .font-select { width: 120px; border: 1px solid var(--border); background: var(--bg-card); height: 24px; padding-left: 4px; border-radius: 3px; }
+  .size-select { width: 45px; border: 1px solid var(--border); background: var(--bg-card); height: 24px; margin-left: 2px; text-align: center; border-radius: 3px; }
+  
   .line-height-wrapper { display: flex; align-items: center; border: 1px solid transparent; padding-left: 2px; border-radius: 3px; }
-  .line-height-wrapper:hover { border-color: var(--border-color); background: var(--bg-secondary); }
+  .line-height-wrapper:hover { border-color: var(--border); background: var(--bg-secondary); }
   .line-height-select { width: 35px; border: none; background: transparent; }
+  
   .color-picker-wrapper { position: relative; display: inline-block; }
   .color-picker-btn { position: relative; width: 28px; height: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 3px; cursor: pointer; background: transparent; padding: 0; }
+  .color-picker-btn:hover { background: var(--hover-bg); border-color: var(--border); }
   .color-bar { width: 18px; height: 4px; margin-top: 1px; border-radius: 1px; }
-  .color-picker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border-color); padding: 8px; width: 180px; box-shadow: 0 4px 8px var(--shadow-color); z-index: 10000; font-family: 'Segoe UI', sans-serif; }
-  .color-auto-section { padding: 4px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 8px; }
-  .color-auto-btn { width: 100%; display: flex; align-items: center; padding: 4px 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 11px; color: var(--text-main); }
+  
+  .color-picker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border); padding: 8px; width: 180px; box-shadow: var(--shadow-premium); z-index: 10000; font-family: 'Segoe UI', sans-serif; border-radius: 6px; }
+  .color-auto-section { padding: 4px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .color-auto-btn { width: 100%; display: flex; align-items: center; padding: 4px 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 11px; color: var(--text-main); border-radius: 3px; }
   .color-auto-btn:hover { background-color: var(--hover-bg); border-color: var(--primary); }
   .color-auto-indicator { display: flex; align-items: center; gap: 6px; width: 100%; }
   .color-auto-square { width: 16px; height: 16px; border: 1px solid var(--text-secondary); flex-shrink: 0; }
@@ -834,34 +844,51 @@
 
   /* Marker Dropdown */
   .marker-dropdown-wrapper { position: relative; }
-  .marker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border-color); width: 320px; box-shadow: 0 4px 10px var(--shadow-color); z-index: 10000; font-family: 'Segoe UI', sans-serif; max-height: 500px; overflow-y: hidden; display: flex; flex-direction: column; }
-  .marker-header { background: var(--bg-secondary); padding: 8px 12px; font-weight: 700; font-size: 12px; color: var(--text-main); border-bottom: 1px solid var(--border-color); }
+  .marker-dropdown { position: fixed; background: var(--bg-card); border: 1px solid var(--border); width: 320px; box-shadow: var(--shadow-premium); z-index: 10000; font-family: 'Segoe UI', sans-serif; max-height: 500px; overflow-y: hidden; display: flex; flex-direction: column; border-radius: 6px; }
+  .marker-header { background: var(--bg-secondary); padding: 8px 12px; font-weight: 700; font-size: 12px; color: var(--text-main); border-bottom: 1px solid var(--border); }
   .marker-scroll { overflow-y: auto; flex: 1; }
-  .marker-group { border-bottom: 1px solid var(--border-color); }
+  .marker-group { border-bottom: 1px solid var(--border); }
   .marker-group-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-card); border: none; cursor: pointer; font-size: 12px; color: var(--text-main); transition: background 0.2s; }
-  .marker-group-header:hover { background: var(--hover-bg); }
+  .marker-group-header:hover { background: var(--hover-bg); color: var(--primary); }
   .marker-list { background: var(--bg-body); padding: 5px 0; }
   .marker-item { display: block; width: 100%; text-align: left; padding: 8px 15px; border: none; background: transparent; font-size: 11px; cursor: pointer; color: var(--text-main); }
   .marker-item:hover { background: var(--hover-bg); color: var(--primary); }
   .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
   .m-label { font-size: 11px; font-weight: 600; color: var(--text-main); }
-  .m-code { font-size: 10px; color: var(--primary); font-family: monospace; background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 3px; width: fit-content; }
+  .m-code { font-size: 10px; color: var(--primary); font-family: monospace; background: rgba(59, 130, 246, 0.1); padding: 2px 4px; border-radius: 3px; width: fit-content; }
 
-  /* Workspace */
-  .workspace { flex: 1; background: #5f6368; position: relative; overflow: hidden; }
+  /* Workspace (BLINDADO: Nunca debe oscurecerse la hoja) */
+  .workspace { flex: 1; background: #5f6368 !important; position: relative; overflow: hidden; }
   .scroll-container { width: 100%; height: 100%; overflow: auto; display: grid; place-items: start center; padding: 40px; box-sizing: border-box; }
   .paper-zoom-wrapper { display: flex; justify-content: center; }
-  .paper-sheet { width: 21.59cm; min-height: 27.94cm; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: text; margin-bottom: 20px; }
-  .editor-content { outline: none; font-size: 16px; line-height: 1.5; color: #000000; min-height: 100%; }
+  
+  .paper-sheet { 
+      width: 21.59cm; 
+      min-height: 27.94cm; 
+      background: #ffffff !important; 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important; 
+      cursor: text; 
+      margin-bottom: 20px; 
+  }
+  
+  .editor-content { 
+      outline: none; 
+      font-size: 16px; 
+      line-height: 1.5; 
+      color: #000000 !important; 
+      min-height: 100%; 
+  }
   
   /* Status Bar */
-  .status-bar { height: 26px; background: var(--bg-body); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+  .status-bar { height: 26px; background: var(--bg-body); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
   .zoom-controls { display: flex; align-items: center; gap: 10px; }
-  .zoom-btn { background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px; display: flex; align-items: center; }
+  .zoom-btn { background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px; display: flex; align-items: center; border-radius: 3px; }
+  .zoom-btn:hover { background: var(--hover-bg); color: var(--text-main); }
+  .zoom-slider { accent-color: var(--primary); }
   .zoom-text { min-width: 40px; text-align: center; }
 
-  /* Tiptap Overrides */
-  :global(.ProseMirror) { min-height: 100%; outline: none; color: #000000; }
+  /* Tiptap Overrides (BLINDADO: El texto del editor siempre negro) */
+  :global(.ProseMirror) { min-height: 100%; outline: none; color: #000000 !important; }
   :global(.ProseMirror p) { margin-bottom: 0em; margin-top: 0; }
   :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5em; }
 </style>
