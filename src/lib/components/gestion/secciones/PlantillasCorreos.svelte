@@ -20,7 +20,7 @@
     FileText, ChevronUp, ChevronDown, PenTool, Upload, Download, RefreshCw,
     X, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
-    Check, Loader2, Cloud, Undo, Redo
+    Check, Loader2, Cloud, Undo, Redo, Mail
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
@@ -233,7 +233,7 @@
             {#each $emailTemplates as plantilla (plantilla.id)}
                 <div class="accordion-item">
                     <button class="accordion-header" on:click={() => toggle(plantilla.id)}>
-                        <div class="acc-title"><FileText size={16}/> {plantilla.title}</div>
+                        <div class="acc-title"><Mail size={16}/> {plantilla.title}</div>
                         {#if plantilla.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
                     </button>
                     {#if plantilla.isOpen}
