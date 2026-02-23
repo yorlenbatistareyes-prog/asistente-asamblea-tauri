@@ -6,6 +6,10 @@
   import { generarContexto } from '$lib/utils/contexto_impresion';
   import { generarCartaPDF } from '$lib/utils/impresion';
   import { exportarOficinaPDF } from '$lib/utils/exportar';
+
+  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { obtenerPlantillaPorId } from '$lib/utils/plantillasEmail';
+  import { prepararAsuntoEmail, prepararContenidoEmail } from '$lib/utils/contextoEmail';
   
   // Iconos
   import { 
@@ -236,6 +240,41 @@ function organizarOficina(datos: any[]) {
       }
   }
 
+  async function abrirCorreoJWPUB(objeto: any) {
+    const emailDestino = (objeto.email_visual || objeto.email || "").trim();
+    if (!emailDestino) return alert("⚠️ Este hermano no tiene correo registrado.");
+
+    // Identificar la plantilla correcta
+    let idPlantilla = 'auxiliares_oficina'; // Por defecto para auxiliares
+    
+    if (!objeto.es_personal && objeto.rol_key) {
+        if (objeto.rol_key.includes('presidente')) idPlantilla = 'presidentes';
+        else if (objeto.rol_key.includes('oracion')) idPlantilla = 'oraciones';
+        else if (objeto.rol_key.includes('bosquejos')) idPlantilla = 'bosquejos';
+        else if (objeto.rol_key.includes('plataforma')) idPlantilla = 'plataforma';
+    }
+
+    try {
+        const plantilla = obtenerPlantillaPorId(idPlantilla);
+        const asuntoBase = plantilla?.subject || "Asignación de Asamblea";
+        const cuerpoBase = plantilla?.body || "";
+
+        const contexto = await generarContexto(objeto, asambleaId, false);
+        const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+        const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+        const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+                    `&to=${encodeURIComponent(emailDestino)}` +
+                    `&subject=${encodeURIComponent(asuntoFinal)}` +
+                    `&body=${encodeURIComponent(cuerpoFinal)}`;
+        
+        openUrl(url);
+    } catch (e) {
+        console.error("Error al generar correo:", e);
+        alert("Error al abrir el correo.");
+    }
+  }
+
 </script>
 
 <div class="contenedor-oficina">
@@ -281,16 +320,21 @@ function organizarOficina(datos: any[]) {
                             <div class="avatar-placeholder">{p.nombre_completo.charAt(0)}</div>
                             <div class="info">
                                 <span class="nombre">{p.nombre_completo}</span>
-                                {#if p.nombre_congregacion}
-                                    <span class="cong">{p.nombre_congregacion}</span>
-                                {/if}
-                                <div class="badges-estado">
-                                    {#if p.recibido_manual} <span class="badge blue">Recibido</span> {/if}
-                                    {#if p.esta_presente} <span class="badge green">Presente</span> {/if}
-                                </div>
-                            </div>
-                            <Settings size={16} class="ico-gear"/>
-                        </div>
+        
+                                <button class="btn-jw-mini" on:click|stopPropagation={() => abrirCorreoJWPUB({...p, es_personal: true})}>
+                                    <Mail size={12}/> JW Email
+                             </button>
+
+                             {#if p.nombre_congregacion}
+                                  <span class="cong">{p.nombre_congregacion}</span>
+                             {/if}
+                             <div class="badges-estado">
+                                 {#if p.recibido_manual} <span class="badge blue">Recibido</span> {/if}
+                                 {#if p.esta_presente} <span class="badge green">Presente</span> {/if}
+                             </div>
+                          </div> 
+                        <Settings size={16} class="ico-gear"/>
+                       </div>
                     {/each}
                     
                     {#if oficina.personal.length === 0}
@@ -427,30 +471,26 @@ function organizarOficina(datos: any[]) {
             <h3>Gestión: {asignacionActual.nombre_completo}</h3>
             <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
         </div>
+        
         <div class="modal-body">
             <div class="estados-row">
-    <button 
-        class="btn-estado blue" 
-        class:active={asignacionActual.recibido_manual} 
-        on:click={() => toggleStatus(asignacionActual, 'recibido_manual', 'confirmacion')}
-    >
-        <FileCheck size={20}/> 
-        <span>RECIBIDO</span>
-    </button>
-
-    <button 
-        class="btn-estado green" 
-        class:active={asignacionActual.esta_presente} 
-        on:click={() => toggleStatus(asignacionActual, 'esta_presente', 'presencia')}
-    >
-        <UserCheck size={20}/> 
-        <span>PRESENTE</span>
-    </button>
-</div>
+                <button class="btn-estado blue" class:active={asignacionActual.recibido_manual} on:click={() => toggleStatus(asignacionActual, 'recibido_manual', 'confirmacion')}>
+                    <FileCheck size={20}/> <span>RECIBIDO</span>
+                </button>
+                <button class="btn-estado green" class:active={asignacionActual.esta_presente} on:click={() => toggleStatus(asignacionActual, 'esta_presente', 'presencia')}>
+                    <UserCheck size={20}/> <span>PRESENTE</span>
+                </button>
+            </div>
             <div class="acciones-lista">
-                <button class="btn-accion" on:click={() => procesarImpresionLocal(asignacionActual)}><Printer size={16}/> Imprimir Carta</button>
+                <button class="btn-accion jw" on:click={() => abrirCorreoJWPUB(asignacionActual)}>
+                    <FileJson size={16}/> Enviar JW Email
+                </button>
+                <button class="btn-accion" on:click={() => procesarImpresionLocal(asignacionActual)}>
+                    <Printer size={16}/> Imprimir Carta
+                </button>
             </div>
         </div>
+
         <div class="modal-footer">
             <button class="btn-delete" on:click={() => eliminarAsignacion(asignacionActual.id)}>
                 <Trash2 size={16}/> Quitar asignación
@@ -570,4 +610,37 @@ function organizarOficina(datos: any[]) {
     .btn-delete:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); }
     .btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); transition: color 0.2s; }
     .btn-close:hover { color: var(--text-main); }
+
+    /* Botón pequeño en la tarjeta de auxiliares */
+    .btn-jw-mini {
+        margin: 4px 0;
+        background: rgba(249, 115, 22, 0.1);
+        color: #f97316;
+        border: 1px solid rgba(249, 115, 22, 0.3);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: fit-content;
+        transition: all 0.2s;
+    }
+    .btn-jw-mini:hover { 
+        background: #f97316; 
+        color: white; 
+        border-color: #f97316;
+    }
+
+    /* Botón en el modal de gestión */
+    .btn-accion.jw {
+        border-color: #f97316;
+        color: #f97316;
+    }
+    .btn-accion.jw:hover {
+        background: rgba(249, 115, 22, 0.1);
+        border-color: #f97316;
+    }
 </style>

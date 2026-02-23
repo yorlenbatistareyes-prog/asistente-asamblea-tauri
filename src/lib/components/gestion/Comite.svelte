@@ -5,10 +5,18 @@
     ShieldCheck, Save, Search, X, MapPin, Phone, Mail, 
     User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus, Droplet, BookOpen,
      Presentation, Mic2, Home, Building, CalendarDays, ScrollText, FileText, ListTodo,
-     ListOrdered, NotepadText, ClipboardList, SlidersHorizontal   
+     ListOrdered, NotepadText, ClipboardList, SlidersHorizontal, Check, Loader, AlertCircle   
   } from 'lucide-svelte';
 
   import Panel from '$lib/components/ui/Panel.svelte';
+
+  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { generarContexto } from '$lib/utils/contexto_impresion';
+  import { obtenerPlantillaPorId } from '$lib/utils/plantillasEmail';
+  import { prepararAsuntoEmail, prepararContenidoEmail } from '$lib/utils/contextoEmail';
+
+  // --- ESTADO DE GUARDADO ---
+  let estadoGuardado: 'idle' | 'guardando' | 'guardado' | 'error' = 'idle';
 
   // --- ESTADO ---
   let asambleaId = 0; // <--- ID DE LA ASAMBLEA ACTUAL
@@ -99,12 +107,16 @@
     mostrarModal = true; 
   }
 
-  function seleccionar(id: number) { 
+  async function seleccionar(id: number) { 
     c[rolEditando] = id; 
     mostrarModal = false; 
+    await guardar(true); // <-- Auto-guardado silencioso
   }
 
-  function quitar(rol: string) { c[rol] = 0; }
+  async function quitar(rol: string) { 
+    c[rol] = 0; 
+    await guardar(true); // <-- Auto-guardado silencioso
+  }
 
   // --- CREAR CON DETALLES EN LA ASAMBLEA ACTUAL ---
   async function crearYSeleccionar() {
@@ -128,7 +140,7 @@
       const creado = hermanos.find(h => h.nombre_completo === nuevoNombre);
       
       if (creado) {
-        seleccionar(creado.id);
+        await seleccionar(creado.id); // Solo se añade el 'await' aquí
       } else {
         alert("Error al recuperar el nuevo registro");
       }
@@ -137,40 +149,124 @@
     }
   }
 
-  async function guardar() {
+  async function guardar(silencioso = false) {
+    // 1. Mostrar estado "Guardando..."
+    estadoGuardado = 'guardando';
+
     try {
       const n = (val: number) => val === 0 ? null : val;
       
       // Enviamos TODOS los datos al backend (Rust)
       await invoke('guardar_comite', { 
-        id: asambleaId, // <--- CRUCIAL: Sin esto, la base de datos no sabe a quién actualizar
-        
+        id: asambleaId, 
         presidenteId: n(c.presi),
-        
         coordinadorId: n(c.coord), 
         coordinadorAuxId: n(c.coord_a),
-        
         progSuperId: n(c.prog), 
         progAuxId: n(c.prog_a),
-        
         alojSuperId: n(c.aloj), 
         alojAuxId: n(c.aloj_a),
-        
         audioVideoId: n(c.av), 
         videoId: n(c.video), 
         audioId: n(c.audio), 
         plataformaId: n(c.plat),
-
-        // TUS AGREGADOS DE BAUTISMO (Perfecto, esto faltaba):
         bautismoSuperId: n(c.baut),
         bautismoAuxId: n(c.baut_a)
       });
+
+    // Pequeño truco UX: Forzamos que el "Guardando..." se vea al menos medio segundo
+      // para que el usuario note el cambio visual, ya que Rust es demasiado rápido.
+      if (silencioso) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+      }
       
-      alert("✅ Comité guardado correctamente");
+      // 2. Mostrar estado "Guardado" fijo
+      estadoGuardado = 'guardado';
+
+      if (!silencioso) alert("✅ Comité guardado correctamente");
+      
     } catch (e) { 
         console.error("Error al guardar comité:", e);
-        alert("Error al guardar: " + e); 
+        estadoGuardado = 'error'; 
+        if (!silencioso) alert("Error al guardar: " + e); 
     }
+  }
+
+  // --- LÓGICA: MENÚ JWPUB COMITÉ ---
+  let mostrarMenuJW = false;
+
+  // Cierra el menú al hacer clic fuera
+  onMount(() => {
+      window.addEventListener('click', handleClickOutside);
+  });
+
+  function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (mostrarMenuJW && !target.closest('.jw-menu-container')) {
+          mostrarMenuJW = false;
+      }
+  }
+
+  // Función principal de envío
+  async function enviarEmailComite(tipo: 'comite_entero' | 'sup_programa' | 'audio_video') {
+      let destinatarios = new Set<string>();
+      let idPlantilla = '';
+
+      // 1. Extraer correos según la opción elegida
+      if (tipo === 'comite_entero') {
+          idPlantilla = 'comite';
+          [c.coord, c.prog, c.aloj].forEach(id => {
+              const h = getDetalles(id);
+              if (h && h.email) destinatarios.add(h.email.trim());
+          });
+      } else if (tipo === 'sup_programa') {
+          idPlantilla = 'superintendente';
+          const h = getDetalles(c.prog);
+          if (h && h.email) destinatarios.add(h.email.trim());
+      } else if (tipo === 'audio_video') {
+          idPlantilla = 'audiovideo';
+          const h = getDetalles(c.av);
+          if (h && h.email) destinatarios.add(h.email.trim());
+      }
+
+      const listaCorreos = Array.from(destinatarios).join(';');
+      
+      if (listaCorreos.length === 0) {
+          return alert("⚠️ No hay correos registrados para esta selección.");
+      }
+
+      try {
+          // 2. Cargar plantilla
+          const plantilla = obtenerPlantillaPorId(idPlantilla);
+          const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+          const cuerpoBase = plantilla?.body || "";
+
+          // 3. Crear contexto base para la asamblea (sin un hermano específico)
+          const objetoSimulado = {
+              nombre_completo: 'Hermanos', nombre_pila: 'Hermanos', apellidos: '',
+              tema: '', hora_inicio: '', hora: '', tipo_asignacion: 'Comité',
+              numero_bosquejo: '', email: '', telefono: '', congregacion: ''
+          };
+
+          const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+          
+          // 4. Procesar marcadores
+          const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+          const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+          // 5. Abrir JWPUB
+          const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+                      `&to=${encodeURIComponent(listaCorreos)}` +
+                      `&subject=${encodeURIComponent(asuntoFinal)}` +
+                      `&body=${encodeURIComponent(cuerpoFinal)}`;
+          
+          openUrl(url);
+          mostrarMenuJW = false;
+
+      } catch (error) {
+          console.error("Error al generar correo:", error);
+          alert("Ocurrió un error al intentar abrir el correo.");
+      }
   }
 
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
@@ -179,7 +275,53 @@
 <div class="panel-comite">
   <div class="header">
     <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea (Asamblea #{asambleaId})</h3>
-    <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
+    
+    <div style="display: flex; gap: 10px; align-items: center;">
+
+        <div class="indicador-guardado {estadoGuardado}">
+            {#if estadoGuardado === 'guardando'}
+                <Loader size={14} class="spin-icon"/> <span>Guardando...</span>
+            {:else if estadoGuardado === 'guardado'}
+                <Check size={14}/> <span>Guardado</span>
+            {:else if estadoGuardado === 'error'}
+                <AlertCircle size={14}/> <span>Error</span>
+            {/if}
+        </div>
+        
+        <div style="position: relative;" class="jw-menu-container">
+            <button class="btn-jw-header" on:click|stopPropagation={() => mostrarMenuJW = !mostrarMenuJW}>
+                <Mail size={16}/> JW Email <ChevronDown size={14}/>
+            </button>
+            
+            {#if mostrarMenuJW}
+                <div class="dropdown-jw" on:click|stopPropagation>
+                    <button class="jw-item" on:click={() => enviarEmailComite('comite_entero')}>
+                        <Users size={16} color="var(--primary)"/>
+                        <div style="display:flex; flex-direction:column; text-align:left; gap:2px;">
+                            <span style="font-weight:600; font-size:13px; color:var(--text-main);">Al Comité de Asamblea</span>
+                            <span style="font-size:10px; color:var(--text-secondary);">Coord., Prog. y Alojamiento</span>
+                        </div>
+                    </button>
+                    
+                    <div style="height:1px; background:var(--border); margin:4px 10px;"></div>
+                    
+                    <button class="jw-item" on:click={() => enviarEmailComite('sup_programa')}>
+                        <NotepadText size={16} color="#d97706"/>
+                        <span style="font-weight:600; font-size:13px; color:var(--text-main);">Al Sup. de Programa</span>
+                    </button>
+                    
+                    <div style="height:1px; background:var(--border); margin:4px 10px;"></div>
+                    
+                    <button class="jw-item" on:click={() => enviarEmailComite('audio_video')}>
+                        <Radio size={16} color="#16a34a"/>
+                        <span style="font-weight:600; font-size:13px; color:var(--text-main);">Al Sup. de Audio/Video</span>
+                    </button>
+                </div>
+            {/if}
+        </div>
+
+        <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
+    </div>
   </div>
 
   <div class="scroll-container">
@@ -687,4 +829,90 @@
 .btn-cancelar { flex: 1; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;}
 .btn-cancelar:hover { background: var(--hover-bg); 
 }
+
+/* ESTILOS DEL NUEVO MENÚ JW EMAIL */
+    .btn-jw-header {
+        background: transparent;
+        border: 1px solid #f97316;
+        color: #f97316;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 13px;
+        align-items: center;
+        transition: all 0.2s;
+    }
+    .btn-jw-header:hover {
+        background: rgba(249, 115, 22, 0.1);
+    }
+
+    .dropdown-jw {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 5px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: var(--shadow-premium);
+        z-index: 100;
+        min-width: 250px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .jw-item {
+        width: 100%;
+        padding: 12px 15px;
+        background: transparent;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .jw-item:hover {
+        background: var(--hover-bg);
+    }
+
+    /* INDICADOR DE GUARDADO AUTOMÁTICO */
+    .indicador-guardado {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .indicador-guardado.guardando {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    .indicador-guardado.guardado {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .indicador-guardado.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    /* Animación de giro para el Loader */
+    :global(.spin-icon) {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 </style>
