@@ -586,105 +586,6 @@ async function actualizarDetallesParte(parteId: number) {
     await exportarProgramaPDF(partesFiltradas, tituloPDF);
   }
 
-  // --- MÓDULO DE EMAILS MASIVOS ---
-  let mostrarModalEmails = false;
-  let cargandoEmails = false;
-  let diaFiltroEmail = 'Viernes';
-  let todosLosDatosEmails: { email: string, dia: string }[] = [];
-  let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
-
-  $: emailsFiltrados = (() => {
-      if (!todosLosDatosEmails || todosLosDatosEmails.length === 0) return [];
-      if (diaFiltroEmail === 'Todos') {
-        const s = new Set<string>();
-        todosLosDatosEmails.forEach(i => { if (i.email && i.email.trim()) s.add(i.email.trim()); });
-        return Array.from(s);
-      }
-      return todosLosDatosEmails.filter(item => item.dia === diaFiltroEmail).map(item => item.email);
-  })();
-
-  async function prepararModalEmails() {
-    cargandoEmails = true;
-    todosLosDatosEmails = [];
-    // Eliminamos la lógica de 'defecto', 'asuntoTodos', etc. 
-    // Ya no las necesitamos aquí.
-
-    const dias = ['Viernes', 'Sábado', 'Domingo'];
-    
-    await Promise.all(dias.map(async (dia) => {
-        try {
-            const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
-            res.forEach(parte => { 
-                if (parte.email_orador && !parte.es_video) {
-                    todosLosDatosEmails.push({ 
-                        email: parte.email_orador.trim(), 
-                        dia: dia 
-                    });
-                } 
-            });
-        } catch (e) { console.error(e); }
-    }));
-    
-    todosLosDatosEmails = todosLosDatosEmails;
-    diaFiltroEmail = diaSeleccionado;
-    cargandoEmails = false;
-    mostrarModalEmails = true;
-}
-
-  function cambiarDiaFiltro(dia: string) {
-      diaFiltroEmail = dia;
-  }
-
-  function copiarEmailsAlPortapapeles() {
-    if (emailsFiltrados.length === 0) return alert(`No hay correos para copiar del ${diaFiltroEmail}.`);
-    const texto = emailsFiltrados.join(';');
-    
-    if (navigator && navigator.clipboard) {
-        navigator.clipboard.writeText(texto)
-            .then(() => alert(`¡Listo! ${emailsFiltrados.length} correos copiados.`))
-            .catch(() => prompt('Copiar (Ctrl+C):', texto));
-    } else {
-        prompt('Copiar (Ctrl+C):', texto);
-    }
-  }
-
-  async function enviarEmailADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      openUrl(`mailto:${emailsFiltrados.join(';')}`);
-  }
-
-  async function enviarJWPUBADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}`);
-  }
-
-  async function enviarEmailRecordatorioADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
-      openUrl(`mailto:${emailsFiltrados.join(';')}?subject=${asunto}`);
-  }
-
-  async function enviarJWPUBRecordatorioADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
-      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}&subject=${asunto}`);
-  }
-
-  async function abrirTodosPorMetodo() {
-    if (emailsFiltrados.length === 0) return alert(`⚠️ No hay correos para el ${diaFiltroEmail}.`);
-    const lista = emailsFiltrados.join(';');
-    
-    if (metodoSeleccion === 'jwpub') {
-        // Solo abrimos el redactor con la lista de destinatarios
-        const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}`;
-        openUrl(url);
-    } else {
-        const mailto = `mailto:${lista}`;
-        openUrl(mailto);
-    }
-    mostrarModalEmails = false;
-}
-
   // --- FILTRADO PARA SUGERENCIAS ---
   function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase(); 
@@ -970,10 +871,6 @@ async function cargarTodosDias() {
 
     <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
       <Trash2 size={18}/> <span>Limpiar toda la lista</span>
-    </button>
-
-    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }}>
-      <Mail size={18}/> <span>Email a Todos</span>
     </button>
 
     <button class="btn-expandir-todos" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
@@ -1440,99 +1337,6 @@ async function cargarTodosDias() {
   </div>
 {/if}
 
-{#if mostrarModalEmails}
-  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={() => mostrarModalEmails = false} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && (mostrarModalEmails=false)} transition:fade={{ duration: 200 }}>
-    <div class="modal-emails" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown={(e) => e.key === 'Escape' && (mostrarModalEmails=false)}>
-      
-      <div class="modal-header">
-        <h3><Mail size={20}/> Email a todos los oradores</h3>
-        <button class="btn-close" on:click={() => mostrarModalEmails = false} aria-label="Cerrar">
-          <X size={20}/>
-        </button>
-      </div>
-      
-      <div class="modal-contenido">
-        
-        <div class="filtro-dia-contenedor">
-          <div class="label-titulo">Enviar correos para el día:</div>
-          <div class="selector-dias">
-            {#each ['Viernes', 'Sábado', 'Domingo', 'Todos'] as dia}
-              <button 
-                class="btn-dia {diaFiltroEmail === dia ? 'activo' : ''} " 
-                on:click={() => cambiarDiaFiltro(dia)}
-                type="button"
-                aria-pressed={diaFiltroEmail === dia}
-              >
-                {dia}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-        <div class="seccion-metodo-envio" style="margin-bottom: 24px; padding: 15px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border);">
-          <div class="editor-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <div class="label-titulo" style="margin-bottom: 0;">Método de Envío</div>
-            <div class="destinatarios-badge">
-              <span class="status-dot"></span>
-              {emailsFiltrados.length} oradores seleccionados
-            </div>
-          </div>
-          
-          <div class="radio-group" style="display: flex; gap: 24px;">
-            <label class="radio-label">
-              <input type="radio" bind:group={metodoSeleccion} value="mailto"> 
-              <span>Gmail / Correo Sistema</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" bind:group={metodoSeleccion} value="jwpub"> 
-              <span>JWPUB</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
-        <div class="opciones-email-grid">
-          <button
-            class="opcion-email"
-            on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'mailto'}
-            aria-disabled={metodoSeleccion !== 'mailto'}
-            title={metodoSeleccion !== 'mailto' ? 'Cambia a Gmail/Mail arriba' : `Enviar emails (${diaFiltroEmail})`}
-          >
-            <div class="icon-wrapper azul"><Mail size={24}/></div>
-            <span>Email {diaFiltroEmail}</span>
-          </button>
-
-          <button
-            class="opcion-email"
-            on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'jwpub'}
-            aria-disabled={metodoSeleccion !== 'jwpub'}
-            title={metodoSeleccion !== 'jwpub' ? 'Cambia a JWPUB arriba' : `Enviar JWPUB (${diaFiltroEmail})`}
-          >
-            <div class="icon-wrapper morado"><FileJson size={24}/></div>
-            <span>JWPUB {diaFiltroEmail}</span>
-          </button>  
-        </div>
-
-      </div>
-
-      <div class="modal-footer">
-        <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsFiltrados.length===0}>
-          Copiar lista de correos
-        </button>
-        <div class="flex-spacer"></div>
-        <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
-          Cancelar
-        </button>
-        <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsFiltrados.length===0}>
-          🚀 Procesar {emailsFiltrados.length} oradores
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
 {#if mostrarModalLimpiar}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={() => mostrarModalLimpiar = false} 
@@ -1871,41 +1675,6 @@ async function cargarTodosDias() {
 .btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
 .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
 .btn-cancel:hover { background: var(--hover-bg); }
-
-/* SECCIÓN EMAILS */
-.filtro-dia-contenedor { margin-bottom: 24px; }
-.label-titulo { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 8px; }
-.selector-dias { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn-dia { background: transparent; border: 1px solid var(--border); padding: 8px 16px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; color: var(--text-main); cursor: pointer; transition: all 0.2s; }
-.btn-dia:hover { background: var(--hover-bg); border-color: var(--primary); }
-.btn-dia.activo { background: var(--primary); color: white; border-color: var(--primary); }
-
-.opciones-email-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
-.opcion-email { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s; text-align: left; width: 100%; box-shadow: var(--shadow-premium); }
-.opcion-email span { font-size: 14px; font-weight: 700; color: var(--text-main); line-height: 1.3; flex: 1; }
-.opcion-email:hover:not(:disabled) { background: var(--hover-bg); border-color: var(--primary); transform: translateY(-2px); }
-.opcion-email:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); box-shadow: none; }
-
-.icon-wrapper { position: relative; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.icon-wrapper.azul { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
-.icon-wrapper.morado { background: rgba(147, 51, 234, 0.15); color: #9333ea; }
-
-.seccion-editor { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-.editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.destinatarios-badge { background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 12px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
-
-.grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
-.radio-group { display: flex; gap: 16px; padding: 8px 0; }
-.radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-main); font-size: 0.9rem; }
-.radio-label input[type="radio"] { accent-color: var(--primary); }
-
-.modal-button { padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); }
-.modal-button:hover:not(:disabled) { background: var(--hover-bg); border-color: var(--primary); }
-.modal-button.primary { background: var(--primary); color: white; border: none; }
-.modal-button.primary:hover:not(:disabled) { opacity: 0.9; transform: scale(1.02); }
-.flex-spacer { flex: 1; }
 
 .btn-header-filtros { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; }
 .btn-header-filtros:hover { background: var(--hover-bg); border-color: var(--primary); }
