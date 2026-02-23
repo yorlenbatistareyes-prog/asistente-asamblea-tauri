@@ -587,8 +587,6 @@ async function actualizarDetallesParte(parteId: number) {
   }
 
   // --- NUEVA LÓGICA: EMAIL MASIVO A TODOS ---
-  let mostrarMenuEmailTodos = false;
-
   async function enviarEmailMasivo(idPlantilla: string) {
     // 1. Extraer correos de los oradores que están actualmente filtrados en la pantalla
     const emails = new Set<string>();
@@ -636,6 +634,24 @@ async function actualizarDetallesParte(parteId: number) {
         alert("Ocurrió un error al generar el correo masivo.\n" + error);
     }
   }
+
+  // --- NUEVA LÓGICA: EMAIL MASIVO A TODOS ---
+  let mostrarMenuEmailTodos = false;
+
+  // Contador reactivo: Cuántos oradores filtrados SÍ tienen correo
+  $: cantidadCorreosMasivos = new Set(
+      partesFiltradas
+          .filter(p => p.email_orador && p.email_orador.trim() && !p.es_video)
+          .map(p => p.email_orador.trim())
+  ).size;
+
+  // Contador reactivo: Cuántos oradores asignados NO tienen correo
+  $: cantidadSinCorreo = partesFiltradas.filter(p => 
+      !p.es_video && 
+      p.nombre_orador && p.nombre_orador.trim() !== '' && 
+      (!p.email_orador || p.email_orador.trim() === '')
+  ).length;
+
 
   // --- FILTRADO PARA SUGERENCIAS ---
   function filtrarOradores() { 
@@ -780,7 +796,7 @@ $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, fil
     return `${diasSeleccionados.length} días`;
   })();
 
-  // Función mejorada para cerrar cualquiera de los dos menús si haces clic fuera
+ // Función mejorada para cerrar cualquiera de los menús si haces clic fuera
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
     if (mostrarSelectorDia && !target.closest('.dia-sel')) {
@@ -789,8 +805,7 @@ $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, fil
     if (mostrarSelectorOrdenar && !target.closest('.ord-sel')) {
       mostrarSelectorOrdenar = false;
     }
-
-      if (mostrarMenuEmailTodos && !target.closest('.email-masivo-container')) {
+    if (mostrarMenuEmailTodos && !target.closest('.email-masivo-container')) {
       mostrarMenuEmailTodos = false;
     }
   }
@@ -934,18 +949,44 @@ async function cargarTodosDias() {
       </button>
       
       {#if mostrarMenuEmailTodos}
-        <div class="dropdown-dias" style="right: 0; left: auto; min-width: 250px;" on:click|stopPropagation>
+        <div class="dropdown-dias" style="right: 0; left: auto; min-width: 260px; padding: 0; overflow: hidden;" on:click|stopPropagation>
           
-          <button class="dia-opcion" on:click={() => enviarEmailMasivo('email_todos')}>
-            <FileJson size={16} color="#f97316"/> 
+          <div style="padding: 12px 15px; background: var(--bg-secondary); border-bottom: 1px solid var(--border);">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">
+              Destinatarios listos
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: {cantidadCorreosMasivos > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color: {cantidadCorreosMasivos > 0 ? '#10b981' : '#ef4444'}; font-weight: bold; font-size: 12px;">
+                {cantidadCorreosMasivos}
+              </div>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">
+                {cantidadCorreosMasivos === 1 ? 'Orador con correo' : 'Oradores con correo'}
+              </span>
+            </div>
+          </div>
+
+          {#if cantidadSinCorreo > 0}
+            <div style="padding: 8px 15px; background: rgba(245, 158, 11, 0.1); border-bottom: 1px solid var(--border); display: flex; gap: 8px; color: #d97706; font-size: 11.5px; font-weight: 600;">
+              <span>⚠️ Atención: {cantidadSinCorreo} {cantidadSinCorreo === 1 ? 'asignado' : 'asignados'} sin dirección de correo.</span>
+            </div>
+          {/if}
+          
+          <button class="dia-opcion" 
+                  on:click={() => enviarEmailMasivo('email_todos')}
+                  disabled={cantidadCorreosMasivos === 0}
+                  style={cantidadCorreosMasivos === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
+            <FileJson size={16} color={cantidadCorreosMasivos > 0 ? "#f97316" : "var(--text-secondary)"}/> 
             <span style="font-weight:600;">JWPUB a todos</span>
           </button>
           
-          <div class="separator-dropdown"></div>
+          <div class="separator-dropdown" style="margin: 0;"></div>
           
-          <button class="dia-opcion" on:click={() => enviarEmailMasivo('email_todos_recordatorio')}>
-            <Clock size={16} color="#3b82f6"/> 
-            <span style="font-weight:600;">JWPUB Recordatorio a todos</span>
+          <button class="dia-opcion" 
+                  on:click={() => enviarEmailMasivo('email_todos_recordatorio')}
+                  disabled={cantidadCorreosMasivos === 0}
+                  style={cantidadCorreosMasivos === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
+            <Clock size={16} color={cantidadCorreosMasivos > 0 ? "#3b82f6" : "var(--text-secondary)"}/> 
+            <span style="font-weight:600;">JWPUB Recordatorio</span>
           </button>
           
         </div>
