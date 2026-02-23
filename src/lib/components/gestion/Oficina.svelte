@@ -186,6 +186,44 @@
 
   const getHermanosFiltrados = () => !terminoBusqueda ? listaHermanos : listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
+
+  // --- EXPORTACIÓN INTEGRAL ---
+  async function manejarExportacionTotal() {
+      if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
+      
+      try {
+          // 1. Cargamos el personal (Auxiliares) 
+          const personalData = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: 'Viernes' }) as any[];
+          const personal = personalData.filter((d: any) => d.tipo_asignacion === 'personal_oficina');
+
+          // 2. Cargamos las asignaciones de los 3 días
+          const dias = ['Viernes', 'Sábado', 'Domingo'];
+          const asignacionesPorDia: { [key: string]: any } = {};
+
+          for (const dia of dias) {
+              const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia }) as any[];
+              
+              asignacionesPorDia[dia] = {
+                  presidente_manana: datos.find(d => d.tipo_asignacion === 'presidente_manana'),
+                  oracion_apertura: datos.find(d => d.tipo_asignacion === 'oracion_apertura'),
+                  bosquejos_manana: datos.find(d => d.tipo_asignacion === 'bosquejos_manana'),
+                  plataforma_manana: datos.find(d => d.tipo_asignacion === 'plataforma_manana'),
+                  presidente_tarde: datos.find(d => d.tipo_asignacion === 'presidente_tarde'),
+                  oracion_conclusion: datos.find(d => d.tipo_asignacion === 'oracion_conclusion'),
+                  bosquejos_tarde: datos.find(d => d.tipo_asignacion === 'bosquejos_tarde'),
+                  plataforma_tarde: datos.find(d => d.tipo_asignacion === 'plataforma_tarde')
+              };
+          }
+
+          // 3. Enviamos toda esta información masiva al generador de PDF
+          await exportarOficinaPDF(asignacionesPorDia, personal, "Resumen General de Oficina");
+
+      } catch (e) {
+          console.error("Error al recopilar datos para PDF:", e);
+          alert("No se pudo generar el resumen: " + e);
+      }
+  }
+
 </script>
 
 <div class="contenedor-oficina">
@@ -195,7 +233,7 @@
             <p>Personal, horario, formularios, etc.</p>
         </div>
         
-        <button class="btn-exportar" on:click={() => exportarOficinaPDF(oficina, oficina.personal, diaSeleccionado)}>
+        <button class="btn-exportar" on:click={manejarExportacionTotal}>
             <FileUp size={18}/> Exportar PDF
         </button>
     </div>

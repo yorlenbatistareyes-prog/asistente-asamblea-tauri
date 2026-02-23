@@ -163,16 +163,123 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
 
 /**
  * EXPORTAR OFICINA
+ * Personal en página 1, y cada día de asignación en una página nueva.
  */
-export async function exportarOficinaPDF(oficina: any, personal: any[], dia: string) {
-    const doc = new jsPDF();
-    doc.text(`Asignaciones de Oficina - ${dia}`, 14, 20);
+export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo: string) {
+    // 1. OBTENER DATOS DE LA ASAMBLEA
+    let asamblea = { tema: 'Asamblea', fecha: '', nombre: 'Asamblea Regional' };
+    const guardadoAsamblea = localStorage.getItem('asambleaActiva');
+    if (guardadoAsamblea) {
+        asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
+    }
 
+    const doc = new jsPDF();
+    let startY = 15;
+
+    // --- PÁGINA 1: ENCABEZADO Y PERSONAL DE OFICINA ---
+    doc.setFontSize(14);
+    doc.setTextColor(40);
+    doc.setFont("helvetica", "bold");
+    doc.text((asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), 105, startY, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(80);
+    doc.text((asamblea.tema || "").toUpperCase(), 105, startY + 6, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(asamblea.fecha || "", 105, startY + 11, { align: 'center' });
+
+    doc.setFontSize(11);
+    doc.setTextColor(59, 130, 246); 
+    doc.setFont("helvetica", "bold");
+    doc.text("RESUMEN GENERAL DE OFICINA", 105, startY + 19, { align: 'center' });
+
+    startY += 28;
+
+    // Píldora de Auxiliares
+    doc.setFillColor(71, 85, 105); // Gris oscuro
+    doc.roundedRect(14, startY, 45, 7, 3.5, 3.5, 'F'); 
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.text("AUXILIARES", 14 + (45 / 2), startY + 5, { align: 'center' });
+
+    autoTable(doc, {
+        startY: startY + 10,
+        margin: { top: 15, bottom: 20 },
+        head: [['Nombre Completo', 'Congregación', 'Recibido', 'Presente']],
+        body: personal.map(p => [
+            p.nombre_completo || '-', 
+            p.nombre_congregacion || '-', 
+            estado(p.estado),
+            check(p.esta_presente)
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [71, 85, 105], fontSize: 9, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' }
+    });
+
+    // --- PÁGINAS SIGUIENTES: ASIGNACIONES DIARIAS ---
+    const dias = ['Viernes', 'Sábado', 'Domingo'];
+    
+    for (const dia of dias) {
+        const d = datosDias[dia];
+        // Comprobamos si hay al menos un hermano asignado ese día
+        const hayDatos = Object.values(d).some(val => val !== null && val !== undefined);
+        
+        if (!hayDatos) continue;
+
+        // AQUÍ ESTÁ LA MAGIA: Forzamos una página nueva para cada día que tenga datos
+        doc.addPage();
+        startY = 20; // Reiniciamos la altura para la nueva página
+
+        // Píldora del Día
+        doc.setFillColor(59, 130, 246); // Azul
+        doc.roundedRect(14, startY, 35, 7, 3.5, 3.5, 'F'); 
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(dia.toUpperCase(), 14 + (35 / 2), startY + 5, { align: 'center' });
+
+        const rows = [
+            ['Presidente (Mañana)', d.presidente_manana?.nombre_completo || '-'],
+            ['Oración de Apertura', d.oracion_apertura?.nombre_completo || '-'],
+            ['Seguimiento de Bosquejos (M)', d.bosquejos_manana?.nombre_completo || '-'],
+            ['Acompañante de Plataforma (M)', d.plataforma_manana?.nombre_completo || '-'],
+            ['Presidente (Tarde)', d.presidente_tarde?.nombre_completo || '-'],
+            ['Oración de Conclusión', d.oracion_conclusion?.nombre_completo || '-'],
+            ['Seguimiento de Bosquejos (T)', d.bosquejos_tarde?.nombre_completo || '-'],
+            ['Acompañante de Plataforma (T)', d.plataforma_tarde?.nombre_completo || '-'],
+        ];
+
+        autoTable(doc, {
+            startY: startY + 10,
+            margin: { top: 15, bottom: 20 },
+            head: [['Asignación / Responsabilidad', 'Hermano Asignado']],
+            body: rows,
+            theme: 'grid',
+            headStyles: { fillColor: [59, 130, 246], fontSize: 9, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' },
+            columnStyles: {
+                0: { cellWidth: 80, fontStyle: 'bold', textColor: [60, 60, 60] },
+            }
+        });
+    }
+
+    // --- GUARDAR ---
     try {
-        const pdfBytes = new Uint8Array(doc.output('arraybuffer'));
-        const path = await save({ defaultPath: `Oficina_${dia}.pdf` });
-        if (path) await writeFile(path, pdfBytes);
-    } catch (e) {
-        console.error(e);
+        const pdfArrayBuffer = doc.output('arraybuffer');
+        const pdfBytes = new Uint8Array(pdfArrayBuffer);
+        const selectedPath = await save({
+            defaultPath: `Resumen_Oficina.pdf`,
+            filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        });
+        if (selectedPath) {
+            await writeFile(selectedPath, pdfBytes);
+            alert(`✅ Resumen de oficina guardado correctamente.`);
+        }
+    } catch (err: any) {
+        console.error(err);
+        alert("⚠️ Error al guardar el PDF. Verifique si el archivo está abierto.");
     }
 }
