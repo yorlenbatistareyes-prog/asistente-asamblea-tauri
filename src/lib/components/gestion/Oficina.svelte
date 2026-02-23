@@ -59,8 +59,7 @@
   }
 
   $: if (diaSeleccionado && asambleaId) cargarDatos();
-
-  function organizarOficina(datos: any[]) {
+function organizarOficina(datos: any[]) {
       let nuevaOficina: any = { 
           personal: [], 
           presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null, 
@@ -71,7 +70,7 @@
           datos.forEach(d => {
               d.recibido_manual = d.estado === 'Confirmado';
               d.esta_presente = d.esta_presente === true || d.esta_presente === 1;
-              d.ensayo_terminado = d.ensayo_terminado || false;
+              // Eliminamos la línea de ensayo_terminado aquí
 
               if (d.tipo_asignacion === 'personal_oficina') {
                   nuevaOficina.personal.push(d);
@@ -154,16 +153,29 @@
               id: objeto.id, tipoAccion: tipoAccionBackend, valorNuevo: nuevoEstado
           });
           
+          // 1. Actualizamos el modal (botones)
+          asignacionActual = { ...asignacionActual }; 
+
+          // 2. Actualizamos la lista de fondo (etiquetas en tarjetas)
           if (objeto.es_personal) {
              const idx = oficina.personal.findIndex((p: any) => p.id === objeto.id);
-             if (idx >= 0) oficina.personal[idx] = { ...objeto };
+             if (idx >= 0) {
+                 oficina.personal[idx] = { ...objeto };
+                 oficina.personal = [...oficina.personal]; // Forzar actualización de array
+             }
           } else if (objeto.rol_key) {
+             // IMPORTANTE: Reasignamos la propiedad específica y el objeto completo
              oficina[objeto.rol_key] = { ...objeto };
           }
-          oficina = {...oficina};
+          
+          // Sincronización final para que Svelte detecte el cambio en cualquier parte del objeto
+          oficina = { ...oficina };
+
       } catch (e) { 
           alert("Error: " + e); 
           objeto[campo] = !nuevoEstado;
+          asignacionActual = { ...asignacionActual };
+          oficina = { ...oficina };
       }
   }
 
@@ -323,31 +335,59 @@
                     <Panel padding="20px" clasesExtra="panel-seccion-override">
                         <div class="header-panel sun"><h4>☀️ Sesión de Mañana</h4></div>
                         <div class="lista-puestos">
-                            {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item}
-                                <div class="puesto-item">
-                                    <label>{item.label}</label>
-                                    <button class="btn-puesto" class:ocupado={oficina[item.key]} on:click={() => clickEnAsignacion(item.key, oficina[item.key])}>
-                                        <span>{nombreTxt(oficina[item.key])}</span>
-                                        {#if oficina[item.key]} <Settings size={14}/> {:else} <ChevronRight size={14}/> {/if}
-                                    </button>
-                                </div>
-                            {/each}
+    {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item}
+        <div class="puesto-item">
+            <label>{item.label}</label>
+            <button class="btn-puesto" class:ocupado={oficina[item.key]} on:click={() => clickEnAsignacion(item.key, oficina[item.key])}>
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <span>{nombreTxt(oficina[item.key])}</span>
+                    
+                    {#if oficina[item.key]}
+                        <div class="badges-estado" style="margin-top: 0; display: flex; gap: 4px;">
+                            {#if oficina[item.key].recibido_manual} 
+                                <span class="badge blue" style="font-size: 8px; padding: 1px 4px;">Recibido</span> 
+                            {/if}
+                            {#if oficina[item.key].esta_presente} 
+                                <span class="badge green" style="font-size: 8px; padding: 1px 4px;">Presente</span> 
+                            {/if}
                         </div>
+                    {/if}
+                </div>
+                
+                {#if oficina[item.key]} <Settings size={14}/> {:else} <ChevronRight size={14}/> {/if}
+            </button>
+        </div>
+    {/each}
+</div>
                     </Panel>
 
                     <Panel padding="20px" clasesExtra="panel-seccion-override">
                         <div class="header-panel sunset"><h4>🌅 Sesión de Tarde</h4></div>
                         <div class="lista-puestos">
-                            {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item}
-                                <div class="puesto-item">
-                                    <label>{item.label}</label>
-                                    <button class="btn-puesto" class:ocupado={oficina[item.key]} on:click={() => clickEnAsignacion(item.key, oficina[item.key])}>
-                                        <span>{nombreTxt(oficina[item.key])}</span>
-                                        {#if oficina[item.key]} <Settings size={14}/> {:else} <ChevronRight size={14}/> {/if}
-                                    </button>
-                                </div>
-                            {/each}
+    {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item}
+        <div class="puesto-item">
+            <label>{item.label}</label>
+            <button class="btn-puesto" class:ocupado={oficina[item.key]} on:click={() => clickEnAsignacion(item.key, oficina[item.key])}>
+                <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <span>{nombreTxt(oficina[item.key])}</span>
+                    
+                    {#if oficina[item.key]}
+                        <div class="badges-estado" style="margin-top: 0; display: flex; gap: 4px;">
+                            {#if oficina[item.key].recibido_manual} 
+                                <span class="badge blue" style="font-size: 8px; padding: 1px 4px;">Recibido</span> 
+                            {/if}
+                            {#if oficina[item.key].esta_presente} 
+                                <span class="badge green" style="font-size: 8px; padding: 1px 4px;">Presente</span> 
+                            {/if}
                         </div>
+                    {/if}
+                </div>
+                
+                {#if oficina[item.key]} <Settings size={14}/> {:else} <ChevronRight size={14}/> {/if}
+            </button>
+        </div>
+    {/each}
+</div>
                     </Panel>
                 </div>
             </div>
@@ -389,19 +429,24 @@
         </div>
         <div class="modal-body">
             <div class="estados-row">
-                <button class="btn-estado blue" class:active={asignacionActual.recibido_manual} 
-                        on:click={() => toggleStatus(asignacionActual, 'recibido_manual', 'confirmacion')}>
-                    <FileCheck size={20}/> RECIBIDO
-                </button>
-                <button class="btn-estado green" class:active={asignacionActual.esta_presente} 
-                        on:click={() => toggleStatus(asignacionActual, 'esta_presente', 'presencia')}>
-                    <UserCheck size={20}/> PRESENTE
-                </button>
-                <button class="btn-estado yellow" class:active={asignacionActual.ensayo_terminado} 
-                        on:click={() => toggleStatus(asignacionActual, 'ensayo_terminado', 'ensayo')}>
-                    <Mic size={20}/> ENSAYO
-                </button>
-            </div>
+    <button 
+        class="btn-estado blue" 
+        class:active={asignacionActual.recibido_manual} 
+        on:click={() => toggleStatus(asignacionActual, 'recibido_manual', 'confirmacion')}
+    >
+        <FileCheck size={20}/> 
+        <span>RECIBIDO</span>
+    </button>
+
+    <button 
+        class="btn-estado green" 
+        class:active={asignacionActual.esta_presente} 
+        on:click={() => toggleStatus(asignacionActual, 'esta_presente', 'presencia')}
+    >
+        <UserCheck size={20}/> 
+        <span>PRESENTE</span>
+    </button>
+</div>
             <div class="acciones-lista">
                 <button class="btn-accion" on:click={() => procesarImpresionLocal(asignacionActual)}><Printer size={16}/> Imprimir Carta</button>
             </div>
@@ -507,6 +552,7 @@
     /* Botones de Estado amigables con Modo Oscuro */
     .btn-estado.active.blue { background: rgba(59, 130, 246, 0.1); border-color: var(--primary); color: var(--primary); }
     .btn-estado.active.green { background: rgba(34, 197, 94, 0.1); border-color: #22c55e; color: #22c55e; }
+    
     .btn-estado.active.yellow { background: rgba(234, 179, 8, 0.1); border-color: #eab308; color: #eab308; }
     
     .acciones-lista { display: grid; grid-template-columns: 1fr; gap: 10px; }
