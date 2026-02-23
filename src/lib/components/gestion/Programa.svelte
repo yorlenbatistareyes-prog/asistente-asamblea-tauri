@@ -586,6 +586,57 @@ async function actualizarDetallesParte(parteId: number) {
     await exportarProgramaPDF(partesFiltradas, tituloPDF);
   }
 
+  // --- NUEVA LÓGICA: EMAIL MASIVO A TODOS ---
+  let mostrarMenuEmailTodos = false;
+
+  async function enviarEmailMasivo(idPlantilla: string) {
+    // 1. Extraer correos de los oradores que están actualmente filtrados en la pantalla
+    const emails = new Set<string>();
+    partesFiltradas.forEach(p => {
+        if (p.email_orador && p.email_orador.trim() && !p.es_video) {
+            emails.add(p.email_orador.trim());
+        }
+    });
+
+    const listaCorreos = Array.from(emails).join(';');
+    if (listaCorreos.length === 0) {
+        return alert("⚠️ No hay correos registrados para las partes que estás viendo actualmente en pantalla.");
+    }
+
+    try {
+        // 2. Obtener la plantilla según el botón presionado
+        const plantilla = obtenerPlantillaPorId(idPlantilla);
+        const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+        const cuerpoBase = plantilla?.body || "";
+
+        // 3. Crear contexto simulado para llenar los marcadores globales (Fecha, Circuito, etc.)
+        const objetoSimulado = {
+            nombre_completo: 'Hermanos', nombre_pila: 'Hermanos', apellidos: '',
+            tema: '', hora_inicio: '', hora: '', tipo_asignacion: 'General',
+            numero_bosquejo: '', email: '', telefono: '', congregacion: ''
+        };
+
+        const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+
+        // 4. Procesar marcadores
+        const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+        const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+        // 5. Abrir el correo JWPUB (Usamos 'to=' para evitar bloqueos del sistema)
+        const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+                    `&to=${encodeURIComponent(listaCorreos)}` +
+                    `&subject=${encodeURIComponent(asuntoFinal)}` +
+                    `&body=${encodeURIComponent(cuerpoFinal)}`;
+        openUrl(url);
+
+        mostrarMenuEmailTodos = false;
+
+    } catch (error) {
+        console.error("Error al procesar el email masivo:", error);
+        alert("Ocurrió un error al generar el correo masivo.\n" + error);
+    }
+  }
+
   // --- FILTRADO PARA SUGERENCIAS ---
   function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase(); 
@@ -738,6 +789,10 @@ $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, fil
     if (mostrarSelectorOrdenar && !target.closest('.ord-sel')) {
       mostrarSelectorOrdenar = false;
     }
+
+      if (mostrarMenuEmailTodos && !target.closest('.email-masivo-container')) {
+      mostrarMenuEmailTodos = false;
+    }
   }
 
 // Cargar todos los días
@@ -872,6 +927,30 @@ async function cargarTodosDias() {
     <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
       <Trash2 size={18}/> <span>Limpiar toda la lista</span>
     </button>
+
+    <div class="selector-dia-container email-masivo-container">
+      <button class="btn-header-orange" on:click|stopPropagation={() => {mostrarMenuEmailTodos = !mostrarMenuEmailTodos; mostrarSelectorDia = false; mostrarSelectorOrdenar = false;}}>
+        <Mail size={18}/> <span>Email JW a todos</span>
+      </button>
+      
+      {#if mostrarMenuEmailTodos}
+        <div class="dropdown-dias" style="right: 0; left: auto; min-width: 250px;" on:click|stopPropagation>
+          
+          <button class="dia-opcion" on:click={() => enviarEmailMasivo('email_todos')}>
+            <FileJson size={16} color="#f97316"/> 
+            <span style="font-weight:600;">JWPUB a todos</span>
+          </button>
+          
+          <div class="separator-dropdown"></div>
+          
+          <button class="dia-opcion" on:click={() => enviarEmailMasivo('email_todos_recordatorio')}>
+            <Clock size={16} color="#3b82f6"/> 
+            <span style="font-weight:600;">JWPUB Recordatorio a todos</span>
+          </button>
+          
+        </div>
+      {/if}
+    </div>
 
     <button class="btn-expandir-todos" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
       {#if todasExpandidas}
