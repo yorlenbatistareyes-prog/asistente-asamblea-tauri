@@ -9,12 +9,33 @@ const estado = (txt: string) => txt === 'Confirmado' ? 'SÍ' : '-';
 
 /**
  * EXPORTAR PROGRAMA
- * Versión ultra-estable usando únicamente writeFile.
+ * Versión con Encabezado y Pie de Página desde localStorage
  */
 export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
-    // Validación para evitar errores si los datos no han cargado
     if (!partes || !Array.isArray(partes)) {
         return;
+    }
+
+    // 1. OBTENER DATOS DE LA ASAMBLEA (Para el Encabezado)
+    let asamblea = { tema: 'Asamblea', fecha: '', nombre: 'Asamblea Regional' };
+    const guardadoAsamblea = localStorage.getItem('asambleaActiva');
+    if (guardadoAsamblea) {
+        asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
+    }
+
+    // 2. OBTENER PIE DE PÁGINA (Desde la Configuración del Membrete en LocalStorage)
+    let pieDePagina = "";
+    const guardadoMembrete = localStorage.getItem('config_membrete');
+    if (guardadoMembrete) {
+        try {
+            const configMembrete = JSON.parse(guardadoMembrete);
+            // Solo lo usamos si el interruptor "usarPiePagina" está encendido
+            if (configMembrete.usarPiePagina && configMembrete.piePagina) {
+                pieDePagina = configMembrete.piePagina;
+            }
+        } catch (e) {
+            console.error("Error al leer config_membrete:", e);
+        }
     }
 
     const doc = new jsPDF();
@@ -28,30 +49,41 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
         if (!esPrimeraPaginaGlobal) {
             doc.addPage();
         }
-        esPrimeraPaginaGlobal = false;
 
-        // --- ENCABEZADO ---
-        doc.setFontSize(18);
-        doc.setTextColor(40);
-        doc.setFont("helvetica", "bold");
-        doc.text("Programa de Asamblea", 14, 15);
-        
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Generado: ${new Date().toLocaleDateString()} - ${tituloDia}`, 14, 21);
+        let startY = 15; 
+
+        // --- ENCABEZADO (SOLO EN LA PRIMERA PÁGINA) ---
+        if (esPrimeraPaginaGlobal) {
+            doc.setFontSize(14);
+            doc.setTextColor(40);
+            doc.setFont("helvetica", "bold");
+            doc.text((asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), 105, 15, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setTextColor(80);
+            doc.text((asamblea.tema || "").toUpperCase(), 105, 21, { align: 'center' });
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(asamblea.fecha || "", 105, 26, { align: 'center' });
+
+            startY = 35; 
+        }
+
+        esPrimeraPaginaGlobal = false;
 
         // --- FRANJA DEL DÍA ---
         doc.setFillColor(59, 130, 246); 
-        doc.rect(0, 26, 210, 8, 'F');
+        doc.rect(0, startY, 210, 8, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(11);
-        doc.text(dia.toUpperCase(), 105, 31.5, { align: 'center' });
+        doc.setFont("helvetica", "bold");
+        doc.text(dia.toUpperCase(), 105, startY + 5.5, { align: 'center' });
 
         // --- TABLA ---
         autoTable(doc, {
-            startY: 38,
-            margin: { top: 15, bottom: 15 }, 
+            startY: startY + 10,
+            margin: { top: 15, bottom: 20 }, 
             head: [["Hora", "Tema", "Orador", "Bosq.", "Recib.", "Pres.", "Ens."]],
             body: partesDelDia.map(p => [
                 p.hora_inicio || "-",
@@ -76,18 +108,27 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
         });
     }
 
+    // --- PIE DE PÁGINA (SOLO EN LA ÚLTIMA PÁGINA) ---
+    if (pieDePagina) {
+        const pageHeight = doc.internal.pageSize.getHeight();
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.setFont("helvetica", "italic");
+        
+        const textLines = doc.splitTextToSize(pieDePagina, 180);
+        doc.text(textLines, 105, pageHeight - 12, { align: 'center' });
+    }
+
     // --- PROCESO DE GUARDADO CON FS ---
     try {
         const pdfArrayBuffer = doc.output('arraybuffer');
         const pdfBytes = new Uint8Array(pdfArrayBuffer);
 
-        // 1. El diálogo para obtener la ruta
         const selectedPath = await save({
             defaultPath: `Programa_${tituloDia.replace(/ /g, '_')}.pdf`,
             filters: [{ name: 'PDF', extensions: ['pdf'] }],
         });
 
-        // 2. La escritura directa del archivo
         if (selectedPath) {
             await writeFile(selectedPath, pdfBytes);
             alert(`✅ Archivo guardado correctamente.`);
