@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2, X  } from 'lucide-svelte';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { open, confirm } from '@tauri-apps/plugin-dialog';
   import Panel from '$lib/components/ui/Panel.svelte';
 
   // --- VARIABLES ---
@@ -86,7 +86,14 @@
 
   // --- ELIMINAR ---
   async function eliminar(id: number, nombreCong: string) {
-    if(!confirm(`¿Seguro que quieres eliminar "${nombreCong}"?`)) return;
+    // Congelamos el código hasta que el usuario decida
+    const estaSeguro = await confirm(`¿Seguro que quieres eliminar "${nombreCong}"?`, {
+        title: 'Confirmar Eliminación',
+        kind: 'warning'
+    });
+
+    // Si le da a cancelar, abortamos
+    if (!estaSeguro) return;
 
     try {
       await invoke('eliminar_congregacion', { id });
@@ -98,7 +105,17 @@
 
   // --- LIMPIAR TODO ---
   async function limpiarTodo() {
-    if(!confirm("⚠️ ¡PELIGRO! \n\nSe borrarán las congregaciones de ESTA asamblea.\n¿Estás seguro?")) return;
+    // Diálogo nativo de Tauri
+    const estaSeguro = await confirm(
+        "⚠️ ¡PELIGRO! \n\nSe borrarán las congregaciones de ESTA asamblea.\n¿Estás seguro?", 
+        {
+            title: 'Peligro: Limpiar Congregaciones',
+            kind: 'warning'
+        }
+    );
+    
+    // Si cancela, no borramos nada
+    if (!estaSeguro) return;
     
     try {
       await invoke('limpiar_congregaciones', { asambleaId });
