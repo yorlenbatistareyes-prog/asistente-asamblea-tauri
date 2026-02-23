@@ -65,6 +65,35 @@ let filtrosFuente = {
 };
 let ordenarPor = 'secuencia'; // 'secuencia' o 'orador'
 
+// --- FILTROS TEMPORALES (BORRADOR DEL MODAL) ---
+let tempFiltroEstado = 'todos';
+let tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
+let tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+
+// --- FUNCIONES DE CONTROL DEL MODAL DE FILTROS ---
+function abrirPanelFiltros() {
+  // 1. Al abrir el modal, copiamos los filtros reales a los temporales
+  tempFiltroEstado = filtroEstado;
+  tempFiltrosCaracteristicas = { ...filtrosCaracteristicas };
+  tempFiltrosFuente = { ...filtrosFuente };
+  mostrarPanelFiltros = true;
+}
+
+function aplicarCambiosFiltros() {
+  // 2. Al dar clic en "Aplicar", pasamos los temporales a los reales (esto dispara la reactividad)
+  filtroEstado = tempFiltroEstado;
+  filtrosCaracteristicas = { ...tempFiltrosCaracteristicas };
+  filtrosFuente = { ...tempFiltrosFuente };
+  mostrarPanelFiltros = false;
+}
+
+function limpiarFiltrosTemporales() {
+  // 3. Limpia solo el modal, todavía debes darle "Aplicar" para ver el cambio
+  tempFiltroEstado = 'todos';
+  tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
+  tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+}
+
   // --- onMount ---
   onMount(async () => {
 
@@ -774,12 +803,6 @@ function ordenarPartes(partesAOrdenar: any[]) {
   });
 }
 
-function limpiarFiltros() {
-  filtroEstado = 'todos';
-  filtrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
-  filtrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
-  ordenarPor = 'secuencia';
-}
 
 function toggleDia(dia: string) {
   if (dia === 'Todos') {
@@ -916,7 +939,7 @@ async function cargarTodosDias() {
       {/if}
     </div>
 
-    <button class="btn-header-filtros" on:click={() => mostrarPanelFiltros = true}>
+   <button class="btn-header-filtros" on:click={abrirPanelFiltros}>
       <ListFilter size={18}/> <span>Otros Filtros</span>
     </button>
 
@@ -1600,84 +1623,81 @@ async function cargarTodosDias() {
       
       <div class="modal-body-filtros">
         <div class="filtros-activos-info">
-          <h4>Filtros activos</h4>
-          <p class="texto-secundario">Los filtros no están activos</p>
+          <h4>Filtros de búsqueda</h4>
+          <p class="texto-secundario">Selecciona los criterios y presiona "Aplicar"</p>
         </div>
 
-        <!-- ESTADO DE LA ASIGNACIÓN -->
         <div class="grupo-filtro">
           <button class="filtro-header">
             <span>Estado de la asignación</span>
             <ChevronDown size={16}/>
           </button>
           <div class="filtro-contenido">
-            <button class="btn-eliminar-filtro" on:click={() => filtroEstado = 'todos'}>
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltroEstado = 'todos'}>
               Eliminar
             </button>
             <label class="radio-label-filtro">
-              <input type="radio" bind:group={filtroEstado} value="todos">
+              <input type="radio" bind:group={tempFiltroEstado} value="todos">
               <span>Todos</span>
             </label>
             <label class="radio-label-filtro">
-              <input type="radio" bind:group={filtroEstado} value="asignada">
+              <input type="radio" bind:group={tempFiltroEstado} value="asignada">
               <span>Asignada</span>
             </label>
             <label class="radio-label-filtro">
-              <input type="radio" bind:group={filtroEstado} value="sin_asignar">
+              <input type="radio" bind:group={tempFiltroEstado} value="sin_asignar">
               <span>Sin asignar</span>
             </label>
           </div>
         </div>
 
-        <!-- CARACTERÍSTICAS DEL ORADOR -->
         <div class="grupo-filtro">
           <button class="filtro-header">
             <span>Características del orador</span>
             <ChevronDown size={16}/>
           </button>
           <div class="filtro-contenido">
-            <button class="btn-eliminar-filtro" on:click={() => filtrosCaracteristicas = {betelita: false, interprete: false, visitante: false}}>
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltrosCaracteristicas = {betelita: false, interprete: false, visitante: false}}>
               Eliminar
             </button>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosCaracteristicas.betelita}>
+              <input type="checkbox" bind:checked={tempFiltrosCaracteristicas.betelita}>
               <span>Betelita</span>
             </label>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosCaracteristicas.interprete}>
+              <input type="checkbox" bind:checked={tempFiltrosCaracteristicas.interprete}>
               <span>Intérprete</span>
             </label>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosCaracteristicas.visitante}>
+              <input type="checkbox" bind:checked={tempFiltrosCaracteristicas.visitante}>
               <span>Visitante</span>
             </label>
           </div>
         </div>
 
-        <!-- FUENTE -->
         <div class="grupo-filtro">
           <button class="filtro-header">
             <span>Fuente</span>
             <ChevronDown size={16}/>
           </button>
           <div class="filtro-contenido">
-            <button class="btn-eliminar-filtro" on:click={() => filtrosFuente = {en_persona: false, jw_stream: false, transmision_remota: false, video: false}}>
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltrosFuente = {en_persona: false, jw_stream: false, transmision_remota: false, video: false}}>
               Eliminar
             </button>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosFuente.en_persona}>
+              <input type="checkbox" bind:checked={tempFiltrosFuente.en_persona}>
               <span>En persona</span>
             </label>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosFuente.jw_stream}>
+              <input type="checkbox" bind:checked={tempFiltrosFuente.jw_stream}>
               <span>Descarga de JW Stream</span>
             </label>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosFuente.transmision_remota}>
+              <input type="checkbox" bind:checked={tempFiltrosFuente.transmision_remota}>
               <span>Transmisión remota en directo</span>
             </label>
             <label class="checkbox-label">
-              <input type="checkbox" bind:checked={filtrosFuente.video}>
+              <input type="checkbox" bind:checked={tempFiltrosFuente.video}>
               <span>Video</span>
             </label>
           </div>
@@ -1686,8 +1706,8 @@ async function cargarTodosDias() {
 
       <div class="modal-footer-filtros">
         <button class="btn-cancel" on:click={() => mostrarPanelFiltros = false}>Cancelar</button>
-        <button class="btn-limpiar" on:click={limpiarFiltros}>Eliminar todo</button>
-        <button class="btn-aplicar" on:click={() => mostrarPanelFiltros = false}>Aplicar</button>
+        <button class="btn-limpiar" on:click={limpiarFiltrosTemporales}>Limpiar Todo</button>
+        <button class="btn-aplicar" on:click={aplicarCambiosFiltros}>Aplicar</button>
       </div>
     </div>
   </div>
