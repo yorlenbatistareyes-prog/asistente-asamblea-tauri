@@ -54,32 +54,54 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
 
         // --- ENCABEZADO (SOLO EN LA PRIMERA PÁGINA) ---
         if (esPrimeraPaginaGlobal) {
+            // 1. Título principal (Asamblea)
             doc.setFontSize(14);
             doc.setTextColor(40);
             doc.setFont("helvetica", "bold");
             doc.text((asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), 105, 15, { align: 'center' });
             
+            // 2. Tema
             doc.setFontSize(12);
             doc.setTextColor(80);
             doc.text((asamblea.tema || "").toUpperCase(), 105, 21, { align: 'center' });
 
+            // 3. Fecha
             doc.setFontSize(10);
             doc.setFont("helvetica", "normal");
             doc.text(asamblea.fecha || "", 105, 26, { align: 'center' });
 
-            startY = 35; 
+            // 4. NUEVO: Subtítulo del objetivo del documento
+            doc.setFontSize(11);
+            doc.setTextColor(59, 130, 246); // El mismo azul de los botones para que combine
+            doc.setFont("helvetica", "bold");
+            
+            // Verificamos si la variable ya trae la palabra "Programa"
+            let textoObjetivo = tituloDia.toUpperCase();
+            if (!textoObjetivo.includes("PROGRAMA")) {
+                textoObjetivo = "PROGRAMA DEL DÍA: " + textoObjetivo;
+            }
+            
+            doc.text(textoObjetivo, 105, 34, { align: 'center' });
+
+            // Empujamos el inicio del primer día más abajo
+            startY = 44; 
         }
 
         esPrimeraPaginaGlobal = false;
 
-        // --- FRANJA DEL DÍA ---
-        doc.setFillColor(59, 130, 246); 
-        doc.rect(0, startY, 210, 8, 'F');
+       // --- ETIQUETA DEL DÍA (Alineada al margen izquierdo) ---
+        const margenIzquierdo = 14; // El mismo margen donde empieza la tabla
+        const anchoBoton = 35;      // Ancho suficiente para la palabra más larga ("DOMINGO")
+        
+        doc.setFillColor(59, 130, 246); // Color azul
+        doc.roundedRect(margenIzquierdo, startY, anchoBoton, 7, 3.5, 3.5, 'F'); 
+        
+        // Texto del día centrado justo en el medio del botón
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.text(dia.toUpperCase(), 105, startY + 5.5, { align: 'center' });
-
+        doc.text(dia.toUpperCase(), margenIzquierdo + (anchoBoton / 2), startY + 5, { align: 'center' });
+        
         // --- TABLA ---
         autoTable(doc, {
             startY: startY + 10,
