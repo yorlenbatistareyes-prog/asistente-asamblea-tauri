@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { User, Users, Phone, Mail, Plus, Save, Upload, Search, Trash2, MapPin, X } from 'lucide-svelte';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { open, confirm } from '@tauri-apps/plugin-dialog';
   import Panel from '$lib/components/ui/Panel.svelte';
 
   // --- VARIABLES ---
@@ -106,7 +106,15 @@ async function guardarYcerrar() {
 
   // --- ELIMINAR UNO ---
   async function eliminar(id: number, nombreP: string) {
-    if(!confirm(`¿Eliminar a ${nombreP}?`)) return;
+    // El "await" congela el código hasta que el usuario hace clic
+    const estaSeguro = await confirm(`¿Estás seguro de eliminar a ${nombreP}?`, { 
+        title: 'Confirmar Eliminación', 
+        kind: 'warning' 
+    });
+    
+    // Si presiona cancelar (false), abortamos la operación
+    if (!estaSeguro) return; 
+
     try {
         await invoke('eliminar_persona', { id });
         await cargarDatos();
@@ -115,7 +123,18 @@ async function guardarYcerrar() {
 
   // --- ELIMINAR TODOS ---
   async function limpiarTodo() {
-    if(!confirm("⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán las personas de ESTA asamblea.\nLos discursos asignados quedarán vacíos.")) return;
+    // Diálogo nativo de advertencia que pausa la ejecución
+    const estaSeguro = await confirm(
+        "⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán las personas de ESTA asamblea.\nLos discursos asignados quedarán vacíos.", 
+        { 
+            title: 'Peligro: Limpiar Lista Completa', 
+            kind: 'warning' 
+        }
+    );
+    
+    // Si presiona cancelar o cierra la ventana, abortamos
+    if (!estaSeguro) return; 
+
     try {
         await invoke('limpiar_personas', { asambleaId });
         await cargarDatos();
