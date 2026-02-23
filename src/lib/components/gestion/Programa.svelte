@@ -592,9 +592,6 @@ async function actualizarDetallesParte(parteId: number) {
   let diaFiltroEmail = 'Viernes';
   let todosLosDatosEmails: { email: string, dia: string }[] = [];
   let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
-  let asuntoTodos: string = '';
-  let cuerpoTodos: string = '';
-  let plantillaSeleccionada: string | null = null;
 
   $: emailsFiltrados = (() => {
       if (!todosLosDatosEmails || todosLosDatosEmails.length === 0) return [];
@@ -609,11 +606,8 @@ async function actualizarDetallesParte(parteId: number) {
   async function prepararModalEmails() {
     cargandoEmails = true;
     todosLosDatosEmails = [];
-    
-    const defecto = $emailTemplates && $emailTemplates.length ? $emailTemplates[0] : null;
-    plantillaSeleccionada = defecto?.id || null;
-    asuntoTodos = defecto?.subject || 'Asignación de asamblea';
-    cuerpoTodos = defecto?.body || 'Estimado hermano,\n\nLe informamos sobre su asignación...';
+    // Eliminamos la lógica de 'defecto', 'asuntoTodos', etc. 
+    // Ya no las necesitamos aquí.
 
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     
@@ -635,7 +629,7 @@ async function actualizarDetallesParte(parteId: number) {
     diaFiltroEmail = diaSeleccionado;
     cargandoEmails = false;
     mostrarModalEmails = true;
-  }
+}
 
   function cambiarDiaFiltro(dia: string) {
       diaFiltroEmail = dia;
@@ -651,15 +645,6 @@ async function actualizarDetallesParte(parteId: number) {
             .catch(() => prompt('Copiar (Ctrl+C):', texto));
     } else {
         prompt('Copiar (Ctrl+C):', texto);
-    }
-  }
-
-  function aplicarPlantillaSeleccionada() {
-    if (!plantillaSeleccionada) return;
-    const p = obtenerPlantillaPorId(plantillaSeleccionada);
-    if (p) {
-        asuntoTodos = p.subject || asuntoTodos;
-        cuerpoTodos = p.body || cuerpoTodos;
     }
   }
 
@@ -690,14 +675,15 @@ async function actualizarDetallesParte(parteId: number) {
     const lista = emailsFiltrados.join(';');
     
     if (metodoSeleccion === 'jwpub') {
-      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}&subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
-      openUrl(url);
+        // Solo abrimos el redactor con la lista de destinatarios
+        const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}`;
+        openUrl(url);
     } else {
-      const mailto = `mailto:${lista}?subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
-      openUrl(mailto);
+        const mailto = `mailto:${lista}`;
+        openUrl(mailto);
     }
     mostrarModalEmails = false;
-  }
+}
 
   // --- FILTRADO PARA SUGERENCIAS ---
   function filtrarOradores() { 
@@ -1483,6 +1469,27 @@ async function cargarTodosDias() {
           </div>
         </div>
 
+        <div class="seccion-metodo-envio" style="margin-bottom: 24px; padding: 15px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border);">
+          <div class="editor-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="label-titulo" style="margin-bottom: 0;">Método de Envío</div>
+            <div class="destinatarios-badge">
+              <span class="status-dot"></span>
+              {emailsFiltrados.length} oradores seleccionados
+            </div>
+          </div>
+          
+          <div class="radio-group" style="display: flex; gap: 24px;">
+            <label class="radio-label">
+              <input type="radio" bind:group={metodoSeleccion} value="mailto"> 
+              <span>Gmail / Correo Sistema</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" bind:group={metodoSeleccion} value="jwpub"> 
+              <span>JWPUB</span>
+            </label>
+          </div>
+        </div>
+
         <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
         <div class="opciones-email-grid">
           <button
@@ -1490,7 +1497,7 @@ async function cargarTodosDias() {
             on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}
             disabled={metodoSeleccion !== 'mailto'}
             aria-disabled={metodoSeleccion !== 'mailto'}
-            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail en Método de Envío' : `Enviar emails (${diaFiltroEmail})`}
+            title={metodoSeleccion !== 'mailto' ? 'Cambia a Gmail/Mail arriba' : `Enviar emails (${diaFiltroEmail})`}
           >
             <div class="icon-wrapper azul"><Mail size={24}/></div>
             <span>Email {diaFiltroEmail}</span>
@@ -1501,70 +1508,26 @@ async function cargarTodosDias() {
             on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}
             disabled={metodoSeleccion !== 'jwpub'}
             aria-disabled={metodoSeleccion !== 'jwpub'}
-            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB en Método de Envío' : `Enviar JWPUB (${diaFiltroEmail})`}
+            title={metodoSeleccion !== 'jwpub' ? 'Cambia a JWPUB arriba' : `Enviar JWPUB (${diaFiltroEmail})`}
           >
             <div class="icon-wrapper morado"><FileJson size={24}/></div>
             <span>JWPUB {diaFiltroEmail}</span>
           </button>  
         </div>
 
-        <div class="seccion-editor">
-          <div class="editor-header">
-            <div class="label-titulo">Personalizar Mensaje</div>
-            <div class="destinatarios-badge">
-              <span class="status-dot"></span>
-              {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaFiltroEmail}
-            </div>
-          </div>
+      </div>
 
-          <div class="grid-form">
-            <div class="form-group">
-              <label for="metodo">Método de Envío</label>
-              <div class="radio-group">
-                <label class="radio-label">
-                  <input type="radio" bind:group={metodoSeleccion} value="mailto"> 
-                  <span>Gmail/Mail</span>
-                </label>
-                <label class="radio-label">
-                  <input type="radio" bind:group={metodoSeleccion} value="jwpub"> 
-                  <span>JWPUB</span>
-                </label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="plantilla">Plantilla</label>
-              <select id="plantilla" bind:value={plantillaSeleccionada} on:change={aplicarPlantillaSeleccionada}>
-                <option value={null}>-- Texto libre --</option>
-                {#each $emailTemplates as tpl}
-                  <option value={tpl.id}>{tpl.title || tpl.id}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="asunto">Asunto</label>
-            <input type="text" id="asunto" bind:value={asuntoTodos} placeholder="Asunto..." />
-          </div>
-
-          <div class="form-group">
-            <label for="cuerpo">Cuerpo</label>
-            <textarea id="cuerpo" rows="6" bind:value={cuerpoTodos}></textarea>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsFiltrados.length===0}>
-            Copiar correos
-          </button>
-          <div class="flex-spacer"></div>
-          <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
-            Cancelar
-          </button>
-          <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsFiltrados.length===0}>
-            🚀 Enviar a {emailsFiltrados.length} oradores
-          </button>
-        </div>
+      <div class="modal-footer">
+        <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsFiltrados.length===0}>
+          Copiar lista de correos
+        </button>
+        <div class="flex-spacer"></div>
+        <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
+          Cancelar
+        </button>
+        <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsFiltrados.length===0}>
+          🚀 Procesar {emailsFiltrados.length} oradores
+        </button>
       </div>
     </div>
   </div>
