@@ -59,15 +59,49 @@
     $: tiempoFormateado = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
     $: tiempoLimite = minutosAsignados * 60;
     $: sePaso = segundosTranscurridos > tiempoLimite;
+
+    // --- LÓGICA DE ARRASTRE (DRAG & DROP) ---
+    let posicionX = 0;
+    let posicionY = 0;
+    let moviendo = false;
+    let inicioX = 0;
+    let inicioY = 0;
+
+    function iniciarArrastre(e: MouseEvent) {
+        moviendo = true;
+        // Calculamos la diferencia entre donde hacemos clic y dónde está la barra
+        inicioX = e.clientX - posicionX;
+        inicioY = e.clientY - posicionY;
+        
+        window.addEventListener('mousemove', arrastrar);
+        window.addEventListener('mouseup', detenerArrastre);
+    }
+
+    function arrastrar(e: MouseEvent) {
+        if (moviendo) {
+            posicionX = e.clientX - inicioX;
+            posicionY = e.clientY - inicioY;
+        }
+    }
+
+    function detenerArrastre() {
+        moviendo = false;
+        window.removeEventListener('mousemove', arrastrar);
+        window.removeEventListener('mouseup', detenerArrastre);
+    }
+
 </script>
 
-<div class="cronometro-wrapper {abierto ? 'modo-barra-top' : 'modo-boton-esquina'}">
+<div class="cronometro-wrapper {abierto ? 'modo-barra-top' : 'modo-boton-esquina'} {moviendo ? 'arrastrando' : ''}"
+     style={abierto ? `transform: translate(calc(-50% + ${posicionX}px), ${posicionY}px);` : ''}>
     
     {#if abierto}
         <div class="top-bar-panel {clasesTamano[nivelTamano]} {sePaso ? 'peligro-glow' : ''}" transition:slide|local={{ duration: 300, axis: 'y' }}>
             
             <div class="left-section">
-                <div class="drag-handle"><Timer size={18} /></div>
+                <div class="drag-handle" on:mousedown={iniciarArrastre} title="Arrastrar barra">
+                    <Timer size={18} />
+                </div>
                 <span class="bar-title">Cronómetro</span>
                 
                 <button class="btn-size" on:click={cambiarTamano} title="Cambiar tamaño de la barra">
@@ -272,4 +306,33 @@
 
     @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.7); } 70% { box-shadow: 0 0 0 20px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }
     @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); } 70% { box-shadow: 0 0 0 20px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+
+    /* --- ESTILOS PARA EL ARRASTRE (DRAG & DROP) --- */
+    
+    /* Esta clase desactiva la animación suave SOLO mientras arrastras para evitar retrasos ("lag") */
+    .arrastrando {
+        transition: none !important;
+    }
+
+    /* Estilo para la "manija" de arrastre (el icono del cronómetro) */
+    .drag-handle {
+        cursor: grab; /* Cursor de mano abierta */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        transition: background 0.2s;
+    }
+    
+    .drag-handle:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .drag-handle:active {
+        cursor: grabbing; /* Cursor de mano cerrada apretando */
+        background: rgba(255, 255, 255, 0.3);
+    }
+
 </style>
