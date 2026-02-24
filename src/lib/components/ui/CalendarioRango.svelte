@@ -1,9 +1,12 @@
 <script lang="ts">
-    import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+    import { ChevronLeft, ChevronRight, Info } from 'lucide-svelte';
+    import { createEventDispatcher } from 'svelte';
 
     // Propiedades que exportamos para conectarlas con el formulario principal
     export let fechaInicio: Date | null = null;
     export let fechaFin: Date | null = null;
+
+    const dispatch = createEventDispatcher();
 
     // Estado del calendario (meses a mostrar)
     let fechaReferencia = new Date();
@@ -83,8 +86,21 @@
     }
 
     function formatearFechaLarga(fecha: Date | null) {
-        if (!fecha) return '...';
+        if (!fecha) return 'Seleccione fecha...';
         return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(fecha);
+    }
+
+    // --- ACCIONES DE LOS NUEVOS BOTONES ---
+    function limpiarFechas() {
+        fechaInicio = null;
+        fechaFin = null;
+    }
+
+    function confirmarSeleccion() {
+        if (fechaInicio && fechaFin) {
+            // Avisa al componente padre (modal) que la selección está lista
+            dispatch('seleccionar', { inicio: fechaInicio, fin: fechaFin });
+        }
     }
 </script>
 
@@ -154,6 +170,20 @@
             <span class="valor">{formatearFechaLarga(fechaFin)}</span>
         </div>
     </div>
+
+    <div class="footer-acciones">
+        <div class="botones-accion">
+            <button type="button" class="btn-cancelar" on:click={limpiarFechas}>Cancelar</button>
+            <button 
+                type="button" 
+                class="btn-seleccionar" 
+                on:click={confirmarSeleccion} 
+                disabled={!fechaInicio || !fechaFin}
+            >
+                Seleccionar
+            </button>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -200,4 +230,56 @@
     .etiqueta { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
     .valor { font-size: 13px; font-weight: 500; color: #111827; text-transform: capitalize; }
     .linea-conexion { width: 15px; height: 2px; background: #d1d5db; }
+
+    /* === ESTILOS DEL NUEVO FOOTER DE ACCIONES === */
+    .footer-acciones {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 5px;
+    }
+    
+    .info-texto {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #4b5563;
+    }
+    
+    :global(.icono-info) {
+        color: #2563eb; /* Color azul para el ícono */
+    }
+    
+    .botones-accion {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-cancelar {
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        padding: 10px 16px;
+        border-radius: 4px;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .btn-cancelar:hover { background: #e5e7eb; }
+    
+    .btn-seleccionar {
+        background: #32588e; /* Ajustado al tono azul oscuro de tu imagen */
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .btn-seleccionar:hover:not(:disabled) { background: #23416b; }
+    .btn-seleccionar:disabled { background: #9ca3af; cursor: not-allowed; opacity: 0.7; }
 </style>

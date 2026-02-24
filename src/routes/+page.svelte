@@ -8,10 +8,12 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
+  
   // DATOS
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = [];
   let mostrarModal = false;
+  let editandoFecha = false;
 
   let form = { 
     tema: "", 
@@ -22,10 +24,40 @@
     idioma: "Español" 
 };
 
-  // ESTADOS DE BÚSQUEDA Y FILTRO
+// ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
   let filtroCategoria = "todas"; 
   let ordenamiento = "fecha_desc";
+
+  // Función única corregida (Elimina cualquier otra versión de abrirModal)
+  function abrirModal() {
+      form = { tema: "", fechaInicio: null, fechaFin: null, local_id: null, identificador: "", idioma: "Español" };
+      editandoFecha = false; 
+      mostrarModal = true;
+  }
+
+function manejarSeleccionFinal() {
+      editandoFecha = false;
+  }
+
+  function formatearRangoSimple(inicio: Date | null, fin: Date | null): string {
+    if (!inicio || !fin) return "Seleccionar fechas...";
+    const opciones: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+    return `${inicio.toLocaleDateString('es-ES', opciones)} - ${fin.toLocaleDateString('es-ES', opciones)}, ${inicio.getFullYear()}`;
+  }
+
+// Carga inicial
+  onMount(() => { cargarTodo(); });
+
+  async function cargarTodo() {
+      try {
+          const [a, l] = await Promise.all([invoke('obtener_asambleas'), invoke('obtener_locales')]);
+          listaAsambleas = a as any[]; 
+          listaLocales = l as any[];
+      } catch(e) { console.error(e); }
+  }
+
+
 
   // --- TRADUCTOR DE FECHAS A PRUEBA DE BALAS (TypeScript) ---
   function obtenerTiempoSeguro(fechaStr: string): number {
@@ -117,20 +149,6 @@
           return 0;
       });
 
-  onMount(() => { cargarTodo(); });
-
-  async function cargarTodo() {
-      try {
-          const [a, l] = await Promise.all([invoke('obtener_asambleas'), invoke('obtener_locales')]);
-          listaAsambleas = a as any[]; listaLocales = l as any[];
-      } catch(e) { console.error(e); }
-  }
-
-  function abrirModal() {
-      // Limpiamos todo al abrir
-      form = { tema: "", fechaInicio: null, fechaFin: null, local_id: null, identificador: "", idioma: "Español" };
-      mostrarModal = true;
-  }
 
   async function crear() {
       // Validación: Exigimos tema y ambas fechas
@@ -347,11 +365,30 @@
                         </div>
                     </div>
                     <label>Tema</label><input bind:value={form.tema} placeholder="Tema de la asamblea">
-                    <label>Fechas de la asamblea (Inicio y Fin)</label>
-                    
-                    <CalendarioRango 
-                        bind:fechaInicio={form.fechaInicio} 
-                        bind:fechaFin={form.fechaFin}/>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+    <label>Fechas de la asamblea</label>
+    
+    {#if editandoFecha}
+        <div class="contenedor-calendario-flotante">
+            <CalendarioRango 
+                bind:fechaInicio={form.fechaInicio} 
+                bind:fechaFin={form.fechaFin}
+                on:seleccionar={manejarSeleccionFinal}
+            />
+            <button type="button" class="btn-cancelar-flotante" on:click={() => editandoFecha = false}>
+                Cerrar calendario
+            </button>
+        </div>
+    {:else}
+        <div class="campo-selector-fecha" on:click={() => editandoFecha = true} role="button" tabindex="0">
+            <Calendar size={18} class="ico-azul"/>
+            <span class={!form.fechaInicio ? 'placeholder' : ''}>
+                {formatearRangoSimple(form.fechaInicio, form.fechaFin)}
+            </span>
+            <Search size={16} class="ico-search-fecha"/>
+        </div>
+    {/if}
+</div>
                     <label>Lugar</label>
                     <select bind:value={form.local_id}>
                         <option value={null}>-- Seleccionar --</option>
@@ -666,5 +703,91 @@
 }
 
 .btn-empty { background: transparent; border: none; color: #1e40af; font-weight: bold; cursor: pointer; text-decoration: underline; font-size: 15px; padding: 0;}
+
+.campo-fecha-finalizada {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 15px;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+    .campo-fecha-finalizada:hover {
+        border-color: #3b82f6;
+    }
+    .campo-fecha-finalizada span {
+        flex: 1;
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 14px;
+    }
+    .btn-editar-fecha {
+        background: #eff6ff;
+        color: #2563eb;
+        border: none;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .ico-azul { color: #2563eb; }
+
+    .campo-selector-fecha {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        background: var(--input-bg, #ffffff);
+        border: 1px solid var(--border, #cbd5e1);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .campo-selector-fecha:hover {
+        border-color: var(--primary, #3b82f6);
+        background: #f8fafc;
+    }
+
+    .campo-selector-fecha span {
+        flex: 1;
+        font-size: 14px;
+        color: var(--text-main, #1e293b);
+        font-weight: 500;
+    }
+
+    .campo-selector-fecha .placeholder {
+        color: #94a3b8;
+    }
+
+    .contenedor-calendario-flotante {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    .btn-cancelar-flotante {
+        align-self: flex-end;
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    .ico-azul { color: #2563eb; }
+    .ico-search-fecha { color: #94a3b8; }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
 </style>
