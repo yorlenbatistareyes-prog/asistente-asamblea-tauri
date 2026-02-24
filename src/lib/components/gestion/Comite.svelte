@@ -320,7 +320,7 @@
             {/if}
         </div>
 
-        <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
+        <button class="btn-save" on:click={() => guardar()}><Save size={18}/> Guardar Todo</button>
     </div>
   </div>
 
