@@ -30,7 +30,8 @@
   let ordenamiento = "fecha_desc";
 
   // Función única corregida (Elimina cualquier otra versión de abrirModal)
-  function abrirModal() {
+  async function abrirModal() {
+      await cargarTodo();
       form = { tema: "", fechaInicio: null, fechaFin: null, local_id: null, identificador: "", idioma: "Español" };
       editandoFecha = false; 
       mostrarModal = true;
@@ -48,6 +49,8 @@ function manejarSeleccionFinal() {
 
 // Carga inicial
   onMount(() => { cargarTodo(); });
+  
+  $: if ($vistaActual === 'inicio') { cargarTodo(); }
 
   async function cargarTodo() {
       try {
