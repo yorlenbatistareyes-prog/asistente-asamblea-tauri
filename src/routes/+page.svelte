@@ -19,48 +19,53 @@
   let filtroCategoria = "todas"; 
   let ordenamiento = "fecha_desc";
 
-  // --- TRADUCTOR DE FECHAS A PRUEBA DE BALAS ---
+  // --- TRADUCTOR DE FECHAS A PRUEBA DE BALAS (TypeScript) ---
   function obtenerTiempoSeguro(fechaStr: string): number {
       if (!fechaStr) return 0;
       
+      // Intentamos parsear formato ISO (YYYY-MM-DD)
       let t = new Date(fechaStr).getTime();
-      if (!isNaN(t)) return t;
-
+      
+      // Si falla o si es una fecha manual, descomponemos para forzar hora LOCAL
       const partes = fechaStr.split(/[\/\-]/);
       if (partes.length === 3) {
-          const num1 = parseInt(partes[0], 10);
-          const num2 = parseInt(partes[1], 10) - 1; 
-          const num3 = parseInt(partes[2], 10);
-          
-          if (num3 >= 2000) return new Date(num3, num2, num1).getTime(); 
-          if (num1 >= 2000) return new Date(num1, num2, num3).getTime(); 
+          let y: number, m: number, d: number;
+          // Detectar si el año viene primero (YYYY-MM-DD) o al final (DD-MM-YYYY)
+          if (partes[0].length === 4) {
+              y = parseInt(partes[0], 10);
+              m = parseInt(partes[1], 10) - 1;
+              d = parseInt(partes[2], 10);
+          } else {
+              d = parseInt(partes[0], 10);
+              m = parseInt(partes[1], 10) - 1;
+              y = parseInt(partes[2], 10);
+              if (y < 2000) y += 2000;
+          }
+          return new Date(y, m, d).getTime();
       }
-      return 0; 
+      return isNaN(t) ? 0 : t;
   }
 
   // LÓGICA REACTIVA: Filtra y ordena las asambleas
   $: asambleasFiltradas = listaAsambleas
-
       .filter((a: any) => {
           // 1. FILTRO DE CATEGORÍA ("activas")
           if (filtroCategoria === 'activas') {
-              if (!a.fecha) return false; // Sin fecha, la ocultamos
+              if (!a.fecha) return false;
 
-              // Convertimos la fecha a un número matemático seguro
-              let timeAsamblea = new Date(a.fecha).getTime();
+              // Usamos la función inteligente para evitar desfases UTC
+              const timeAsamblea = obtenerTiempoSeguro(a.fecha);
               
-              // Si falla (ej: 24/02/2026), la rearmamos al formato que JS entiende (2026-02-24)
-              if (isNaN(timeAsamblea)) {
-                  const partes = a.fecha.split(/[\/\-]/);
-                  if (partes.length === 3) {
-                      timeAsamblea = new Date(`${partes[2]}-${partes[1]}-${partes[0]}T00:00:00`).getTime();
-                  }
-              }
-
-              if (!isNaN(timeAsamblea)) {
+              if (timeAsamblea > 0) {
                   const hoy = new Date();
-                  hoy.setHours(0, 0, 0, 0); // Limpiamos la hora para comparar solo días
-                  if (timeAsamblea < hoy.getTime()) return false; // Es vieja, la ocultamos
+                  hoy.setHours(0, 0, 0, 0); // Inicio del día local
+                  const tiempoHoy = hoy.getTime();
+
+                  // CORRECCIÓN: Si es menor que hoy (ayer hacia atrás), se oculta.
+                  // Si es igual a hoy o futuro, se queda.
+                  if (timeAsamblea < tiempoHoy) return false;
+              } else {
+                  return false;
               }
           }
 
@@ -77,20 +82,12 @@
           const timeA = obtenerTiempoSeguro(a.fecha);
           const timeB = obtenerTiempoSeguro(b.fecha);
 
-          if (ordenamiento === 'fecha_desc') {
-              // Descendente: Las más adelantadas en el calendario van primero
-              return timeB - timeA; 
-          }
-          if (ordenamiento === 'fecha_asc') {
-              // Ascendente: Las más viejas de todo el archivo van primero
-              return timeA - timeB;  
-          }
-          if (ordenamiento === 'tema_az') {
-              return (a.tema || "").localeCompare(b.tema || "");
-          }
+          if (ordenamiento === 'fecha_desc') return timeB - timeA;
+          if (ordenamiento === 'fecha_asc') return timeA - timeB;
+          if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
+          
           if (ordenamiento === 'proximas') {
-              // --- EL ORDENAMIENTO INTELIGENTE ---
-              if (timeA === 0) return 1;  // Sin fecha al final
+              if (timeA === 0) return 1;
               if (timeB === 0) return -1;
               
               const hoy = new Date();
@@ -100,16 +97,13 @@
               const aEsFuturo = timeA >= tiempoHoy;
               const bEsFuturo = timeB >= tiempoHoy;
 
-              // 1. Las asambleas futuras SIEMPRE van por encima de las pasadas
               if (aEsFuturo && !bEsFuturo) return -1;
               if (!aEsFuturo && bEsFuturo) return 1;
 
               if (aEsFuturo && bEsFuturo) {
-                  // 2. Si ambas son futuras, la que esté MÁS CERCA de hoy va primero
-                  return timeA - timeB;
+                  return timeA - timeB; // La futura más cercana primero
               } else {
-                  // 3. Si ambas ya pasaron, la que pasó HACE MENOS TIEMPO va primero
-                  return timeB - timeA;
+                  return timeB - timeA; // La pasada más reciente primero
               }
           }
           return 0;
