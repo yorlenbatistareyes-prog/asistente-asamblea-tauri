@@ -154,51 +154,61 @@ function manejarSeleccionFinal() {
 
 
   async function crear() {
-      // Validación: Exigimos tema y ambas fechas
-      if(!form.tema || !form.fechaInicio || !form.fechaFin) {
-          alert("Debes escribir el tema y seleccionar el rango de fechas en el calendario.");
-          return;
-      }
-      
-      // Extraemos las fechas en formato texto YYYY-MM-DD forzando hora local
-      const y1 = form.fechaInicio.getFullYear();
-      const m1 = String(form.fechaInicio.getMonth() + 1).padStart(2, '0');
-      const d1 = String(form.fechaInicio.getDate()).padStart(2, '0');
-      const fechaInicioStr = `${y1}-${m1}-${d1}`;
-
-      const y2 = form.fechaFin.getFullYear();
-      const m2 = String(form.fechaFin.getMonth() + 1).padStart(2, '0');
-      const d2 = String(form.fechaFin.getDate()).padStart(2, '0');
-      const fechaFinStr = `${y2}-${m2}-${d2}`;
-
-      let nombreLugar = "Sin asignar";
-      let idFinal = null;
-
-      if(form.local_id) {
-          const idBuscado = Number(form.local_id);
-          const loc = listaLocales.find((x:any) => x.id === idBuscado);
-          if(loc) { 
-              nombreLugar = loc.nombre; 
-              if (loc.ciudad) nombreLugar += `, ${loc.ciudad}`;
-              idFinal = idBuscado; 
+      try {
+          // 1. Validación
+          if(!form.tema || !form.fechaInicio || !form.fechaFin) {
+              alert("Debes escribir el tema y seleccionar el rango de fechas en el calendario.");
+              return;
           }
+          
+          // 2. Extraemos las fechas
+          const y1 = form.fechaInicio.getFullYear();
+          const m1 = String(form.fechaInicio.getMonth() + 1).padStart(2, '0');
+          const d1 = String(form.fechaInicio.getDate()).padStart(2, '0');
+          const fechaInicioStr = `${y1}-${m1}-${d1}`;
+
+          const y2 = form.fechaFin.getFullYear();
+          const m2 = String(form.fechaFin.getMonth() + 1).padStart(2, '0');
+          const d2 = String(form.fechaFin.getDate()).padStart(2, '0');
+          const fechaFinStr = `${y2}-${m2}-${d2}`;
+
+          // Unificamos la fecha (como lo tienes en InfoEvento)
+          const fechaUnida = `${fechaInicioStr} a ${fechaFinStr}`;
+
+          // 3. Local
+          let nombreLugar = "Sin asignar";
+          let idFinal = null;
+
+          if(form.local_id) {
+              const idBuscado = Number(form.local_id);
+              const loc = listaLocales.find((x:any) => x.id === idBuscado);
+              if(loc) { 
+                  nombreLugar = loc.nombre; 
+                  if (loc.ciudad) nombreLugar += `, ${loc.ciudad}`;
+                  idFinal = idBuscado; 
+              }
+          }
+
+          // 4. Enviamos a Rust
+          await invoke('crear_asamblea', { 
+              tema: form.tema,
+              fecha: fechaUnida, // 👈 OJO AQUÍ
+              identificador: form.identificador,
+              idioma: form.idioma,
+              lugar: nombreLugar, 
+              localId: idFinal 
+          });
+          
+          mostrarModal = false; 
+          cargarTodo();
+
+      } catch (error) {
+          // Si Rust se queja, ahora sí lo veremos en pantalla
+          console.error("Error desde Rust:", error);
+          alert("No se pudo crear la asamblea. Error: " + error);
       }
-
-      // Enviamos las fechas separadas al backend
-      await invoke('crear_asamblea', { 
-          tema: form.tema,
-          fechaInicio: fechaInicioStr,
-          fechaFin: fechaFinStr,
-          identificador: form.identificador,
-          idioma: form.idioma,
-          lugar: nombreLugar, 
-          localId: idFinal 
-      });
-      
-      mostrarModal = false; 
-      cargarTodo();
   }
-
+  
   async function borrar(id: number, e: Event) {
       e.stopPropagation();
       const respuesta = await ask('¿Estás seguro de que deseas eliminar esta asamblea permanentemente?', { 
