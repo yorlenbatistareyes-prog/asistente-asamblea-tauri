@@ -94,6 +94,7 @@
     function limpiarFechas() {
         fechaInicio = null;
         fechaFin = null;
+        dispatch('cancelar');
     }
 
     function confirmarSeleccion() {
