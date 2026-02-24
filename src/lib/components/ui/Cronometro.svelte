@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onDestroy } from 'svelte';
-    // Usamos 'Timer' para el icono del botón flotante y otros iconos para el panel
-    import { Play, Pause, TimerReset, Timer, X, Plus, Minus, Minimize2 } from 'lucide-svelte';
+    import { slide } from 'svelte/transition';
+    import { Play, Pause, TimerReset, Timer, Minus, Plus, Minimize2 } from 'lucide-svelte';
 
     // --- ESTADO ---
     let abierto = false;
@@ -9,6 +9,14 @@
     let minutosAsignados = 15; 
     let segundosTranscurridos = 0;
     let intervalo: any;
+
+    // --- TAMAÑO DE LA BARRA ---
+    let nivelTamano = 1; // 0: Pequeño (S), 1: Mediano (M), 2: Grande (L)
+    const clasesTamano = ['tamano-s', 'tamano-m', 'tamano-l'];
+    
+    function cambiarTamano() {
+        nivelTamano = (nivelTamano + 1) % 3;
+    }
 
     // --- LÓGICA ---
     $: if (corriendo) {
@@ -26,9 +34,11 @@
     function togglePlay() { corriendo = !corriendo; }
     function detener() { corriendo = false; segundosTranscurridos = 0; }
     function togglePanel() { abierto = !abierto; }
-    function setTiempo(min: number) { minutosAsignados = min; }
-    function sumarMinuto() { minutosAsignados += 1; }
-    function restarMinuto() { if (minutosAsignados > 1) minutosAsignados -= 1; }
+    
+    // Matemática corregida
+    function setTiempo(min: number) { minutosAsignados = Number(min); }
+    function sumarMinuto() { minutosAsignados = Number(minutosAsignados) + 1; }
+    function restarMinuto() { if (Number(minutosAsignados) > 1) minutosAsignados = Number(minutosAsignados) - 1; }
 
     // --- FORMATO ---
     $: min = Math.floor(segundosTranscurridos / 60);
@@ -41,29 +51,39 @@
 <div class="cronometro-wrapper {abierto ? 'modo-barra-top' : 'modo-boton-esquina'}">
     
     {#if abierto}
-        <div class="top-bar-panel {sePaso ? 'peligro-glow' : ''}" transition:slide|local={{ duration: 300, axis: 'y' }}>
+        <div class="top-bar-panel {clasesTamano[nivelTamano]} {sePaso ? 'peligro-glow' : ''}" transition:slide|local={{ duration: 300, axis: 'y' }}>
             
             <div class="left-section">
                 <div class="drag-handle"><Timer size={18} /></div>
                 <span class="bar-title">Cronómetro</span>
+                
+                <button class="btn-size" on:click={cambiarTamano} title="Cambiar tamaño de la barra">
+                    {nivelTamano === 0 ? 'S' : nivelTamano === 1 ? 'M' : 'L'}
+                </button>
             </div>
 
-            <div class="center-section">
-                <div class="minute-adjuster">
-                    <button class="btn-mini-adjust" on:click={restarMinuto}><Minus size={12}/></button>
-                    <span class="target-min">{minutosAsignados} min</span>
-                    <button class="btn-mini-adjust" on:click={sumarMinuto}><Plus size={12}/></button>
-                </div>
-
+           <div class="center-section">
+                
                 <span class="main-display {sePaso ? 'texto-rojo-neon' : ''}">
                     {tiempoFormateado}
                 </span>
 
-                <div class="quick-presets">
-                    <button on:click={() => setTiempo(5)}>5</button>
-                    <button on:click={() => setTiempo(10)}>10</button>
-                    <button on:click={() => setTiempo(15)}>15</button>
+                <div class="minute-adjuster">
+                    <button class="btn-mini-adjust" on:click={restarMinuto}><Minus size={14}/></button>
+                    
+                    <select class="select-compacto" bind:value={minutosAsignados} title="Elegir tiempo">
+                        {#if ![5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60].includes(Number(minutosAsignados))}
+                            <option value={Number(minutosAsignados)} hidden>{minutosAsignados} min</option>
+                        {/if}
+
+                        {#each [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60] as t}
+                            <option value={t}>{t} min</option>
+                        {/each}
+                    </select>
+
+                    <button class="btn-mini-adjust" on:click={sumarMinuto}><Plus size={14}/></button>
                 </div>
+
             </div>
 
             <div class="right-section controls">
@@ -89,12 +109,8 @@
     {/if}
 </div>
 
-<script context="module">
-    import { slide } from 'svelte/transition';
-</script>
-
 <style>
-    /* --- POSICIONAMIENTO DEL CONTENEDOR --- */
+ /* --- POSICIONAMIENTO DEL CONTENEDOR --- */
     .cronometro-wrapper {
         position: fixed;
         z-index: 9999;
@@ -104,7 +120,7 @@
     /* Posición cuando está cerrado: Esquina Inferior Izquierda */
     .modo-boton-esquina {
         bottom: 25px;
-        left: 25px; /* CAMBIO: Ahora a la izquierda */
+        left: 25px;
     }
 
     /* Posición cuando está abierto: Arriba al Centro */
@@ -118,18 +134,46 @@
 
     /* === ESTILOS DE LA BARRA SUPERIOR OSCURA === */
     .top-bar-panel {
-        /* Fondo degradado azul oscuro estilo profesional */
         background: linear-gradient(145deg, #1e3a8a, #2563eb); 
         color: white;
         padding: 8px 20px;
-        border-radius: 50px; /* Bordes muy redondeados */
+        border-radius: 50px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
         display: flex;
         align-items: center;
         gap: 25px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         white-space: nowrap;
+        transform-origin: top center; 
     }
+
+    /* Escalas de tamaño exactas (S ahora es diminuta) */
+    .tamano-s { transform: scale(0.60); }
+    .tamano-m { transform: scale(0.85); }
+    .tamano-l { transform: scale(1.10); }
+
+    /* Estilo del botón de tamaño */
+    .btn-size {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 6px;
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+        transition: all 0.2s;
+    }
+    .btn-size:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.1);
+    }
+
     /* Brillo rojo si se pasa el tiempo */
     .top-bar-panel.peligro-glow {
         box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.2);
@@ -144,9 +188,9 @@
     
     .bar-title { font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Display Central */
+    /* Display Central Rediseñado (Más compacto) */
     .main-display {
-        font-size: 36px;
+        font-size: 32px;
         font-weight: 800;
         font-variant-numeric: tabular-nums;
         line-height: 1;
@@ -157,16 +201,36 @@
         text-shadow: 0 0 10px rgba(255, 107, 107, 0.6);
     }
 
-    /* Ajuste de Minutos */
-    .minute-adjuster { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 20px; }
-    .target-min { font-size: 12px; font-weight: 700; min-width: 45px; text-align: center; }
-    .btn-mini-adjust { background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-    .btn-mini-adjust:hover { background: rgba(255,255,255,0.3); }
+    /* === Ajuste de Minutos Compacto con Dropdown === */
+    .minute-adjuster { 
+        display: flex; align-items: center; gap: 4px; 
+        background: rgba(0,0,0,0.25); padding: 4px 6px; 
+        border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-mini-adjust { 
+        background: transparent; border: none; color: white; border-radius: 50%; 
+        width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; 
+        cursor: pointer; transition: background 0.2s;
+    }
+    .btn-mini-adjust:hover { background: rgba(255,255,255,0.2); }
 
-    /* Botones preset rápidos */
-    .quick-presets { display: flex; gap: 4px; }
-    .quick-presets button { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); padding: 2px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; font-weight: 600;}
-    .quick-presets button:hover { background: rgba(255,255,255,0.1); color: white; border-color: white;}
+    /* Estilo del Dropdown Integrado */
+    .select-compacto {
+        background: transparent;
+        color: white;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        outline: none;
+        padding: 0 2px;
+        appearance: none;
+    }
+    .select-compacto option {
+        background: #1e3a8a;
+        color: white;
+    }
 
     /* Controles de Reproducción */
     .btn-ctrl { border: none; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; color: white; }
@@ -174,14 +238,13 @@
     .btn-ctrl.reset:hover, .btn-ctrl.close:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
     
     .btn-ctrl.play-pause { width: 48px; height: 48px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-    .btn-ctrl.play { background: linear-gradient(135deg, #10b981, #059669); /* Verde brillante */ }
-    .btn-ctrl.pausa { background: linear-gradient(135deg, #f59e0b, #d97706); /* Naranja */ }
+    .btn-ctrl.play { background: linear-gradient(135deg, #10b981, #059669); }
+    .btn-ctrl.pausa { background: linear-gradient(135deg, #f59e0b, #d97706); }
     .btn-ctrl.play-pause:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
 
     /* === ESTILOS DEL BOTÓN FLOTANTE (ESQUINA) === */
     .btn-flotante {
         width: 60px; height: 60px; border-radius: 50%;
-        /* Usamos el mismo degradado azul */
         background: linear-gradient(145deg, #1e3a8a, #3b82f6); 
         color: white; border: none; cursor: pointer; 
         display: flex; flex-direction: column; justify-content: center; align-items: center;
