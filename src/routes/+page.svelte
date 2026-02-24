@@ -19,8 +19,28 @@
   let filtroCategoria = "todas"; 
   let ordenamiento = "fecha_desc";
 
- // LÓGICA REACTIVA: Filtra y ordena las asambleas en tiempo real (Con tipado TypeScript)
+  // --- TRADUCTOR DE FECHAS A PRUEBA DE BALAS ---
+  function obtenerTiempoSeguro(fechaStr: string): number {
+      if (!fechaStr) return 0;
+      
+      let t = new Date(fechaStr).getTime();
+      if (!isNaN(t)) return t;
+
+      const partes = fechaStr.split(/[\/\-]/);
+      if (partes.length === 3) {
+          const num1 = parseInt(partes[0], 10);
+          const num2 = parseInt(partes[1], 10) - 1; 
+          const num3 = parseInt(partes[2], 10);
+          
+          if (num3 >= 2000) return new Date(num3, num2, num1).getTime(); 
+          if (num1 >= 2000) return new Date(num1, num2, num3).getTime(); 
+      }
+      return 0; 
+  }
+
+  // LÓGICA REACTIVA: Filtra y ordena las asambleas
   $: asambleasFiltradas = listaAsambleas
+
       .filter((a: any) => {
           // 1. FILTRO DE CATEGORÍA ("activas")
           if (filtroCategoria === 'activas') {
@@ -54,28 +74,43 @@
           );
       })
       .sort((a: any, b: any) => {
-          // Helper tipado para leer la fecha dentro del ordenador
-          const obtenerTiempo = (fechaStr: string): number => {
-              if (!fechaStr) return 0;
-              let t = new Date(fechaStr).getTime();
-              if (isNaN(t)) {
-                  const p = fechaStr.split(/[\/\-]/);
-                  if (p.length === 3) t = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`).getTime();
-              }
-              return isNaN(t) ? 0 : t;
-          };
+          const timeA = obtenerTiempoSeguro(a.fecha);
+          const timeB = obtenerTiempoSeguro(b.fecha);
 
-          const timeA = obtenerTiempo(a.fecha);
-          const timeB = obtenerTiempo(b.fecha);
-
-          if (ordenamiento === 'fecha_desc') return timeB - timeA; // Recientes primero
-          if (ordenamiento === 'fecha_asc') return timeA - timeB;  // Antiguas primero
-          if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
+          if (ordenamiento === 'fecha_desc') {
+              // Descendente: Las más adelantadas en el calendario van primero
+              return timeB - timeA; 
+          }
+          if (ordenamiento === 'fecha_asc') {
+              // Ascendente: Las más viejas de todo el archivo van primero
+              return timeA - timeB;  
+          }
+          if (ordenamiento === 'tema_az') {
+              return (a.tema || "").localeCompare(b.tema || "");
+          }
           if (ordenamiento === 'proximas') {
-              if (timeA === 0) return 1; // Manda las inválidas al fondo
+              // --- EL ORDENAMIENTO INTELIGENTE ---
+              if (timeA === 0) return 1;  // Sin fecha al final
               if (timeB === 0) return -1;
-              const hoy = new Date().getTime();
-              return Math.abs(timeA - hoy) - Math.abs(timeB - hoy);
+              
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              const tiempoHoy = hoy.getTime();
+
+              const aEsFuturo = timeA >= tiempoHoy;
+              const bEsFuturo = timeB >= tiempoHoy;
+
+              // 1. Las asambleas futuras SIEMPRE van por encima de las pasadas
+              if (aEsFuturo && !bEsFuturo) return -1;
+              if (!aEsFuturo && bEsFuturo) return 1;
+
+              if (aEsFuturo && bEsFuturo) {
+                  // 2. Si ambas son futuras, la que esté MÁS CERCA de hoy va primero
+                  return timeA - timeB;
+              } else {
+                  // 3. Si ambas ya pasaron, la que pasó HACE MENOS TIEMPO va primero
+                  return timeB - timeA;
+              }
           }
           return 0;
       });
@@ -198,10 +233,11 @@
                 </select>
         
                 <select class="filter-select" bind:value={ordenamiento}>
-                    <option value="fecha_desc">Ordenar por fecha (recientes)</option>
-                    <option value="fecha_asc">Ordenar por fecha (antiguas)</option>
+                    <option value="proximas">Ordenar por próximas (Recomendado)</option>
+                    <option value="fecha_desc">Fecha (De futuras a antiguas)</option>
+                    <option value="fecha_asc">Fecha (De antiguas a futuras)</option>
                     <option value="tema_az">Ordenar por tema (A-Z)</option>
-                    <option value="proximas">Ordenar por próximas</option> </select>
+                </select>
             </div>
     </div>
 
