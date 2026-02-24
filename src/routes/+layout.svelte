@@ -9,6 +9,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
 
+  import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
+
   // --- VARIABLES DE ESTADO ---
   let horaActual = "";
   let fechaActual = "";
@@ -252,6 +254,9 @@
         </Panel>
       </div>
     {/if}
+
+    <Cronometro />
+    
 </div>
 
 <style>
