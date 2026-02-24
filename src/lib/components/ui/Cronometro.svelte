@@ -3,6 +3,8 @@
     import { slide } from 'svelte/transition';
     import { Play, Pause, TimerReset, Timer, Minus, Plus, Minimize2 } from 'lucide-svelte';
 
+    import { cronometro } from '$lib/stores/cronometro'; // Asegúrate de que la ruta sea correcta
+    
     // --- ESTADO ---
     let abierto = false;
     let corriendo = false;

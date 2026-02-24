@@ -256,7 +256,7 @@
     {/if}
 
     <Cronometro />
-    
+
 </div>
 
 <style>
