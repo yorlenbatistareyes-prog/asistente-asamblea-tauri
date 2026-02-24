@@ -307,14 +307,23 @@ async function guardarOrientaciones() {
   editOrientaciones = false;
 }
 
-// --- CICLO DE VIDA ---
+//// --- CICLO DE VIDA ---
   onMount(async () => {
     try {
-      // 1. Obtener datos de la base de datos
+      // 1. Obtener datos de la base de datos (locales)
       locales = await invoke('obtener_locales') as any[];
-      const asamblea = await invoke('obtener_asamblea_activa') as any;
       
-      // 2. Si hay asamblea activa, llenar las variables
+      // 2. ¡LA CLAVE! Leer de la memoria en cuál asamblea hicimos clic
+      const dataGuardada = localStorage.getItem('asambleaActiva');
+      let asamblea = null;
+      
+      if (dataGuardada) {
+          const asambleaSeleccionada = JSON.parse(dataGuardada);
+          // Le pedimos a Rust exactamente ESA asamblea por su ID, no la última
+          asamblea = await invoke('obtener_asamblea_por_id', { id: asambleaSeleccionada.id }) as any;
+      }
+      
+      // 3. Si se encontró la asamblea, llenar las variables
       if (asamblea) {
         asambleaId = asamblea.id;
         tema = asamblea.tema || "";
@@ -343,11 +352,11 @@ async function guardarOrientaciones() {
       }
 
       // Inicializar datos temporales
-        tempGeneral = { tema, fecha, idLocal };
-        tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
-        tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
+      tempGeneral = { tema, fecha, idLocal };
+      tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
+      tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
       
-      // 3. Iniciar los editores (TipTap)
+      // 4. Iniciar los editores (TipTap)
       initEditors();
 
     } catch (error) { 
@@ -469,7 +478,7 @@ async function guardarOrientaciones() {
       </div>
       <div class="campo">
         <label><Calendar size={14}/> Fecha</label>
-        <input type="text" bind:value={tempGeneral.fecha} disabled={!editGeneral} />
+        <input type="date" bind:value={tempGeneral.fecha} disabled={!editGeneral} />
       </div>
       
       <div class="campo">

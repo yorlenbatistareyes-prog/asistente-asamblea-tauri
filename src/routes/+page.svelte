@@ -19,9 +19,32 @@
   let filtroCategoria = "todas"; 
   let ordenamiento = "fecha_desc";
 
-  // LÓGICA REACTIVA: Filtra y ordena las asambleas en tiempo real
+ // LÓGICA REACTIVA: Filtra y ordena las asambleas en tiempo real (Con tipado TypeScript)
   $: asambleasFiltradas = listaAsambleas
-      .filter(a => {
+      .filter((a: any) => {
+          // 1. FILTRO DE CATEGORÍA ("activas")
+          if (filtroCategoria === 'activas') {
+              if (!a.fecha) return false; // Sin fecha, la ocultamos
+
+              // Convertimos la fecha a un número matemático seguro
+              let timeAsamblea = new Date(a.fecha).getTime();
+              
+              // Si falla (ej: 24/02/2026), la rearmamos al formato que JS entiende (2026-02-24)
+              if (isNaN(timeAsamblea)) {
+                  const partes = a.fecha.split(/[\/\-]/);
+                  if (partes.length === 3) {
+                      timeAsamblea = new Date(`${partes[2]}-${partes[1]}-${partes[0]}T00:00:00`).getTime();
+                  }
+              }
+
+              if (!isNaN(timeAsamblea)) {
+                  const hoy = new Date();
+                  hoy.setHours(0, 0, 0, 0); // Limpiamos la hora para comparar solo días
+                  if (timeAsamblea < hoy.getTime()) return false; // Es vieja, la ocultamos
+              }
+          }
+
+          // 2. FILTRO DE TEXTO (Buscador)
           if (!terminoBusqueda) return true;
           const tb = terminoBusqueda.toLowerCase();
           return (
@@ -30,13 +53,29 @@
               (a.identificador && a.identificador.toLowerCase().includes(tb))
           );
       })
-      .sort((a, b) => {
-          if (ordenamiento === 'fecha_desc') {
-              return new Date(b.fecha).getTime() - new Date(a.fecha).getTime(); // Recientes primero
-          } else if (ordenamiento === 'fecha_asc') {
-              return new Date(a.fecha).getTime() - new Date(b.fecha).getTime(); // Antiguas primero
-          } else if (ordenamiento === 'tema_az') {
-              return (a.tema || "").localeCompare(b.tema || ""); // Alfabético A-Z
+      .sort((a: any, b: any) => {
+          // Helper tipado para leer la fecha dentro del ordenador
+          const obtenerTiempo = (fechaStr: string): number => {
+              if (!fechaStr) return 0;
+              let t = new Date(fechaStr).getTime();
+              if (isNaN(t)) {
+                  const p = fechaStr.split(/[\/\-]/);
+                  if (p.length === 3) t = new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`).getTime();
+              }
+              return isNaN(t) ? 0 : t;
+          };
+
+          const timeA = obtenerTiempo(a.fecha);
+          const timeB = obtenerTiempo(b.fecha);
+
+          if (ordenamiento === 'fecha_desc') return timeB - timeA; // Recientes primero
+          if (ordenamiento === 'fecha_asc') return timeA - timeB;  // Antiguas primero
+          if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
+          if (ordenamiento === 'proximas') {
+              if (timeA === 0) return 1; // Manda las inválidas al fondo
+              if (timeB === 0) return -1;
+              const hoy = new Date().getTime();
+              return Math.abs(timeA - hoy) - Math.abs(timeB - hoy);
           }
           return 0;
       });
@@ -162,8 +201,7 @@
                     <option value="fecha_desc">Ordenar por fecha (recientes)</option>
                     <option value="fecha_asc">Ordenar por fecha (antiguas)</option>
                     <option value="tema_az">Ordenar por tema (A-Z)</option>
-                    <option value="tema_az">Ordenar por próximas</option>
-                </select>
+                    <option value="proximas">Ordenar por próximas</option> </select>
             </div>
     </div>
 
@@ -260,7 +298,7 @@
                         </div>
                     </div>
                     <label>Tema</label><input bind:value={form.tema} placeholder="Tema de la asamblea">
-                    <label>Fecha</label><input bind:value={form.fecha} placeholder="Fecha">
+                    <label>Fecha</label><input type="date" bind:value={form.fecha} placeholder="Fecha">
                     <label>Lugar</label>
                     <select bind:value={form.local_id}>
                         <option value={null}>-- Seleccionar --</option>
