@@ -18,27 +18,40 @@
         nivelTamano = (nivelTamano + 1) % 3;
     }
 
-    // --- LÓGICA ---
-    $: if (corriendo) {
-        if (!intervalo) {
+    // --- LÓGICA Y CONTROLES (CORREGIDOS Y BLINDADOS) ---
+    function togglePlay() { 
+        corriendo = !corriendo; 
+        if (corriendo) {
+            // Arranca el reloj
             intervalo = setInterval(() => segundosTranscurridos += 1, 1000);
+        } else {
+            // Pausa el reloj
+            clearInterval(intervalo);
+            intervalo = null;
         }
-    } else {
-        clearInterval(intervalo);
-        intervalo = null;
     }
 
-    onDestroy(() => clearInterval(intervalo));
+    function reiniciar() { 
+        // 1. Apagamos el motor instantáneamente
+        if (intervalo) {
+            clearInterval(intervalo);
+            intervalo = null;
+        }
+        // 2. Reiniciamos los valores
+        corriendo = false; 
+        segundosTranscurridos = 0; 
+    }
 
-    // --- CONTROLES ---
-    function togglePlay() { corriendo = !corriendo; }
-    function detener() { corriendo = false; segundosTranscurridos = 0; }
     function togglePanel() { abierto = !abierto; }
     
     // Matemática corregida
     function setTiempo(min: number) { minutosAsignados = Number(min); }
     function sumarMinuto() { minutosAsignados = Number(minutosAsignados) + 1; }
     function restarMinuto() { if (Number(minutosAsignados) > 1) minutosAsignados = Number(minutosAsignados) - 1; }
+
+    onDestroy(() => {
+        if (intervalo) clearInterval(intervalo);
+    });
 
     // --- FORMATO ---
     $: min = Math.floor(segundosTranscurridos / 60);
@@ -87,7 +100,7 @@
             </div>
 
             <div class="right-section controls">
-                <button class="btn-ctrl reset" on:click={detener} title="Reiniciar">
+                <button class="btn-ctrl reset" on:click={reiniciar} title="Reiniciar">
                     <TimerReset size={20}/>
                 </button>
                 
