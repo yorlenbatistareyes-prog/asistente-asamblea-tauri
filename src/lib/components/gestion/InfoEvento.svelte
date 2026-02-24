@@ -18,6 +18,8 @@
   import Placeholder from '@tiptap/extension-placeholder';
 
   import Panel from '$lib/components/ui/Panel.svelte';
+
+  import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
   // --- ICONOS ---
   import { 
     Save, Calendar, MapPin, Bookmark, Clock, Info, 
@@ -86,6 +88,18 @@
   let tema = "";
   let fecha = "";
   let identificador = "";
+
+  let editandoFechaRango = false;
+
+  function formatearRangoSimple(inicio: Date | null, fin: Date | null): string {
+    if (!inicio || !fin) return fecha || "Seleccionar fechas...";
+    const opciones: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+    return `${inicio.toLocaleDateString('es-ES', opciones)} - ${fin.toLocaleDateString('es-ES', opciones)}, ${inicio.getFullYear()}`;
+  }
+
+  function manejarSeleccionFinal() {
+    editandoFechaRango = false;
+  }
   
   // --- LÓGICA DE SALONES ---
   let locales: any[] = [];
@@ -120,9 +134,12 @@ let editTransmision = false;
 // Datos temporales para cada sección
 let tempGeneral = {
   tema: '',
-  fecha: '',
+  fecha: '', // Mantén la original para no romper nada
+  fechaInicio: null as Date | null, // Nueva
+  fechaFin: null as Date | null,    // Nueva
   idLocal: null as number | null,
 };
+
 let tempEnsayos = {
   ensayoLugar: '',
   ensayoFecha: '',
@@ -212,10 +229,16 @@ function cancelarEdicionGeneral() {
 
 async function guardarGeneral() {
   tema = tempGeneral.tema;
-  fecha = tempGeneral.fecha;
   idLocal = tempGeneral.idLocal;
+  
+  // ✅ Si el usuario seleccionó un rango nuevo, actualizamos el string 'fecha'
+  if (tempGeneral.fechaInicio && tempGeneral.fechaFin) {
+      const f1 = tempGeneral.fechaInicio.toISOString().split('T')[0];
+      const f2 = tempGeneral.fechaFin.toISOString().split('T')[0];
+      fecha = `${f1} a ${f2}`;
+  }
+
   await guardar();
-  tempGeneral = { tema, fecha, idLocal };
   editGeneral = false;
 }
 
@@ -476,9 +499,31 @@ async function guardarOrientaciones() {
         <label for="tema">Tema</label>
         <input id="tema" type="text" bind:value={tempGeneral.tema} disabled={!editGeneral} class="input-big"/>
       </div>
+
       <div class="campo">
-        <label><Calendar size={14}/> Fecha</label>
-        <input type="date" bind:value={tempGeneral.fecha} disabled={!editGeneral} />
+        <label><Calendar size={14}/> Fecha de la Asamblea</label>
+        
+        {#if !editGeneral}
+          <div class="input-lectura">{fecha || 'Sin fecha asignada'}</div>
+        {:else}
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            {#if editandoFechaRango}
+                <div class="contenedor-calendario-desplegado">
+                    <CalendarioRango 
+                        bind:fechaInicio={tempGeneral.fechaInicio} 
+                        bind:fechaFin={tempGeneral.fechaFin}
+                        on:seleccionar={manejarSeleccionFinal}
+                        on:cancelar={() => editandoFechaRango = false}
+                    />
+                </div>
+            {:else}
+                <div class="campo-falso-input" on:click={() => editandoFechaRango = true} role="button" tabindex="0">
+                    <Calendar size={16} class="ico-azul"/>
+                    <span>{formatearRangoSimple(tempGeneral.fechaInicio, tempGeneral.fechaFin)}</span>
+                </div>
+            {/if}
+          </div>
+        {/if}
       </div>
       
       <div class="campo">
@@ -1394,4 +1439,85 @@ input:disabled, select:disabled {
 :global(html.dark-theme) .card-config:hover {
   box-shadow: 0 6px 8px var(--shadow-color), 0 12px 20px var(--shadow-color);
 }
+
+/* --- ESTILOS DEL SELECTOR DE FECHA (INFO EVENTO) --- */
+
+    /* Estado de solo lectura (cuando no estás editando) */
+    .input-lectura {
+        padding: 10px 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--text-main);
+        font-weight: 500;
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        box-sizing: border-box;
+    }
+
+    /* El campo que parece un input y abre el calendario */
+    .campo-falso-input {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        min-height: 42px;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .campo-falso-input:hover {
+        border-color: var(--primary);
+        background: var(--bg-body);
+    }
+
+    /* Estilo para el texto dentro del selector */
+    .campo-falso-input span {
+        flex: 1;
+        font-size: 14px;
+        color: var(--text-main);
+        font-weight: 500;
+    }
+
+    /* Color gris cuando no hay nada seleccionado */
+    .campo-falso-input .placeholder {
+        color: var(--text-sec);
+        font-weight: 400;
+    }
+
+    /* Icono del calendario en azul */
+    .ico-azul { 
+        color: var(--primary); 
+        opacity: 0.9;
+    }
+
+    /* Contenedor animado para el CalendarioRango */
+    .contenedor-calendario-desplegado {
+        margin-top: 5px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        animation: fadeInCalendar 0.25s ease-out;
+        /* Asegura que flote visualmente sobre otros elementos si es necesario */
+        position: relative; 
+        z-index: 50;
+        box-shadow: var(--shadow-sm);
+    }
+
+    @keyframes fadeInCalendar {
+        from { 
+            opacity: 0; 
+            transform: translateY(-8px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+    }
 </style>
