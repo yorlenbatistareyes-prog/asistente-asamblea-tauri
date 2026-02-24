@@ -7,12 +7,20 @@
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
   import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
-
+  import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
   // DATOS
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = [];
   let mostrarModal = false;
-  let form = { tema: "", fecha: "", local_id: null, identificador: "", idioma: "Español" };
+
+  let form = { 
+    tema: "", 
+    fechaInicio: null as Date | null, 
+    fechaFin: null as Date | null, 
+    local_id: null as number | null, 
+    identificador: "", 
+    idioma: "Español" 
+};
 
   // ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
@@ -119,38 +127,49 @@
   }
 
   function abrirModal() {
-      form = { tema: "", fecha: "", local_id: null, identificador: "", idioma: "Español" };
+      // Limpiamos todo al abrir
+      form = { tema: "", fechaInicio: null, fechaFin: null, local_id: null, identificador: "", idioma: "Español" };
       mostrarModal = true;
   }
 
   async function crear() {
-      if(!form.tema) return; // Validación mínima
+      // Validación: Exigimos tema y ambas fechas
+      if(!form.tema || !form.fechaInicio || !form.fechaFin) {
+          alert("Debes escribir el tema y seleccionar el rango de fechas en el calendario.");
+          return;
+      }
       
-      // 1. Valores por defecto
+      // Extraemos las fechas en formato texto YYYY-MM-DD forzando hora local
+      const y1 = form.fechaInicio.getFullYear();
+      const m1 = String(form.fechaInicio.getMonth() + 1).padStart(2, '0');
+      const d1 = String(form.fechaInicio.getDate()).padStart(2, '0');
+      const fechaInicioStr = `${y1}-${m1}-${d1}`;
+
+      const y2 = form.fechaFin.getFullYear();
+      const m2 = String(form.fechaFin.getMonth() + 1).padStart(2, '0');
+      const d2 = String(form.fechaFin.getDate()).padStart(2, '0');
+      const fechaFinStr = `${y2}-${m2}-${d2}`;
+
       let nombreLugar = "Sin asignar";
       let idFinal = null;
 
-      // 2. Lógica de búsqueda segura
       if(form.local_id) {
-          // Convertimos a número para asegurar que la búsqueda funcione
           const idBuscado = Number(form.local_id);
-          
-          // Buscamos el salón en la lista comparando números
           const loc = listaLocales.find((x:any) => x.id === idBuscado);
-          
           if(loc) { 
-              // Si existe, armamos el texto: "Nombre, Ciudad"
               nombreLugar = loc.nombre; 
-              if (loc.ciudad) {
-                  nombreLugar += `, ${loc.ciudad}`;
-              }
+              if (loc.ciudad) nombreLugar += `, ${loc.ciudad}`;
               idFinal = idBuscado; 
           }
       }
 
-      // 3. Enviar al Backend (asegurando que mandamos 'lugar' con el texto correcto)
+      // Enviamos las fechas separadas al backend
       await invoke('crear_asamblea', { 
-          ...form, 
+          tema: form.tema,
+          fechaInicio: fechaInicioStr,
+          fechaFin: fechaFinStr,
+          identificador: form.identificador,
+          idioma: form.idioma,
           lugar: nombreLugar, 
           localId: idFinal 
       });
@@ -328,7 +347,11 @@
                         </div>
                     </div>
                     <label>Tema</label><input bind:value={form.tema} placeholder="Tema de la asamblea">
-                    <label>Fecha</label><input type="date" bind:value={form.fecha} placeholder="Fecha">
+                    <label>Fechas de la asamblea (Inicio y Fin)</label>
+                    
+                    <CalendarioRango 
+                        bind:fechaInicio={form.fechaInicio} 
+                        bind:fechaFin={form.fechaFin}/>
                     <label>Lugar</label>
                     <select bind:value={form.local_id}>
                         <option value={null}>-- Seleccionar --</option>
@@ -483,10 +506,22 @@
     .btn-manage-blue:hover { transform: scale(1.02); background: #1e3a8a; }
 
     /* MODAL */
-    .modal-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+    /* MODAL AMPLIADO Y CENTRADO ARRIBA */
+    .modal-bg { 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.6); z-index: 9999; 
+        display: flex; justify-content: center; 
+        align-items: flex-start; /* Evita que el modal se corte por arriba */
+        padding: 40px 20px;
+        overflow-y: auto;
+        backdrop-filter: blur(2px); 
+    }
     
-    :global(.modal-ancho) { width: 400px; display: flex; flex-direction: column; gap: 10px; }
-
+    :global(.modal-ancho) { 
+        width: 720px !important; /* Más ancho para el calendario doble */
+        max-width: 95vw; 
+        display: flex; flex-direction: column; gap: 10px; 
+    }
     
     .modal-form { display: flex; flex-direction: column; gap: 10px; }
     .modal-form input, select { padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text-main); }
