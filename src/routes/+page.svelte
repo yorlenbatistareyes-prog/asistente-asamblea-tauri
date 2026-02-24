@@ -365,27 +365,24 @@ function manejarSeleccionFinal() {
                         </div>
                     </div>
                     <label>Tema</label><input bind:value={form.tema} placeholder="Tema de la asamblea">
-                    <div style="display: flex; flex-direction: column; gap: 5px;">
-    <label>Fechas de la asamblea</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+    <label>FECHAS DE LA ASAMBLEA (INICIO Y FIN)</label>
     
     {#if editandoFecha}
-        <div class="contenedor-calendario-flotante">
+        <div class="contenedor-calendario-desplegado">
             <CalendarioRango 
                 bind:fechaInicio={form.fechaInicio} 
                 bind:fechaFin={form.fechaFin}
                 on:seleccionar={manejarSeleccionFinal}
+                on:cancelar={() => editandoFecha = false}
             />
-            <button type="button" class="btn-cancelar-flotante" on:click={() => editandoFecha = false}>
-                Cerrar calendario
-            </button>
         </div>
     {:else}
-        <div class="campo-selector-fecha" on:click={() => editandoFecha = true} role="button" tabindex="0">
+        <div class="campo-falso-input" on:click={() => editandoFecha = true} role="button" tabindex="0">
             <Calendar size={18} class="ico-azul"/>
             <span class={!form.fechaInicio ? 'placeholder' : ''}>
                 {formatearRangoSimple(form.fechaInicio, form.fechaFin)}
             </span>
-            <Search size={16} class="ico-search-fecha"/>
         </div>
     {/if}
 </div>
@@ -790,4 +787,43 @@ function manejarSeleccionFinal() {
         to { opacity: 1; transform: translateY(0); }
     }
 
+.campo-falso-input {
+        background: #ffffff;
+        border: 1px solid #d1d5db; /* Gris de tus otros inputs */
+        border-radius: 6px;
+        padding: 10px 15px;
+        height: 42px; /* Altura estándar de tus campos */
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .campo-falso-input:hover {
+        border-color: #3b82f6; /* Azul al pasar el ratón */
+        background: #f9fafb;
+    }
+
+    .campo-falso-input span {
+        flex: 1;
+        font-size: 14px;
+        color: #1e293b;
+        font-weight: 500;
+    }
+
+    .campo-falso-input .placeholder {
+        color: #94a3b8; /* Gris estilo placeholder */
+    }
+
+    .ico-azul { color: #2563eb; }
+
+    .contenedor-calendario-desplegado {
+        animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
