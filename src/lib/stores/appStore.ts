@@ -1,37 +1,45 @@
 import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-import { getVersion } from '@tauri-apps/api/app';
 
-export interface AppState {
-  version: string;
-  asambleas: any[];
-  usuario: string;
-}
+// Controla qué pantalla se ve ('inicio' o 'configuracion')
+export const vistaActual = writable('inicio');
 
-const initialState: AppState = {
-  version: '1.0.0',
-  asambleas: [],
-  usuario: 'Invitado'
-};
+// Datos globales de la app
+export const appStore = writable({
+    usuario: "Usuario",
+    congregacion: "",
+    circuito: "",
+    ultimoAcceso: new Date()
+});
 
-export const appStore = writable<AppState>(initialState);
-
-// Función para cargar todos los datos desde el backend y actualizar el store
+// Función para cargar datos básicos al inicio
 export async function cargarDatosGlobales() {
-  try {
-    const [version, asambleas, config] = await Promise.all([
-      getVersion(),
-      invoke('obtener_asambleas'),
-      invoke('obtener_configuracion_general')
-    ]);
+    try {
+        const config: any = await invoke('obtener_configuracion_general');
+        
+        // ESTO ES CLAVE: Imprime en la consola (F12) lo que Rust nos está mandando
+        console.log("⚙️ Configuración recibida de Rust:", config); 
 
-    appStore.update(state => ({
-      ...state,
-      version: version || '1.0.0',
-      asambleas: asambleas as any[],
-      usuario: (config as any)?.nombre || (config as any)?.nombre_usuario || 'Invitado'
-    }));
-  } catch (e) {
-    console.error('Error cargando datos globales:', e);
-  }
+        if (config) {
+            // Evaluamos si viene el nombre. Si viene nombre y apellido, los podemos unir.
+            let nombreMostrar = "Usuario"; // Valor por defecto
+            
+            if (config.nombre) {
+                nombreMostrar = config.nombre;
+                // Si quisieras que diga "Yorlen Batista", usarías esto:
+                // nombreMostrar = `${config.nombre} ${config.apellido || ''}`.trim();
+            } else if (config.nombre_usuario) {
+                nombreMostrar = config.nombre_usuario;
+            }
+
+            appStore.update(s => ({
+                ...s,
+                usuario: nombreMostrar,
+                congregacion: config.congregacion || "",
+                circuito: config.circuito || ""
+            }));
+        }
+    } catch (e) {
+        console.error("❌ Error cargando globales desde Rust:", e);
+    }
 }

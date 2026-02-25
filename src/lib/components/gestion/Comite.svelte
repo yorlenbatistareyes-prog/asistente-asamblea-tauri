@@ -5,11 +5,22 @@
     ShieldCheck, Save, Search, X, MapPin, Phone, Mail, 
     User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus, Droplet, BookOpen,
      Presentation, Mic2, Home, Building, CalendarDays, ScrollText, FileText, ListTodo,
-     ListOrdered, NotepadText, ClipboardList, SlidersHorizontal   
+     ListOrdered, NotepadText, ClipboardList, SlidersHorizontal, Check, Loader, AlertCircle   
   } from 'lucide-svelte';
+
+  import Panel from '$lib/components/ui/Panel.svelte';
+
+  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { generarContexto } from '$lib/utils/contexto_impresion';
+  import { obtenerPlantillaPorId } from '$lib/utils/plantillasEmail';
+  import { prepararAsuntoEmail, prepararContenidoEmail } from '$lib/utils/contextoEmail';
+
+  // --- ESTADO DE GUARDADO ---
+  let estadoGuardado: 'idle' | 'guardando' | 'guardado' | 'error' = 'idle';
 
   // --- ESTADO ---
   let asambleaId = 0; // <--- ID DE LA ASAMBLEA ACTUAL
+  let asambleaIdentificador = "";
   
   let hermanos: any[] = [];
   let congregaciones: any[] = []; 
@@ -36,7 +47,9 @@
     // 1. RECUPERAR ID
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
-        asambleaId = JSON.parse(datosGuardados).id;
+        const asamblea = JSON.parse(datosGuardados);
+        asambleaId = asamblea.id;
+        asambleaIdentificador = asamblea.identificador || "Sin ID";
         await recargarTodo();
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
@@ -97,12 +110,16 @@
     mostrarModal = true; 
   }
 
-  function seleccionar(id: number) { 
+  async function seleccionar(id: number) { 
     c[rolEditando] = id; 
     mostrarModal = false; 
+    await guardar(true); // <-- Auto-guardado silencioso
   }
 
-  function quitar(rol: string) { c[rol] = 0; }
+  async function quitar(rol: string) { 
+    c[rol] = 0; 
+    await guardar(true); // <-- Auto-guardado silencioso
+  }
 
   // --- CREAR CON DETALLES EN LA ASAMBLEA ACTUAL ---
   async function crearYSeleccionar() {
@@ -126,7 +143,7 @@
       const creado = hermanos.find(h => h.nombre_completo === nuevoNombre);
       
       if (creado) {
-        seleccionar(creado.id);
+        await seleccionar(creado.id); // Solo se añade el 'await' aquí
       } else {
         alert("Error al recuperar el nuevo registro");
       }
@@ -135,40 +152,124 @@
     }
   }
 
-  async function guardar() {
+  async function guardar(silencioso = false) {
+    // 1. Mostrar estado "Guardando..."
+    estadoGuardado = 'guardando';
+
     try {
       const n = (val: number) => val === 0 ? null : val;
       
       // Enviamos TODOS los datos al backend (Rust)
       await invoke('guardar_comite', { 
-        id: asambleaId, // <--- CRUCIAL: Sin esto, la base de datos no sabe a quién actualizar
-        
+        id: asambleaId, 
         presidenteId: n(c.presi),
-        
         coordinadorId: n(c.coord), 
         coordinadorAuxId: n(c.coord_a),
-        
         progSuperId: n(c.prog), 
         progAuxId: n(c.prog_a),
-        
         alojSuperId: n(c.aloj), 
         alojAuxId: n(c.aloj_a),
-        
         audioVideoId: n(c.av), 
         videoId: n(c.video), 
         audioId: n(c.audio), 
         plataformaId: n(c.plat),
-
-        // TUS AGREGADOS DE BAUTISMO (Perfecto, esto faltaba):
         bautismoSuperId: n(c.baut),
         bautismoAuxId: n(c.baut_a)
       });
+
+    // Pequeño truco UX: Forzamos que el "Guardando..." se vea al menos medio segundo
+      // para que el usuario note el cambio visual, ya que Rust es demasiado rápido.
+      if (silencioso) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+      }
       
-      alert("✅ Comité guardado correctamente");
+      // 2. Mostrar estado "Guardado" fijo
+      estadoGuardado = 'guardado';
+
+      if (!silencioso) alert("✅ Comité guardado correctamente");
+      
     } catch (e) { 
         console.error("Error al guardar comité:", e);
-        alert("Error al guardar: " + e); 
+        estadoGuardado = 'error'; 
+        if (!silencioso) alert("Error al guardar: " + e); 
     }
+  }
+
+  // --- LÓGICA: MENÚ JWPUB COMITÉ ---
+  let mostrarMenuJW = false;
+
+  // Cierra el menú al hacer clic fuera
+  onMount(() => {
+      window.addEventListener('click', handleClickOutside);
+  });
+
+  function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (mostrarMenuJW && !target.closest('.jw-menu-container')) {
+          mostrarMenuJW = false;
+      }
+  }
+
+  // Función principal de envío
+  async function enviarEmailComite(tipo: 'comite_entero' | 'sup_programa' | 'audio_video') {
+      let destinatarios = new Set<string>();
+      let idPlantilla = '';
+
+      // 1. Extraer correos según la opción elegida
+      if (tipo === 'comite_entero') {
+          idPlantilla = 'comite';
+          [c.coord, c.prog, c.aloj].forEach(id => {
+              const h = getDetalles(id);
+              if (h && h.email) destinatarios.add(h.email.trim());
+          });
+      } else if (tipo === 'sup_programa') {
+          idPlantilla = 'superintendente';
+          const h = getDetalles(c.prog);
+          if (h && h.email) destinatarios.add(h.email.trim());
+      } else if (tipo === 'audio_video') {
+          idPlantilla = 'audiovideo';
+          const h = getDetalles(c.av);
+          if (h && h.email) destinatarios.add(h.email.trim());
+      }
+
+      const listaCorreos = Array.from(destinatarios).join(';');
+      
+      if (listaCorreos.length === 0) {
+          return alert("⚠️ No hay correos registrados para esta selección.");
+      }
+
+      try {
+          // 2. Cargar plantilla
+          const plantilla = obtenerPlantillaPorId(idPlantilla);
+          const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+          const cuerpoBase = plantilla?.body || "";
+
+          // 3. Crear contexto base para la asamblea (sin un hermano específico)
+          const objetoSimulado = {
+              nombre_completo: 'Hermanos', nombre_pila: 'Hermanos', apellidos: '',
+              tema: '', hora_inicio: '', hora: '', tipo_asignacion: 'Comité',
+              numero_bosquejo: '', email: '', telefono: '', congregacion: ''
+          };
+
+          const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+          
+          // 4. Procesar marcadores
+          const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+          const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+          // 5. Abrir JWPUB
+          const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+                      `&to=${encodeURIComponent(listaCorreos)}` +
+                      `&subject=${encodeURIComponent(asuntoFinal)}` +
+                      `&body=${encodeURIComponent(cuerpoFinal)}`;
+          
+          openUrl(url);
+          mostrarMenuJW = false;
+
+      } catch (error) {
+          console.error("Error al generar correo:", error);
+          alert("Ocurrió un error al intentar abrir el correo.");
+      }
   }
 
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
@@ -176,15 +277,60 @@
 
 <div class="panel-comite">
   <div class="header">
-    <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea (Asamblea #{asambleaId})</h3>
-    <button class="btn-save" on:click={guardar}><Save size={18}/> Guardar Todo</button>
+    <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea ({asambleaIdentificador})</h3>
+    
+    <div style="display: flex; gap: 10px; align-items: center;">
+
+        <div class="indicador-guardado {estadoGuardado}">
+            {#if estadoGuardado === 'guardando'}
+                <Loader size={14} class="spin-icon"/> <span>Guardando...</span>
+            {:else if estadoGuardado === 'guardado'}
+                <Check size={14}/> <span>Guardado</span>
+            {:else if estadoGuardado === 'error'}
+                <AlertCircle size={14}/> <span>Error</span>
+            {/if}
+        </div>
+        
+        <div style="position: relative;" class="jw-menu-container">
+            <button class="btn-jw-header" on:click|stopPropagation={() => mostrarMenuJW = !mostrarMenuJW}>
+                <Mail size={16}/> JW Email <ChevronDown size={14}/>
+            </button>
+            
+            {#if mostrarMenuJW}
+                <div class="dropdown-jw" on:click|stopPropagation>
+                    <button class="jw-item" on:click={() => enviarEmailComite('comite_entero')}>
+                        <Users size={16} color="var(--primary)"/>
+                        <div style="display:flex; flex-direction:column; text-align:left; gap:2px;">
+                            <span style="font-weight:600; font-size:13px; color:var(--text-main);">Al Comité de Asamblea</span>
+                            <span style="font-size:10px; color:var(--text-secondary);">Coord., Prog. y Alojamiento</span>
+                        </div>
+                    </button>
+                    
+                    <div style="height:1px; background:var(--border); margin:4px 10px;"></div>
+                    
+                    <button class="jw-item" on:click={() => enviarEmailComite('sup_programa')}>
+                        <NotepadText size={16} color="#d97706"/>
+                        <span style="font-weight:600; font-size:13px; color:var(--text-main);">Al Sup. de Programa</span>
+                    </button>
+                    
+                    <div style="height:1px; background:var(--border); margin:4px 10px;"></div>
+                    
+                    <button class="jw-item" on:click={() => enviarEmailComite('audio_video')}>
+                        <Radio size={16} color="#16a34a"/>
+                        <span style="font-weight:600; font-size:13px; color:var(--text-main);">Al Sup. de Audio/Video</span>
+                    </button>
+                </div>
+            {/if}
+        </div>
+
+        <button class="btn-save" on:click={() => guardar()}><Save size={18}/> Guardar Todo</button>
+    </div>
   </div>
 
   <div class="scroll-container">
     
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
        <h4 class="titulo-seccion"><User size={18} />PRESIDENTE</h4>
-     
       <div class="grid-uno">
          <div class="role-wrapper">
             <span class="label-rol">Presidente de la Asamblea</span>
@@ -207,11 +353,11 @@
             {/if}
          </div>
       </div>
-    </div>
+    </Panel>
 
     <h3 class="titulo-separador">Miembros del Comité de Asamblea</h3>
 
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
         <h4 class="titulo-seccion"><User size={18}/> COORDINACIÓN</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
@@ -251,10 +397,10 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('coord_a')}>Seleccionar... <ChevronDown size={16}/></button>{/if}
             </div>
         </div>
-    </div>
+    </Panel>
 
     <div class="grid-dos-grande">
-        <div class="seccion">
+        <Panel padding="24px" clasesExtra="seccion-comite">
             <h4 class="titulo-seccion"><NotepadText size={16}/> PROGRAMA</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
@@ -294,9 +440,9 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('prog_a')}>Seleccionar...</button>{/if}
                 </div>
             </div>
-        </div>
+        </Panel>
 
-        <div class="seccion">
+        <Panel padding="24px" clasesExtra="seccion-comite">
             <h4 class="titulo-seccion"><Home size={16}/> ALOJAMIENTO</h4>
             <div class="stack-roles">
                 <div class="role-wrapper">
@@ -336,12 +482,12 @@
                     {:else}<button class="btn-select" on:click={() => abrirModal('aloj_a')}>Seleccionar...</button>{/if}
                 </div>
             </div>
-        </div>
+        </Panel>
     </div>
 
     <h3 class="titulo-separador">Otras Responsabilidades</h3>
 
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
         <h4 class="titulo-seccion">DEPARTAMENTO DE AUDIO Y VIDEO</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
@@ -417,9 +563,9 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('plat')}>Seleccionar...</button>{/if}
             </div>
         </div>
-    </div>
+    </Panel>
 
-    <div class="seccion">
+    <Panel padding="24px" clasesExtra="seccion-comite">
         <h4 class="titulo-seccion"><Droplet size={16}/> DEPARTAMENTO DE BAUTISMO</h4>
         <div class="grid-dos">
             <div class="role-wrapper">
@@ -460,10 +606,9 @@
                 {:else}<button class="btn-select" on:click={() => abrirModal('baut_a')}>Seleccionar...</button>{/if}
             </div>
         </div>
-    </div>
+    </Panel>
 
-  </div>
-</div>
+  </div> </div>
 
 {#if mostrarModal}
 <div class="modal-backdrop" on:click|self={() => mostrarModal = false}>
@@ -473,7 +618,7 @@
     <div class="modal-body">
       {#if modoCreacionRapida}
         <div class="form-rapido">
-            <h4 class="form-title">Nuevo Registro (En Asamblea #{asambleaId})</h4>
+            <h4 class="form-title">Nuevo Registro ({asambleaIdentificador})</h4>
             
             <div class="campo">
                 <label>Nombre Completo</label>
@@ -532,158 +677,245 @@
 {/if}
 
 <style>
-  /* APLICANDO VARIABLES GLOBALES DE TEMA */
-  .panel-comite { display: flex; flex-direction: column; gap: 20px; height: 100%; background: var(--bg-body); }
-  
-  .header { 
-      display: flex; justify-content: space-between; align-items: center; 
-      background: var(--bg-card); 
-      padding: 15px 20px; 
-      border-bottom: 1px solid var(--border-color); 
-  }
-  .header h3 { margin: 0; color: var(--text-main); display: flex; gap: 10px; align-items: center; } 
-  
-  .btn-save { 
-      background: var(--primary); color: white; border: none; 
-      padding: 8px 16px; border-radius: 6px; cursor: pointer; 
-      display: flex; gap: 6px; font-weight: 600; align-items: center; 
-  }
-  
-  .scroll-container { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
-  
-  .seccion { 
-      background: var(--bg-card); 
-      border: 1px solid var(--border-color); 
-      border-radius: 10px; padding: 15px; 
-  }
-  
-  .titulo-seccion { 
-      margin: 0 0 15px 0; 
-      color: var(--text-secondary); 
-      font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; 
-      display: flex; gap: 8px; align-items: center; 
-      border-bottom: 1px solid var(--border-color); 
-      padding-bottom: 8px; 
-  }
+ /* ===== CONTENEDOR PRINCIPAL ===== */
+.panel-comite { display: flex; flex-direction: column; gap: 20px; height: 100%; background: transparent; }
 
-  /* GRIDS */
-  .grid-uno { display: grid; grid-template-columns: 1fr; }
-  .grid-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-  .grid-dos-grande { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .stack-roles { display: flex; flex-direction: column; gap: 10px; }
-
-  /* TARJETA */
-  .role-wrapper { display: flex; flex-direction: column; gap: 5px; }
-  .label-rol { font-size: 11px; font-weight: 700; color: var(--text-secondary); display: flex; gap: 4px; align-items: center; }
-  
-  .tarjeta { 
-      background: var(--bg-card); 
-      border: 1px solid var(--border-color); 
-      border-radius: 8px; overflow: hidden; 
-      box-shadow: 0 2px 4px var(--shadow-color); 
-      transition: all 0.2s; 
-  }
-  .tarjeta:hover { border-color: var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
-  
-  .card-top { 
-      display: flex; align-items: center; gap: 10px; padding: 10px; 
-      background: var(--bg-card); /* Ajustado para consistencia */
-      border-bottom: 1px solid var(--border-color); 
-  }
-  .avatar { 
-      width: 32px; height: 32px; 
-      background: var(--bg-secondary); color: var(--primary); 
-      border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; 
-  }
-  
-  .info { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .t-nombre { font-weight: 700; color: var(--text-main); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .t-priv { font-size: 10px; color: var(--text-secondary); background: var(--bg-body); width: fit-content; padding: 1px 4px; border-radius: 3px; }
-
-  .card-bottom { padding: 8px 12px; background: var(--bg-body); display: flex; flex-direction: column; gap: 4px; }
-  .row { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
-
-  .btn-x { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 2px; } .btn-x:hover { color: #ef4444; }
-  
-  .btn-select { 
-      width: 100%; padding: 10px; 
-      background: var(--bg-body); 
-      border: 1px dashed var(--border-color); 
-      border-radius: 6px; 
-      color: var(--text-secondary); font-size: 12px; 
-      cursor: pointer; display: flex; justify-content: space-between; 
-  } 
-  .btn-select:hover { background: var(--hover-bg); border-color: var(--text-secondary); color: var(--text-main); }
-
-  /* MODAL */
-  .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 999; }
-  .modal { 
-      background: var(--bg-card); 
-      width: 350px; border-radius: 10px; overflow: hidden; 
-      display: flex; flex-direction: column; max-height: 80vh; 
-      box-shadow: 0 4px 15px var(--shadow-color);
-  }
-  .modal-header { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; }
-  .modal-header h3 { color: var(--text-main); margin: 0; }
-  .btn-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; }
-  .btn-close:hover { color: var(--text-main); }
-
-  .modal-body { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-  
-  .search-box { 
-      display: flex; align-items: center; gap: 8px; padding: 8px; 
-      background: var(--bg-body); 
-      border-radius: 6px; border: 1px solid var(--border-color);
-  } 
-  .search-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 13px; color: var(--text-main); }
-  
-  .item-persona { 
-      display: flex; align-items: center; gap: 10px; padding: 8px; 
-      background: var(--bg-card); 
-      border: none; text-align: left; cursor: pointer; 
-      border-bottom: 1px solid var(--border-color); 
-  } 
-  .item-persona:hover { background: var(--hover-bg); }
-  
-  .avatar-small { width: 28px; height: 28px; background: var(--bg-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-secondary); font-size: 10px; }
-  .datos { display: flex; flex-direction: column; } 
-  .p-nombre { font-weight: 600; font-size: 12px; color: var(--text-main); } 
-  .p-cong { font-size: 10px; color: var(--text-secondary); }
-
-  /* ESTILOS CREACION RAPIDA (FORMULARIO) */
-  .item-nuevo { 
-      display: flex; align-items: center; gap: 10px; padding: 10px; 
-      background: var(--bg-secondary); 
-      border: 1px dashed var(--primary); 
-      color: var(--primary); 
-      border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 5px; 
-  }
-  .item-nuevo:hover { opacity: 0.8; }
-  
-  .form-rapido { display: flex; flex-direction: column; gap: 10px; padding: 5px; }
-  .form-title { margin: 0; color: var(--text-main); font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-  
-  .campo { display: flex; flex-direction: column; gap: 4px; }
-  .campo label { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
-  
-  .input-std { 
-      width: 100%; padding: 8px; 
-      border: 1px solid var(--border-color); 
-      border-radius: 6px; font-size: 13px; box-sizing: border-box; 
-      background: var(--input-bg); color: var(--text-main);
-  }
-  .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  
-  .botones-form { display: flex; gap: 10px; margin-top: 5px; }
-  .btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-  .btn-cancelar { flex: 1; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: 600; }
-  .titulo-separador {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-main); /* 👈 Ahora usará tu color de texto principal (negro) */
-    margin: 40px 0 20px 0; 
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--border-color); 
-    width: 100%;
+.header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    background: var(--bg-card); 
+    padding: 15px 20px; 
+    border-bottom: 1px solid var(--border); 
 }
+.header h3 { margin: 0; color: var(--text-main); display: flex; gap: 10px; align-items: center; } 
+
+.btn-save { 
+    background: var(--primary); color: white; border: none; 
+    padding: 8px 16px; border-radius: 6px; cursor: pointer; 
+    display: flex; gap: 6px; font-weight: 600; align-items: center; 
+    transition: transform 0.2s;
+}
+.btn-save:hover { transform: translateY(-2px); opacity: 0.9; }
+
+.scroll-container { padding: 5px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+.titulo-separador {
+    font-size: 16px; font-weight: 700; color: var(--text-main);
+    margin: 20px 0 5px 0; padding-bottom: 8px;
+    border-bottom: 2px solid var(--border); width: 100%;
+}
+
+/* ======================================================== */
+/* BLINDAJE CONTRA SVELTE (Usando :global y Flexbox Seguro) */
+/* ======================================================== */
+
+:global(.titulo-seccion) { 
+    margin: 0 0 15px 0 !important; 
+    color: var(--text-secondary) !important; 
+    font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase !important; letter-spacing: 1px !important; 
+    display: flex !important; gap: 8px !important; align-items: center !important; 
+    border-bottom: 1px solid var(--border) !important; 
+    padding-bottom: 8px !important; 
+}
+
+:global(.seccion-comite) { 
+    margin-bottom: 5px !important; 
+    width: 100% !important; 
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important; /* Evita que corte el contenido inferior */
+}
+
+:global(.grid-uno) { display: flex !important; flex-direction: column !important; width: 100% !important; }
+
+/* Convertimos los grids a flex para evitar el colapso de altura */
+:global(.grid-dos) { display: flex !important; gap: 20px !important; width: 100% !important; align-items: flex-start !important; }
+:global(.grid-dos > div) { flex: 1 !important; min-width: 0 !important; }
+
+:global(.grid-dos-grande) { display: flex !important; gap: 20px !important; width: 100% !important; margin-bottom: 5px !important; }
+:global(.grid-dos-grande > div) { flex: 1 !important; min-width: 0 !important; }
+
+:global(.stack-roles) { display: flex !important; flex-direction: column !important; gap: 15px !important; width: 100% !important; }
+
+:global(.role-wrapper) { display: flex !important; flex-direction: column !important; gap: 8px !important; width: 100% !important; }
+
+:global(.label-rol) { 
+    font-size: 11px !important; font-weight: 700 !important; color: var(--text-secondary) !important;
+    display: flex !important; gap: 6px !important; align-items: center !important; text-transform: uppercase !important;
+}
+
+/* ===== TARJETAS Y BOTONES DENTRO DEL PANEL ===== */
+:global(.tarjeta) { 
+    background: var(--bg-card) !important; 
+    border: 1px solid var(--border) !important;
+    border-left: 4px solid var(--primary) !important;
+    border-radius: 10px !important; 
+    overflow: hidden !important; 
+    display: flex !important; flex-direction: column !important;
+    transition: all 0.2s ease !important; 
+    width: 100% !important;
+}
+:global(.tarjeta:hover) { 
+    transform: translateY(-3px) !important;
+    box-shadow: var(--shadow-premium) !important;
+    border-color: var(--primary) !important;
+}
+
+:global(.card-top) { 
+    display: flex !important; align-items: center !important; gap: 12px !important; 
+    padding: 14px !important; background: transparent !important; 
+    border-bottom: 1px solid var(--border) !important;
+}
+
+:global(.avatar) { 
+    width: 38px !important; height: 38px !important; background: rgba(59, 130, 246, 0.1) !important;
+    color: var(--primary) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0 !important; 
+}
+
+:global(.info) { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 4px !important; overflow: hidden !important; }
+
+:global(.t-nombre) { font-weight: 700 !important; color: var(--text-main) !important; font-size: 14px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.1 !important; }
+
+:global(.t-priv) { 
+    font-size: 10px !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: 0.5px !important;
+    color: var(--text-secondary) !important; background: var(--bg-body) !important; width: fit-content !important; padding: 3px 8px !important; border-radius: 12px !important; line-height: 1 !important; border: 1px solid var(--border) !important;
+}
+
+:global(.card-bottom) { padding: 12px 14px !important; background: var(--bg-body) !important; display: flex !important; flex-direction: column !important; gap: 8px !important; }
+
+:global(.row) { font-size: 12px !important; color: var(--text-secondary) !important; display: flex !important; align-items: center !important; gap: 8px !important; }
+:global(.row svg) { flex-shrink: 0 !important; opacity: 0.7 !important; }
+
+:global(.btn-x) { 
+    background: transparent !important; border: none !important; color: var(--text-secondary) !important; cursor: pointer !important; 
+    padding: 6px !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    transition: background 0.2s, color 0.2s !important;
+}
+:global(.btn-x:hover) { background: var(--hover-bg) !important; color: #ef4444 !important; }
+
+:global(.btn-select) { 
+    width: 100% !important; padding: 14px 15px !important; background: transparent !important;
+    border: 1.5px dashed var(--border) !important; border-radius: 8px !important; 
+    color: var(--text-secondary) !important; font-size: 13px !important; font-weight: 600 !important; cursor: pointer !important; 
+    display: flex !important; justify-content: space-between !important; align-items: center !important; transition: all 0.2s ease !important;
+} 
+:global(.btn-select:hover) { background: var(--hover-bg) !important; border-color: var(--primary) !important; color: var(--primary) !important; }
+
+/* ===== MODAL Y FORMULARIOS (Se quedan normales porque están fuera de los Paneles) ===== */
+.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+.modal { background: var(--bg-card); width: 400px; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; max-height: 85vh; border: 1px solid var(--border); box-shadow: var(--shadow-premium); }
+.modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { color: var(--text-main); margin: 0; font-size: 16px; }
+.btn-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 6px; }
+.btn-close:hover { background: var(--hover-bg); color: var(--text-main); }
+.modal-body { padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.search-box { display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border); }
+.search-box input { border: none; background: transparent; outline: none; width: 100%; font-size: 14px; color: var(--text-main); }
+.lista-personas { display: flex; flex-direction: column; gap: 5px; }
+.item-persona { display: flex; align-items: center; gap: 12px; padding: 10px; background: transparent; border: 1px solid transparent; text-align: left; cursor: pointer; border-radius: 8px; transition: all 0.2s; }
+.item-persona:hover { background: var(--bg-body); border-color: var(--border); }
+.avatar-small { width: 32px; height: 32px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); font-size: 12px; }
+.datos { display: flex; flex-direction: column; }
+.p-nombre { font-weight: 600; font-size: 13px; color: var(--text-main); }
+.p-cong { font-size: 11px; color: var(--text-secondary); }
+.item-nuevo { display: flex; align-items: center; gap: 10px; padding: 12px; background: transparent; border: 1.5px dashed var(--primary); color: var(--primary); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 10px; transition: all 0.2s; }
+.item-nuevo:hover { background: rgba(59, 130, 246, 0.05); }
+.form-rapido { display: flex; flex-direction: column; gap: 12px; }
+.form-title { margin: 0; color: var(--text-main); font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; }
+.input-std { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; box-sizing: border-box; background: var(--bg-body); color: var(--text-main); transition: border 0.2s; }
+.input-std:focus { border-color: var(--primary); outline: none; }
+.grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.botones-form { display: flex; gap: 10px; margin-top: 10px; }
+.btn-confirmar { flex: 1; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: opacity 0.2s;}
+.btn-confirmar:hover { opacity: 0.9; }
+.btn-cancelar { flex: 1; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;}
+.btn-cancelar:hover { background: var(--hover-bg); 
+}
+
+/* ESTILOS DEL NUEVO MENÚ JW EMAIL */
+    .btn-jw-header {
+        background: transparent;
+        border: 1px solid #f97316;
+        color: #f97316;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 13px;
+        align-items: center;
+        transition: all 0.2s;
+    }
+    .btn-jw-header:hover {
+        background: rgba(249, 115, 22, 0.1);
+    }
+
+    .dropdown-jw {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 5px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: var(--shadow-premium);
+        z-index: 100;
+        min-width: 250px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .jw-item {
+        width: 100%;
+        padding: 12px 15px;
+        background: transparent;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .jw-item:hover {
+        background: var(--hover-bg);
+    }
+
+    /* INDICADOR DE GUARDADO AUTOMÁTICO */
+    .indicador-guardado {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .indicador-guardado.guardando {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    .indicador-guardado.guardado {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .indicador-guardado.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    /* Animación de giro para el Loader */
+    :global(.spin-icon) {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 </style>

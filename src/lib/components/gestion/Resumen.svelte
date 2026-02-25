@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import Panel from '$lib/components/ui/Panel.svelte';
   
-  // Iconos
+  // Iconos (¡Agregamos Film para los videos!)
   import { 
     Users, Droplets, Mic, CheckCircle, AlertCircle, 
-    Clock, Activity, ArrowRight 
+    Clock, Activity, ArrowRight, Film 
   } from 'lucide-svelte';
 
   // Importamos el Store Global
@@ -15,6 +16,11 @@
   let horaActual = '';
   let asambleaIdActual = 0; 
   let nombreAsamblea = '';
+
+  // ✅ Estado de la asamblea
+  let estadoAsamblea: 'en_curso' | 'futura' | 'finalizada' = 'en_curso';
+  let fechaInicioAsamblea: Date | null = null;
+  let fechaFinAsamblea: Date | null = null;
   
   // --- 1. ASISTENCIA DETALLADA (6 SESIONES) ---
   let mostrarModalAsistencia = false; 
@@ -34,72 +40,151 @@
 
   // --- 2. RESTO DE DATOS MANUALES ---
   let bautismosTotal = 0;
-  let totalCongregacionesReales = 0; // Se carga desde DB
+  let totalCongregacionesReales = 0;
 
   // --- 3. DATOS AUTOMÁTICOS ---
   let oradoresPendientesLista: any[] = []; 
   let estadisticasPrograma = { confirmados: 0, pendientes: 0 };
   
-  // --- 4. MONITOR Y DESFASE DE TIEMPO (NUEVO) ---
+  // --- 4. MONITOR Y DESFASE DE TIEMPO ---
   let parteActual: any = null;
   let siguienteParte: any = null;
   let programaCompletoCache: any[] = [];
   
   // Variable para adelantar/atrasar el reloj del monitor
   let offsetMinutos = 0; 
+  let intervalReloj: any;
+  let intervalDetector: any;
 
-  // --- INICIO ---
-  onMount(async () => {
-    const datosGuardados = localStorage.getItem('asambleaActiva');
-    if (datosGuardados) {
-        const data = JSON.parse(datosGuardados);
-        asambleaIdActual = data.id;
-        nombreAsamblea = data.nombre || data.tema || "Asamblea";
-    } else {
-        asambleaIdActual = 1; 
+  // ✅ NUEVA FUNCIÓN: Parsear fecha del formato "20 - 22 DE MARZO DE 2026"
+  function parsearFechaAsamblea(fechaString: string): { inicio: Date | null, fin: Date | null } {
+    try {
+      // Mapa de meses en español
+      const meses: { [key: string]: number } = {
+        'ENERO': 0, 'FEBRERO': 1, 'MARZO': 2, 'ABRIL': 3,
+        'MAYO': 4, 'JUNIO': 5, 'JULIO': 6, 'AGOSTO': 7,
+        'SEPTIEMBRE': 8, 'OCTUBRE': 9, 'NOVIEMBRE': 10, 'DICIEMBRE': 11
+      };
+      
+      const regex = /(\d+)\s*-\s*(\d+)\s+DE\s+([A-ZÁÉÍÓÚ]+)\s+DE\s+(\d{4})/i;
+      const match = fechaString.match(regex);
+      
+      if (!match) return { inicio: null, fin: null };
+      
+      const [, diaInicio, diaFin, mesNombre, año] = match;
+      const mesIndex = meses[mesNombre.toUpperCase()];
+      
+      if (mesIndex === undefined) return { inicio: null, fin: null };
+      
+      const inicio = new Date(parseInt(año), mesIndex, parseInt(diaInicio));
+      const fin = new Date(parseInt(año), mesIndex, parseInt(diaFin));
+      
+      return { inicio, fin };
+    } catch (e) {
+      console.error("❌ Error al parsear fecha:", e);
+      return { inicio: null, fin: null };
+    }
+  }
+
+  // --- INICIO Y DETECTOR MÁGICO ---
+  onMount(() => {
+    cargarAsambleaActiva();
+
+    // Actualizamos el reloj cada 10 segundos para mayor precisión
+    intervalReloj = setInterval(actualizarReloj, 10000); 
+
+    // DETECTOR MÁGICO: Revisa si cambiaste de asamblea en el menú
+    intervalDetector = setInterval(() => {
+        const guardado = localStorage.getItem('asambleaActiva');
+        if (guardado) {
+            const data = JSON.parse(guardado);
+            if (data.id && data.id !== asambleaIdActual) {
+                console.log("🔄 Cambio de asamblea detectado. Actualizando pantalla...");
+                cargarAsambleaActiva(); 
+            }
+        }
+    }, 500);
+
+    return () => {
+        clearInterval(intervalReloj);
+        clearInterval(intervalDetector);
+    };
+  });
+
+  // --- FUNCIÓN MAESTRA QUE RECARGA TODO ---
+  async function cargarAsambleaActiva() {
+      const datosGuardados = localStorage.getItem('asambleaActiva');
+      if (datosGuardados) {
+          const data = JSON.parse(datosGuardados);
+          asambleaIdActual = data.id;
+          nombreAsamblea = data.nombre || data.tema || "Asamblea";
+
+          if (data.fecha) {
+            const { inicio, fin } = parsearFechaAsamblea(data.fecha);
+            fechaInicioAsamblea = inicio;
+            fechaFinAsamblea = fin;
+          } else {
+            fechaInicioAsamblea = null;
+            fechaFinAsamblea = null;
+          }
+          
+          determinarEstadoAsamblea();
+      } else {
+          asambleaIdActual = 1; 
+      }
+
+      await cargarDatosGlobales();
+      cargarDatosLocales(); 
+      await cargarDatosDB();
+
+      actualizarReloj();
+  }
+
+  // --- DETERMINAR ESTADO DE LA ASAMBLEA ---
+  function determinarEstadoAsamblea() {
+    if (!fechaInicioAsamblea || !fechaFinAsamblea) {
+      estadoAsamblea = 'en_curso';
+      return;
     }
 
-    await cargarDatosGlobales();
-    cargarDatosLocales(); 
-    await cargarDatosDB();
-
-    actualizarReloj();
-    setInterval(actualizarReloj, 30000); 
-  });
+    const ahora = new Date();
+    const hoyInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const inicioSolo = new Date(fechaInicioAsamblea.getFullYear(), fechaInicioAsamblea.getMonth(), fechaInicioAsamblea.getDate());
+    const finSolo = new Date(fechaFinAsamblea.getFullYear(), fechaFinAsamblea.getMonth(), fechaFinAsamblea.getDate());
+    
+    if (hoyInicio < inicioSolo) {
+      estadoAsamblea = 'futura';
+    } else if (hoyInicio > finSolo) {
+      estadoAsamblea = 'finalizada';
+    } else {
+      estadoAsamblea = 'en_curso';
+    }
+  }
 
   // --- FUNCIÓN CARGAR DATOS LOCALES ---
   function cargarDatosLocales() {
     if (!asambleaIdActual) return;
-
-    // A. Asistencia
     const rawAsis = localStorage.getItem(`dash_asistencia_obj_${asambleaIdActual}`);
     if (rawAsis) {
         asistenciaDetalle = JSON.parse(rawAsis);
     } else {
         asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
     }
-
-    // B. Bautismos
     bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
-
-    // C. Desfase de tiempo (NUEVO)
     offsetMinutos = Number(localStorage.getItem(`dash_offset_${asambleaIdActual}`)) || 0;
   }
 
-  // Guardar ASISTENCIA
   function guardarAsistencia() {
       if (!asambleaIdActual) return;
       localStorage.setItem(`dash_asistencia_obj_${asambleaIdActual}`, JSON.stringify(asistenciaDetalle));
   }
 
-  // Guardar OTROS DATOS
   function guardarDato(tipo: string, valor: number) {
     if (!asambleaIdActual) return;
     localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
   }
 
-  // --- LÓGICA DE CONTROL DE TIEMPO (NUEVO) ---
-  
+  // --- LÓGICA DE CONTROL DE TIEMPO ---
   function ajustarDesfase(valor: number) {
       offsetMinutos += valor;
       localStorage.setItem(`dash_offset_${asambleaIdActual}`, offsetMinutos.toString());
@@ -116,39 +201,72 @@
   function actualizarReloj() {
     const ahora = new Date();
     horaActual = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    determinarEstadoAsamblea(); // Refresca el estado por si pasamos de medianoche
     calcularParteEnVivo(ahora);
   }
 
   function calcularParteEnVivo(ahora: Date) {
     if (!programaCompletoCache || programaCompletoCache.length === 0) return;
     
-    // 1. Minutos REALES
+    // 1. BLOQUEAR SI NO ESTÁ EN CURSO (Asamblea Futura o Pasada)
+    if (estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada') {
+        parteActual = null;
+        siguienteParte = null;
+        return;
+    }
+
+    // 2. VERIFICAR DÍA DE LA SEMANA
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diaHoyStr = diasSemana[ahora.getDay()]; 
+    const programaDeHoy = programaCompletoCache.filter(p => p.dia === diaHoyStr);
+
+    if (programaDeHoy.length === 0) {
+        parteActual = null;
+        siguienteParte = null; 
+        return;
+    }
+
+    // 3. CÁLCULO DE HORA INTELIGENTE (Preparado para duraciones manuales)
     const minutosReales = ahora.getHours() * 60 + ahora.getMinutes();
-    
-    // 2. Minutos VIRTUALES (Aplicando el ajuste manual)
     const minutosSistema = minutosReales + offsetMinutos;
 
-    const actual = programaCompletoCache.find((p: any) => {
-        if (!p.hora_inicio) return false;
-        const [hStr, mStr] = p.hora_inicio.split(':');
-        const inicio = parseInt(hStr) * 60 + parseInt(mStr);
-        const duracion = Number(p.duracion) || 10; 
-        
-        // Comparamos con el tiempo ajustado
-        return minutosSistema >= inicio && minutosSistema < (inicio + duracion);
-    });
+    parteActual = null;
+    siguienteParte = null;
 
-    if (actual) {
-        parteActual = actual;
-        const idx = programaCompletoCache.findIndex(p => p.id === actual.id);
-        siguienteParte = programaCompletoCache[idx + 1] || null;
-    } else {
-        parteActual = null;
-        siguienteParte = programaCompletoCache.find((p: any) => {
-            if (!p.hora_inicio) return false;
-            const [hStr, mStr] = p.hora_inicio.split(':');
-            return (parseInt(hStr) * 60 + parseInt(mStr)) > minutosSistema;
-        });
+    for (let i = 0; i < programaDeHoy.length; i++) {
+        const p = programaDeHoy[i];
+        if (!p.hora_inicio) continue;
+        
+        const [hStr, mStr] = p.hora_inicio.split(':');
+        const inicioMin = parseInt(hStr) * 60 + parseInt(mStr);
+        
+        // Magia del tiempo continuo
+        let duracion = Number(p.duracion);
+        
+        if (!duracion || duracion <= 0) {
+            if (i + 1 < programaDeHoy.length && programaDeHoy[i+1].hora_inicio) {
+                const [nH, nM] = programaDeHoy[i+1].hora_inicio.split(':');
+                const inicioProximo = parseInt(nH) * 60 + parseInt(nM);
+                duracion = Math.max(5, inicioProximo - inicioMin);
+            } else {
+                duracion = 20; 
+            }
+        }
+        
+        const finMin = inicioMin + duracion;
+
+        // ¿Está transcurriendo ahora mismo?
+        if (minutosSistema >= inicioMin && minutosSistema < finMin) {
+            parteActual = p;
+            siguienteParte = programaDeHoy[i + 1] || null;
+            break;
+        }
+        
+        // ¿Es un receso antes de que empiece esta parte?
+        if (minutosSistema < inicioMin && !parteActual) {
+            siguienteParte = p;
+            break;
+        }
     }
   }
 
@@ -156,23 +274,13 @@
   async function cargarDatosDB() {
     if (!asambleaIdActual) return;
 
-    // 1. CARGAR TOTAL CONGREGACIONES
     try {
-        const listaCongregaciones: any = await invoke('obtener_congregaciones', { 
-            asambleaId: asambleaIdActual 
-        });
-        
-        if (Array.isArray(listaCongregaciones)) {
-            totalCongregacionesReales = listaCongregaciones.length;
-        } else {
-            totalCongregacionesReales = 0;
-        }
+        const listaCongregaciones: any = await invoke('obtener_congregaciones', { asambleaId: asambleaIdActual });
+        totalCongregacionesReales = Array.isArray(listaCongregaciones) ? listaCongregaciones.length : 0;
     } catch (e) {
-        console.error("Error al obtener congregaciones:", e);
         totalCongregacionesReales = 0;
     }
 
-    // 2. CARGAR PROGRAMA
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     let pendientes: any[] = []; 
     let confirmadosCount = 0;
@@ -211,18 +319,6 @@
 </script>
 
 <div class="dashboard-container">
-  
-  <div class="header-torre">
-    <div>
-        <h2>Hola, {$appStore.usuario} 👋</h2>
-        <span class="subtitulo-header">
-            Panel de Control • {nombreAsamblea} • v{$appStore.version}
-        </span>
-    </div>
-    <div class="reloj-badge">
-        <Clock size={18}/> {horaActual}
-    </div>
-  </div>
 
   <div class="main-grid">
       
@@ -238,7 +334,7 @@
               </div>
             </button>
 
-            <div class="card stat-card">
+            <Panel padding="15px" clasesExtra="stat-card">
                 <div class="icon-wrapper cyan"><Droplets size={22} /></div>
                 <div class="stat-info">
                     <span class="label">Bautismos</span>
@@ -246,9 +342,9 @@
                            bind:value={bautismosTotal} 
                            on:input={() => guardarDato('bautismos', bautismosTotal)}>
                 </div>
-            </div>
+            </Panel>
             
-            <div class="card stat-card">
+            <Panel padding="15px" clasesExtra="stat-card">
                 <div class="icon-wrapper purple">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
                 </div>
@@ -257,10 +353,10 @@
                     <span class="numero-grande">{totalCongregacionesReales}</span>
                     <span class="subtext">Registradas</span>
                 </div>
-            </div>
+            </Panel>
         </div>
 
-        <div class="card alertas-section">
+        <Panel padding="0" clasesExtra="alertas-section">
             <div class="card-header-red">
                 <h4><AlertCircle size={18} /> Oradores Pendientes ({estadisticasPrograma.pendientes})</h4>
             </div>
@@ -299,18 +395,30 @@
                     </div>
                 {/if}
             </div>
-        </div>
+        </Panel>
     </div>
 
     <div class="col-right">
-        <div class="card live-monitor">
+        <Panel padding="0" clasesExtra="live-monitor-container">
             <div class="monitor-header">
                 <div class="header-left">
-                    <div class="live-badge">
-                        <span class="blink-dot"></span> EN CURSO
-                    </div>
-                    {#if parteActual}
+                    {#if estadoAsamblea === 'futura'}
+                        <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;">
+                            <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
+                        </div>
+                    {:else if estadoAsamblea === 'finalizada'}
+                        <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;">
+                            <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
+                        </div>
+                    {:else if parteActual}
+                        <div class="live-badge">
+                            <span class="blink-dot"></span> EN CURSO
+                        </div>
                         <span class="monitor-dia">{parteActual.dia}</span>
+                    {:else}
+                        <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;">
+                            <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
+                        </div>
                     {/if}
                 </div>
                 
@@ -329,38 +437,69 @@
             </div>
 
             <div class="monitor-body">
-                {#if parteActual}
+                {#if estadoAsamblea === 'futura'}
+                    <div class="descanso-mode">
+                        <Clock size={40} color="var(--primary)"/>
+                        <h3>Asamblea Futura</h3>
+                        <p>Programada para iniciar próximamente.</p>
+                    </div>
+                {:else if estadoAsamblea === 'finalizada'}
+                    <div class="descanso-mode">
+                        <CheckCircle size={40} color="var(--text-sec)"/>
+                        <h3>Asamblea Concluida</h3>
+                        <p>El programa de esta asamblea ha finalizado.</p>
+                    </div>
+                {:else if parteActual}
                     <span class="hora-big">{parteActual.hora_inicio}</span>
                     <h3 class="tema-big">{parteActual.tema}</h3>
-                    <div class="orador-box">
-                        <Mic size={18}/>
-                        <span>{parteActual.nombre_orador || "---"}</span>
-                    </div>
+                    
+                    {#if parteActual.es_video}
+                        <div class="orador-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: var(--primary);">
+                            <Film size={18}/>
+                            <span>Reproducción Multimedia</span>
+                        </div>
+                    {:else}
+                        <div class="orador-box">
+                            <Mic size={18}/>
+                            <span>{parteActual.nombre_orador || "---"}</span>
+                        </div>
+                    {/if}
                 {:else}
                     <div class="descanso-mode">
-                        <Activity size={40} color="var(--text-secondary)"/>
+                        <Activity size={40} color="var(--text-sec)"/>
                         <h3>En pausa</h3>
-                        <p>Esperando siguiente sesión...</p>
+                        <p>Esperando la siguiente sesión del día...</p>
                     </div>
                 {/if}
             </div>
 
             <div class="monitor-footer">
-                <span class="label-next">A CONTINUACIÓN:</span>
-                {#if siguienteParte}
+                {#if siguienteParte && estadoAsamblea === 'en_curso'}
+                    <span class="label-next">A CONTINUACIÓN:</span>
                     <div class="next-row">
                         <span class="next-hora">{siguienteParte.hora_inicio}</span>
                         <div class="next-info">
                             <span class="next-tema">{siguienteParte.tema}</span>
-                            <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
+                            
+                            {#if siguienteParte.es_video}
+                                <span class="next-orador" style="color: var(--primary); font-weight: 600;">▶ Video / Canción</span>
+                            {:else}
+                                <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
+                            {/if}
                         </div>
-                        <ArrowRight size={16} color="var(--text-secondary)"/>
+                        <ArrowRight size={16} color="var(--text-sec)"/>
                     </div>
                 {:else}
-                    <span class="text-muted">Fin del programa.</span>
+                    <span class="text-muted" style="display: block; text-align: center;">
+                        {#if estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada'}
+                            Programa inactivo
+                        {:else}
+                            Fin del programa del día.
+                        {/if}
+                    </span>
                 {/if}
             </div>
-        </div>
+       </Panel>
 
         <div class="accesos-grid">
             <button class="btn-acceso" on:click={cargarDatosDB}>
@@ -414,15 +553,15 @@
   
   .header-torre {
     display: flex; justify-content: space-between; align-items: flex-end;
-    padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
   }
   h2 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
-  .subtitulo-header { font-size: 0.9rem; color: var(--text-secondary); }
+  .subtitulo-header { font-size: 0.9rem; color: var(--text-sec); }
   .reloj-badge {
     font-size: 1.5rem; font-weight: 800; color: var(--primary);
     display: flex; align-items: center; gap: 10px;
     background: var(--bg-card); padding: 5px 15px; border-radius: 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
   }
 
   .main-grid {
@@ -434,21 +573,39 @@
 
   /* --- TARJETAS STATS --- */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .stat-card {
-    background: var(--bg-card); border: 1px solid var(--border-color);
-    border-radius: 12px; padding: 15px; display: flex; align-items: center; gap: 12px;
-  }
-  .icon-wrapper {
-    min-width: 40px; height: 40px; border-radius: 10px; display: flex; 
-    align-items: center; justify-content: center; color: white;
-  }
+ 
+ .icon-wrapper {
+    min-width: 40px !important;
+    height: 40px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    position: static !important; /* Quitamos el position absolute */
+    margin-bottom: 0 !important;
+}
+
   .icon-wrapper.blue { background: #3b82f6; }
   .icon-wrapper.cyan { background: #06b6d4; }
   .icon-wrapper.purple { background: #8b5cf6; } /* Violeta */
+:global(.stat-card) {
+    display: flex !important;
+    flex-direction: row !important; /* Vuelve a ponerlos uno al lado del otro */
+    align-items: center !important;
+    gap: 12px;
+    padding: 15px !important; /* Restauramos el relleno original */
+}
 
-  .stat-info { display: flex; flex-direction: column; width: 100%; overflow: hidden; }
-  .label { font-size: 0.7rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
-  .subtext { font-size: 0.65rem; color: var(--text-secondary); }
+.stat-info {
+    padding: 0 !important; /* Quitamos el relleno extra que no necesitamos */
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.label { font-size: 0.7rem; color: var(--text-sec); font-weight: 700; text-transform: uppercase; margin-bottom: 2px;}
+  .subtext { font-size: 0.65rem; color: var(--text-sec); }
 
   .editable-num {
     border: none; background: transparent; font-size: 1.4rem; font-weight: 800;
@@ -458,7 +615,7 @@
   
   /* --- ZONA DE PENDIENTES --- */
   .alertas-section {
-    background: var(--bg-card); border: 1px solid var(--border-color);
+    background: var(--bg-card); border: 1px solid var(--border);
     border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; flex: 1;
   }
   .card-header-red {
@@ -469,30 +626,33 @@
   
   .table-container { width: 100%; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; }
-  td { padding: 8px 15px; border-bottom: 1px solid var(--border-color); color: var(--text-main); vertical-align: middle; }
+  th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-sec); font-size: 0.7rem; text-transform: uppercase; }
+  
+  td { 
+    padding: 10px 15px; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08); /* Línea interna muy suave */
+    color: var(--text-main); 
+    vertical-align: middle; 
+}
   .fw-bold { font-weight: 600; font-size: 0.9rem; }
-  .tema-mini { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 2px; }
-  .badge-dia { background: var(--bg-body); padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; border: 1px solid var(--border-color); }
+  .tema-mini { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 2px; }
+  .badge-dia { background: var(--bg-body); padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; border: 1px solid var(--border); }
   .btn-sm-confirmar {
       background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb;
       padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
   }
   .btn-sm-confirmar:hover { background: #2563eb; color: white; }
-  .empty-state { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text-secondary); }
-  .ver-mas { text-align: center; padding: 10px; font-size: 0.8rem; color: var(--text-secondary); font-style: italic; }
+  .empty-state { padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--text-sec); }
+  .ver-mas { text-align: center; padding: 10px; font-size: 0.8rem; color: var(--text-sec); font-style: italic; }
 
   /* --- MONITOR EN VIVO --- */
-  .live-monitor {
-    background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color);
-    overflow: hidden; display: flex; flex-direction: column;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-  }
-  .monitor-header {
-    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-    padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;
-    color: white;
-  }
+
+:global(.live-monitor-container) {
+    overflow: hidden;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-premium) !important; /* Esto lo hace flotar */
+}
+
   .header-left { display: flex; flex-direction: column; gap: 2px; }
 
   .live-badge {
@@ -524,45 +684,54 @@
   }
   .valor-ajuste.activo { color: #fbbf24; opacity: 1; font-weight: 800; }
 
-  .monitor-body { padding: 30px; text-align: center; border-bottom: 1px dashed var(--border-color); }
+  
   .hora-big { font-size: 2.5rem; font-weight: 900; color: var(--primary); line-height: 1; display: block; margin-bottom: 10px; }
   .tema-big { font-size: 1.3rem; margin: 0 0 15px 0; color: var(--text-main); line-height: 1.3; }
   .orador-box { 
     display: inline-flex; align-items: center; gap: 10px; 
     background: var(--bg-body); padding: 8px 16px; border-radius: 50px;
-    border: 1px solid var(--border-color); color: var(--text-main); font-weight: 600;
+    border: 1px solid var(--border); color: var(--text-main); font-weight: 600;
   }
   .descanso-mode { padding: 20px; opacity: 0.6; }
 
   .monitor-footer { padding: 20px; background: var(--bg-body); }
-  .label-next { font-size: 0.7rem; font-weight: 800; color: var(--text-secondary); margin-bottom: 10px; display: block; letter-spacing: 1px; }
+  .label-next { font-size: 0.7rem; font-weight: 800; color: var(--text-sec); margin-bottom: 10px; display: block; letter-spacing: 1px; }
   .next-row { display: flex; align-items: center; gap: 15px; }
   .next-hora { font-weight: 800; font-size: 1.1rem; color: var(--text-main); }
   .next-info { display: flex; flex-direction: column; flex: 1; }
   .next-tema { font-weight: 600; font-size: 0.9rem; color: var(--text-main); }
-  .next-orador { font-size: 0.8rem; color: var(--text-secondary); }
-  .text-muted { font-size: 0.8rem; color: var(--text-secondary); font-style: italic; }
+  .next-orador { font-size: 0.8rem; color: var(--text-sec); }
+  .text-muted { font-size: 0.8rem; color: var(--text-sec); font-style: italic; }
 
   .accesos-grid { margin-top: 15px; }
   .btn-acceso {
-      width: 100%; background: var(--bg-card); border: 1px solid var(--border-color);
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
       padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
-      justify-content: center; gap: 10px; font-weight: 600; color: var(--text-secondary);
+      justify-content: center; gap: 10px; font-weight: 600; color: var(--text-sec);
   }
   .btn-acceso:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
 
   /* ESTILOS NUEVOS PARA LA TARJETA CLICKABLE */
-  .btn-card-asistencia {
-    width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border-color);
-    background: var(--bg-card); padding: 15px; border-radius: 12px;
-    display: flex; align-items: center; gap: 12px;
-    transition: transform 0.2s, border-color 0.2s;
-    font-family: inherit; 
-  }
-  .btn-card-asistencia:hover {
-    transform: translateY(-3px); border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
+:global(.btn-card-asistencia) {
+    width: 100%; 
+    text-align: left; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+    padding: 15px !important;
+    border-radius: 12px !important;
+    background-color: var(--bg-card) !important;
+    
+    /* Forzamos el borde en los 4 lados para que no desaparezca arriba en modo oscuro */
+    border: 1px solid var(--border) !important;
+    outline: none !important; /* Evita que el navegador ponga su propio borde de botón */
+    
+    box-shadow: var(--shadow-premium) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+
   .numero-grande {
     font-size: 1.8rem; font-weight: 800; color: var(--text-main);
     display: block; line-height: 1.2;
@@ -577,16 +746,16 @@
   }
   .modal-content-asistencia {
     background: var(--bg-card); width: 600px; max-width: 95%;
-    border-radius: 12px; border: 1px solid var(--border-color);
+    border-radius: 12px; border: 1px solid var(--border);
     box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden;
   }
   .modal-header {
-    padding: 15px 20px; border-bottom: 1px solid var(--border-color);
+    padding: 15px 20px; border-bottom: 1px solid var(--border);
     display: flex; justify-content: space-between; align-items: center;
     background: var(--bg-body);
   }
   .modal-header h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
-  .btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); }
+  .btn-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-sec); }
 
   .grid-dias {
     display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 25px;
@@ -595,18 +764,74 @@
   .col-dia h4 { 
     text-align: center; color: var(--primary); margin: 0; 
     font-size: 0.9rem; text-transform: uppercase; font-weight: 700; 
-    border-bottom: 2px solid var(--border-color); padding-bottom: 5px;
+    border-bottom: 2px solid var(--border); padding-bottom: 5px;
   }
 
-  .input-group-modal label { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 5px; font-weight: 600; }
+  .input-group-modal label { font-size: 0.75rem; color: var(--text-sec); display: block; margin-bottom: 5px; font-weight: 600; }
   .input-group-modal input {
-    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px;
+    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
     background: var(--bg-body); color: var(--text-main); font-weight: bold; text-align: center; font-size: 1.1rem;
   }
   .input-group-modal input:focus { border-color: var(--primary); outline: none; }
 
   .modal-footer {
     padding: 15px; background: var(--bg-body); text-align: center;
-    border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--text-secondary);
+    border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-sec);
   }
+
+  /* Esto asegura que los paneles de esta página usen la sombra premium */
+:global(.stat-card), 
+:global(.live-monitor-container), 
+:global(.alertas-section),
+:global(.btn-card-asistencia) { /* Añadimos la asistencia aquí para unificarlas */
+    box-shadow: var(--shadow-premium) !important;
+    border-radius: 12px !important;
+    overflow: hidden;
+    /* Usamos la variable global para que se vea tanto en claro como en oscuro */
+    border: 1px solid var(--border) !important; 
+    background-color: var(--bg-card) !important;
+}
+
+/* Ajuste específico para el botón de asistencia para que no pierda sus curvas */
+:global(.btn-card-asistencia) {
+    width: 100%;
+    background: transparent !important;
+    border: 1px solid rgba(0, 0, 0, 0.16) !important; /* Un poco más de fuerza para que se vea nítido */
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+/* En modo oscuro, el borde del botón asistencia debe ser más claro */
+:global(.dark-theme) :global(.btn-card-asistencia) {
+    border-color: var(--text-sec) !important; /* Usa el texto secundario que en oscuro es #cbd5e1 */
+}
+
+.live-monitor {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-premium);
+    overflow: hidden;
+}
+
+/* Ajuste para que el header mantenga sus bordes redondeados arriba */
+.monitor-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-acceso:hover {
+    background-color: var(--bg-body);
+    border-color: var(--primary);
+    color: var(--primary);
+}
 </style>

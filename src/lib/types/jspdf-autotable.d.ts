@@ -31,3 +31,6 @@ declare module 'jspdf-autotable' {
 
   export default function autoTable(doc: jsPDF, options: AutoTableOptions): void;
 }
+
+// AQUÍ AÑADIMOS LA LÍNEA PARA MDI-SVELTE
+declare module 'mdi-svelte';

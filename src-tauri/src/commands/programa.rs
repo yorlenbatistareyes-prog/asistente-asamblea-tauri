@@ -14,13 +14,16 @@ pub fn obtener_programa_dia(
     dia: String,
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
+    
+    // ✅ Añadidas las 4 columnas al final del SELECT
     let sql = "
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
         p.orador_id, per.nombre_completo, c.nombre,
         per.email, per.telefono, 
         p.es_video, p.estado, p.esta_presente,
-        p.numero_bosquejo, p.ensayo_terminado  -- ✅ AGREGA ESTO
+        p.numero_bosquejo, p.ensayo_terminado,
+        p.fuente, p.es_betelita, p.es_interprete, p.es_visitante
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -48,6 +51,11 @@ pub fn obtener_programa_dia(
                 esta_presente: row.get(14).unwrap_or(false),
                 numero_bosquejo: row.get(15).ok(),
                 ensayo_terminado: row.get(16).unwrap_or(false),
+                // ✅ Capturamos los nuevos campos para los filtros
+                fuente: row.get(17).unwrap_or_else(|_| Some("en_persona".to_string())),
+                es_betelita: row.get(18).unwrap_or(false),
+                es_interprete: row.get(19).unwrap_or(false),
+                es_visitante: row.get(20).unwrap_or(false),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -102,11 +110,16 @@ pub fn crear_parte(
     email: Option<String>,
     telefono: Option<String>,
     numero_bosquejo: Option<String>,
+    // ✅ NUEVOS CAMPOS AÑADIDOS
+    fuente: String,
+    es_betelita: bool,
+    es_interprete: bool,
+    es_visitante: bool,
 ) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let mut orador_id_final: Option<i32> = None;
-    let mut estado = "Pendiente".to_string();
+    let estado = "Pendiente".to_string();
 
     if tipo != "Video" {
         if let Some(nombre) = nombre_orador {
@@ -159,26 +172,20 @@ pub fn crear_parte(
         }
     }
 
-    let bosquejo_final = if tipo == "Video" {
-        None
-    } else {
-        numero_bosquejo
-    };
+    let bosquejo_final = if tipo == "Video" { None } else { numero_bosquejo };
+    let fuente_final = if tipo == "Video" { "video".to_string() } else { fuente };
 
+    // ✅ INSERCIÓN ACTUALIZADA CON LOS NUEVOS VALORES
     tx.execute(
-        "INSERT INTO programa (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, orador_id, es_video, esta_presente, numero_bosquejo) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11)", 
+        "INSERT INTO programa (
+            asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
+            orador_id, es_video, esta_presente, numero_bosquejo, 
+            fuente, es_betelita, es_interprete, es_visitante
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, ?13, ?14, ?15)", 
         params![
-            asamblea_id, 
-            dia, 
-            sesion, 
-            hora, 
-            tema, 
-            tipo, 
-            duracion, 
-            estado, 
-            orador_id_final, 
-            tipo == "Video", 
-            bosquejo_final.as_deref()
+            asamblea_id, dia, sesion, hora, tema, tipo, duracion, estado, 
+            orador_id_final, tipo == "Video", bosquejo_final.as_deref(),
+            fuente_final, es_betelita, es_interprete, es_visitante
         ]
     ).map_err(|e| e.to_string())?;
 
@@ -187,20 +194,40 @@ pub fn crear_parte(
 }
 
 #[command]
-pub fn actualizar_numero_bosquejo(
+pub fn actualizar_detalles_parte(
     app: AppHandle,
     id_parte: i32,
     numero_bosquejo: Option<String>,
+    fuente: String,
+    es_betelita: bool,
+    es_interprete: bool,
+    es_visitante: bool,
+    duracion: i32, // <-- NUEVO PARÁMETRO
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
     conn.execute(
-        "UPDATE programa SET numero_bosquejo = ?1 WHERE id = ?2",
-        params![numero_bosquejo.as_deref(), id_parte],
+        "UPDATE programa SET 
+            numero_bosquejo = ?1, 
+            fuente = ?2, 
+            es_betelita = ?3, 
+            es_interprete = ?4, 
+            es_visitante = ?5,
+            duracion = ?6 
+         WHERE id = ?7",
+        params![
+            numero_bosquejo.as_deref(), 
+            fuente, 
+            es_betelita, 
+            es_interprete, 
+            es_visitante,
+            duracion, 
+            id_parte
+        ],
     )
     .map_err(|e| e.to_string())?;
 
-    Ok("Número de bosquejo actualizado".to_string())
+    Ok("Datos actualizados".to_string())
 }
 
 #[command]

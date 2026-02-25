@@ -1,6 +1,6 @@
 [package]
 name = "asistente-asamblea-regional"
-version = "0.0.1"
+version = "1.0.0"
 description = "Asistente para Asambleas Regionales"
 authors = ["Yorlen Batista"]
 edition = "2021"

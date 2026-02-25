@@ -117,10 +117,10 @@ export const marcadoresEmail: GrupoMarcadores[] = [
 ];
 
 // ------------------------------------------------------------
-// STORE REACTIVO (LISTA COMPLETA DE PLANTILLAS)
+// STORE REACTIVO (LISTA COMPLETA DE PLANTILLAS ORDENADA)
 // ------------------------------------------------------------
 export const emailTemplates = writable<PlantillaEmail[]>([
-    // 1. Oradores (Ya la tienes)
+    // --- 1. INDIVIDUALES (Desde la lista de discursos) ---
     { 
         id: 'oradores', 
         title: 'Oradores (Discursos)', 
@@ -128,7 +128,38 @@ export const emailTemplates = writable<PlantillaEmail[]>([
         body: '', 
         isOpen: false 
     },
-    // 2. Presidentes (Ya la tienes)
+    { 
+        id: 'oradores_recordatorio', 
+        title: 'Oradores (Recordatorio de asignación)', 
+        subject: 'Recordatorio de Asignación', 
+        body: '', 
+        isOpen: false 
+    },
+
+    // --- 2. MASIVOS (Para el botón "Email a todos") ---
+    { 
+        id: 'email_todos', 
+        title: 'Email a todos (Discursos)', 
+        subject: 'Información importante de la Asamblea', 
+        body: '', 
+        isOpen: false 
+    },
+    { 
+        id: 'email_todos_recordatorio', 
+        title: 'Email a todos (Recordatorio de asignación)', 
+        subject: 'Recordatorio General de Asignaciones', 
+        body: '', 
+        isOpen: false 
+    },
+
+    // --- 3. OFICINA Y PLATAFORMA ---
+    { 
+        id: 'auxiliares_oficina', 
+        title: 'Auxiliares de la Oficina', 
+        subject: 'Asignación en la Oficina de la Asamblea', 
+        body: '', 
+        isOpen: false 
+    },
     { 
         id: 'presidentes', 
         title: 'Presidentes de Sesión', 
@@ -136,7 +167,6 @@ export const emailTemplates = writable<PlantillaEmail[]>([
         body: '', 
         isOpen: false 
     },
-    // 3. Oraciones (Ya la tienes)
     { 
         id: 'oraciones', 
         title: 'Oraciones (Apertura/Conclusión)', 
@@ -144,15 +174,22 @@ export const emailTemplates = writable<PlantillaEmail[]>([
         body: '', 
         isOpen: false 
     },
-    // 4. Plataforma (NUEVA)
     { 
-        id: 'plataforma', 
-        title: 'Plataforma', 
-        subject: 'Asignación de Plataforma', 
+        id: 'bosquejos', 
+        title: 'Seguimiento de Bosquejos', 
+        subject: 'Asignación: Seguimiento de Bosquejos', 
         body: '', 
         isOpen: false 
     },
-    // 5. Comité (NUEVA)
+    { 
+        id: 'plataforma', 
+        title: 'Acompañantes a la Plataforma', 
+        subject: 'Asignación: Acompañante a la Plataforma', 
+        body: '', 
+        isOpen: false 
+    },
+
+    // --- 4. OTROS DEPARTAMENTOS ---
     { 
         id: 'comite', 
         title: 'Comité de Asamblea', 
@@ -160,27 +197,17 @@ export const emailTemplates = writable<PlantillaEmail[]>([
         body: '', 
         isOpen: false 
     },
-    // 6. Superintendente (NUEVA)
     { 
         id: 'superintendente', 
-        title: 'Sup. de Programa', 
+        title: 'Superintendente de Programa', 
         subject: 'Asuntos del Programa', 
         body: '', 
         isOpen: false 
     },
-    // 7. Audio y Video (NUEVA)
     { 
         id: 'audiovideo', 
         title: 'Audio y Video', 
-        subject: 'Asignación A/V', 
-        body: '', 
-        isOpen: false 
-    },
-    // 8. Personal de Oficina (NUEVA)
-    { 
-        id: 'oficina', 
-        title: 'Personal de Oficina', 
-        subject: 'Asignación en Oficina', 
+        subject: 'Asignación de Audio y Video', 
         body: '', 
         isOpen: false 
     }

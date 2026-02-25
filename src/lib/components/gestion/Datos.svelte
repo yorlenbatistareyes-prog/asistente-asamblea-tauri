@@ -3,6 +3,7 @@
     import { save, open, confirm, message } from '@tauri-apps/plugin-dialog';
     import { relaunch } from '@tauri-apps/plugin-process';
     import { Upload, Download, Trash2 } from 'lucide-svelte';
+    import Panel from '$lib/components/ui/Panel.svelte';
 
     // --- 1. RESPALDAR DATOS (Exportar) ---
     async function respaldarDatos() {
@@ -83,126 +84,117 @@
 
 <div class="data-management-container">
     
-    <div class="data-card">
+    <Panel padding="20px" clasesExtra="data-card-override">
         <div class="data-icon-wrapper blue"><Upload size={24} /></div>
         <div class="data-content">
             <h3>Respaldar Datos</h3>
             <p>Guardar copia de seguridad en un archivo.</p>
         </div>
         <button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button>
-    </div>
+    </Panel>
 
-    <div class="data-card">
+    <Panel padding="20px" clasesExtra="data-card-override">
         <div class="data-icon-wrapper green"><Download size={24} /></div>
         <div class="data-content">
             <h3>Restaurar Datos</h3>
             <p>Cargar copia de seguridad desde un archivo.</p>
         </div>
         <button class="btn-data-action secondary" on:click={restaurarDatos}>Restaurar</button>
-    </div>
+    </Panel>
 
-    <div class="data-card danger-zone">
+    <Panel padding="20px" clasesExtra="data-card-override danger-zone">
         <div class="data-icon-wrapper red"><Trash2 size={24} /></div>
         <div class="data-content">
             <h3>Limpiar Todo</h3>
             <p>Borrar toda la base de datos permanentemente.</p>
         </div>
         <button class="btn-data-action danger" on:click={limpiarBaseDatos}>Eliminar</button>
-    </div>
+    </Panel>
 
 </div>
 
-<style>
-    .data-management-container {
+<style>.data-management-container {
         display: flex;
         flex-direction: column;
-        gap: 15px;
-        max-width: 800px; /* Para que no se estiren demasiado */
+        gap: 20px; /* Un poco más de espacio para que respiren los paneles */
+        max-width: 800px;
     }
 
-    .data-card {
-        display: flex;
-        align-items: center;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        padding: 20px;
-        border-radius: 12px;
-        gap: 20px;
-        transition: transform 0.2s, box-shadow 0.2s;
+    /* --- TARJETAS (Heredando el Panel) --- */
+    :global(.data-card-override) {
+        display: flex !important;
+        align-items: center !important;
+        gap: 20px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        /* Sombra base visible para que parezcan paneles reales */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
     }
 
-    .data-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px var(--shadow-color);
-        border-color: var(--primary);
+    :global(.data-card-override:hover) {
+        transform: translateY(-4px) !important;
+        /* Sombra fuerte de elevación */
+        box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.15), 0 6px 12px -2px rgba(0, 0, 0, 0.1) !important;
+        border-color: var(--primary) !important;
     }
 
     /* Zona de peligro visualmente distinta */
-    .danger-zone {
-        border-color: rgba(239, 68, 68, 0.3);
-        background: rgba(239, 68, 68, 0.03);
+    :global(.danger-zone) {
+        border-color: rgba(239, 68, 68, 0.4) !important;
+        background: rgba(239, 68, 68, 0.03) !important;
     }
-    .danger-zone:hover {
-        border-color: #ef4444;
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+    :global(.danger-zone:hover) {
+        border-color: #ef4444 !important;
+        box-shadow: 0 12px 24px -4px rgba(239, 68, 68, 0.2), 0 6px 12px -2px rgba(239, 68, 68, 0.1) !important;
     }
 
+    /* --- ÍCONOS Y CONTENIDO --- */
     .data-icon-wrapper {
-        width: 50px;
-        height: 50px;
-        border-radius: 10px;
+        width: 55px;
+        height: 55px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
     }
 
-    .blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-    .green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-    .red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+    .blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-    .data-content {
-        flex: 1;
-    }
+    .data-content { flex: 1; }
+    .data-content h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--text-main); }
+    .data-content p { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
 
-    .data-content h3 {
-        margin: 0;
-        font-size: 16px;
-        font-weight: 700;
-        color: var(--text-main);
-    }
-
-    .data-content p {
-        margin: 4px 0 0;
-        font-size: 13px;
-        color: var(--text-secondary);
-    }
-
+    /* --- BOTONES DE ACCIÓN --- */
     .btn-data-action {
-        padding: 10px 20px;
+        padding: 10px 24px;
         border-radius: 8px;
         border: none;
         font-weight: 600;
         cursor: pointer;
-        font-size: 14px;
-        transition: opacity 0.2s;
+        font-size: 13px;
+        transition: all 0.2s;
     }
 
-    .btn-data-action:hover { opacity: 0.9; }
+    .btn-data-action:hover { transform: translateY(-1px); }
 
     .primary { background: var(--primary); color: white; }
-    .secondary { background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-color); }
+    .primary:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+
+    .secondary { background: #475569; color: white; }
+    .secondary:hover { background: #334155; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+
     .danger { background: #ef4444; color: white; }
+    .danger:hover { background: #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
 
     /* Responsive */
     @media (max-width: 600px) {
-        .data-card {
-            flex-direction: column;
-            text-align: center;
-            align-items: center;
+        :global(.data-card-override) {
+            flex-direction: column !important;
+            text-align: center !important;
+            align-items: center !important;
         }
-        .btn-data-action {
-            width: 100%;
-        }
+        .btn-data-action { width: 100%; }
     }
 </style>

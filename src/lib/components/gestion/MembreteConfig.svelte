@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { FileText, Save, Eye, LayoutTemplate, Type, Palette, RotateCcw } from 'lucide-svelte';
-  // import { invoke } from '@tauri-apps/api/core'; 
+  import Panel from '$lib/components/ui/Panel.svelte';
+  
 
   // --- VALORES INICIALES (POR DEFECTO) ---
 const DEFAULT_CONFIG = {
@@ -47,7 +48,7 @@ const DEFAULT_CONFIG = {
   }
 </script>
 
-<div class="card-config">
+<Panel padding="0" clasesExtra="membrete-container">
   
  <div class="header-section">
   <div class="titulo-icono">
@@ -236,88 +237,85 @@ const DEFAULT_CONFIG = {
     </div>
 
   </div>
-</div>
+</Panel>
 
 <style>
-  /* --- ESTRUCTURA --- */
-  .card-config {
-    background: var(--bg-card, #ffffff);
-    border-radius: 12px;
-    border: 1px solid var(--border-color, #e5e7eb);
-    overflow: hidden;
+ /* --- ESTRUCTURA PRINCIPAL --- */
+  :global(.membrete-container) {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
     margin-top: 20px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 
   .header-section {
     padding: 15px 25px;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--bg-body, #f9fafb);
+    background: var(--bg-card);
   }
 
   .titulo-icono { display: flex; gap: 12px; align-items: center; }
-  .header-section h3 { margin: 0; font-size: 1.1rem; color: var(--text-main, #111827); font-weight: 700; }
-  .header-section p { margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-secondary, #6b7280); }
+  .header-section h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); font-weight: 700; }
+  .header-section p { margin: 2px 0 0 0; font-size: 0.85rem; color: var(--text-secondary); }
 
   .acciones-header { display: flex; gap: 10px; }
 
-  /* BOTONES */
+  /* --- BOTONES --- */
   .btn-reset {
-    background: transparent; border: 1px solid #ef4444; color: #ef4444;
+    background: transparent; border: 1px solid var(--border); color: #ef4444;
     padding: 8px 14px; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
     cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
   }
-  .btn-reset:hover { background: rgba(239, 68, 68, 0.05); box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1); }
+  .btn-reset:hover { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
 
   .btn-guardar-main {
-    background: var(--primary, #3b82f6); color: white; border: none;
+    background: var(--primary); color: white; border: none;
     padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600;
     cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
   }
-  .btn-guardar-main:hover { filter: brightness(1.1); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3); }
+  .btn-guardar-main:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
-  .cuerpo-config { display: grid; grid-template-columns: 1fr 1fr; min-height: 450px; }
+  .cuerpo-config { display: grid; grid-template-columns: 1fr 1fr; min-height: 450px; background: var(--bg-card); }
 
   /* --- EDITOR --- */
   .panel-editor {
     padding: 25px; display: flex; flex-direction: column; gap: 25px;
-    border-right: 1px solid var(--border-color, #e5e7eb);
-    background: var(--bg-card, #fff);
+    border-right: 1px solid var(--border);
+    background: transparent;
   }
   .editor-bloque { display: flex; flex-direction: column; gap: 15px; }
   .bloque-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-  .label-con-icono { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-main, #374151); font-size: 0.95rem; }
+  .label-con-icono { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
 
-  /* --- INPUTS CORREGIDOS PARA DARK MODE --- */
+  /* --- INPUTS Y FORMULARIOS --- */
   .inputs-group { display: flex; flex-direction: column; gap: 15px; animation: fadeIn 0.3s ease-out; }
-  .input-wrapper { display: flex; flex-direction: column; gap: 6px; }
-  .sub-label { font-size: 0.75rem; color: var(--text-secondary, #6b7280); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .input-wrapper { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  
+  .label-row { display: flex; justify-content: space-between; align-items: center; }
+  .sub-label { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .value-tag { background: var(--hover-bg); padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; color: var(--primary); }
 
   input[type="text"], textarea {
     padding: 12px;
-    /* CAMBIO CLAVE: Usar la variable bg-input, pero si no existe, usar transparente oscuro (funciona en ambos modos con borde) */
-    background: var(--bg-input, rgba(0, 0, 0, 0.05)); 
-    border: 1px solid var(--border-color, #d1d5db);
+    background: var(--input-bg); 
+    border: 1px solid var(--border);
     border-radius: 8px;
-    
-    /* CAMBIO CLAVE: Asegurar que el color del texto sea el principal (que cambia a blanco en dark mode) */
-    color: var(--text-main, inherit);
-    
+    color: var(--text-main);
     font-family: inherit; font-size: 0.95rem;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    width: 100%; box-sizing: border-box;
   }
-
   input[type="text"]:focus, textarea:focus {
     outline: none;
-    border-color: var(--primary, #3b82f6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: var(--primary);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   }
   
-  input[type="text"]:hover, textarea:hover { border-color: #9ca3af; }
+  .config-slider { width: 100%; accent-color: var(--primary); cursor: pointer; }
 
   /* --- SELECTORES DE COLOR --- */
   .fila-colores-group { display: flex; gap: 12px; margin-top: 5px; }
@@ -325,18 +323,18 @@ const DEFAULT_CONFIG = {
   .color-picker-btn {
     flex: 1; display: flex; align-items: center; gap: 10px;
     padding: 8px 12px;
-    background: var(--bg-body, #f9fafb);
-    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--bg-body);
+    border: 1px solid var(--border);
     border-radius: 8px; cursor: pointer;
     transition: all 0.2s; position: relative;
   }
-  .color-picker-btn:hover { border-color: #bfa094; filter: brightness(0.95); }
+  .color-picker-btn:hover { background: var(--hover-bg); border-color: var(--primary); }
   
-  .color-label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 500; display: flex; gap: 6px; align-items: center; flex: 1; }
+  .color-label { font-size: 0.8rem; color: var(--text-main); font-weight: 600; display: flex; gap: 6px; align-items: center; flex: 1; }
   
   .color-preview {
     width: 24px; height: 24px; border-radius: 50%;
-    border: 2px solid white; box-shadow: 0 0 0 1px #ddd;
+    border: 2px solid var(--bg-card); box-shadow: 0 0 0 1px var(--border);
   }
   
   .color-picker-btn input[type="color"] {
@@ -344,44 +342,46 @@ const DEFAULT_CONFIG = {
   }
 
   /* --- OTROS --- */
-  .texto-desactivado { font-style: italic; color: #9ca3af; opacity: 0.8; font-size: 0.85rem; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 6px; text-align: center; }
-  .separador-interno { border: 0; border-top: 1px solid var(--border-color, #e5e7eb); opacity: 0.6; }
+  .texto-desactivado { font-style: italic; color: var(--text-secondary); opacity: 0.8; font-size: 0.85rem; padding: 10px; background: var(--bg-body); border-radius: 6px; text-align: center; border: 1px dashed var(--border); }
+  .separador-interno { border: 0; border-top: 1px solid var(--border); opacity: 0.6; margin: 10px 0; }
 
   /* Switch Mini */
   .switch-mini { position: relative; display: inline-block; width: 36px; height: 20px; }
   .switch-mini input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #d1d5db; transition: .4s; border-radius: 34px; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
   .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-  input:checked + .slider { background-color: #22c55e; }
+  input:checked + .slider { background-color: var(--primary); }
   input:checked + .slider:before { transform: translateX(16px); }
 
-  /* --- PREVIEW --- */
+  /* --- PREVIEW (HOJA DE PAPEL) --- */
   .area-preview {
-    background: var(--bg-body, #f3f4f6); padding: 30px;
+    background: var(--bg-body); padding: 30px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    border-left: 1px solid var(--border-color);
   }
-  .etiqueta-preview { margin-bottom: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary, #6b7280); display: flex; gap: 6px; align-items: center; }
+  .etiqueta-preview { margin-bottom: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); display: flex; gap: 6px; align-items: center; font-weight: 600; }
 
+  /* MANTENEMOS ESTO BLANCO SIEMPRE, ES PAPEL FÍSICO */
   .hoja-papel {
-    background: white; width: 100%; max-width: 340px; aspect-ratio: 210/297;
+    background: #ffffff !important; 
+    width: 100%; max-width: 340px; aspect-ratio: 210/297;
     padding: 25px; 
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
     display: flex; flex-direction: column; justify-content: space-between;
-    font-family: system-ui, -apple-system, sans-serif; color: #111;
+    font-family: system-ui, -apple-system, sans-serif; color: #111827 !important;
   }
 
   .membrete-preview { text-align: center; margin-bottom: 15px; }
   .p-titulo { margin: 0 0 4px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; }
   .p-contacto { margin: 0 auto 6px auto; font-size: 7px; line-height: 1.4; width: 90%; text-align: center; }
-  .linea-separadora { height: 1px; margin: 0 auto; width: 100%; opacity: 0.8; }
+  .linea-separadora { height: 1.5px; margin: 0 auto; width: 100%; opacity: 0.8; }
 
   .contenido-ficticio { flex: 1; padding: 15px 0; opacity: 0.1; }
   .barra-gris { height: 4px; background: #000; margin-bottom: 6px; border-radius: 2px; }
 
-  .footer-preview { text-align: center; border-top: 1px solid #ddd; padding-top: 8px; transition: border-color 0.3s; }
+  .footer-preview { text-align: center; border-top: 1px solid #e5e7eb; padding-top: 8px; transition: border-color 0.3s; }
   .footer-preview p { margin: 0; font-size: 6.5px; }
 
-  .espacio-vacio { text-align: center; font-size: 10px; color: #ccc; padding: 15px; border: 1px dashed #ddd; border-radius: 4px; }
+  .espacio-vacio { text-align: center; font-size: 10px; color: #9ca3af; padding: 15px; border: 1px dashed #d1d5db; border-radius: 4px; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
 </style>

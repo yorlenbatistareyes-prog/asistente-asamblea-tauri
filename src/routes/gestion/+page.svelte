@@ -2,28 +2,16 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
+  import Oficina from '$lib/components/gestion/Oficina.svelte';
+
   // --- IMPORTAMOS LOS ICONOS ---
-  import { 
-    Users, 
-    Home, 
-    ArrowLeft, 
-    Bookmark, 
-    BookUser,   // Para Registro de Personas
-    UserCog,    // Para Comité y Admin
-    Mic2,       // Para Programa y Oradores
-    PanelLeftClose, // Icono para ocultar sidebar
-    PanelLeftOpen,
-    IdCard,
-    UserCheck,
-    ListChecks,
-    ClipboardList,
-    Network,
-    Layers,
-    Key,
-    HeartHandshake,
-    Workflow // Icono para mostrar sidebar
-  } from 'lucide-svelte';
+  import { User, Users, ArrowLeft, Bookmark, BookUser, UserCog, Mic2, PanelLeftClose, PanelLeftOpen,
+    IdCard, UserCheck, ListChecks, ClipboardList, Network, Layers, Key, HeartHandshake, 
+    Workflow, Briefcase, LayoutDashboard, UsersRound } from 'lucide-svelte';
   
+  import Icon from 'mdi-svelte';
+  import { IconosMDI } from '$lib/data/iconosMDI';
+
   // --- COMPONENTES ---
   import Resumen from '$lib/components/gestion/Resumen.svelte';
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
@@ -131,28 +119,36 @@ if (asambleaActual?.id) {
 
     <nav class="menu">
       <button class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')} title="Inicio / Resumen">
-        <Home size={20} class="icono-nav" /> <span class="texto-menu">Inicio / Resumen</span>
+        <LayoutDashboard size={20} class="icono-nav" /> <span class="texto-menu">Panel de control</span>
       </button>
 
       <button class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')} title="Información Evento">
-        <Bookmark size={20} class="icono-nav" /> <span class="texto-menu">Información Evento</span>
+        <Bookmark size={20} class="icono-nav" /> <span class="texto-menu">Detalles de la Asamblea</span>
       </button>
 
       <button class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')} title="Congregaciones">
         <Users size={20} class="icono-nav" /> <span class="texto-menu">Congregaciones</span>
       </button>
 
-      <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')} title="Registro de Personas">
-        <BookUser size={20} class="icono-nav" /> <span class="texto-menu">Registro de Personas</span>
+      <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')} title="Personas">
+        <User size={20} class="icono-nav" /> <span class="texto-menu">Personas</span>
       </button>
 
       <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Responsabilidades">
-        <Network size={20} class="icono-nav" /> <span class="texto-menu">Responsabilidades</span>
+         <div class="icono-nav">
+         <Icon path={IconosMDI.Responsabilidades} size={0.85} />
+         </div>
+         <span class="texto-menu">Responsabilidades</span>
       </button>
 
-      <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa y Oradores">
-        <Mic2 size={20} class="icono-nav" /> <span class="texto-menu">Programa y Oradores</span>
+      <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa">
+        <Mic2 size={20} class="icono-nav" /> <span class="texto-menu">Programa</span>
       </button>
+
+      <button class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')} title="Oficina">
+        <Briefcase size={20} class="icono-nav" /> <span class="texto-menu">Oficina</span>
+      </button>
+
     </nav>
 
     <div class="footer-sidebar">
@@ -166,12 +162,13 @@ if (asambleaActual?.id) {
     
     <header>
       <h2>
-        {#if seccionActiva === 'inicio'} Resumen General {/if}
-        {#if seccionActiva === 'info_evento'} Información del Evento {/if} 
-        {#if seccionActiva === 'congregaciones'} Gestión de Congregaciones {/if}
-        {#if seccionActiva === 'personas'} Registro de Hermanos {/if}
+        {#if seccionActiva === 'inicio'} Panel de control {/if}
+        {#if seccionActiva === 'info_evento'} Detalles de la Asamblea {/if} 
+        {#if seccionActiva === 'congregaciones'} Congregaciones asignadas {/if}
+        {#if seccionActiva === 'personas'} Registro de personas {/if}
         {#if seccionActiva === 'comite'} Responsabilidades {/if}
         {#if seccionActiva === 'programa'} Programa {/if}
+        {#if seccionActiva === 'oficina'} Oficina {/if}
       </h2>
     </header>
 
@@ -183,6 +180,7 @@ if (asambleaActual?.id) {
       {#if seccionActiva === 'personas'} <Personas /> {/if}
       {#if seccionActiva === 'comite'} <Comite /> {/if}
       {#if seccionActiva === 'programa'} <Programa /> {/if}
+      {#if seccionActiva === 'oficina'} <Oficina /> {/if}
 
     </div>
 
@@ -204,7 +202,7 @@ if (asambleaActual?.id) {
   .sidebar { 
       width: 260px; /* ANCHO NORMAL */
       background-color: var(--bg-card); 
-      border-right: 1px solid var(--border-color); 
+      border-right: 1px solid var(--border); 
       display: flex; flex-direction: column; 
       transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transición súper suave */
       overflow-x: hidden; /* CRUCIAL: Para que el texto no se asome al achicar */
@@ -213,7 +211,7 @@ if (asambleaActual?.id) {
   
   .logo-area { 
       padding: 20px 24px; 
-      border-bottom: 1px solid var(--border-color); 
+      border-bottom: 1px solid var(--border); 
       display: flex;
       flex-direction: column;
       gap: 15px;
@@ -228,7 +226,7 @@ if (asambleaActual?.id) {
   .btn-toggle {
       background: transparent;
       border: none;
-      color: var(--text-secondary);
+      color: var(--text-sec);
       cursor: pointer;
       padding: 6px;
       border-radius: 6px;
@@ -239,7 +237,7 @@ if (asambleaActual?.id) {
   }
 
   .btn-toggle:hover {
-      background: var(--hover-bg);
+      background: var(--border); /* Usamos el color del borde como fondo sutil */
       color: var(--primary);
   }
 
@@ -251,7 +249,7 @@ if (asambleaActual?.id) {
   }
 
   .texto-logo h3 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1.1rem;}
-  .subtitulo { margin: 5px 0 0; font-size: 12px; color: var(--text-secondary); opacity: 0.8; }
+  .subtitulo { margin: 5px 0 0; font-size: 12px; color: var(--text-sec); opacity: 0.8; }
 
   .menu { flex: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
   
@@ -260,7 +258,7 @@ if (asambleaActual?.id) {
       padding: 12px 14px; border: none; background: none; 
       text-align: left; cursor: pointer;
       gap: 16px; 
-      color: var(--text-secondary); 
+      color: var(--text-sec); 
       border-radius: 8px; font-size: 14px; font-weight: 500; 
       transition: all 0.2s; 
       white-space: nowrap; /* CRUCIAL para el colapso */
@@ -278,14 +276,16 @@ if (asambleaActual?.id) {
   }
 
   .menu button:hover { 
-      background-color: var(--hover-bg); 
+      background-color: var(--border); /* Fondo gris claro en hover */
       color: var(--text-main); 
   }
   
   .menu button.activo { 
-      background-color: var(--bg-secondary); 
+      background-color: var(--bg-body); /* Usamos el fondo oscuro/claro global */
+      border: 1px solid var(--border);
       color: var(--primary); 
-      font-weight: 600; 
+      font-weight: 700; 
+      box-shadow: var(--shadow-sm); /* Le damos relieve al botón seleccionado */
   }
 
   /* --- FOOTER DEL SIDEBAR (PROFESIONAL) --- */
@@ -293,14 +293,14 @@ if (asambleaActual?.id) {
   .footer-sidebar {
       padding: 20px 10px; /* Un poco más de aire */
       padding-bottom: 55px;
-      border-top: 1px solid var(--border-color);
+      border-top: 1px solid var(--border);
       /* Opcional: un fondo muy sutil para separar el footer */
       background-color: rgba(0, 0, 0, 0.02); 
   }
   
   .btn-salir { 
       text-decoration: none; 
-      color: var(--text-secondary); 
+      color: var(--text-sec); 
       display: flex; align-items: center;
       padding: 12px 14px; border-radius: 8px;
       font-size: 14px; font-weight: 500;
@@ -317,7 +317,7 @@ if (asambleaActual?.id) {
       padding: 12px 14px; /* 👈 CORRECCIÓN 3: Igualamos el padding interno al de los botones del menú */
       
       background-color: var(--bg-body); 
-      border: 1px solid var(--border-color); 
+      border: 1px solid var(--border); 
       border-radius: 12px; 
       
       text-decoration: none; 
@@ -403,13 +403,27 @@ if (asambleaActual?.id) {
   .contenido { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-body); overflow: hidden; }
   
   header { 
-      background: var(--bg-card); 
+      background-color: var(--bg-card); 
+      background-image: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)); /* Tinte premium */
       padding: 20px 30px; 
-      border-bottom: 1px solid var(--border-color); 
+      border-bottom: 1px solid var(--border); 
+      box-shadow: var(--shadow-sm); /* Sombra sutil que despega el header */
       flex-shrink: 0;
+      z-index: 10;
   }
   
   header h2 { margin: 0; font-size: 1.2rem; color: var(--text-main); }
   
   .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
+
+  /* Busca tu regla :global(.icono-nav) y asegúrate de que se vea así */
+  :global(.icono-nav) {
+    min-width: 20px;
+    height: 20px; /* Añade altura fija para que MDI se centre bien */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 16px;
+    flex-shrink: 0;
+  }
 </style>

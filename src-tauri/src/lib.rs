@@ -140,10 +140,11 @@ if ruta_pendiente.exists() {
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,
             commands::importar::importar_programa_jw,
-            // PROGRAMA
+            
+           // PROGRAMA
             commands::programa::obtener_programa_dia,
             commands::programa::asignar_parte,
-            commands::programa::actualizar_numero_bosquejo,
+            commands::programa::actualizar_detalles_parte, // <--- AQUÍ ESTÁ EL CAMBIO
             commands::programa::obtener_oficina_dia,
             commands::programa::generar_programa_base,
             commands::programa::limpiar_programa,

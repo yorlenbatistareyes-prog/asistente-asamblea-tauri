@@ -1,0 +1,86 @@
+/* --- 1. RESET BÁSICO --- */
+/* Quita márgenes por defecto y asegura que el padding no rompa los tamaños */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Evita que el usuario pueda seleccionar texto por accidente (útil en apps de escritorio), 
+   excepto en los inputs */
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; /* Usa la fuente nativa del sistema */
+  user-select: none; 
+  -webkit-user-select: none;
+  overflow: hidden; /* Evita el scroll global innecesario en la app de escritorio */
+}
+
+input, textarea {
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+/* --- 2. VARIABLES DE DISEÑO (Dashboard Premium + Tus Colores) --- */
+:root {
+  /* Modo Claro */
+  --bg-body: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #1e293b;
+  --text-sec: #64748b;
+  --border: #e2e8f0;
+  --primary: #0078d4;
+  --input-bg: #ffffff;
+  --status-bg: #EBEBEB;
+  --status-text: #000000;
+  
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-premium: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Modo Oscuro (¡Corregido para coincidir con tu +layout.svelte!) */
+:root.dark-theme {
+  --bg-body: #0f172a;
+  --bg-card: #1e293b;
+  --text-main: #f8fafc;
+  --text-sec: #cbd5e1;
+  --border: #334155;
+  --primary: #3b82f6;
+  --input-bg: #0f172a;
+  --status-bg: #1e293b;
+  --status-text: #f1f5f9;
+  
+  /* Sombras Modo Oscuro: Usamos un borde sutil y una sombra más profunda */
+  --shadow-premium: 0 0 0 1px var(--border), 0 10px 15px -3px rgb(0 0 0 / 0.4); 
+}
+
+/* --- 3. APLICAR VARIABLES AL BODY --- */
+body {
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease; /* Transición suave al cambiar de tema */
+}
+
+/* --- 4. SCROLLBAR PERSONALIZADO (Estilo Nativo/Premium) --- */
+
+/* Ancho y alto de la barra */
+::-webkit-scrollbar {
+  width: 8px;  /* Para el scroll vertical */
+  height: 8px; /* Para el scroll horizontal */
+}
+
+/* El "carril" por donde se mueve la barra */
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+/* La barra deslizable en sí */
+::-webkit-scrollbar-thumb {
+  background: var(--border); /* Usamos tu color de borde para que se integre al tema */
+  border-radius: 10px;       /* Bordes redondeados elegantes */
+}
+
+/* Cuando el usuario pasa el mouse sobre la barra */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-sec); /* Resalta sutilmente usando tu color de texto secundario */
+}

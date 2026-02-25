@@ -55,19 +55,23 @@ struct FilaProgramaJW {
     hora: String,
     #[serde(alias = "Título")]
     titulo: String,
-    #[serde(alias = "Fuente")]
+    #[serde(alias = "Fuente", alias = "Source material")]
     fuente: Option<String>,
-    #[serde(alias = "Orador")]
+    #[serde(alias = "Orador", alias = "Speaker")]
     orador: Option<String>,
-    #[serde(alias = "Congregación")]
+    #[serde(alias = "Congregación", alias = "Congregation")]
     congregacion: Option<String>,
-    #[serde(alias = "Teléfono móvil")]
+    #[serde(alias = "Teléfono móvil", alias = "Mobile phone")]
     movil: Option<String>,
-    #[serde(alias = "Teléfono fijo")]
-    #[allow(dead_code)]
-    fijo: Option<String>,
-    #[serde(alias = "Correo electrónico")]
+    #[serde(alias = "Correo electrónico", alias = "Email address")]
     email: Option<String>,
+    // ✅ NUEVAS COLUMNAS CAPTURADAS DEL CSV
+    #[serde(alias = "Speaker Bethelite", alias = "Orador betelita", alias = "Betelita")]
+    es_betelita: Option<String>,
+    #[serde(alias = "Interpreter", alias = "Intérprete", alias = "Interprete")]
+    es_interprete: Option<String>,
+    #[serde(alias = "Visiting speaker", alias = "Orador visitante", alias = "Visitante")]
+    es_visitante: Option<String>,
 }
 
 fn preparar_lector(ruta: &str) -> Result<csv::Reader<File>, String> {
@@ -233,7 +237,13 @@ pub fn importar_programa_jw(
         // 👇 CORRECCIÓN AQUÍ: Se añade 'sexo' y se ajustan los parámetros (?1 a ?7)
         let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5)").map_err(|e| e.to_string())?;
 
-        let mut stmt_ins_prog = tx.prepare("INSERT INTO programa (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, orador_id, es_video, estado, esta_presente) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 10, ?7, ?8, 'Pendiente', 0)").map_err(|e| e.to_string())?;
+        let mut stmt_ins_prog = tx.prepare("
+            INSERT INTO programa (
+                asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, 
+                orador_id, es_video, estado, esta_presente, 
+                fuente, es_betelita, es_interprete, es_visitante
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12)
+        ").map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
             let fila: FilaProgramaJW = match result {
@@ -308,6 +318,12 @@ pub fn importar_programa_jw(
                     }
                 }
             }
+
+            // Convertimos los valores de texto del CSV ("Yes", "Sí", etc) a booleanos para la DB
+            let es_betel = fila.es_betelita.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
+            let es_inter = fila.es_interprete.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
+            let es_visit = fila.es_visitante.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
+            
             stmt_ins_prog
                 .execute(params![
                     asamblea_id,
@@ -317,7 +333,11 @@ pub fn importar_programa_jw(
                     fila.titulo,
                     tipo,
                     orador_id,
-                    es_video
+                    es_video,
+                    fuente,     // ?9
+                    es_betel,   // ?10
+                    es_inter,   // ?11
+                    es_visit    // ?12
                 ])
                 .unwrap_or(0);
         }

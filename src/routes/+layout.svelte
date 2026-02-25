@@ -1,272 +1,510 @@
 <script lang="ts">
+// 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
+  import '../app.css';
   import { onMount } from 'svelte';
-  import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
-  import { Lectern, Activity, User } from 'lucide-svelte';
-  import Actualizaciones from '$lib/components/ui/Actualizaciones.svelte';
+  import { User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  } from 'lucide-svelte';
+  import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
+  import { goto } from '$app/navigation';
+  import { invoke } from '@tauri-apps/api/core';
+  import Panel from '$lib/components/ui/Panel.svelte';
+  import { getVersion } from '@tauri-apps/api/app';
+
+  import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
+
+  let versionApp = "";
+
+  // --- VARIABLES DE ESTADO ---
+  let horaActual = "";
+  let fechaActual = "";
+  let saludo = "Hola"; 
+  let temaActual = 'sistema';
+  let nombreUsuario = "Usuario";
+  let fotoUsuario = ""; // 👈 VARIABLE PARA LA FOTO
+  let mostrarMenuAvatar = false; // 👈 CONTROL DEL MENÚ PROFESIONAL
+  let fileInput: HTMLInputElement;
+
+  // --- QUITAR FOTO ---
+  function quitarFoto() {
+      fotoUsuario = ""; 
+      localStorage.removeItem('fotoPerfil'); 
+      if (fileInput) fileInput.value = ""; 
+      mostrarMenuAvatar = false; // Cerramos el menú
+  }
+  
+  // --- VARIABLES GESTIÓN SALONES ---
+  let mostrarModalLocales = false;
+  let listaLocales: any[] = [];
+  let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
   onMount(async () => {
     await cargarDatosGlobales();
+    await cargarNombreUsuario();
+    fotoUsuario = localStorage.getItem('fotoPerfil') || "";
+    iniciarReloj(); 
+    cargarTemaGuardado();
+    cargarLocales();
+    try {
+        versionApp = await getVersion();
+    } catch (e) {
+        console.error("Error al obtener la versión:", e);
+        versionApp = "Desconocida"; 
+    }
+  }); 
 
-    const temaGuardado = localStorage.getItem('temaApp') || 'sistema';
-    aplicarTema(temaGuardado);
-
-    window.addEventListener('cambiarTemaGlobal', (e: any) => {
-      aplicarTema(e.detail.tema);
-    });
-
-    window.addEventListener('storage', () => {
-      const nuevoTema = localStorage.getItem('temaApp');
-      if (nuevoTema) aplicarTema(nuevoTema);
-    });
-  });
-
-  function aplicarTema(modo: string) {
-    if (typeof document === 'undefined') return;
-    const root = document.documentElement;
-    const esOscuroSistema = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (modo === 'oscuro' || (modo === 'sistema' && esOscuroSistema)) {
-      root.classList.add('dark-theme');
-    } else {
-      root.classList.remove('dark-theme');
+  // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
+  async function cargarNombreUsuario() {
+    try {
+        const config: any = await invoke('obtener_configuracion_general');
+        if (config && config.nombre) {
+            nombreUsuario = config.nombre;
+        }
+    } catch (e) {
+        console.error("No se pudo cargar el nombre del usuario:", e);
     }
   }
+
+  // MAGIA REACTIVA: Si el appStore cambia (ej: cuando le das "Guardar" en Configuración),
+  // se vuelve a buscar el nombre automáticamente sin recargar la página.
+  $: if ($appStore) {
+      cargarNombreUsuario();
+  }
+
+  // --- CARGAR NUEVA FOTO ---
+  function manejarCambioFoto(event: Event) {
+      const input = event.target as HTMLInputElement;
+      if (input.files && input.files.length > 0) {
+          const archivo = input.files[0];
+          const reader = new FileReader();
+          
+          reader.onload = (e) => {
+              const resultado = e.target?.result as string;
+              fotoUsuario = resultado; // Mostramos la foto
+              localStorage.setItem('fotoPerfil', resultado); // La guardamos para siempre
+          };
+          reader.readAsDataURL(archivo); // Convertimos la imagen a texto (Base64)
+      }
+  }
+
+  // --- FUNCIÓN QUE ARREGLA EL BOTÓN ---
+  function abrirModalSalones() {
+      console.log("Abriendo modal de salones..."); // Para verificar en consola
+      mostrarModalLocales = true; // 1. Abrimos modal inmediatamente
+      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; // 2. Limpiamos
+      cargarLocales(); // 3. Cargamos datos
+  }
+
+  async function cargarLocales() {
+      try { listaLocales = await invoke('obtener_locales') as any[]; } catch(e) { console.error(e); }
+  }
+
+  async function guardarLocal() {
+    if (!nuevoLocal.nombre) return alert("El nombre es obligatorio");
+    try {
+        // OJO: Tu backend en Rust debe aceptar estos campos nuevos (direccion, estado, capacidad)
+        await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
+        cargarLocales();
+        nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
+    } catch (e) { alert("Error al guardar: " + e); }
+  }
+
+  async function eliminarLocal(id: number) {
+     if(confirm("¿Seguro que deseas eliminar este salón?")) { 
+         try {
+            await invoke('eliminar_local', { id }); 
+            cargarLocales();
+         } catch (e) { alert("No se pudo eliminar: " + e); }
+     }
+  }
+
+  // --- RELOJ ---
+  function iniciarReloj() {
+    actualizarTiempo(); setInterval(actualizarTiempo, 1000); 
+  }
+  function actualizarTiempo() {
+    const ahora = new Date();
+    horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const opciones = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } as const;
+    let f = ahora.toLocaleDateString('es-ES', opciones);
+    fechaActual = f.charAt(0).toUpperCase() + f.slice(1);
+    const h = ahora.getHours(); 
+    saludo = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
+  }
+
+  // --- TEMA ---
+  function cargarTemaGuardado() {
+    const t = localStorage.getItem('temaApp');
+    if (t) temaActual = t;
+    aplicarTema(temaActual);
+  }
+  function cambiarTema() {
+      temaActual = temaActual === 'sistema' ? 'claro' : temaActual === 'claro' ? 'oscuro' : 'sistema';
+      localStorage.setItem('temaApp', temaActual);
+      aplicarTema(temaActual);
+  }
+  function aplicarTema(modo: string) {
+      const root = document.documentElement;
+      const oscuro = modo === 'oscuro' || (modo === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (oscuro) root.classList.add('dark-theme'); else root.classList.remove('dark-theme');
+  }
+
+  // --- NAVEGACIÓN ---
+  function irInicio() { vistaActual.set('inicio'); goto('/'); }
+
+  function irConfig() {
+  // Guardar la ruta actual (si no es la página de inicio)
+  const currentPath = window.location.pathname;
+  if (currentPath !== '/') {
+    localStorage.setItem('rutaAnterior', currentPath);
+  }
+  vistaActual.set('configuracion');
+  goto('/');
+}
+
 </script>
 
-<slot />
+<svelte:window on:click={() => mostrarMenuAvatar = false} />
 
-<footer class="status-bar">
-  <div class="status-left">
-    <div class="connection-status">
-      <span class="dot pulse"></span>
-      <span class="status-label hide-mobile">Sistema Conectado</span> 
-      <strong class="tech-stack hide-mobile">(Rust/Tauri)</strong>
-    </div>
-    
-    <span class="separator">|</span>
-    
-    <div class="user-status">
-      <User size={14} />
-      <span class="hide-mobile">Usuario:</span> 
-      <strong class="text-truncate">{$appStore.usuario}</strong>
-    </div>
-  </div>
+<div class="app-layout">
+   <header class="top-header">
+        <div class="header-left">
+            <input type="file" accept="image/*" style="display: none;" bind:this={fileInput} on:change={manejarCambioFoto} />
+            
+            <div class="avatar-container" on:click|stopPropagation={() => mostrarMenuAvatar = !mostrarMenuAvatar}>
+                <div class="avatar" title="Opciones de perfil">
+                    {#if fotoUsuario}
+                        <img src={fotoUsuario} alt="Perfil" class="foto-perfil" />
+                    {:else}
+                        <User size={24} />
+                    {/if}
+                </div>
+                
+                {#if mostrarMenuAvatar}
+                    <div class="dropdown-avatar" on:click|stopPropagation>
+                        <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
+                            <Upload size={16} /> Seleccionar foto
+                        </button>
+                        
+                        {#if fotoUsuario}
+                            <div class="dropdown-separator"></div>
+                            <button class="menu-item text-red" on:click={quitarFoto}>
+                                <Trash2 size={16} /> Quitar foto
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+            </div>
 
-  <div class="status-center">
-    <span>Construido y diseñado para Presidentes de Asambleas Regionales</span>
-  </div>
+            <div class="user-data">
+                <h2>{saludo}, {$appStore.usuario}!</h2>
+                <span>{fechaActual}</span>
+            </div>
+        </div>
 
-  <div class="status-right">
-    <div class="stat-item">
-      <Lectern size={14} />
-      <span class="hide-mobile">Asambleas:</span>
-      <strong>{$appStore.asambleas.length}</strong>
-    </div>
-    
-    <span class="separator">|</span>
-    
-    <div class="version-info">
-      <Activity size={14} />
-      <span class="app-version">v{$appStore.version}</span>
-    </div>
-    
-    <span class="separator">|</span>
-    
-    <div class="update-box">
-      <Actualizaciones />
-    </div>
-  </div>
-</footer>
+        <div class="header-center">
+            <Clock size={16}/> <span>{horaActual}</span>
+        </div>
+
+        <div class="header-right">
+            <button class="btn-nav" on:click={irInicio} title="Inicio">
+                <Home size={18}/><span>Inicio</span>
+            </button>
+            
+            <button class="btn-icon" on:click={cambiarTema}>
+                {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
+            </button>
+            
+            <button class="btn-nav" on:click={abrirModalSalones}>
+                <Building size={16}/><span>Salones</span>
+            </button>
+            
+            <button class="btn-icon" on:click={irConfig}>
+                <Settings size={18}/>
+            </button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <slot />
+    </main>
+
+    <footer class="status-bar">
+        <div class="status-left">
+            <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
+        </div>
+        <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
+        
+        <div class="status-right">
+            v{#if versionApp}{versionApp}{:else}...{/if}
+        </div>
+        </footer>
+
+    {#if mostrarModalLocales}
+      <div class="modal-backdrop" on:click|self={()=>mostrarModalLocales=false}>
+        <Panel padding="25px" clasesExtra="modal-salones">
+            <div class="modal-top">
+                <h3><Building size={20} class="ico-blue"/> Gestión de Salones</h3>
+                <button class="btn-close" on:click={()=>mostrarModalLocales=false}><X size={20}/></button>
+            </div>
+            
+            <div class="form-grid">
+                <div class="input-group full-width">
+                    <label>Nombre del Salón</label>
+                    <input type="text" placeholder="Ej: Salón de Asambleas Holguín" bind:value={nuevoLocal.nombre}>
+                </div>
+
+                <div class="input-group full-width">
+                    <label>Dirección</label>
+                    <input type="text" placeholder="Calle, Número, Reparto..." bind:value={nuevoLocal.direccion}>
+                </div>
+
+                <div class="input-group">
+                    <label>Ciudad</label>
+                    <input type="text" placeholder="Ciudad" bind:value={nuevoLocal.ciudad}>
+                </div>
+
+                <div class="input-group">
+                    <label>Provincia / Estado</label>
+                    <input type="text" placeholder="Provincia" bind:value={nuevoLocal.estado}>
+                </div>
+
+                <div class="input-group">
+                    <label>Capacidad</label>
+                    <input type="number" placeholder="0" bind:value={nuevoLocal.capacidad}>
+                </div>
+
+                <button class="btn-blue" on:click={guardarLocal}>
+                    <Plus size={16}/> Guardar Salón
+                </button>
+            </div>
+
+            <div class="separator"></div>
+            <div class="list-label">Salones guardados:</div>
+            
+            <div class="list-scroll">
+                {#if listaLocales.length === 0}
+                    <div class="empty-msg">
+                        <Building size={30} strokeWidth={1} style="opacity:0.3; margin-bottom:5px;"/>
+                        <p>No hay salones registrados.</p>
+                    </div>
+                {:else}
+                    {#each listaLocales as l}
+                        <div class="list-item">
+                            <div class="item-info">
+                                <div class="item-title">
+                                    <strong>{l.nombre}</strong>
+                                    {#if l.capacidad}
+                                        <span class="badge-cap"><Users size={10}/> {l.capacidad}</span>
+                                    {/if}
+                                </div>
+                                
+                                <div class="item-details">
+                                    <MapPin size={10}/> 
+                                    <span>
+                                        {l.direccion || 'Sin dirección'}
+                                        {#if l.ciudad} 
+                                            <strong> • {l.ciudad}</strong> 
+                                        {/if}
+                                        {#if l.estado} 
+                                            <span style="opacity:0.7"> ({l.estado})</span> 
+                                        {/if}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <button class="btn-red" on:click={()=>eliminarLocal(l.id)} title="Borrar Salón">
+                                <Trash2 size={16}/>
+                            </button>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
+        </Panel>
+      </div>
+    {/if}
+
+    <Cronometro />
+
+</div>
 
 <style>
-  /* === VARIABLES CSS GLOBALES === */
-  :global(:root) {
-      --bg-body: #f8fafc;
-      --bg-card: #ffffff;
-      --bg-secondary: #f1f5f9;
-      --text-main: #1e293b;
-      --text-secondary: #64748b;
-      --border-color: #e2e8f0;
-      --primary: #0078d4;
-      --input-bg: #ffffff;
-      --shadow-color: rgba(0,0,0,0.05);
-      --hover-bg: #e2e8f0;
+  /* LAYOUT */
+  .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+  .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
+
+  /* HEADER */
+ .top-header { 
+      display: flex; justify-content: space-between; align-items: center; 
+      padding: 15px 30px; 
+      background-color: var(--bg-card); 
+      background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)); /* El mismo "tinte" gris de las tarjetas */
+      border-bottom: 1px solid var(--border); 
+      box-shadow: var(--shadow-sm); 
+      z-index: 50; 
   }
 
-  :global(html.dark-theme) {
-      --bg-body: #0f172a;       
-      --bg-card: #1e293b;       
-      --bg-secondary: #334155;  
-      --text-main: #f8fafc;     
-      --text-secondary: #cbd5e1; 
-      --border-color: #334155;  
-      --primary: #3b82f6;       
-      --input-bg: #1e293b;
-      --shadow-color: rgba(0,0,0,0.3);
-      --hover-bg: #334155;
+  .header-left { display: flex; gap: 12px; align-items: center; }
+  
+  .avatar { 
+      width: 40px; 
+      height: 40px; 
+      background: var(--primary); 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white; 
+      cursor: pointer; /* 👈 NUEVO: Ratón de manito */
+      overflow: hidden; /* 👈 NUEVO: Evita que la foto se salga del círculo */
+      transition: opacity 0.2s; 
+  }
+  .avatar:hover { opacity: 0.8; } /* 👈 NUEVO: Efecto al pasar el ratón */
+  
+  /* 👈 NUEVA CLASE PARA LA IMAGEN */
+  .foto-perfil { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; /* Asegura que la foto no se deforme */
   }
 
-  :global(body) { 
-      margin: 0; 
-      font-family: 'Segoe UI', sans-serif; 
+  .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
+  .header-center { background: var(--bg-body); padding: 5px 15px; border-radius: 20px; border: 1px solid var(--border); display: flex; gap: 8px; font-weight: 600; align-items: center; }
+  .header-right { display: flex; gap: 8px; }
+  .btn-nav { background: var(--bg-body); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 6px; color: var(--text-main); font-weight: 600; align-items: center; }
+  .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); display: flex; }
+  .btn-nav:hover, .btn-icon:hover { background: var(--border); }
+
+  /* FOOTER */
+  .status-bar { position: fixed; bottom: 0; width: 100%; height: 32px; background: var(--status-bg); color: var(--status-text); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 12px; font-weight: 600; border-top: 1px solid var(--border); z-index: 100; transition: background 0.3s; box-sizing: border-box; }
+  .status-center, .tech { color: inherit; } .tech { color: #059669; }
+  .dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+  /* MODAL ESTILIZADO */
+  .modal-backdrop { 
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.6); 
+      display: flex; align-items: center; justify-content: center; 
+      z-index: 9999; backdrop-filter: blur(2px); 
+  }
+  :global(.modal-salones) { 
+      width: 550px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 15px;
+  }
+  
+  .modal-top { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .modal-top h3 { margin: 0; font-size: 18px; display: flex; gap: 10px; align-items: center; color: var(--text-main); }
+  .ico-blue { color: var(--primary); }
+  .btn-close { background: none; border: none; cursor: pointer; color: var(--text-main); }
+
+  /* GRID DEL FORMULARIO */
+  .form-grid { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 15px; 
       background: var(--bg-body); 
-      color: var(--text-main); 
-      transition: background 0.3s, color 0.3s;
+      padding: 15px; 
+      border-radius: 8px; 
+      border: 1px solid var(--border);
   }
-
-  /* === BARRA DE ESTADO === */
-  .status-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 32px;
-    background-color: #1e293b;
-    color: #94a3b8;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 12px;
-    font-size: 12px;
-    z-index: 2000;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-
-  .status-left, .status-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1; 
-  }
-
-  .status-right {
-    justify-content: flex-end;
-  }
-
-  .status-center {
-    flex: 2;
-    text-align: center;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .connection-status, .user-status, .stat-item, .version-info {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    background-color: #22c55e;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .dot.pulse {
-    animation: pulse-green 2s infinite;
-  }
-
-  @keyframes pulse-green {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-  }
-
-  .separator {
-    color: rgba(255,255,255,0.2);
-    margin: 0 2px;
-  }
-
-  strong {
-    color: #f1f5f9;
-    font-weight: 600;
-  }
-
-  .tech-stack {
-    color: #4ade80;
-  }
-
-  .text-truncate {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: inline-block;
-    vertical-align: bottom;
-  }
-
-  /* === RESPONSIVE === */
   
-  /* 1. Ocultar texto central en pantallas medianas */
-  @media (max-width: 900px) {
-    .status-center { display: none; }
-  }
-
- /* 2. MODO MÓVIL (Pantallas Pequeñas) */
-@media (max-width: 650px) {
-  .hide-mobile { display: none; }
+  .input-group { display: flex; flex-direction: column; gap: 5px; }
+  .input-group.full-width { grid-column: span 2; } 
   
-  .status-bar { padding: 0 8px; }
-  .status-left, .status-right { gap: 8px; }
-  .text-truncate { max-width: 80px; }
-
-  /* Botón de actualizar */
-  .update-box :global(button) {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 28px !important;
-    height: 28px !important;
-    padding: 0 !important;
-    background-color: var(--primary) !important;
-    border: none !important;
-    border-radius: 4px !important;
-    font-size: 0 !important;
+  .input-group label { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; }
+  .input-group input { padding: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); border-radius: 6px; font-size: 13px; }
+  
+  .btn-blue { 
+      grid-column: span 2; 
+      background: var(--primary); color: white; border: none; 
+      padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 700; 
+      display: flex; justify-content: center; gap: 8px; align-items: center;
+      margin-top: 5px;
   }
 
-  /* El span que envuelve al SVG también debe centrar */
-  .update-box :global(button span) {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    width: 100% !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    line-height: 1 !important;
+  .separator { height: 1px; background: var(--border); margin: 5px 0; }
+  .list-label { font-size: 12px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; }
+  
+  .list-scroll { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
+  
+  .list-item { 
+      display: flex; justify-content: space-between; align-items: center; 
+      padding: 10px 15px; border: 1px solid var(--border); 
+      border-radius: 8px; background: var(--bg-body); 
+      transition: background 0.2s;
+  }
+  .list-item:hover { background: var(--border); }
+
+  .item-info { display: flex; flex-direction: column; gap: 2px; }
+  .item-title { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--text-main); }
+  .badge-cap { background: var(--primary); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; display: flex; align-items: center; gap: 3px; }
+  .item-details { display: flex; gap: 5px; align-items: center; font-size: 11px; color: var(--text-sec); }
+
+  .btn-red { color: #ef4444; background: none; border: none; cursor: pointer; padding: 5px; }
+  .btn-red:hover { background: #fee2e2; border-radius: 6px; }
+  
+  .empty-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: var(--text-sec); font-size: 13px; }
+
+  /* ===== MENÚ DE AVATAR PROFESIONAL ===== */
+  .avatar-container { 
+      position: relative; 
+      display: flex; 
   }
 
-  /* El SVG dentro del botón */
-  .update-box :global(button svg) {
-    display: block !important;
-    width: 18px !important;
-    height: 18px !important;
-    color: white !important;
-    stroke: white !important;
-    stroke-width: 2.5 !important;
-    margin: 0 !important;
-    padding: 0 !important;
+  .dropdown-avatar {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      z-index: 9999;
+      overflow: hidden;
+      animation: fadeInDown 0.2s ease;
   }
-}
 
-/* Para pantallas extremadamente pequeñas (menos de 400px) */
-@media (max-width: 400px) {
-  .update-box :global(button) {
-    width: 24px !important;
-    height: 24px !important;
+  .menu-item {
+      width: 100%;
+      padding: 12px 15px;
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
   }
-  .update-box :global(button svg) {
-    width: 14px !important;
-    height: 14px !important;
-    stroke-width: 2 !important;
+
+  .menu-item:hover {
+      background: var(--hover-bg);
   }
-}
+
+  .menu-item.text-red {
+      color: #ef4444;
+  }
+
+  .menu-item.text-red:hover {
+      background: #fee2e2;
+  }
+
+  .dropdown-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 0;
+  }
+
+  @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+  }
 
 </style>

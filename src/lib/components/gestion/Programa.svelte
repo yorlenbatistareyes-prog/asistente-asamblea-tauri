@@ -5,77 +5,127 @@
   import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { slide } from 'svelte/transition';
   import { fade } from 'svelte/transition'; 
-  import { onDestroy } from 'svelte'; // Mover import arriba para buenas prácticas
+  import { onDestroy } from 'svelte';
   
-  // --- NUEVAS IMPORTACIONES PARA EL SISTEMA MODULAR ---
   import { generarContexto } from '$lib/utils/contexto_impresion';
   import { generarCartaPDF } from '$lib/utils/impresion';
-
-  // NUEVO: Importamos la función de exportar desde la ruta limpia
-  import { exportarProgramaPDF, exportarOficinaPDF } from '$lib/utils/exportar';
+  import { exportarProgramaPDF } from '$lib/utils/exportar';
   
   import { 
-    Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
+    UnfoldVertical, FoldVertical, Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
     MapPin, Phone, Mail, UserPlus, UserMinus, ChevronRight, ChevronDown, ChevronUp,
     FileCheck, UserCheck, User, Printer, FileJson, Edit, Clock, MessageCircle, FileSpreadsheet, Settings, CheckSquare,
-    FileText, Download 
+    FileText, Download, ListFilter, Calendar, Globe, Languages, Plane  
   } from 'lucide-svelte';
 
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
-  // NUEVO: importamos desde plantillasEmail.ts
   import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
-
   import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
   import { oradoresPendientes } from '$lib/stores/gestion';
+  import Panel from '$lib/components/ui/Panel.svelte';
   
   // --- ESTADO ---
   let asambleaId = 0; 
   let diaSeleccionado = 'Viernes';
   let partes: any[] = []; 
-  
-  let oficina: { [key: string]: any } = {
-      personal: [] as any[],
-      presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null,
-      presidente_tarde: null, oracion_conclusion: null, bosquejos_tarde: null, plataforma_tarde: null
-  };
 
   // --- MODALS ---
   let mostrarModalAsignar = false; 
   let mostrarModalCrear = false;   
-  let mostrarModalGestionOficina = false;
-  
- 
 
   let parteEditando: any = null; 
-  let rolOficinaEditando: string | null = null; 
-  let asignacionOficinaActual: any = null; 
   
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
-  let nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '' };
-  
+  let nuevaParte = { 
+    dia: 'Viernes', hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', 
+    nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '',
+    fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false 
+  };
+
   let sugerenciasOradores: any[] = [];
   let mostrarSugerencias = false;
 
-  // --- onMount MEJORADO ---
+// --- FILTROS Y ORDENAMIENTO ---
+let mostrarPanelFiltros = false;
+let mostrarSelectorDia = false;
+let diasSeleccionados: string[] = ['Viernes', 'Sábado', 'Domingo']; // Ahora sí, por defecto muestra todos
+let filtroEstado = 'todos'; // 'todos', 'asignada', 'sin_asignar'
+let filtrosCaracteristicas = {
+  betelita: false,
+  interprete: false,
+  visitante: false
+};
+let filtrosFuente = {
+  en_persona: false,
+  jw_stream: false,
+  transmision_remota: false,
+  video: false
+};
+let ordenarPor = 'secuencia'; // 'secuencia' o 'orador'
+
+// --- FILTROS TEMPORALES (BORRADOR DEL MODAL) ---
+let tempFiltroEstado = 'todos';
+let tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
+let tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+
+// --- FUNCIONES DE CONTROL DEL MODAL DE FILTROS ---
+function abrirPanelFiltros() {
+  // 1. Al abrir el modal, copiamos los filtros reales a los temporales
+  tempFiltroEstado = filtroEstado;
+  tempFiltrosCaracteristicas = { ...filtrosCaracteristicas };
+  tempFiltrosFuente = { ...filtrosFuente };
+  mostrarPanelFiltros = true;
+}
+
+function aplicarCambiosFiltros() {
+  // 2. Al dar clic en "Aplicar", pasamos los temporales a los reales (esto dispara la reactividad)
+  filtroEstado = tempFiltroEstado;
+  filtrosCaracteristicas = { ...tempFiltrosCaracteristicas };
+  filtrosFuente = { ...tempFiltrosFuente };
+  mostrarPanelFiltros = false;
+}
+
+function limpiarFiltrosTemporales() {
+  // 3. Limpia solo el modal, todavía debes darle "Aplicar" para ver el cambio
+  tempFiltroEstado = 'todos';
+  tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
+  tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+}
+
+  // --- onMount ---
   onMount(async () => {
-    const datosGuardados = localStorage.getItem('asambleaActiva');
-    if (datosGuardados) {
-        asambleaId = JSON.parse(datosGuardados).id;
-        
-        // Cargamos todo en paralelo
-        await Promise.all([
-            cargarDatos(),
-            cargarHermanos(),
-            cargarPlantillasEmail(),  
-            cargarPlantillasWhatsApp()
-        ]);
-        
-    } else {
-        alert("⚠️ No hay asamblea seleccionada.");
-    }
+
+  const diasGuardados = localStorage.getItem('memoriaDias');
+  if (diasGuardados) {
+      diasSeleccionados = JSON.parse(diasGuardados);
+  }
+
+  const datosGuardados = localStorage.getItem('asambleaActiva');
+  if (datosGuardados) {
+      asambleaId = JSON.parse(datosGuardados).id;
+      
+      await Promise.all([
+          cargarTodosDias(),
+          cargarHermanos(),
+          cargarPlantillasEmail(),  
+          cargarPlantillasWhatsApp()
+      ]);
+  } else {
+      alert("⚠️ No hay asamblea seleccionada.");
+  }
+  
+  // Event listener para cerrar el dropdown
+  window.addEventListener('click', handleClickOutside);
 });
+
+onDestroy(() => {
+  window.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
+});
+
+// ELIMINA esta línea que está más abajo:
 
 
   async function cargarDatos() {
@@ -85,32 +135,28 @@
     try { 
         const res = await invoke('obtener_programa_dia', { asambleaId, dia: diaSeleccionado }) as any[]; 
         partes = res.map(p => ({ 
-  ...p, 
-  _expanded: abiertos.has(p.id), 
-  // Usar el valor real de la base de datos
-  recibido_manual: p.estado === 'Confirmado',
-  estado: p.estado || 'Pendiente',
-  esta_presente: p.esta_presente === true || p.esta_presente === 1,
-  // Asegurar que numero_bosquejo no sea nulo
-  numero_bosquejo: p.numero_bosquejo || "",
-  email_enviado: false, 
-  carta_recibida_check: false, 
-  jwpub_enviado: false, 
-  recordatorio_enviado: false, 
-  ensayo_terminado: p.ensayo_terminado || false,
-  whatsapp_enviado: false,
-  recordatorio_whatsapp_enviado: false
-}));
-        // Actualizar lista global de oradores pendientes (aquellos sin estado 'Confirmado')
+          ...p, 
+          _expanded: abiertos.has(p.id), 
+          recibido_manual: p.estado === 'Confirmado',
+          estado: p.estado || 'Pendiente',
+          esta_presente: p.esta_presente === true || p.esta_presente === 1,
+          numero_bosquejo: p.numero_bosquejo || "",
+          email_enviado: false, 
+          carta_recibida_check: false, 
+          jwpub_enviado: false, 
+          recordatorio_enviado: false, 
+          ensayo_terminado: p.ensayo_terminado || false,
+          whatsapp_enviado: false,
+          recordatorio_whatsapp_enviado: false,
+          fuente: p.fuente || 'en_persona',
+          es_betelita: p.es_betelita || false,
+          es_interprete: p.es_interprete || false,
+          es_visitante: p.es_visitante || false
+        }));
         const pendientes = partes
           .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
           .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
         oradoresPendientes.set(pendientes);
-    } catch (e) { console.error(e); }
-    
-    try { 
-        const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: diaSeleccionado }) as any[]; 
-        organizarOficina(datos); 
     } catch (e) { console.error(e); }
   }
 
@@ -122,7 +168,6 @@
     if (encontrado) {
       (async () => {
         await toggleConfirmado(encontrado);
-        // volver a propagar pendientes UNA VEZ que el backend haya actualizado
         const pendientes = partes
           .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
           .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
@@ -131,45 +176,13 @@
     }
   }
 
-  // registrar listener en mount / cleanup en destroy
   window.addEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
   onDestroy(() => { window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener); });
-
-  function organizarOficina(datos: any[]) {
-      // Reiniciamos con estructura segura
-      let nuevaOficina: any = { 
-          personal: [], 
-          presidente_manana: null, oracion_apertura: null, bosquejos_manana: null, plataforma_manana: null, 
-          presidente_tarde: null, oracion_conclusion: null, bosquejos_tarde: null, plataforma_tarde: null 
-      };
-      
-      if (datos && Array.isArray(datos)) {
-          datos.forEach(d => {
-    // Respetar el valor de la base de datos
-    d.estado = d.estado || 'Pendiente';
-    d.recibido_manual = d.estado === 'Confirmado';
-    d.esta_presente = d.esta_presente === true || d.esta_presente === 1;
-    d.ensayo_terminado = d.ensayo_terminado || false;
-    d.carta_recibida_check = false;
-    d.whatsapp_enviado = false;
-    d.recordatorio_whatsapp_enviado = false;
-
-              if (d.tipo_asignacion === 'personal_oficina') {
-                  nuevaOficina.personal.push(d);
-              } else if (Object.keys(nuevaOficina).includes(d.tipo_asignacion)) {
-                  nuevaOficina[d.tipo_asignacion] = d;
-              }
-          });
-      }
-      oficina = nuevaOficina; // Asignación reactiva final
-  }
 
   async function cargarHermanos() { 
     if (!asambleaId) return;
     listaHermanos = await invoke('obtener_personas', { asambleaId }) as any[]; 
   }
-
-  $: if (diaSeleccionado && asambleaId) cargarDatos();
 
   function toggleExpandir(id: number) {
       partes = partes.map(p => {
@@ -178,101 +191,58 @@
       });
   }
 
-  async function eliminarAsignacionOficina(idAsignacion: number) {
-      if (!confirm("¿Quitar a este hermano?")) return;
-      try {
-          await invoke('eliminar_asignacion_especial', { id: idAsignacion });
-          mostrarModalGestionOficina = false;
-          cargarDatos(); 
-      } catch (e) { alert("Error: " + e); }
+  // --- NUEVO: Lógica para Expandir/Contraer Todo ---
+  // Verifica si TODAS las tarjetas actualmente visibles están abiertas
+  $: todasExpandidas = partesFiltradas.length > 0 && partesFiltradas.every(p => p._expanded);
+
+  function toggleExpandirTodas() {
+      const nuevoEstado = !todasExpandidas;
+      partes = partes.map(p => ({ ...p, _expanded: nuevoEstado }));
   }
 
-  function prepararDatosOficina(asignacion: any) {
-      const datosCompletos = listaHermanos.find(h => h.id === asignacion.persona_id || h.nombre_completo === asignacion.nombre_completo) || {};
-      return {
-          ...asignacion,
-          telefono_visual: asignacion.telefono || asignacion.telefono_persona || datosCompletos.telefono || '',
-          email_visual: asignacion.email || asignacion.email_persona || datosCompletos.email || '',
-          congregacion_visual: asignacion.nombre_congregacion || datosCompletos.nombre_congregacion || ''
-      };
-  }
-
-  function actualizarVistaOficina(objeto: any) {
-      if (mostrarModalGestionOficina && objeto) {
-          if (objeto.es_personal) {
-              const idx = oficina.personal.findIndex((p: any) => p.id === objeto.id);
-              if (idx >= 0) oficina.personal[idx] = { ...objeto };
-          } else if (objeto.rol_key) {
-              oficina[objeto.rol_key] = { ...objeto };
-          }
-          oficina = { ...oficina }; 
-          asignacionOficinaActual = { ...objeto }; 
-      }
-  }
-
+  // --- FUNCIONES DE ESTADO (sin oficina) ---
   async function toggleStatus(objeto: any, campo: string) {
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto[campo];
     const nuevoEstado = !objeto[campo];
-    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
         objeto[campo] = nuevoEstado;
         partes = partes;
 
-        if (esOficina) {
-            await invoke('alternar_estado_oficina', {
-                id: objeto.id,
-                tipoAccion: campo,
-                valorNuevo: nuevoEstado
-            });
-        } else {
-            await invoke('alternar_estado_parte', {
-                id: objeto.id,
-                tipoAccion: campo,
-                valorNuevo: nuevoEstado
-            });
-        }
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: campo,
+            valorNuevo: nuevoEstado
+        });
 
-        actualizarVistaOficina(objeto);
     } catch (e) {
         console.error('Error en toggleStatus:', e);
         alert('Error al guardar: ' + e);
         objeto[campo] = estadoAnterior;
         partes = partes;
     }
-}
+  }
 
   async function toggleConfirmado(objeto: any) {
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto.recibido_manual;
     const nuevoEstado = !objeto.recibido_manual;
-    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
         objeto.recibido_manual = nuevoEstado;
         objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
         partes = partes;
 
-        if (esOficina) {
-            await invoke('alternar_estado_oficina', {
-                id: objeto.id,
-                tipoAccion: 'confirmacion',
-                valorNuevo: nuevoEstado
-            });
-        } else {
-            await invoke('alternar_estado_parte', {
-                id: objeto.id,
-                tipoAccion: 'confirmacion',
-                valorNuevo: nuevoEstado
-            });
-        }
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'confirmacion',
+            valorNuevo: nuevoEstado
+        });
 
-        actualizarVistaOficina(objeto);
-
-        if (typeof oradoresPendientes !== 'undefined' && !esOficina) {
+        if (typeof oradoresPendientes !== 'undefined') {
             const pendientes = partes
                 .filter(p => p.nombre_orador && (!p.recibido_manual))
                 .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: 'Pendiente' }));
@@ -285,235 +255,184 @@
         objeto.estado = estadoAnterior ? 'Confirmado' : 'Pendiente';
         partes = partes;
     }
-}
+  }
 
   async function togglePresente(objeto: any) {
     if (!objeto || !objeto.id) return;
 
     const estadoAnterior = objeto.esta_presente;
     const nuevoEstado = !objeto.esta_presente;
-    const esOficina = objeto.tipo_asignacion !== undefined || objeto.es_personal === true;
 
     try {
         objeto.esta_presente = nuevoEstado;
         partes = partes;
+        
+        await invoke('alternar_estado_parte', {
+            id: objeto.id,
+            tipoAccion: 'presencia',
+            valorNuevo: nuevoEstado
+        });
 
-        if (esOficina) {
-            await invoke('alternar_estado_oficina', {
-                id: objeto.id,
-                tipoAccion: 'presencia',
-                valorNuevo: nuevoEstado
-            });
-        } else {
-            await invoke('alternar_estado_parte', {
-                id: objeto.id,
-                tipoAccion: 'presencia',
-                valorNuevo: nuevoEstado
-            });
-        }
-
-        actualizarVistaOficina(objeto);
     } catch (e) {
         console.error('Error togglePresente:', e);
         alert('Error: ' + e);
         objeto.esta_presente = estadoAnterior;
         partes = partes;
     }
-}
+  }
 
- // --- BOTÓN 1: WHATSAPP PARA ASIGNACIÓN (CARTA / RECORDATORIO DE ASIGNACIÓN) ---
-async function abrirWhatsAppAsignacion(objeto: any) {
+  // --- WHATSAPP ---
+  async function abrirWhatsAppAsignacion(objeto: any) {
     const url = await obtenerUrlWhatsApp(objeto, false);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.whatsapp_enviado = true;
         partes = partes;
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-// --- BOTÓN 2: WHATSAPP PARA RECORDATORIO DE ENSAYO ---
-async function abrirWhatsAppRecordatorio(objeto: any) {
+  async function abrirWhatsAppRecordatorio(objeto: any) {
     const url = await obtenerUrlWhatsApp(objeto, true);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.recordatorio_whatsapp_enviado = true;
         partes = partes;
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-  // --- LÓGICA DE ENVÍO DE CORREOS (Separada e Independiente) ---
-
-// --- FUNCIÓN MEJORADA: OBTENER URL DE CORREO (CON MARCADORES COMPLETOS) ---
-// --- FUNCIÓN DEFINITIVA (SIN MAPEO MANUAL, SIN ERRORES TS) ---
-async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<string | null> {
-    // 1. Validar correo
+  // --- CORREOS ---
+  async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<string | null> {
     const emailDestino = (objeto.email_visual || objeto.email_orador || objeto.email || "").trim();
     if (!emailDestino) {
         alert("⚠️ No hay correo registrado.");
         return null;
     }
 
-    // 2. ID de plantilla según rol
     let idPlantilla = 'oradores';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
     if (rol.includes('presidente')) idPlantilla = 'presidentes';
     else if (rol.includes('oracion')) idPlantilla = 'oraciones';
 
-    // 3. Obtener plantilla (síncrono, del store)
     const plantilla = obtenerPlantillaPorId(idPlantilla);
     const asuntoBase = plantilla?.subject || "Asignación JWPUB";
     const cuerpoBase = plantilla?.body || "⚠️ No se ha definido una plantilla para este tipo de asignación.";
 
-    // 4. Obtener contexto COMPLETO (¡ya tiene todo!)
     const contexto = await generarContexto(objeto, asambleaId, true);
-
-    // 5. Procesar asunto y cuerpo con las funciones NUEVAS (pasando contexto directamente)
     let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
     let cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
 
-    // 6. Si es recordatorio, prefijo
     if (esRecordatorio) {
         asuntoFinal = "RECORDATORIO: " + asuntoFinal;
     }
 
-    // 7. Construir URL de JWPUB (con # en lugar de ?)
     return `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
        `&to=${encodeURIComponent(emailDestino)}` +
        `&subject=${encodeURIComponent(asuntoFinal)}` +
        `&body=${encodeURIComponent(cuerpoFinal)}`;
-    }
-  // --- BOTÓN 1: ENVIAR CARTA ---
-async function abrirJWPUBCarta(objeto: any) {
+  }
+
+  async function abrirJWPUBCarta(objeto: any) {
     const url = await obtenerUrlCorreo(objeto, false);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.jwpub_enviado = true;
         partes = partes; 
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-// --- BOTÓN 2: ENVIAR RECORDATORIO ---
-async function abrirJWPUBRecordatorio(objeto: any) {
+  async function abrirJWPUBRecordatorio(objeto: any) {
     const url = await obtenerUrlCorreo(objeto, true);
     if (url) {
         openUrl(url).catch(e => console.error(e));
         objeto.recordatorio_enviado = true;
         partes = partes;
-        actualizarVistaOficina(objeto);
     }
-}
+  }
 
-// --- CONFIGURACIÓN DE PLANTILLAS ---
-  // Las claves de la derecha ('presidentes', 'oraciones') coinciden con 
-  // los nombres de las tarjetas donde guardaste el texto en el Editor.
-  const MAPA_PLANTILLAS: Record<string, string> = {
-      'programa': 'oradores',       // Para discursos normales
-      'presidente': 'presidentes',  // <--- AQUÍ ESTÁ LA MAGIA
-      'oracion': 'oraciones',       // <--- Y AQUÍ
-      'plataforma': 'oradores',     // (O usa una genérica si no tienes esta)
-      'personal': 'oradores',       // (O usa una genérica)
-      'default': 'oradores'         
-  };
-
-  // --- LÓGICA DE WHATSAPP (CON PLANTILLAS) ---
-// --- LÓGICA DE WHATSAPP CON CARGA DIRECTA DESDE RUST ---
-async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
-    // 1. Validar teléfono
+  // --- WHATSAPP URL ---
+  async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
     const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
     if (!telefono) {
         alert("⚠️ No hay teléfono registrado.");
         return null;
     }
 
-    // 2. ID de plantilla según rol
     let idPlantilla = 'oradores';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
     if (rol.includes('presidente')) idPlantilla = 'presidentes';
     else if (rol.includes('oracion')) idPlantilla = 'oraciones';
     else if (esRecordatorio) idPlantilla = 'ensayo';
 
-    // 3. Intentar obtener del store
     let plantilla = obtenerPlantillaWhatsAppPorId(idPlantilla);
     let cuerpoBase = plantilla?.body || "";
 
-    // 4. Si no está en el store, cargar directamente desde Rust
     if (!cuerpoBase) {
         console.log(`📱 Plantilla WhatsApp "${idPlantilla}" no encontrada en store, cargando desde Rust...`);
         try {
             const res: any = await invoke('obtener_plantilla_mensaje', { id: idPlantilla });
             if (res && res.cuerpo) {
                 cuerpoBase = res.cuerpo;
-                // Opcional: actualizar el store para futuras ocasiones
-                // (puedes implementar una función para esto si quieres)
             }
         } catch (e) {
             console.error(`Error cargando plantilla WhatsApp ${idPlantilla}:`, e);
         }
     }
 
-    // 5. Si sigue vacío, usar texto de respaldo
     if (!cuerpoBase) {
         cuerpoBase = "⚠️ No se ha definido una plantilla para WhatsApp.";
     }
 
-    // 6. Obtener contexto y procesar mensaje
     const contexto = await generarContexto(objeto, asambleaId, true);
     let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
-    mensaje = mensaje.substring(0, 4000); // Límite de WhatsApp
+    mensaje = mensaje.substring(0, 4000);
 
-    // 7. Construir URL
     const numero = telefono.replace(/\D/g, '');
     return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-}
+  }
 
-  // --- FUNCIÓN DE IMPRESIÓN (Con Mapa) ---
+  // --- MAPA DE PLANTILLAS PARA IMPRESIÓN ---
+  const MAPA_PLANTILLAS: Record<string, string> = {
+      'programa': 'oradores',
+      'presidente': 'presidentes',
+      'oracion': 'oraciones',
+      'plataforma': 'oradores',
+      'personal': 'oradores',
+      'default': 'oradores'         
+  };
+
   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
       if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila.");
       
       try {
-          // 1. Preparamos los datos
           const contexto = await generarContexto(objeto, asambleaId, esPartePrograma);
-
-          // 2. Elegimos qué plantilla usar usando el Mapa
           let plantillaId = '';
 
           if (esPartePrograma) {
               plantillaId = MAPA_PLANTILLAS['programa'];
           } else {
-              // Detectamos el rol del hermano
               const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
-              
               if (rol.includes('presidente')) {
                   plantillaId = MAPA_PLANTILLAS['presidente']; 
-              } 
-              else if (rol.includes('oracion') || rol.includes('oración')) {
+              } else if (rol.includes('oracion') || rol.includes('oración')) {
                   plantillaId = MAPA_PLANTILLAS['oracion'];
-              } 
-              else if (rol.includes('plataforma')) {
+              } else if (rol.includes('plataforma')) {
                   plantillaId = MAPA_PLANTILLAS['plataforma'];
-              }
-              else {
+              } else {
                   plantillaId = MAPA_PLANTILLAS['default'];
               }
           }
 
           console.log(`🖨️ Rol: "${contexto.tipo_asignacion}" -> Buscando plantilla ID: "${plantillaId}"`);
 
-          // 3. Verificamos que la plantilla exista antes de imprimir
           const existe = await invoke('obtener_plantilla', { id: plantillaId });
           
           if (!existe) {
-              // Si falla, mostramos qué plantillas SÍ existen para ayudarte
               const disponibles: any[] = await invoke('obtener_todas_plantillas');
               const ids = disponibles.map(p => p.id).join(', ');
-              alert(`⛔ ERROR: No se encuentra la plantilla con ID "${plantillaId}".\n\nEl sistema intentó usar "${plantillaId}" para este hermano, pero no existe en la base de datos.\n\nIDs disponibles: [ ${ids} ]`);
+              alert(`⛔ ERROR: No se encuentra la plantilla con ID "${plantillaId}".\n\nIDs disponibles: [ ${ids} ]`);
               return;
           }
 
-          // 4. Imprimimos
           await generarCartaPDF(contexto, plantillaId);
 
       } catch (e) { 
@@ -522,97 +441,63 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
       }
   }
 
-  function clickEnOficina(key: string, asignacion: any) {
-      if (asignacion) {
-          const datos = prepararDatosOficina(asignacion);
-          asignacionOficinaActual = { ...datos, rol_key: key };
-          mostrarModalGestionOficina = true;
-      } else { abrirModalOficina(key); }
-  }
-
-  function clickEnPersonal(persona: any) {
-      const datos = prepararDatosOficina(persona);
-      asignacionOficinaActual = { ...datos, es_personal: true };
-      mostrarModalGestionOficina = true;
-  }
-
   function abrirModalPrograma(parte: any) { 
     parteEditando = { ...parte }; 
-    rolOficinaEditando = null; 
     terminoBusqueda = ""; 
     mostrarModalAsignar = true; 
   }
 
-  function abrirModalOficina(rol: string) { 
-    rolOficinaEditando = rol; 
-    parteEditando = null; 
-    terminoBusqueda = ""; 
-    mostrarModalAsignar = true; 
-  }
-  
   function cerrarModales() { 
       mostrarModalAsignar = false; 
       mostrarModalCrear = false; 
-      mostrarModalGestionOficina = false;
       parteEditando = null; 
-      rolOficinaEditando = null; 
-      asignacionOficinaActual = null;
   }
 
-  // --- FUNCIÓN PARA ACTUALIZAR SOLO EL NÚMERO DE BOSQUEJO ---
-  async function actualizarBosquejo(parteId: number, numeroBosquejo: string) {
+async function actualizarDetallesParte(parteId: number) {
+    if (!parteEditando) return;
     try {
-        await invoke('actualizar_numero_bosquejo', { 
+        await invoke('actualizar_detalles_parte', { 
             idParte: parteId, 
-            numeroBosquejo: numeroBosquejo.trim() || null 
+            numeroBosquejo: parteEditando.numero_bosquejo?.trim() || null,
+            fuente: parteEditando.fuente || 'en_persona',
+            esBetelita: parteEditando.es_betelita || false,
+            esInterprete: parteEditando.es_interprete || false,
+            esVisitante: parteEditando.es_visitante || false,
+            duracion: Number(parteEditando.duracion) || 0 // Envía los minutos
         });
-        await cargarDatos();
+        await cargarTodosDias();
+        alert("✅ Datos de la parte actualizados correctamente.");
     } catch (e) {
-        console.error("Error al actualizar número de bosquejo:", e);
-        alert("Error al guardar el número de bosquejo: " + e);
+        console.error("Error al actualizar detalles:", e);
+        alert("Error al guardar: " + e);
     }
   }
 
-// --- FUNCIÓN CORREGIDA Y CON DEPURACIÓN ---
   async function asignarOrador(oradorId: number | null, esVideo: boolean) {
-    
-    // CASO 1: OFICINA (Presidente, Oración, etc.)
-    if (rolOficinaEditando) {
-        console.log("Intento asignar oficina:", rolOficinaEditando, oradorId); // DEBUG
-
-        if (!oradorId) return alert("Por favor, selecciona un hermano.");
-
-        try {
-            // NOTA: 'tipoAsignacion' en JS -> se convierte a 'tipo_asignacion' en Rust
-            await invoke('guardar_asignacion_especial', { 
-                asambleaId: asambleaId, 
-                dia: diaSeleccionado,
-                tipoAsignacion: rolOficinaEditando, 
-                personaId: oradorId 
-            });
-            
-            console.log("¡Asignación exitosa en Rust!"); // DEBUG
-            cerrarModales();
-            await cargarDatos(); 
-        } catch (e) {
-            console.error("Error Rust Oficina:", e); // DEBUG
-            alert("Error al guardar en oficina: " + e);
-        }
-        return; // IMPORTANTE: Detenemos aquí.
-    }
-
-    // CASO 2: PROGRAMA (Discursos)
     if (parteEditando) {
         const bsq = parteEditando?.numero_bosquejo?.trim() || "";
         try {
+          // 1. Guardar primero los minutos y detalles en segundo plano
+          await invoke('actualizar_detalles_parte', { 
+              idParte: parteEditando.id, 
+              numeroBosquejo: bsq || null,
+              fuente: parteEditando.fuente || 'en_persona',
+              esBetelita: parteEditando.es_betelita || false,
+              esInterprete: parteEditando.es_interprete || false,
+              esVisitante: parteEditando.es_visitante || false,
+              duracion: Number(parteEditando.duracion) || 0 // Guarda los minutos
+          });
+
+          // 2. Guardar el orador asignado y cerrar
           await invoke('asignar_parte', { 
             idParte: parteEditando.id, 
             oradorId: oradorId, 
             esVideo: esVideo,
             numeroBosquejo: bsq || null
           });
+          
           cerrarModales();
-          await cargarDatos(); 
+          await cargarTodosDias(); 
         } catch (e) {
           alert("Error al guardar parte: " + e);
         }
@@ -624,7 +509,7 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
     try {
       await invoke('crear_parte', { 
         asambleaId, 
-        dia: diaSeleccionado, 
+        dia: nuevaParte.dia, // Ahora usamos el día del modal
         sesion: nuevaParte.sesion, 
         hora: nuevaParte.hora, 
         tema: nuevaParte.tema, 
@@ -634,11 +519,16 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
         congregacion: nuevaParte.congregacion.trim() || null, 
         email: nuevaParte.email.trim() || null, 
         telefono: nuevaParte.telefono.trim() || null,
-        numero_bosquejo: nuevaParte.numero_bosquejo.trim() || null 
+        numero_bosquejo: nuevaParte.numero_bosquejo.trim() || null,
+        // ✅ ENVIAMOS LOS NUEVOS DATOS AL BACKEND
+        fuente: nuevaParte.fuente,
+        esBetelita: nuevaParte.es_betelita,
+        esInterprete: nuevaParte.es_interprete,
+        esVisitante: nuevaParte.es_visitante
       });
       mostrarModalCrear = false; 
-      nuevaParte = { hora: '', tema: '', tipo: 'Discurso', duracion: 10, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '' };
-      await cargarDatos(); 
+      nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false };
+      await cargarTodosDias(); 
     } catch (e) { 
       alert("Error al crear parte: " + e); 
     }
@@ -647,189 +537,123 @@ async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false):
   let mostrarModalLimpiar = false;
 
   async function limpiarTodoConfirmado() {
-  mostrarModalLimpiar = false; // cerrar modal
-  try {
-    await invoke('limpiar_programa', { asambleaId });
-    await cargarDatos();
-    // Opcional: mostrar notificación de éxito
-  } catch (e) {
-    alert('Error al limpiar: ' + e);
+    mostrarModalLimpiar = false;
+    try {
+        await invoke('limpiar_programa', { asambleaId });
+        await cargarTodosDias();
+    } catch (e) {
+        alert('Error al limpiar: ' + e);
+    }
   }
-}
 
-let mostrarModalEliminar = false;
-let idParteAEliminar: number | null = null;
+  let mostrarModalEliminar = false;
+  let idParteAEliminar: number | null = null;
 
   async function confirmarEliminarParte() {
     if (!idParteAEliminar) return;
     mostrarModalEliminar = false;
     try {
         await invoke('eliminar_parte', { id: idParteAEliminar });
-        await cargarDatos();
+        await cargarTodosDias();
         idParteAEliminar = null;
     } catch (e) {
         alert('Error al eliminar: ' + e);
     }
-}
+  }
   
   async function importarPrograma() { 
       try { 
           const f = await openDialog({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
           if(f) { 
               await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); 
-              await cargarDatos(); 
+              await cargarTodosDias(); 
               await cargarHermanos(); 
           } 
-      } catch(e) { alert("Error: " + e); } 
+      } catch(e) { alert("Error al importar: " + e); }
   }
 
-  async function handleExportarOficina() {
-  await exportarOficinaPDF(oficina, oficina.personal || [], diaSeleccionado);
-}
+ async function handleExportarPrograma() {
+    // 1. Creamos un título dinámico basado en lo que el usuario seleccionó en el filtro
+    let tituloPDF = labelDia;
+    if (diasSeleccionados.length === 3) {
+      tituloPDF = 'Programa Completo (3 días)';
+    } else if (diasSeleccionados.length === 0) {
+      return alert("⚠️ Seleccione al menos un día para generar el PDF.");
+    }
 
-  async function handleExportarPrograma() {
-  await exportarProgramaPDF(partes, diaSeleccionado);
-}
-
-
-  // =========================================================
-  // === NUEVO MÓDULO DE EMAILS MASIVOS (CON FILTRO DÍA) ===
-  // =========================================================
-
-  // --- VARIABLES ---
-  let mostrarModalEmails = false;
-  let cargandoEmails = false;
-  
-  // Variables nuevas para el filtro
-  let diaFiltroEmail = 'Viernes'; // Día seleccionado en el modal
-  let todosLosDatosEmails: { email: string, dia: string }[] = []; // Base de datos temporal
-  
-  // Variables del formulario (se mantienen los nombres para compatibilidad)
-  let metodoSeleccion: 'mailto' | 'jwpub' = 'mailto';
-  let asuntoTodos: string = '';
-  let cuerpoTodos: string = '';
-  let plantillaSeleccionada: string | null = null;
-
-  // --- REACTIVIDAD: FILTRO AUTOMÁTICO ---
-  // Esta línea mágica crea la lista filtrada cada vez que cambias de día
-    $: emailsFiltrados = (() => {
-      if (!todosLosDatosEmails || todosLosDatosEmails.length === 0) return [];
-      if (diaFiltroEmail === 'Todos') {
-        // devolver lista única de emails de los 3 días
-        const s = new Set<string>();
-        todosLosDatosEmails.forEach(i => { if (i.email && i.email.trim()) s.add(i.email.trim()); });
-        return Array.from(s);
-      }
-      return todosLosDatosEmails.filter(item => item.dia === diaFiltroEmail).map(item => item.email);
-    })();
-
-  // --- FUNCIÓN DE CARGA ---
-  async function prepararModalEmails() {
-    cargandoEmails = true;
-    todosLosDatosEmails = []; // Limpiamos para recargar fresco
-    
-    // Configuramos plantilla por defecto
-    const defecto = $emailTemplates && $emailTemplates.length ? $emailTemplates[0] : null;
-    plantillaSeleccionada = defecto?.id || null;
-    asuntoTodos = defecto?.subject || 'Asignación de asamblea';
-    cuerpoTodos = defecto?.body || 'Estimado hermano,\n\nLe informamos sobre su asignación...';
-
-    const dias = ['Viernes', 'Sábado', 'Domingo'];
-    
-    // Cargamos los 3 días
-    await Promise.all(dias.map(async (dia) => {
-        try {
-            const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
-            res.forEach(parte => { 
-                if (parte.email_orador && !parte.es_video) {
-                    todosLosDatosEmails.push({ 
-                        email: parte.email_orador.trim(), 
-                        dia: dia 
-                    });
-                } 
-            });
-        } catch (e) { console.error(e); }
-    }));
-    
-    // Svelte necesita que reasignemos para detectar el cambio
-    todosLosDatosEmails = todosLosDatosEmails;
-    diaFiltroEmail = diaSeleccionado; // Inicia mostrando el día que estás viendo en la app
-    cargandoEmails = false;
-    mostrarModalEmails = true;
+    // 2. Pasamos 'partesFiltradas' en lugar de 'partes'. 
+    // ¡Así el PDF imprimirá exactamente lo que tienes en pantalla (orden y filtros)!
+    await exportarProgramaPDF(partesFiltradas, tituloPDF);
   }
 
-  // --- CONTROL DEL FILTRO ---
-  function cambiarDiaFiltro(dia: string) {
-      diaFiltroEmail = dia;
-  }
+  // --- NUEVA LÓGICA: EMAIL MASIVO A TODOS ---
+  async function enviarEmailMasivo(idPlantilla: string) {
+    // 1. Extraer correos de los oradores que están actualmente filtrados en la pantalla
+    const emails = new Set<string>();
+    partesFiltradas.forEach(p => {
+        if (p.email_orador && p.email_orador.trim() && !p.es_video) {
+            emails.add(p.email_orador.trim());
+        }
+    });
 
-  // --- UTILIDADES ---
-  function copiarEmailsAlPortapapeles() {
-    if (emailsFiltrados.length === 0) return alert(`No hay correos para copiar del ${diaFiltroEmail}.`);
-    const texto = emailsFiltrados.join(';');
-    
-    if (navigator && navigator.clipboard) {
-        navigator.clipboard.writeText(texto)
-            .then(() => alert(`¡Listo! ${emailsFiltrados.length} correos copiados.`))
-            .catch(() => prompt('Copiar (Ctrl+C):', texto));
-    } else {
-        prompt('Copiar (Ctrl+C):', texto);
+    const listaCorreos = Array.from(emails).join(';');
+    if (listaCorreos.length === 0) {
+        return alert("⚠️ No hay correos registrados para las partes que estás viendo actualmente en pantalla.");
+    }
+
+    try {
+        // 2. Obtener la plantilla según el botón presionado
+        const plantilla = obtenerPlantillaPorId(idPlantilla);
+        const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+        const cuerpoBase = plantilla?.body || "";
+
+        // 3. Crear contexto simulado para llenar los marcadores globales (Fecha, Circuito, etc.)
+        const objetoSimulado = {
+            nombre_completo: 'Hermanos', nombre_pila: 'Hermanos', apellidos: '',
+            tema: '', hora_inicio: '', hora: '', tipo_asignacion: 'General',
+            numero_bosquejo: '', email: '', telefono: '', congregacion: ''
+        };
+
+        const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+
+        // 4. Procesar marcadores
+        const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+        const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+        // 5. Abrir el correo JWPUB (Usamos 'to=' para evitar bloqueos del sistema)
+        const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+                    `&to=${encodeURIComponent(listaCorreos)}` +
+                    `&subject=${encodeURIComponent(asuntoFinal)}` +
+                    `&body=${encodeURIComponent(cuerpoFinal)}`;
+        openUrl(url);
+
+        mostrarMenuEmailTodos = false;
+
+    } catch (error) {
+        console.error("Error al procesar el email masivo:", error);
+        alert("Ocurrió un error al generar el correo masivo.\n" + error);
     }
   }
 
-  function aplicarPlantillaSeleccionada() {
-    if (!plantillaSeleccionada) return;
-    const p = obtenerPlantillaPorId(plantillaSeleccionada);
-    if (p) {
-        asuntoTodos = p.subject || asuntoTodos;
-        cuerpoTodos = p.body || cuerpoTodos;
-    }
-  }
+  // --- NUEVA LÓGICA: EMAIL MASIVO A TODOS ---
+  let mostrarMenuEmailTodos = false;
 
-  // --- FUNCIONES DE ACCIÓN RÁPIDA (CON FILTRO APLICADO) ---
-  
-  // 1. Botón "Email [Día]"
-  async function enviarEmailADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      openUrl(`mailto:${emailsFiltrados.join(';')}`);
-  }
+  // Contador reactivo: Cuántos oradores filtrados SÍ tienen correo
+  $: cantidadCorreosMasivos = new Set(
+      partesFiltradas
+          .filter(p => p.email_orador && p.email_orador.trim() && !p.es_video)
+          .map(p => p.email_orador.trim())
+  ).size;
 
-  // 2. Botón "JWPUB [Día]"
-  async function enviarJWPUBADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}`);
-  }
+  // Contador reactivo: Cuántos oradores asignados NO tienen correo
+  $: cantidadSinCorreo = partesFiltradas.filter(p => 
+      !p.es_video && 
+      p.nombre_orador && p.nombre_orador.trim() !== '' && 
+      (!p.email_orador || p.email_orador.trim() === '')
+  ).length;
 
-  // 3. Botón "Recordatorio"
-  async function enviarEmailRecordatorioADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
-      openUrl(`mailto:${emailsFiltrados.join(';')}?subject=${asunto}`);
-  }
 
-  // 4. Botón "JWPUB Recordatorio"
-  async function enviarJWPUBRecordatorioADia() {
-      if (emailsFiltrados.length === 0) return alert(`No hay destinatarios el ${diaFiltroEmail}.`);
-      const asunto = encodeURIComponent(`RECORDATORIO: Asignación ${diaFiltroEmail}`);
-      openUrl(`https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(emailsFiltrados.join(';'))}&subject=${asunto}`);
-  }
-
-  // 5. Botón Grande "Abrir en..."
-  async function abrirTodosPorMetodo() {
-    if (emailsFiltrados.length === 0) return alert(`⚠️ No hay correos para el ${diaFiltroEmail}.`);
-    const lista = emailsFiltrados.join(';');
-    
-    if (metodoSeleccion === 'jwpub') {
-      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose&to=${encodeURIComponent(lista)}&subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
-      openUrl(url);
-    } else {
-      const mailto = `mailto:${lista}?subject=${encodeURIComponent(asuntoTodos)}&body=${encodeURIComponent(cuerpoTodos)}`;
-      openUrl(mailto);
-    }
-    mostrarModalEmails = false;
-  }
-
-    // --- FILTRADO PARA SUGERENCIAS (CUANDO ESCRIBES NUEVA PARTE) ---
+  // --- FILTRADO PARA SUGERENCIAS ---
   function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase(); 
     if (t.length < 2) {
@@ -851,177 +675,332 @@ let idParteAEliminar: number | null = null;
     mostrarSugerencias = false; 
   }
   
- // --- FILTRADO PARA EL MODAL DE ASIGNACIÓN (BUSCADOR) ---
   function getHermanosFiltrados() {
-    // CAMBIO: Si la búsqueda está vacía, mostramos a TODOS los hermanos
     if (!terminoBusqueda) return listaHermanos;
-    
-    // Si escribes algo, entonces filtramos
     return listaHermanos.filter(h => 
       h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase())
     );
   }
 
-  // --- FUNCIÓN AUXILIAR (sin cambios) ---
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
- </script>
 
+// --- FUNCIONES DE FILTRADO ---
+function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, orden: string) {
+  let resultado = [...listaPartes];
+  
+  // 1. Filtro por día (Filtro base)
+  if (dias.length > 0) {
+    resultado = resultado.filter(p => dias.includes(p.dia));
+  } else {
+    return [];
+  }
+  
+  // 2. Filtro por estado (Filtro base)
+  if (estado === 'asignada') {
+    resultado = resultado.filter(p => p.nombre_orador && p.nombre_orador.trim() !== '');
+  } else if (estado === 'sin_asignar') {
+    resultado = resultado.filter(p => !p.nombre_orador || p.nombre_orador.trim() === '');
+  }
+  
+  // 3. Filtros Avanzados (Características y Fuentes unificados con lógica inclusiva OR)
+  let filtroCaracActivo = caracteristicas.betelita || caracteristicas.interprete || caracteristicas.visitante;
+  let filtroFuenteActivo = fuente.video || fuente.en_persona || fuente.jw_stream || fuente.transmision_remota;
+  
+  if (filtroCaracActivo || filtroFuenteActivo) {
+    resultado = resultado.filter(p => {
+      // Preparar la verificación de la fuente de la tarjeta actual
+      let f = p.fuente || '';
+      let isVid = p.es_video === true || f.toLowerCase().includes('video') || f.toLowerCase().includes('vídeo');
+      let isStr = f === 'jw_stream' || f === 'Descarga de JW Stream';
+      let isRem = f === 'transmision_remota' || f === 'Transmisión remota en directo';
+      let isPer = !isVid && !isStr && !isRem; // Si no es ninguna de las otras, es en persona
+
+      // Verificar si la tarjeta coincide con alguna de las opciones marcadas
+      let coincideCarac = (caracteristicas.betelita && p.es_betelita) ||
+                          (caracteristicas.interprete && p.es_interprete) ||
+                          (caracteristicas.visitante && p.es_visitante);
+                          
+      let coincideFuente = (fuente.video && isVid) ||
+                           (fuente.jw_stream && isStr) ||
+                           (fuente.transmision_remota && isRem) ||
+                           (fuente.en_persona && isPer);
+
+      // LÓGICA DE UNIFICACIÓN:
+      // Si solo marcó características, filtra por características
+      if (filtroCaracActivo && !filtroFuenteActivo) return coincideCarac;
+      // Si solo marcó fuentes, filtra por fuentes
+      if (!filtroCaracActivo && filtroFuenteActivo) return coincideFuente;
+      
+      // Si marcó de AMBOS grupos (ej: Visitante y Video), muestra si cumple UNO u OTRO (OR)
+      return coincideCarac || coincideFuente;
+    });
+  }
+  
+  return resultado;
+}
+
+function ordenarPartes(partesAOrdenar: any[]) {
+  // 5. QUINTO: Ordenar los resultados filtrados
+  if (ordenarPor === 'orador') {
+    return [...partesAOrdenar].sort((a, b) => {
+      const nombreA = a.nombre_orador || 'ZZZ'; // Los sin orador van al final
+      const nombreB = b.nombre_orador || 'ZZZ';
+      return nombreA.localeCompare(nombreB);
+    });
+  }
+  // Por defecto, ordenar por día y hora (secuencia)
+  return [...partesAOrdenar].sort((a, b) => {
+    const orden = { 'Viernes': 1, 'Sábado': 2, 'Domingo': 3 };
+    const ordenDia = orden[a.dia as keyof typeof orden] - orden[b.dia as keyof typeof orden];
+    if (ordenDia !== 0) return ordenDia;
+    return (a.hora_inicio || '').localeCompare(b.hora_inicio || '');
+  });
+}
+
+
+function toggleDia(dia: string) {
+  if (dia === 'Todos') {
+    // Si está todo seleccionado, deseleccionar todo, sino seleccionar todo
+    if (diasSeleccionados.length === 3) {
+      diasSeleccionados = [];
+    } else {
+      diasSeleccionados = ['Viernes', 'Sábado', 'Domingo'];
+    }
+  } else {
+    const index = diasSeleccionados.indexOf(dia);
+    if (index > -1) {
+      // Deseleccionar
+      diasSeleccionados = diasSeleccionados.filter(d => d !== dia);
+    } else {
+      // Seleccionar
+      diasSeleccionados = [...diasSeleccionados, dia];
+    }
+  }
+  // NO cerrar el modal aquí
+
+  localStorage.setItem('memoriaDias', JSON.stringify(diasSeleccionados));
+}
+
+// Al incluir `partes` en los argumentos de la función, Svelte detecta el cambio
+$: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, filtroEstado, filtrosCaracteristicas, filtrosFuente, ordenarPor));
+
+// Variable para controlar el nuevo modal de Ordenar
+  let mostrarSelectorOrdenar = false;
+
+  // Reactividad: Esto hace que el texto cambie automáticamente si marcas o desmarcas días
+  $: labelDia = (() => {
+    if (diasSeleccionados.length === 0) return 'Seleccionar día';
+    if (diasSeleccionados.length === 3) return 'Todos los días';
+    if (diasSeleccionados.length === 1) return diasSeleccionados[0];
+    if (diasSeleccionados.length === 2) return diasSeleccionados.join(' y ');
+    return `${diasSeleccionados.length} días`;
+  })();
+
+ // Función mejorada para cerrar cualquiera de los menús si haces clic fuera
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (mostrarSelectorDia && !target.closest('.dia-sel')) {
+      mostrarSelectorDia = false;
+    }
+    if (mostrarSelectorOrdenar && !target.closest('.ord-sel')) {
+      mostrarSelectorOrdenar = false;
+    }
+    if (mostrarMenuEmailTodos && !target.closest('.email-masivo-container')) {
+      mostrarMenuEmailTodos = false;
+    }
+  }
+
+// Cargar todos los días
+async function cargarTodosDias() {
+  if (!asambleaId) return;
+  const abiertos = new Set(partes.filter(p => p._expanded).map(p => p.id));
+  
+  try {
+    const dias = ['Viernes', 'Sábado', 'Domingo'];
+    let todasLasPartes: any[] = [];
+    
+    for (const dia of dias) {
+      const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+      const partesConDia = res.map(p => ({ 
+        ...p, 
+        dia: dia,
+        _expanded: abiertos.has(p.id),
+        recibido_manual: p.estado === 'Confirmado',
+        estado: p.estado || 'Pendiente',
+        esta_presente: p.esta_presente === true || p.esta_presente === 1,
+        numero_bosquejo: p.numero_bosquejo || "",
+        email_enviado: false,
+        carta_recibida_check: false,
+        jwpub_enviado: false,
+        recordatorio_enviado: false,
+        ensayo_terminado: p.ensayo_terminado || false,
+        whatsapp_enviado: false,
+        recordatorio_whatsapp_enviado: false,
+        // ✅ NUEVOS CAMPOS PARA FILTROS
+        fuente: p.fuente || 'en_persona',
+        es_betelita: p.es_betelita || false,
+        es_interprete: p.es_interprete || false,
+        es_visitante: p.es_visitante || false
+      }));
+      todasLasPartes = [...todasLasPartes, ...partesConDia];
+    }
+    
+    partes = todasLasPartes;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// Reactive statement
+
+
+</script>
+
+<!-- ========== HTML ========== -->
 <div class="layout-programa">
-  <aside class="panel-oficina dark-theme">
-    <div class="header-oficina-dark">
-      <h3><Users size={20}/> Oficina</h3>
-      
-      <button class="btn-icon-pdf" 
-        title="Exportar Oficina a PDF"
-        on:click={handleExportarOficina}>
-        <FileUp size={18}/>
-      </button>
-
-      <span class="badge-dark">{diaSeleccionado}</span>
-    </div>
-    <div class="contenido-oficina">
-        
-      <div class="seccion-oficina">
-        <h4 class="titulo-seccion">PERSONAL</h4>
-        <div class="lista-personal">
-          {#each oficina.personal as p}
-           <div class="item-personal clickable" class:ocupado={true} role="button" tabindex="0" 
-           on:click={() => clickEnPersonal(p)} 
-           on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && clickEnPersonal(p)}>
-              <div class="info-personal">
-                <span class="nombre-p">{p.nombre_completo}</span>
-                <div class="indicadores-mini">
-                  {#if p.recibido_manual}
-                    <div class="dot-icon blue" title="Recibido"><FileCheck size={10} strokeWidth={3}/></div>
-                  {/if}
-                  {#if p.esta_presente}
-                    <div class="dot-icon green" title="Presente"><UserCheck size={10} strokeWidth={3}/></div>
-                  {/if}
-                  {#if p.ensayo_terminado}
-                    <div class="dot-icon yellow" title="Ensayo"><Mic size={10} strokeWidth={3}/></div>
-                  {/if}
-                </div>
-              </div>
-              <Settings size={14} class="icon-gear"/>
-            </div>
-          {/each}
-          {#if oficina.personal.length === 0}
-            <span class="vacio">(Vacío)</span>
-          {/if}
-        </div>
-        <button class="btn-add-dark" on:click={() => abrirModalOficina('personal_oficina')}>
-          <UserPlus size={14}/> Añadir
-        </button>
-      </div>
-      
-      <div class="separador-dark"></div>
-      
-      <div class="seccion-oficina">
-        <h4 class="titulo-seccion">MAÑANA</h4>
-        {#each [{ label: 'Presidente', key: 'presidente_manana' }, { label: 'Oración', key: 'oracion_apertura' }, { label: 'Bosquejos', key: 'bosquejos_manana' }, { label: 'Plataforma', key: 'plataforma_manana' }] as item, idx}
-          <div class="campo-dark">
-            <label for="btn_manana_{idx}">{item.label}</label>
-            <button id="btn_manana_{idx}" class="btn-select-dark" 
-                    class:ocupado={oficina[item.key]} 
-                    on:click={() => clickEnOficina(item.key, oficina[item.key])}>
-              <div class="btn-content-left">
-                <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
-                {#if oficina[item.key]}
-                  <div class="indicadores-mini">
-                    {#if oficina[item.key].recibido_manual}
-                      <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].esta_presente}
-                      <div class="dot-icon green"><UserCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].ensayo_terminado}
-                      <div class="dot-icon yellow"><Mic size={10} strokeWidth={3}/></div>
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-              {#if oficina[item.key]} 
-                <Settings size={14} class="icon-gear"/> 
-              {:else} 
-                <ChevronRight size={14}/> 
-              {/if}
-            </button>
-          </div>
-        {/each}
-      </div>
-
-      <div class="seccion-oficina mt-4">
-        <h4 class="titulo-seccion">TARDE</h4>
-        {#each [{ label: 'Presidente', key: 'presidente_tarde' }, { label: 'Oración', key: 'oracion_conclusion' }, { label: 'Bosquejos', key: 'bosquejos_tarde' }, { label: 'Plataforma', key: 'plataforma_tarde' }] as item, idx}
-          <div class="campo-dark">
-            <label for="btn_tarde_{idx}">{item.label}</label>
-            <button id="btn_tarde_{idx}" class="btn-select-dark" 
-                    class:ocupado={oficina[item.key]} 
-                    on:click={() => clickEnOficina(item.key, oficina[item.key])}>
-              <div class="btn-content-left">
-                <span class="text-truncate">{nombreTxt(oficina[item.key])}</span>
-                {#if oficina[item.key]}
-                  <div class="indicadores-mini">
-                    {#if oficina[item.key].recibido_manual}
-                      <div class="dot-icon blue"><FileCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].esta_presente}
-                      <div class="dot-icon green"><UserCheck size={10} strokeWidth={3}/></div>
-                    {/if}
-                    {#if oficina[item.key].ensayo_terminado}
-                      <div class="dot-icon yellow"><Mic size={10} strokeWidth={3}/></div>
-                    {/if}
-                  </div>
-                {/if}
-              </div>
-              {#if oficina[item.key]} 
-                <Settings size={14} class="icon-gear"/> 
-              {:else} 
-                <ChevronRight size={14}/> 
-              {/if}
-            </button>
-          </div>
-        {/each}
-      </div>
-    </div>
-  </aside>
-
-  <main class="panel-discursos">
-    <div class="tabs">
-      {#each ['Viernes', 'Sábado', 'Domingo'] as dia}
-        <button class:active={diaSeleccionado === dia} on:click={() => diaSeleccionado = dia}>
-          {dia}
-        </button>
-      {/each}
-    </div>
+  <Panel padding="0" clasesExtra="panel-discursos-override">
 
     <div class="header-sesion">
-  <div class="header-sesion-left">
-    <h2>Programa - {diaSeleccionado}</h2>
-    
-    <button class="btn-header-orange" on:click={() => { mostrarModalEmails = true; prepararModalEmails(); }} title="Enviar emails y JWPUB a todos los oradores">
-      <Mail size={18}/> <span>Email a Todos</span>
+<div class="header-sesion-left">
+    <h2>Programa</h2>
+      
+    <div class="selector-dia-container dia-sel">
+      <button class="btn-selector-dia" on:click|stopPropagation={() => {mostrarSelectorDia = !mostrarSelectorDia; mostrarSelectorOrdenar = false;}}>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <Calendar size={16}/>
+          <span>{labelDia}</span>
+        </div>
+        <ChevronDown size={16}/>
+      </button>
+      
+      {#if mostrarSelectorDia}
+        <div class="dropdown-dias" on:click|stopPropagation>
+          <button class="dia-opcion" on:click={() => toggleDia('Todos')}>
+            <input type="checkbox" checked={diasSeleccionados.length === 3} readonly>
+            <span>Todos los días</span>
+          </button>
+          <div class="separator-dropdown"></div>
+          <button class="dia-opcion" on:click={() => toggleDia('Viernes')}>
+            <input type="checkbox" checked={diasSeleccionados.includes('Viernes')} readonly>
+            <span>Viernes</span>
+          </button>
+          <button class="dia-opcion" on:click={() => toggleDia('Sábado')}>
+            <input type="checkbox" checked={diasSeleccionados.includes('Sábado')} readonly>
+            <span>Sábado</span>
+          </button>
+          <button class="dia-opcion" on:click={() => toggleDia('Domingo')}>
+            <input type="checkbox" checked={diasSeleccionados.includes('Domingo')} readonly>
+            <span>Domingo</span>
+          </button>
+        </div>
+      {/if}
+    </div>
+
+   <button class="btn-header-filtros" on:click={abrirPanelFiltros}>
+      <ListFilter size={18}/> <span>Otros Filtros</span>
     </button>
+
+    <div class="selector-dia-container ord-sel">
+      <button class="btn-selector-dia" style="min-width: 180px;" on:click|stopPropagation={() => {mostrarSelectorOrdenar = !mostrarSelectorOrdenar; mostrarSelectorDia = false;}}>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>Ordenar: <strong style="color:var(--primary);">{ordenarPor === 'secuencia' ? 'Secuencia' : 'Orador'}</strong></span>
+        </div>
+        <ChevronDown size={16}/>
+      </button>
+      
+      {#if mostrarSelectorOrdenar}
+        <div class="dropdown-dias" style="min-width: 180px;" on:click|stopPropagation>
+          <button class="dia-opcion" on:click={() => { ordenarPor = 'secuencia'; mostrarSelectorOrdenar = false; }}>
+            <input type="checkbox" checked={ordenarPor === 'secuencia'} readonly>
+            <span style={ordenarPor === 'secuencia' ? 'font-weight:bold; color:var(--text-main);' : ''}>Secuencia de discursos</span>
+          </button>
+          <div class="separator-dropdown"></div>
+          <button class="dia-opcion" on:click={() => { ordenarPor = 'orador'; mostrarSelectorOrdenar = false; }}>
+            <input type="checkbox" checked={ordenarPor === 'orador'} readonly>
+            <span style={ordenarPor === 'orador' ? 'font-weight:bold; color:var(--text-main);' : ''}>Orador</span>
+          </button>
+        </div>
+      {/if}
+    </div>
   </div>
   
   <div class="acciones-header">
-    <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
-      <FileSpreadsheet size={18}/> <span>Importar</span>
-    </button>
 
-    <button class="btn-header-pdf" 
-        title="Exportar lista de discursos a PDF"
-        on:click={handleExportarPrograma}>
-        <FileUp size={18}/> <span>PDF</span>
+     <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
+      <FileSpreadsheet size={18}/> <span>Importar desde CSV</span>
+    </button>
+    
+    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Añadir nueva parte al programa">
+      <Plus size={18}/> <span>Añadir parte</span>
+    </button>
+   
+
+    <button class="btn-header-pdf" title="Exportar lista de discursos a PDF" on:click={handleExportarPrograma}>
+      <FileUp size={18}/> <span>Generar PDF</span>
     </button>
 
     <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
-      <Trash2 size={18}/> <span>Limpiar</span>
+      <Trash2 size={18}/> <span>Limpiar toda la lista</span>
+    </button>
+
+    <div class="selector-dia-container email-masivo-container">
+      <button class="btn-header-orange" on:click|stopPropagation={() => {mostrarMenuEmailTodos = !mostrarMenuEmailTodos; mostrarSelectorDia = false; mostrarSelectorOrdenar = false;}}>
+        <Mail size={18}/> <span>Email JW a todos</span>
+      </button>
+      
+      {#if mostrarMenuEmailTodos}
+        <div class="dropdown-dias" style="right: 0; left: auto; min-width: 260px; padding: 0; overflow: hidden;" on:click|stopPropagation>
+          
+          <div style="padding: 12px 15px; background: var(--bg-secondary); border-bottom: 1px solid var(--border);">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">
+              Destinatarios listos
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: {cantidadCorreosMasivos > 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; color: {cantidadCorreosMasivos > 0 ? '#10b981' : '#ef4444'}; font-weight: bold; font-size: 12px;">
+                {cantidadCorreosMasivos}
+              </div>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">
+                {cantidadCorreosMasivos === 1 ? 'Orador con correo' : 'Oradores con correo'}
+              </span>
+            </div>
+          </div>
+
+          {#if cantidadSinCorreo > 0}
+            <div style="padding: 8px 15px; background: rgba(245, 158, 11, 0.1); border-bottom: 1px solid var(--border); display: flex; gap: 8px; color: #d97706; font-size: 11.5px; font-weight: 600;">
+              <span>⚠️ Atención: {cantidadSinCorreo} {cantidadSinCorreo === 1 ? 'asignado' : 'asignados'} sin dirección de correo.</span>
+            </div>
+          {/if}
+          
+          <button class="dia-opcion" 
+                  on:click={() => enviarEmailMasivo('email_todos')}
+                  disabled={cantidadCorreosMasivos === 0}
+                  style={cantidadCorreosMasivos === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
+            <FileJson size={16} color={cantidadCorreosMasivos > 0 ? "#f97316" : "var(--text-secondary)"}/> 
+            <span style="font-weight:600;">JWPUB a todos</span>
+          </button>
+          
+          <div class="separator-dropdown" style="margin: 0;"></div>
+          
+          <button class="dia-opcion" 
+                  on:click={() => enviarEmailMasivo('email_todos_recordatorio')}
+                  disabled={cantidadCorreosMasivos === 0}
+                  style={cantidadCorreosMasivos === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
+            <Clock size={16} color={cantidadCorreosMasivos > 0 ? "#3b82f6" : "var(--text-secondary)"}/> 
+            <span style="font-weight:600;">JWPUB Recordatorio</span>
+          </button>
+          
+        </div>
+      {/if}
+    </div>
+
+    <button class="btn-expandir-todos" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
+      {#if todasExpandidas}
+        <FoldVertical size={18}/> <span>Contraer</span>
+      {:else}
+        <UnfoldVertical size={18}/> <span>Expandir</span>
+      {/if}
     </button>
     
-    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Agregar nueva parte al programa">
-      <Plus size={18}/> <span>Agregar</span>
-    </button>
   </div>
 </div>
 
@@ -1030,294 +1009,209 @@ let idParteAEliminar: number | null = null;
         <div class="empty-state"><p>Programa vacío para este día.</p></div>
       {/if}
       
-      {#each partes as parte}
-    <div class="tarjeta-acordeon" 
-      class:expanded={parte._expanded}
-      class:estado-presente={parte.esta_presente}
-      class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
-      class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}>
-    
-    <div class="header-parte" role="button" tabindex="0" 
-         on:click={() => toggleExpandir(parte.id)} 
-         on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
-      <div class="col-tiempo">
-        <span class="hora">{parte.hora_inicio}</span>
-        <span class="duracion">({parte.duracion}m)</span>
-      </div>
-      <div class="col-tema">
-        <span class="tema-txt">{parte.tema}</span>
-        {#if parte.es_video}
-          <span class="badge-video"><Video size={12}/> Video</span>
-        {/if}
-        {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-          <span class="badge-bosquejo"><FileText size={10}/> Bosquejo: {parte.numero_bosquejo}</span>
-        {/if}
-      </div>
-      <div class="col-orador-mini">
-        {#if !parte.es_video}
-          <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
-          {#if parte.congregacion_orador}
-            <span class="cong-mini">{parte.congregacion_orador}</span>
+      {#each partesFiltradas as parte}
+        <div class="tarjeta-acordeon" 
+          class:expanded={parte._expanded}
+          class:estado-presente={parte.esta_presente}
+          class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
+          class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}>
+        
+          <div class="header-parte" role="button" tabindex="0" 
+               on:click={() => toggleExpandir(parte.id)} 
+               on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleExpandir(parte.id)}>
+            
+              <div class="col-main-info">
+                <div class="meta-programacion">
+                <span class="dia-badge">{parte.dia}</span>
+                <span class="separador-dot">•</span>
+                <span class="hora-inicio">{parte.hora_inicio}</span>
+                
+                {#if parte.duracion && parte.duracion > 0}
+                  <span class="separador-dot">•</span>
+                  <span class="minutos-duracion">{parte.duracion} min</span>
+                {/if}
+              </div>
+
+                <div class="col-tema-bloque">
+                   <span class="tema-txt">
+                      {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+                        <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
+                      {/if}
+                      {parte.tema}
+                   </span>
+              
+              <div class="badges-row">
+                {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
+                  <span class="badge-fuente video"><Video size={10}/> Video</span>
+                {:else if parte.fuente === 'jw_stream' || parte.fuente === 'Descarga de JW Stream'}
+                  <span class="badge-fuente stream"><Download size={10}/> JW Stream</span>
+                {:else if parte.fuente === 'transmision_remota' || parte.fuente === 'Transmisión remota en directo'}
+                  <span class="badge-fuente remota"><Globe size={10}/> Remota</span>
+                {:else}
+                  <span class="badge-fuente en-persona"><UserCheck size={10}/> En persona</span>
+                {/if}
+
+              </div>
+            </div>
+
+          </div>
+
+            <div class="col-orador-mini">
+              {#if !parte.es_video}
+                <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
+                
+                <div class="orador-meta">
+                  {#if parte.congregacion_orador}
+                    <span class="cong-mini">{parte.congregacion_orador}</span>
+                  {/if}
+                </div>
+                  
+                <div class="traits-container">
+                  {#if parte.es_betelita}
+                    <span class="trait-badge">Betelita</span>
+                  {/if}
+                  {#if parte.es_interprete}
+                    <span class="trait-badge">Intérprete</span>
+                  {/if}
+                  {#if parte.es_visitante}
+                    <span class="trait-badge">Visitante</span>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+
+            <div class="col-estados-mini">
+              {#if parte.recibido_manual}
+                <div class="icon-indicator blue" title="Recibido"><FileCheck size={14} /></div>
+              {/if}
+              {#if parte.esta_presente}
+                <div class="icon-indicator green" title="Presente"><UserCheck size={14} /></div>
+              {/if}
+              {#if parte.ensayo_terminado}
+                <div class="icon-indicator orange" title="Ensayo terminado"><Mic size={14} /></div>
+              {/if}
+              {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
+                <div class="icon-indicator gray" title="Pendiente"><Clock size={14} /></div>
+              {/if}
+            </div>
+
+            <div class="col-toggle">
+              {#if parte._expanded}<ChevronUp size={20} color="var(--text-secondary)"/>{:else}<ChevronDown size={20} color="var(--text-secondary)"/>{/if}
+            </div>
+          </div>
+
+          {#if parte._expanded}
+            <div class="body-parte" transition:slide={{ duration: 200 }}>
+              {#if !parte.es_video}
+                <div class="fila-superior-control">
+                  <div class="info-orador-full">
+                    <span class="label-tiny">ORADOR:</span>
+                    <strong>{parte.nombre_orador || "---"}</strong>
+                    <div class="detalles-contacto-panel">
+                      {#if parte.congregacion_orador}
+                        <span class="cong-tag">{parte.congregacion_orador}</span>
+                      {/if}
+                      {#if parte.telefono_orador}
+                        <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
+                      {/if}
+                      {#if parte.email_orador}
+                        <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
+                      {/if}
+                    </div>
+                  </div>
+                  
+                  <div class="checks-grandes">
+                    <button class="btn-status-toggle blue" 
+                            class:active={parte.recibido_manual} 
+                            on:click={() => toggleConfirmado(parte)}>
+                      <FileCheck size={18} /><span>RECIBIDO</span>
+                    </button>
+
+                    <button class="btn-status-toggle green" 
+                            class:active={parte.esta_presente} 
+                            on:click={() => togglePresente(parte)}>
+                      <UserCheck size={18} /><span>PRESENTE</span>
+                    </button>
+
+                    <button class="btn-status-toggle orange" 
+                            class:active={parte.ensayo_terminado} 
+                            on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
+                      <Mic size={18} /><span>ENSAYO</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="grid-acciones">
+                  <div class="grupo-accion">
+                    <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
+                    <div class="checks-row">
+                      <label class="check-inline">
+                        <input type="checkbox" checked={parte.email_enviado} 
+                               on:change={() => toggleStatus(parte, 'email_enviado')}> 
+                        Email enviado
+                      </label>
+                      <label class="check-inline strong-check">
+                        <input type="checkbox" checked={parte.carta_recibida_check} 
+                               on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
+                        Carta Recibida
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div class="grupo-accion center">
+                    <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
+                      <Printer size={16}/> IMPRIMIR CARTA
+                    </button>
+                  </div>
+
+                  <div class="grupo-accion right">
+                    <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
+                      <FileJson size={16}/> JWPUB ENVIAR CARTA
+                    </button>
+                    <label class="check-inline">
+                      <input type="checkbox" checked={parte.jwpub_enviado} 
+                             on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
+                      Email JWPUB enviado
+                    </label>
+                  </div>
+                  
+                  <div class="grupo-accion">
+                    <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
+                    <label class="check-inline">
+                      <input type="checkbox" checked={parte.recordatorio_enviado} 
+                             on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
+                      Recordatorio enviado
+                    </label>
+                  </div>
+                  <div class="grupo-accion center">
+                    <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
+                       <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
+                    </button>
+                  </div>
+                  <div class="grupo-accion right">
+                    <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
+                      <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
+                    </button>
+                  </div>
+                </div>
+              {/if}
+              <div class="footer-tools">
+                <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
+                  <Edit size={14}/> Editar Datos / Asignar
+                </button>
+                <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
+                 <Trash2 size={14}/> Eliminar Parte
+                </button>
+              </div>
+            </div>
           {/if}
-        {/if}
-      </div>
-
-      <div class="col-estados-mini">
-  {#if parte.recibido_manual}
-    <div class="icon-indicator blue" title="Recibido">
-      <FileCheck size={14} />
+        </div>
+      {/each}
     </div>
-  {/if}
-  {#if parte.esta_presente}
-    <div class="icon-indicator green" title="Presente">
-      <UserCheck size={14} />
-    </div>
-  {/if}
-  {#if parte.ensayo_terminado}
-    <div class="icon-indicator orange" title="Ensayo terminado">
-      <Mic size={14} />
-    </div>
-  {/if}
-  {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
-    <div class="icon-indicator gray" title="Pendiente">
-      <Clock size={14} />
-    </div>
-  {/if}
+  </Panel>
 </div>
 
-      <div class="col-toggle">
-        {#if parte._expanded}
-          <ChevronUp size={20} color="var(--text-secondary)"/>
-        {:else}
-          <ChevronDown size={20} color="var(--text-secondary)"/>
-        {/if}
-      </div>
-    </div>
-
-    {#if parte._expanded}
-      <div class="body-parte" transition:slide={{ duration: 200 }}>
-        {#if !parte.es_video}
-          <div class="fila-superior-control">
-            <div class="info-orador-full">
-              <span class="label-tiny">ORADOR:</span>
-              <strong>{parte.nombre_orador || "---"}</strong>
-              <div class="detalles-contacto-panel">
-                {#if parte.congregacion_orador}
-                  <span class="cong-tag">{parte.congregacion_orador}</span>
-                {/if}
-                {#if parte.telefono_orador}
-                  <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
-                {/if}
-                {#if parte.email_orador}
-                  <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
-                {/if}
-              </div>
-            </div>
-            
-            <div class="checks-grandes">
-  <button class="btn-status-toggle blue" 
-          class:active={parte.recibido_manual} 
-          on:click={() => toggleConfirmado(parte)}>
-    <FileCheck size={18} /><span>RECIBIDO</span>
-  </button>
-
-  <button class="btn-status-toggle green" 
-          class:active={parte.esta_presente} 
-          on:click={() => togglePresente(parte)}>
-    <UserCheck size={18} /><span>PRESENTE</span>
-  </button>
-
-  <button class="btn-status-toggle orange" 
-          class:active={parte.ensayo_terminado} 
-          on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
-    <Mic size={18} /><span>ENSAYO</span>
-  </button>
-</div>
-          </div>
-
-          <div class="grid-acciones">
-            <div class="grupo-accion">
-              <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-              <div class="checks-row">
-                <label class="check-inline">
-                  <input type="checkbox" checked={parte.email_enviado} 
-                         on:change={() => toggleStatus(parte, 'email_enviado')}> 
-                  Email enviado
-                </label>
-                <label class="check-inline strong-check">
-                  <input type="checkbox" checked={parte.carta_recibida_check} 
-                         on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
-                  Carta Recibida
-                </label>
-              </div>
-            </div>
-            
-            <div class="grupo-accion center">
-              <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
-                <Printer size={16}/> IMPRIMIR CARTA
-              </button>
-            </div>
-
-            <div class="grupo-accion right">
-              <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
-                <FileJson size={16}/> JWPUB ENVIAR CARTA
-              </button>
-              <label class="check-inline">
-                <input type="checkbox" checked={parte.jwpub_enviado} 
-                       on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
-                Email JWPUB enviado
-              </label>
-            </div>
-            
-            <div class="grupo-accion">
-              <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-              <label class="check-inline">
-                <input type="checkbox" checked={parte.recordatorio_enviado} 
-                       on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
-                Recordatorio enviado
-              </label>
-            </div>
-            <div class="grupo-accion center">
-              <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
-                 <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-              </button>
-            </div>
-            <div class="grupo-accion right">
-              <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
-                <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-              </button>
-            </div>
-          </div>
-        {/if}
-        <div class="footer-tools">
-          <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
-            <Edit size={14}/> Editar Datos / Asignar
-          </button>
-          <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
-           <Trash2 size={14}/> Eliminar Parte
-          </button>
-        </div>
-      </div>
-    {/if}
-  </div>
-{/each}
-    </div>
-  </main>
-</div>
-
-{#if mostrarModalGestionOficina && asignacionOficinaActual}
-  <div class="modal-backdrop" role="button" tabindex="0" 
-       on:click|self={cerrarModales} 
-       on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
-    <div class="modal modal-gestion">
-      <div class="modal-header header-gestion">
-        <div class="titulo-gestion">
-          <h3>Gestión de Asignación</h3>
-          <span class="subtitulo-rol">
-            {asignacionOficinaActual.tipo_asignacion?.replace('_', ' ').toUpperCase() || 'PERSONAL'}
-          </span>
-        </div>
-        <button class="btn-close" on:click={cerrarModales}><X size={20}/></button>
-      </div>
-      <div class="modal-body body-gestion">
-        <div class="fila-superior-control">
-          <div class="info-orador-full">
-            <span class="label-tiny">HERMANO ASIGNADO:</span>
-            <strong>{asignacionOficinaActual.nombre_completo || asignacionOficinaActual.nombre_orador}</strong>
-            <div class="detalles-contacto-panel">
-              {#if asignacionOficinaActual.congregacion_visual}
-                <span class="cong-tag">{asignacionOficinaActual.congregacion_visual}</span>
-              {/if}
-              {#if asignacionOficinaActual.telefono_visual}
-                <span class="contact-pill"><Phone size={11}/> {asignacionOficinaActual.telefono_visual}</span>
-              {/if}
-              {#if asignacionOficinaActual.email_visual}
-                <span class="contact-pill"><Mail size={11}/> {asignacionOficinaActual.email_visual}</span>
-              {/if}
-            </div>
-          </div>
-          <div class="checks-grandes">
-                <button class="btn-status-toggle blue" 
-                  class:active={asignacionOficinaActual.recibido_manual} 
-                  on:click={() => toggleConfirmado(asignacionOficinaActual)}>
-              <FileCheck size={18} /><span>RECIBIDO</span>
-            </button>
-            <button class="btn-status-toggle green" 
-                    class:active={asignacionOficinaActual.esta_presente} 
-                    on:click={() => togglePresente(asignacionOficinaActual)}>
-              <UserCheck size={18} /><span>PRESENTE</span>
-            </button>
-            <button class="btn-status-toggle yellow" 
-                    class:active={asignacionOficinaActual.ensayo_terminado} 
-                    on:click={() => toggleStatus(asignacionOficinaActual, 'ensayo_terminado')}>
-              <Mic size={18} /><span>ENSAYO</span>
-            </button>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="grid-acciones">
-          <div class="grupo-accion">
-            <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-            <div class="checks-row">
-              <label class="check-inline">
-                <input type="checkbox" checked={asignacionOficinaActual.email_enviado} 
-                       on:change={() => toggleStatus(asignacionOficinaActual, 'email_enviado')}> 
-                Email enviado
-              </label>
-              <label class="check-inline strong-check">
-                <input type="checkbox" checked={asignacionOficinaActual.carta_recibida_check} 
-                       on:change={() => toggleStatus(asignacionOficinaActual, 'carta_recibida_check')}> 
-                Carta Recibida
-              </label>
-            </div>
-          </div>
-          
-          <div class="grupo-accion center">
-            <button class="btn-outline-gray" on:click={() => procesarImpresion(asignacionOficinaActual, false)}>
-              <Printer size={16}/> IMPRIMIR CARTA
-            </button>
-          </div>
-
-          <div class="grupo-accion right">
-            <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(asignacionOficinaActual)}>
-              <FileJson size={16}/> JWPUB ENVIAR CARTA
-            </button>
-            <label class="check-inline">
-              <input type="checkbox" checked={asignacionOficinaActual.jwpub_enviado} 
-                     on:change={() => toggleStatus(asignacionOficinaActual, 'jwpub_enviado')}> 
-              Email JWPUB enviado
-            </label>
-          </div>
-          
-          <div class="grupo-accion">
-            <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-            <label class="check-inline">
-              <input type="checkbox" checked={asignacionOficinaActual.recordatorio_enviado} 
-                     on:change={() => toggleStatus(asignacionOficinaActual, 'recordatorio_enviado')}> 
-              Recordatorio enviado
-            </label>
-          </div>
-          <div class="grupo-accion center">
-            <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(asignacionOficinaActual)}>
-              <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-            </button>
-          </div>
-          <div class="grupo-accion right">
-            <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(asignacionOficinaActual)}>
-              <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer footer-gestion">
-        <button class="btn-delete-full" on:click={() => eliminarAsignacionOficina(asignacionOficinaActual.id)}>
-          <Trash2 size={16}/> Quitar a este hermano de la asignación
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
+<!-- ========== MODALES ========== -->
 {#if mostrarModalCrear}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={cerrarModales} 
@@ -1328,8 +1222,17 @@ let idParteAEliminar: number | null = null;
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body form-body">
-        <h4 class="form-title">Detalles</h4>
+        <h4 class="form-title">Detalles Base</h4>
+        
         <div class="fila">
+          <div class="campo">
+            <label for="dia_select">Día</label>
+            <select id="dia_select" bind:value={nuevaParte.dia}>
+              <option value="Viernes">Viernes</option>
+              <option value="Sábado">Sábado</option>
+              <option value="Domingo">Domingo</option>
+            </select>
+          </div>
           <div class="campo">
             <label for="sesion_select">Sesión</label>
             <select id="sesion_select" bind:value={nuevaParte.sesion}>
@@ -1337,6 +1240,9 @@ let idParteAEliminar: number | null = null;
               <option>Tarde</option>
             </select>
           </div>
+        </div>
+
+        <div class="fila">
           <div class="campo">
             <label for="hora_input">Hora</label>
             <input id="hora_input" type="time" bind:value={nuevaParte.hora} />
@@ -1346,16 +1252,29 @@ let idParteAEliminar: number | null = null;
             <input id="duracion_input" type="number" bind:value={nuevaParte.duracion} />
           </div>
         </div>
-        <div class="campo">
-          <label for="tipo_select">Tipo</label>
-          <select id="tipo_select" bind:value={nuevaParte.tipo}>
-            <option>Música</option>
-            <option>Oración</option>
-            <option>Presidente</option>
-            <option>Discurso</option>
-            <option>Video</option>
-          </select>
+
+        <div class="fila">
+          <div class="campo">
+            <label for="tipo_select">Tipo</label>
+            <select id="tipo_select" bind:value={nuevaParte.tipo}>
+              <option>Música</option>
+              <option>Oración</option>
+              <option>Presidente</option>
+              <option>Discurso</option>
+              <option>Video</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fuente_select">Fuente</label>
+            <select id="fuente_select" bind:value={nuevaParte.fuente} disabled={nuevaParte.tipo === 'Video'}>
+              <option value="en_persona">En persona</option>
+              <option value="jw_stream">Descarga de JW Stream</option>
+              <option value="transmision_remota">Transmisión remota en directo</option>
+              <option value="video">Video</option>
+            </select>
+          </div>
         </div>
+
         <div class="campo">
           <label for="tema_input">Tema</label>
           <input id="tema_input" type="text" placeholder="Tema..." bind:value={nuevaParte.tema} />
@@ -1388,7 +1307,17 @@ let idParteAEliminar: number | null = null;
               </div>
             {/if}
           </div>
+          
           {#if nuevaParte.nombre_orador.length > 0}
+            <div class="campo" style="margin-top: 5px; margin-bottom: 15px;">
+              <label>Características del Orador</label>
+              <div style="display: flex; gap: 15px; margin-top: 8px;">
+                <label class="checkbox-label"><input type="checkbox" bind:checked={nuevaParte.es_betelita}> Betelita</label>
+                <label class="checkbox-label"><input type="checkbox" bind:checked={nuevaParte.es_interprete}> Intérprete</label>
+                <label class="checkbox-label"><input type="checkbox" bind:checked={nuevaParte.es_visitante}> Visitante</label>
+              </div>
+            </div>
+
             <div class="campo">
               <label for="cong_input">Congregación</label>
               <div class="input-icon">
@@ -1414,76 +1343,109 @@ let idParteAEliminar: number | null = null;
             </div>
           {/if}
         {/if}
-        <button class="btn-guardar" on:click={guardarNuevaParte}>Guardar</button>
+        <button class="btn-guardar" on:click={guardarNuevaParte}>Guardar Parte</button>
       </div>
     </div>
   </div>
 {/if}
 
-{#if mostrarModalAsignar && (parteEditando || rolOficinaEditando)}
+{#if mostrarModalAsignar && parteEditando}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={cerrarModales} 
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header">
-        <h3>
-            {#if rolOficinaEditando}
-                Asignar {rolOficinaEditando.replace('_', ' ').toUpperCase()}
-            {:else}
-                Asignar Orador
-            {/if}
-        </h3>
+        <h3>Asignar Orador / Editar Datos</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
-      <div class="modal-body">
+      
+      <div class="modal-body form-body">
         
         {#if parteEditando}
-            <div class="campo-bosquejo" style="margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-              <label for="edit_bosquejo" style="color: var(--primary); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
-                Número de Bosquejo
-              </label>
-              <div class="input-icon" style="margin-top: 8px; position: relative; display: flex; align-items: center;">
-                <FileText size={16} style="position: absolute; left: 10px; color: var(--text-secondary); pointer-events: none;"/>
-                <input 
-                  id="edit_bosquejo" 
-                  type="text" 
-                  placeholder="Ej: 178" 
-                  bind:value={parteEditando.numero_bosquejo} 
-                  style="padding-left: 35px; width: 100%; height: 38px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);" 
-                />
+          <div class="campo-bosquejo" style="margin-bottom: 10px; background: var(--bg-body); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+            
+            <div class="fila" style="margin-bottom: 15px;">
+              <div class="campo" style="margin-bottom: 0; max-width: 90px;">
+                <label>Minutos</label>
+                <div class="input-icon">
+                  <Clock size={16}/>
+                  <input type="number" min="0" placeholder="0" bind:value={parteEditando.duracion} />
+                </div>
               </div>
-              <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button 
-                  class="btn-guardar-bosquejo" 
-                  style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;"
-                  on:click={() => actualizarBosquejo(parteEditando.id, parteEditando.numero_bosquejo || '')}
-                >
-                  Guardar Solo Bosquejo
-                </button>
-                <small style="font-size: 10px; color: var(--text-secondary); font-style: italic; flex: 1;">
-                  * El número se guardará independientemente de asignar orador
-                </small>
+              
+              <div class="campo" style="margin-bottom: 0;">
+                <label>Núm. Bosquejo</label>
+
+                <div class="input-icon">
+                  <FileText size={16}/>
+                  <input 
+                    id="edit_bosquejo" 
+                    type="text" 
+                    placeholder="Ej: 178" 
+                    bind:value={parteEditando.numero_bosquejo} 
+                  />
+                </div>
+              </div>
+              
+              <div class="campo" style="margin-bottom: 0;">
+                <label>Fuente</label>
+                <select bind:value={parteEditando.fuente} disabled={parteEditando.es_video}>
+                  <option value="en_persona">En persona</option>
+                  <option value="jw_stream">Descarga JW Stream</option>
+                  <option value="transmision_remota">Transmisión remota</option>
+                  <option value="video">Video</option>
+                </select>
               </div>
             </div>
+
+            {#if !parteEditando.es_video}
+              <div class="campo" style="margin-bottom: 15px;">
+                <label>Características del Orador</label>
+                <div style="display: flex; gap: 15px; margin-top: 8px;">
+                  <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_betelita}> Betelita</label>
+                  <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_interprete}> Intérprete</label>
+                  <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_visitante}> Visitante</label>
+                </div>
+              </div>
+            {/if}
+
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <button 
+                class="btn-guardar" 
+                style="margin-top: 0;"
+                on:click={() => actualizarDetallesParte(parteEditando.id)}
+              >
+                Guardar Cambios de la Parte
+              </button>
+              <small style="font-size: 10.5px; color: var(--text-secondary); font-style: italic; text-align: center; margin-top: 4px;">
+                * Estos datos se guardan independientemente de quién sea el orador asignado abajo.
+              </small>
+            </div>
+          </div>
         {/if}
 
-        <div class="buscador">
-          <Search size={16} color="var(--text-secondary)"/>
-          <input type="text" placeholder="Buscar hermano..." bind:value={terminoBusqueda} />
+        <div class="separator-line" style="margin: 15px 0;"></div>
+
+        <div class="campo" style="margin-bottom: 10px;">
+          <label>Buscar y Asignar Orador</label>
+          <div class="input-icon">
+            <Search size={16} />
+            <input type="text" placeholder="Escribe el nombre del hermano..." bind:value={terminoBusqueda} />
+          </div>
         </div>
         
-        <div class="lista-opciones">
-          {#if !rolOficinaEditando}
-            <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
-              <div class="icono-video"><Video size={18}/></div>
-              <span>Video</span>
-            </button>
-          {/if}
+        <div class="lista-opciones" style="margin-top: 0;">
+          <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
+            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:var(--hover-bg); border-radius:50%; color:var(--text-secondary);">
+              <Video size={16}/>
+            </div>
+            <span style="font-weight:600; font-size:14px;">Asignar como Video</span>
+          </button>
           
-         {#each getHermanosFiltrados() as h}
+          {#each getHermanosFiltrados() as h}
             <button class="item-opcion" on:click={() => asignarOrador(h.id, false)}>
               <div class="avatar">{h.nombre_completo.charAt(0)}</div>
-              <div class="datos-opcion">
+              <div class="datos-opcion" style="display:flex; flex-direction:column; gap:2px;">
                 <span class="nombre">{h.nombre_completo}</span>
                 <span class="detalle">{h.nombre_congregacion || '-'}</span>
               </div>
@@ -1495,153 +1457,7 @@ let idParteAEliminar: number | null = null;
   </div>
 {/if}
 
-{#if mostrarModalEmails}
-  <div class="modal-backdrop" role="button" tabindex="0" on:click|self={() => mostrarModalEmails = false} on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && (mostrarModalEmails=false)} transition:fade={{ duration: 200 }}>
-    <div class="modal-emails" role="dialog" aria-modal="true" tabindex="0" on:click|stopPropagation on:keydown={(e) => e.key === 'Escape' && (mostrarModalEmails=false)}>
-      
-      <div class="modal-header">
-        <h3><Mail size={20}/> Centro de Comunicaciones</h3>
-        <button class="btn-close" on:click={() => mostrarModalEmails = false} aria-label="Cerrar">
-          <X size={20}/>
-        </button>
-      </div>
-      
-      <div class="modal-contenido">
-        
-        <div class="filtro-dia-contenedor">
-          <div class="label-titulo">Enviar correos para el día:</div>
-          <div class="selector-dias">
-            {#each ['Viernes', 'Sábado', 'Domingo', 'Todos'] as dia}
-              <button 
-                class="btn-dia {diaFiltroEmail === dia ? 'activo' : ''} " 
-                on:click={() => cambiarDiaFiltro(dia)}
-                type="button"
-                aria-pressed={diaFiltroEmail === dia}
-              >
-                {dia}
-              </button>
-            {/each}
-          </div>
-        </div>
-
-
-        <div class="label-titulo">Acciones Rápidas ({diaFiltroEmail})</div>
-        <div class="opciones-email-grid">
-          <button
-            class="opcion-email"
-            on:click={() => { enviarEmailADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'mailto'}
-            aria-disabled={metodoSeleccion !== 'mailto'}
-            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail en Método de Envío' : `Enviar emails (${diaFiltroEmail})`}
-          >
-            <div class="icon-wrapper azul"><Mail size={24}/></div>
-            <span>Email {diaFiltroEmail}</span>
-          </button>
-
-          <button
-            class="opcion-email"
-            on:click={() => { enviarJWPUBADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'jwpub'}
-            aria-disabled={metodoSeleccion !== 'jwpub'}
-            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB en Método de Envío' : `Enviar JWPUB (${diaFiltroEmail})`}
-          >
-            <div class="icon-wrapper morado"><FileJson size={24}/></div>
-            <span>JWPUB {diaFiltroEmail}</span>
-          </button>
-
-          <button
-            class="opcion-email"
-            on:click={() => { enviarEmailRecordatorioADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'mailto'}
-            aria-disabled={metodoSeleccion !== 'mailto'}
-            title={metodoSeleccion !== 'mailto' ? 'Selecciona Gmail/Mail para usar esta acción' : 'Enviar recordatorio por email'}
-          >
-            <div class="icon-wrapper naranja">
-              <Mail size={24}/>
-              <div class="mini-badge"><Clock size={10}/></div>
-            </div>
-            <span>Recordatorio (Mail)</span>
-          </button>
-
-          <button
-            class="opcion-email"
-            on:click={() => { enviarJWPUBRecordatorioADia(); mostrarModalEmails = false; }}
-            disabled={metodoSeleccion !== 'jwpub'}
-            aria-disabled={metodoSeleccion !== 'jwpub'}
-            title={metodoSeleccion !== 'jwpub' ? 'Selecciona JWPUB para usar esta acción' : 'Enviar recordatorio por JWPUB'}
-          >
-            <div class="icon-wrapper morado">
-              <FileJson size={24}/>
-              <div class="mini-badge"><Clock size={10}/></div>
-            </div>
-            <span>Recordatorio (JWPUB)</span>
-          </button>
-        </div>
-
-          <div class="seccion-editor">
-          <div class="editor-header">
-            <div class="label-titulo">Personalizar Mensaje</div>
-            <div class="destinatarios-badge">
-              <span class="status-dot"></span>
-              {cargandoEmails ? 'Cargando...' : emailsFiltrados.length + ' oradores del ' + diaFiltroEmail}
-            </div>
-          </div>
-
-          <div class="grid-form">
-            <div class="form-group">
-              <label for="metodo">Método de Envío</label>
-              <div class="radio-group">
-                <label class="radio-label">
-                  <input type="radio" bind:group={metodoSeleccion} value="mailto"> 
-                  <span>Gmail/Mail</span>
-                </label>
-                <label class="radio-label">
-                  <input type="radio" bind:group={metodoSeleccion} value="jwpub"> 
-                  <span>JWPUB</span>
-                </label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="plantilla">Plantilla</label>
-              <select id="plantilla" bind:value={plantillaSeleccionada} on:change={aplicarPlantillaSeleccionada}>
-                <option value={null}>-- Texto libre --</option>
-                {#each $emailTemplates as tpl}
-                  <option value={tpl.id}>{tpl.title || tpl.id}</option>
-                {/each}
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="asunto">Asunto</label>
-            <input type="text" id="asunto" bind:value={asuntoTodos} placeholder="Asunto..." />
-          </div>
-
-          <div class="form-group">
-            <label for="cuerpo">Cuerpo</label>
-            <textarea id="cuerpo" rows="6" bind:value={cuerpoTodos}></textarea>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="modal-button" on:click={copiarEmailsAlPortapapeles} disabled={emailsFiltrados.length===0}>
-            Copiar correos
-          </button>
-          <div class="flex-spacer"></div>
-          <button class="modal-button secondary" on:click={() => { mostrarModalEmails = false; }}>
-            Cancelar
-          </button>
-          <button class="modal-button primary" on:click={abrirTodosPorMetodo} disabled={emailsFiltrados.length===0}>
-            🚀 Enviar a {emailsFiltrados.length} oradores
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-{/if}
-  
-
-    {#if mostrarModalLimpiar}
+{#if mostrarModalLimpiar}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={() => mostrarModalLimpiar = false} 
        on:keydown={(e) => e.key === 'Escape' && (mostrarModalLimpiar = false)}>
@@ -1660,9 +1476,9 @@ let idParteAEliminar: number | null = null;
       </div>
     </div>
   </div>
-  {/if}
+{/if}
 
-  {#if mostrarModalEliminar}
+{#if mostrarModalEliminar}
   <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={() => { mostrarModalEliminar = false; idParteAEliminar = null; }}
        on:keydown={(e) => e.key === 'Escape' && (mostrarModalEliminar = false) && (idParteAEliminar = null)}>
@@ -1682,306 +1498,214 @@ let idParteAEliminar: number | null = null;
   </div>
 {/if}
 
+{#if mostrarPanelFiltros}
+  <div class="modal-backdrop" on:click|self={() => mostrarPanelFiltros = false}>
+    <div class="modal-filtros">
+      <div class="modal-header">
+        <h3><Settings size={20}/> Filtros</h3>
+        <button class="btn-close" on:click={() => mostrarPanelFiltros = false}>
+          <X size={20}/>
+        </button>
+      </div>
+      
+      <div class="modal-body-filtros">
+        <div class="filtros-activos-info">
+          <h4>Filtros de búsqueda</h4>
+          <p class="texto-secundario">Selecciona los criterios y presiona "Aplicar"</p>
+        </div>
+
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Estado de la asignación</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltroEstado = 'todos'}>
+              Eliminar
+            </button>
+            <label class="radio-label-filtro">
+              <input type="radio" bind:group={tempFiltroEstado} value="todos">
+              <span>Todos</span>
+            </label>
+            <label class="radio-label-filtro">
+              <input type="radio" bind:group={tempFiltroEstado} value="asignada">
+              <span>Asignada</span>
+            </label>
+            <label class="radio-label-filtro">
+              <input type="radio" bind:group={tempFiltroEstado} value="sin_asignar">
+              <span>Sin asignar</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Características del orador</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltrosCaracteristicas = {betelita: false, interprete: false, visitante: false}}>
+              Eliminar
+            </button>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosCaracteristicas.betelita}>
+              <span>Betelita</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosCaracteristicas.interprete}>
+              <span>Intérprete</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosCaracteristicas.visitante}>
+              <span>Visitante</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Fuente</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltrosFuente = {en_persona: false, jw_stream: false, transmision_remota: false, video: false}}>
+              Eliminar
+            </button>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosFuente.en_persona}>
+              <span>En persona</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosFuente.jw_stream}>
+              <span>Descarga de JW Stream</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosFuente.transmision_remota}>
+              <span>Transmisión remota en directo</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosFuente.video}>
+              <span>Video</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer-filtros">
+        <button class="btn-cancel" on:click={() => mostrarPanelFiltros = false}>Cancelar</button>
+        <button class="btn-limpiar" on:click={limpiarFiltrosTemporales}>Limpiar Todo</button>
+        <button class="btn-aplicar" on:click={aplicarCambiosFiltros}>Aplicar</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
+/* ==========================================================================
+   LAYOUT PRINCIPAL - SOLO PANEL DE DISCURSOS
+   ========================================================================== */
 /* ==========================================================================
    LAYOUT PRINCIPAL
    ========================================================================== */
-.layout-programa { 
-  display: grid; 
-  /* LA MAGIA: La columna izquierda mide 280px, la derecha mide el resto (1fr), 
-     PERO nunca podrá medir menos de 450px. */
-  grid-template-columns: 280px minmax(450px, 1fr); 
-  gap: 20px; 
-  height: 100%; 
-  
-  /* Permite que aparezca la barra de scroll horizontal abajo si la ventana es muy pequeña */
-  overflow-x: auto; 
-  
-  /* Mantiene oculto el scroll vertical general, ya que cada panel tiene el suyo interno */
-  overflow-y: hidden; 
-  
-  /* Un pequeño padding abajo para que la barra de desplazamiento no tape el borde de las tarjetas */
-  padding-bottom: 8px; 
-}
+.layout-programa { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; padding-bottom: 0; }
 
-/* ==========================================================================
-   PANEL DE OFICINA (Izquierda)
-   Lógica aplicada: Usar var(--bg-card) igual que en el Resumen
-   ========================================================================== */
-.panel-oficina.dark-theme { 
-  background: var(--bg-card); /* Fondo dinámico del sistema */
-  color: var(--text-main); 
-  border-radius: 12px; 
-  display: flex; 
-  flex-direction: column; 
-  overflow: hidden; 
-  border: 1px solid var(--border-color); 
-  box-shadow: 0 4px 6px -1px var(--shadow-color);
-}
-
-/* El encabezado usa el fondo del cuerpo para contrastar sutilmente con la tarjeta */
-.header-oficina-dark { 
-  background: var(--bg-body); 
-  padding: 15px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  border-bottom: 1px solid var(--border-color); 
-}
-
-.header-oficina-dark h3 { 
-  margin: 0; 
-  font-size: 16px; 
-  display: flex; 
-  gap: 8px; 
-  color: var(--text-main); 
-  font-weight: 700;
-}
-
-.contenido-oficina { 
-  padding: 15px; 
-  overflow-y: auto; 
-  flex: 1; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 20px; 
-}
-
-/* Títulos de Sección */
-.titulo-seccion { 
-  color: var(--text-secondary); 
-  font-size: 11px; 
-  font-weight: 800; 
-  letter-spacing: 1px; 
-  margin: 5px 0 10px 0; 
-  text-transform: uppercase;
-}
-
-/* --- BOTONES DE SELECCIÓN (Inputs) --- */
-.btn-select-dark { 
-  width: 100%; 
-  background: var(--bg-body); /* En lugar de blanco fijo, usa el fondo del body */
-  border: 1px solid var(--border-color); 
-  color: var(--text-main); 
-  padding: 10px 12px; 
-  border-radius: 8px; 
-  text-align: left; 
-  cursor: pointer; 
-  font-size: 13px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  transition: all 0.2s; 
-  box-shadow: 0 1px 2px 0 var(--shadow-color);
-}
-
-.btn-select-dark:hover { 
-  border-color: var(--primary); 
-  background: var(--hover-bg);
-  transform: translateY(-1px);
-}
-
-/* Estado Ocupado: Usamos transparencia para que funcione en Dark Mode */
-.btn-select-dark.ocupado { 
-  background: rgba(59, 130, 246, 0.15); /* Azul translúcido */
-  border-color: #3b82f6; 
-  color: var(--primary);
-}
-
-.separador-dark { 
-  height: 1px; 
-  background: var(--border-color); 
-  margin: 15px 0;
-}
-
-/* Items de Personal */
-.lista-personal { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-
-.item-personal { 
-  display: flex; justify-content: space-between; align-items: center; 
-  background: var(--bg-body); /* Fondo dinámico */
-  padding: 6px 10px; border-radius: 6px; font-size: 13px; 
-  border: 1px solid var(--border-color); color: var(--text-main);
-}
-.item-personal.clickable:hover { background: var(--hover-bg); }
-
-.btn-add-dark { 
-  background: none; border: 1px dashed var(--text-secondary); color: var(--text-secondary); 
-  width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; 
-  justify-content: center; gap: 6px; font-size: 12px; 
-}
-.btn-add-dark:hover { background: var(--hover-bg); color: var(--text-main); }
-
-
-/* ==========================================================================
-   PANEL DE DISCURSOS (Derecha)
-   ========================================================================== */
-.panel-discursos { 
-  background: var(--bg-card); /* Usa variable global */
-  border-radius: 10px; 
-  border: 1px solid var(--border-color); 
-  display: flex; flex-direction: column; overflow: hidden; 
+:global(.panel-discursos-override) { 
+  flex: 1 !important; width: 100% !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; 
 }
 
 .header-sesion { 
-  padding: 15px 20px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  flex-wrap: wrap; /* 👈 LA CLAVE 1: Permite bajar de línea */
-  border-bottom: 1px solid var(--border-color); 
-  gap: 15px; 
-  background: var(--bg-card); 
+  padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; 
+  border-bottom: 1px solid var(--border); gap: 15px; background: transparent; 
 }
 
-.header-sesion h2 { 
-  margin: 0; 
-  font-size: 18px; 
-  color: var(--text-main); 
-  white-space: nowrap; /* 👈 Evita que el título se parta en dos líneas */
-}
-
-.header-sesion-left { 
-  display: flex; 
-  align-items: center; 
-  gap: 12px; 
-  flex-wrap: wrap; /* 👈 Permite que el botón JWPUB baje si es necesario */
-}
-
-/* Tabs */
-.tabs { display: flex; background: var(--bg-body); border-bottom: 1px solid var(--border-color); }
-.tabs button { 
-  flex: 1; padding: 15px; border: none; background: transparent; 
-  font-weight: 600; color: var(--text-secondary); cursor: pointer; 
-  border-bottom: 3px solid transparent; 
-}
-.tabs button.active { 
-  color: var(--primary); border-bottom-color: var(--primary); 
-  background: var(--bg-card); 
-}
+.header-sesion h2 { margin: 0; font-size: 18px; color: var(--text-main); white-space: nowrap; }
+.header-sesion-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
 .lista-partes { padding: 20px; overflow-y: auto; flex: 1; background: var(--bg-body); }
 
-/* --- TARJETAS ACORDEÓN --- */
+/* --- TARJETAS ACORDEÓN (Conectadas a variables globales) --- */
+/* --- TARJETAS ACORDEÓN (Con mayor relieve y visualidad) --- */
 .tarjeta-acordeon { 
-  background: var(--bg-card); /* Clave para el modo oscuro */
-  border-radius: 8px; 
-  border: 1px solid var(--border-color); 
-  margin-bottom: 10px; 
+  background: var(--bg-card); 
+  border-radius: 10px; 
+  /* Hacemos el borde más visible con 1.5px */
+  border: 1.5px solid var(--border); 
+  margin-bottom: 14px; 
   overflow: hidden; 
-  transition: box-shadow 0.2s; 
+  transition: all 0.2s ease; 
   color: var(--text-main);
+  /* Sombra más definida para que resalte y se separe del fondo */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05); 
 }
-.tarjeta-acordeon:hover { box-shadow: 0 4px 6px var(--shadow-color); }
-.tarjeta-acordeon.expanded { border-color: var(--text-secondary); box-shadow: 0 4px 12px var(--shadow-color); }
 
-.header-parte { 
-  display: flex; align-items: center; padding: 12px 15px; 
-  cursor: pointer; gap: 15px; background: transparent; 
+.tarjeta-acordeon:hover { 
+  box-shadow: var(--shadow-premium); 
+  transform: translateY(-2px); 
+  border-color: var(--primary);
 }
+
+.tarjeta-acordeon.expanded { 
+  border-color: var(--primary); 
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12); 
+}
+
+.header-parte { display: flex; align-items: center; padding: 14px 15px; cursor: pointer; gap: 15px; background: transparent; }
 .header-parte:hover { background: var(--hover-bg); }
-.body-parte { 
-  border-top: 1px solid var(--border-color); 
-  background: var(--bg-body); 
-  padding: 15px 20px; 
-  color: var(--text-main); 
-}
 
-/* --- ESTADOS Y COLORES SUAVES (Compatibles con Dark Mode) --- */
-/* Usamos RGBA (transparencia) en lugar de colores sólidos. 
-   Así se ve pastel en blanco y tintado en negro. */
+.body-parte { border-top: 1px solid var(--border); background: var(--bg-body); padding: 15px 20px; color: var(--text-main); }
 
-.tarjeta-acordeon.estado-presente { 
-  border-left: 6px solid #10b981 !important; 
-  background-color: rgba(16, 185, 129, 0.12) !important; /* Verde transparente */
-}
-.tarjeta-acordeon.estado-confirmado { 
-  border-left: 6px solid #3b82f6 !important; 
-  background-color: rgba(59, 130, 246, 0.12) !important; /* Azul transparente */
-}
-.tarjeta-acordeon.estado-ensayo { 
-  border-left: 6px solid #eab308 !important; 
-  background-color: rgba(234, 179, 8, 0.12) !important; /* Amarillo transparente */
-}
+/* --- ESTADOS DE LA TARJETA (Borde izquierdo más grueso) --- */
+.tarjeta-acordeon.estado-presente { border-left: 6px solid #10b981; background-color: rgba(16, 185, 129, 0.08); }
+.tarjeta-acordeon.estado-confirmado { border-left: 6px solid #3b82f6; background-color: rgba(59, 130, 246, 0.08); }
+.tarjeta-acordeon.estado-ensayo { border-left: 6px solid #f97316; background-color: rgba(249, 115, 22, 0.08); }
 
-/* Hover suave en estados */
-.tarjeta-acordeon.estado-presente:hover { background-color: rgba(16, 185, 129, 0.2) !important; }
-.tarjeta-acordeon.estado-confirmado:hover { background-color: rgba(59, 130, 246, 0.2) !important; }
-.tarjeta-acordeon.estado-ensayo:hover { background-color: rgba(234, 179, 8, 0.2) !important; }
-
+.tarjeta-acordeon.estado-presente:hover { background-color: rgba(16, 185, 129, 0.12); }
+.tarjeta-acordeon.estado-confirmado:hover { background-color: rgba(59, 130, 246, 0.12); }
+.tarjeta-acordeon.estado-ensayo:hover { background-color: rgba(249, 115, 22, 0.12); }
 /* Textos */
-.hora { font-weight: 800; color: var(--primary); font-size: 14px; }
+.hora { font-weight: 800; color: var(--primary); font-size: 16px; line-height: 1.2; }
 .duracion { font-size: 11px; color: var(--text-secondary); }
-.tema-txt { font-weight: 600; color: var(--text-main); font-size: 14px; line-height: 1.2; }
+.tema-txt { font-weight: 600; color: var(--text-main); font-size: 15px; line-height: 1.3; }
 .orador-nombre { font-weight: 600; color: var(--text-main); font-size: 13px; text-transform: uppercase; }
-.cong-mini { font-size: 11px; color: var(--text-secondary); }
 
-/* --- ICONOS MINI (Horizontal Fix) --- */
-.col-estados-mini { 
-  display: flex !important;
-  flex-direction: row !important; /* Fuerza horizontal */
-  gap: 6px; 
-  min-width: 60px; 
-  justify-content: flex-end; 
-  align-items: center; 
-}
-
-/* Círculos de estado */
-.icon-indicator { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; }
+/* --- ICONOS MINI --- */
+.col-estados-mini { display: flex !important; flex-direction: row !important; gap: 6px; min-width: 60px; justify-content: flex-end; align-items: center; }
+.icon-indicator { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; }
 .icon-indicator.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .icon-indicator.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-
-.dot-icon { display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; }
-.dot-icon.blue { background: #3b82f6; color: white; }
-.dot-icon.green { background: #10b981; color: white; }
-.dot-icon.yellow { background: #eab308; color: white; }
-
-/* Pulse Animation */
-.estado-presente .icon-indicator.green { animation: pulse-green 2s infinite; }
-@keyframes pulse-green { 
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 
-  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } 
-}
-
-/* Badges */
-.badge-video { font-size: 10px; background: var(--bg-body); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; border: 1px solid var(--border-color); }
-.badge-bosquejo { font-size: 10px; background: rgba(234, 179, 8, 0.2); color: #ca8a04; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 4px; border: 1px solid var(--border-color); }
-.badge-dark { background: var(--primary); color: white; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; }
+.icon-indicator.orange { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+.icon-indicator.gray { background: rgba(107, 114, 128, 0.2); color: var(--text-secondary); }
 
 /* Botones Cabecera */
-.acciones-header { 
-  display: flex; 
-  gap: 10px; 
-  align-items: center;
-  flex-wrap: wrap; /* 👈 LA CLAVE 2: Los botones saltan de línea como Tetris */
-}
+.acciones-header { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 100%; margin-top: 5px; }
+.header-sesion button { white-space: nowrap; }
 
-/* 👈 Protegemos los textos de TODOS los botones del header para que no se rompan */
-.header-sesion button {
-  white-space: nowrap; 
-}
-
-.btn-header-orange { background: var(--bg-card); border: 1px solid #f97316; color: #f97316; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+.btn-header-orange { background: transparent; border: 1px solid #f97316; color: #f97316; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
 .btn-header-orange:hover { background: rgba(249, 115, 22, 0.1); }
-.btn-header-csv { background: var(--bg-card); border: 1px solid #10b981; color: #10b981; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+.btn-header-csv { background: transparent; border: 1px solid #10b981; color: #10b981; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
 .btn-header-csv:hover { background: rgba(16, 185, 129, 0.1); }
-.btn-header-delete { background: var(--bg-card); border: 1px solid #ef4444; color: #ef4444; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+.btn-header-delete { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; transition: all 0.2s; }
 .btn-header-delete:hover { background: rgba(239, 68, 68, 0.1); }
-.btn-primary { background: var(--primary); color: white; padding: 8px 16px; border-radius: 6px; border: none; display: flex; gap: 6px; cursor: pointer; align-items: center; font-size: 12px; font-weight: 600; }
+.btn-primary { background: var(--primary); color: white; padding: 8px 16px; border-radius: 6px; border: none; display: flex; gap: 6px; cursor: pointer; align-items: center; font-size: 12px; font-weight: 600; transition: transform 0.2s; }
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 
 /* Botones Grandes Estado */
 .checks-grandes { display: flex; gap: 10px; align-items: center; }
-.btn-status-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 5px 2px; width: 70px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
+.btn-status-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 2px; width: 70px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
 .btn-status-toggle span { font-size: 8.5px; font-weight: 800; text-transform: uppercase; }
 
-.btn-status-toggle.blue.active { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; color: #2563eb; }
-.btn-status-toggle.green.active { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #059669; }
-.btn-status-toggle.yellow.active { background: rgba(234, 179, 8, 0.15); border-color: #eab308; color: #ca8a04; }
+.btn-status-toggle.blue.active { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; color: #3b82f6; }
+.btn-status-toggle.green.active { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981; }
+.btn-status-toggle.orange.active { background: rgba(249, 115, 22, 0.15); border-color: #f97316; color: #f97316; }
 
-/* Utilidades varias */
-.col-tiempo { display: flex; flex-direction: column; min-width: 60px; }
-.col-tema { flex: 1; display: flex; flex-direction: column; }
+/* NUEVOS ESTILOS DE LA TARJETA */
+.col-main-info { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+.meta-programacion { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.dia-badge { font-weight: 800; text-transform: uppercase; color: var(--text-secondary); font-size: 10px; letter-spacing: 0.5px; }
+.hora-inicio { font-weight: 700; color: var(--primary); font-size: 12px; }
+.separador-dot { color: var(--border); font-size: 12px; }
+.minutos-duracion { color: var(--text-secondary); font-weight: 500; }
+.col-tema-bloque { display: flex; flex-direction: column; }
 .col-orador-mini { width: 180px; display: flex; flex-direction: column; }
 .col-toggle { color: var(--text-secondary); margin-left: 10px; }
 .fila-superior-control { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
@@ -1989,833 +1713,168 @@ let idParteAEliminar: number | null = null;
 .label-tiny { font-size: 10px; font-weight: bold; color: var(--text-secondary); letter-spacing: 0.5px; }
 .info-orador-full strong { font-size: 16px; color: var(--text-main); }
 .detalles-contacto-panel { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; }
-.cong-tag { background: var(--hover-bg); color: var(--text-main); font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
-.contact-pill { display: flex; align-items: center; gap: 4px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); }
+.cong-tag { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+.contact-pill { display: flex; align-items: center; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); }
 
 /* Grid Acciones */
 .grid-acciones { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
 .grupo-accion { display: flex; flex-direction: column; gap: 5px; }
 .grupo-accion.center { align-items: center; }
 .grupo-accion.right { align-items: flex-end; }
-.btn-outline-blue { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #2563eb; color: #2563eb; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
+.btn-outline-blue { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid #3b82f6; color: #3b82f6; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
 .btn-outline-blue:hover { background: rgba(59, 130, 246, 0.1); }
-/* Visual for disabled quick-action buttons: visible but inactive */
-.opcion-email[disabled], .opcion-email[aria-disabled="true"] {
-  opacity: 0.45;
-  filter: grayscale(0.25);
-  cursor: not-allowed;
-}
-.opcion-email[disabled] .icon-wrapper, .opcion-email[aria-disabled="true"] .icon-wrapper {
-  opacity: 0.7;
-}
-.opcion-email[disabled] .mini-badge, .opcion-email[aria-disabled="true"] .mini-badge {
-  opacity: 0.6;
-}
-.btn-outline-orange { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #ea580c; color: #ea580c; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; text-align: center; }
+.btn-outline-orange { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid #f97316; color: #f97316; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
 .btn-outline-orange:hover { background: rgba(249, 115, 22, 0.1); }
-.btn-outline-gray { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; text-align: center; }
-.btn-outline-gray:hover { background: var(--hover-bg); color: var(--text-main); }
-.btn-outline-green { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg-card); border: 1px solid #10b981; color: #10b981; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; text-align: center; }
+.btn-outline-gray { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-main); padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+.btn-outline-gray:hover { background: var(--hover-bg); }
+.btn-outline-green { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid #10b981; color: #10b981; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
 .btn-outline-green:hover { background: rgba(16, 185, 129, 0.1); }
 
 /* Modales */
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
-.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal { background: var(--bg-card); width: 450px; border-radius: 12px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); color: var(--text-main); }
-.modal-header { padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-.modal-header h3 { color: var(--text-main); margin: 0; }
-.modal-body { padding: 20px; overflow-y: auto; background: var(--bg-body); }
-.btn-close { color: var(--text-secondary); opacity: 0.7; background: none; border: none; cursor: pointer; }
-.btn-close:hover { opacity: 1; }
-.modal-gestion { width: 750px; max-width: 95vw; }
-.header-gestion { background: var(--bg-card); color: var(--text-main); padding: 20px; border-bottom: none; }
-.titulo-gestion h3 { margin: 0; font-size: 20px; font-weight: 600; }
-.subtitulo-rol { font-size: 12px; background: #3b82f6; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-top: 5px; display: inline-block; color: white; }
-.body-gestion { padding: 30px; background: var(--bg-body); }
-.divider { height: 1px; background: var(--border-color); margin: 25px 0; }
-.footer-gestion { padding: 15px 30px; background: var(--bg-card); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; }
-.btn-delete-full { color: #ef4444; background: #fef2f2; border: 1px solid #fee2e2; padding: 10px 20px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; }
-.btn-delete-full:hover { background: #fee2e2; border-color: #fecaca; }
 
-/* Buscador Modal */
-.buscador { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+.modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
+.modal, .modal-emails { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-premium); display: flex; flex-direction: column; overflow: hidden; max-height: calc(100vh - 80px); }
+.modal { width: 480px; max-width: 100%; }
+.modal-emails { width: 90%; max-width: 650px; }
+
+.modal-header, .modal-emails .modal-header { padding: 16px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.modal-body, .modal-emails .modal-contenido { padding: 24px; overflow-y: auto; flex: 1; background: var(--bg-body); }
+.modal-header h3, .modal-emails .modal-header h3 { color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 10px; }
+
+.btn-close { color: var(--text-secondary); opacity: 0.7; background: none; border: none; cursor: pointer; }
+.btn-close:hover { opacity: 1; color: #ef4444; }
+
+.buscador { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .buscador input { border: none; outline: none; flex: 1; background: transparent; color: var(--text-main); }
 .lista-opciones { margin-top: 10px; }
-.item-opcion { display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-card); border: none; border-bottom: 1px solid var(--border-color); cursor: pointer; width: 100%; text-align: left; color: var(--text-main); }
+.item-opcion { display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-card); border: none; border-bottom: 1px solid var(--border); cursor: pointer; width: 100%; text-align: left; color: var(--text-main); }
 .item-opcion:hover { background: var(--hover-bg); }
-.avatar { width: 32px; height: 32px; background: var(--hover-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--text-secondary); }
+.avatar { width: 32px; height: 32px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
 .nombre { font-weight: 600; font-size: 14px; color: var(--text-main); }
 .detalle { font-size: 12px; color: var(--text-secondary); }
-.form-title { margin: 0; font-size: 14px; border-left: 3px solid var(--primary); padding-left: 8px; color: var(--text-main); }
-.separator-line { height: 1px; background: var(--border-color); margin: 10px 0; }
-.campo { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
-.campo label { font-size: 12px; font-weight: bold; color: var(--text-secondary); }
-.campo input, .campo select { padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; outline: none; background: var(--bg-body); color: var(--text-main); }
-.input-icon { position: relative; display: flex; align-items: center; }
-.input-icon :global(svg) { position: absolute; left: 10px; color: var(--text-secondary); }
-.input-icon input { padding-left: 32px; width: 100%; }
-.fila { display: flex; gap: 15px; }
-.fila .campo { flex: 1; }
+
+/* Formularios Unificados */
+.form-title { margin: 0 0 16px 0; font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+.separator-line { height: 1px; background: transparent; margin: 10px 0 20px 0; }
+.campo { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; width: 100%; }
+.campo label { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+
+.campo input, .campo select, .input-icon input, .form-group input[type="text"], .form-group select, .form-group textarea { 
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; outline: none; background: var(--bg-body); color: var(--text-main); font-size: 14px; font-family: inherit; transition: all 0.2s ease; width: 100%; box-sizing: border-box; 
+}
+.form-group textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+.campo input:focus, .campo select:focus, .input-icon input:focus, .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+
+.input-icon { position: relative; display: flex; align-items: center; width: 100%; }
+.input-icon :global(svg) { position: absolute; left: 12px; color: var(--text-secondary); pointer-events: none; }
+.input-icon input { padding-left: 38px !important; }
+
+.fila { display: flex; gap: 16px; width: 100%; }
+.fila .campo { flex: 1; margin-bottom: 0; }
+
 .autocomplete-container { position: relative; }
-.sugerencias-lista { position: absolute; top: 100%; left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 10px var(--shadow-color); z-index: 100; max-height: 200px; overflow-y: auto; margin-top: 5px; }
-.sugerencia-item { display: flex; justify-content: space-between; width: 100%; padding: 10px; border: none; background: var(--bg-card); text-align: left; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+.sugerencias-lista { position: absolute; top: 100%; left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow-premium); z-index: 100; max-height: 200px; overflow-y: auto; margin-top: 5px; }
+.sugerencia-item { display: flex; justify-content: space-between; width: 100%; padding: 10px; border: none; background: var(--bg-card); text-align: left; cursor: pointer; border-bottom: 1px solid var(--border); color: var(--text-main); }
 .sugerencia-item:hover { background: var(--hover-bg); }
-.btn-content-left { display: flex; flex-direction: column; gap: 3px; overflow: hidden; }
-.text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-.campo-dark { margin-bottom: 12px; }
-.campo-dark label { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 3px; }
+
 .check-inline { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
 .checks-row { display: flex; flex-direction: column; gap: 2px; }
 .strong-check { color: var(--text-main); font-weight: 600; font-size: 11px; }
-.footer-tools { display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; }
+.footer-tools { display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid var(--border); padding-top: 15px; }
 .btn-tool { background: none; border: none; font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-secondary); }
 .btn-tool:hover { color: var(--primary); text-decoration: underline; }
 .btn-tool.delete:hover { color: #ef4444; }
-.col-tema { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* Forzar que los iconos pequeños de estado (Oficina) se vean horizontales */
-.indicadores-mini {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
+
+.btn-header-pdf { background: #dc2626; color: white; padding: 8px 12px; border-radius: 6px; border: none; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-header-pdf:hover { background: #b91c1c; transform: translateY(-1px); }
+
+.modal-confirm { width: 400px; max-width: 90vw; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 15px 20px; border-top: 1px solid var(--border); background: var(--bg-card); }
+.btn-delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
+.btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-cancel:hover { background: var(--hover-bg); }
+
+.btn-header-filtros { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+.btn-header-filtros:hover { background: var(--hover-bg); border-color: var(--primary); }
+
+.select-ordenar { padding: 8px 30px 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-main); font-size: 13px; font-weight: 600; cursor: pointer; outline: none; appearance: none; transition: all 0.2s; }
+
+.modal-filtros { background: var(--bg-card); width: 500px; max-width: 90vw; max-height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); }
+.modal-body-filtros { padding: 20px; overflow-y: auto; flex: 1; background: var(--bg-body); }
+.filtros-activos-info { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+.filtros-activos-info h4 { margin: 0 0 5px 0; font-size: 14px; font-weight: 700; color: var(--text-main); }
+.texto-secundario { margin: 0; font-size: 13px; color: var(--text-secondary); font-style: italic; }
+
+.grupo-filtro { margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); overflow: hidden; }
+.filtro-header { width: 100%; padding: 12px 15px; background: transparent; border: none; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: var(--text-main); font-weight: 600; font-size: 14px; }
+.filtro-header:hover { background: var(--hover-bg); }
+.filtro-contenido { padding: 15px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.btn-eliminar-filtro { align-self: flex-start; background: transparent; border: none; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; margin-bottom: 5px; }
+
+.checkbox-label, .radio-label-filtro { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--text-main); }
+.checkbox-label input, .radio-label-filtro input { accent-color: var(--primary); }
+
+.modal-footer-filtros { display: flex; justify-content: space-between; gap: 10px; padding: 15px 20px; border-top: 1px solid var(--border); background: var(--bg-card); }
+.btn-limpiar { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-aplicar { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+.selector-dia-container { position: relative; }
+.btn-selector-dia { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; min-width: 200px; transition: all 0.2s; }
+.btn-selector-dia:hover { background: var(--hover-bg); border-color: var(--primary); }
+.btn-selector-dia span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dropdown-dias { position: absolute; top: 100%; left: 0; margin-top: 5px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-premium); z-index: 100; min-width: 200px; overflow: hidden; }
+.dia-opcion { width: 100%; padding: 10px 15px; background: transparent; border: none; display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--text-main); text-align: left; border-bottom: 1px solid var(--border); transition: background 0.2s; }
+.dia-opcion:last-child { border-bottom: none; }
+.dia-opcion:hover { background: var(--hover-bg); }
+.separator-dropdown { height: 1px; background: var(--border); margin: 5px 10px; }
+
+.badges-row { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.badge-fuente { font-size: 9px; padding: 3px 7px; border-radius: 999px; display: inline-flex; align-items: center; gap: 3px; font-weight: 700; text-transform: uppercase; border: 1px solid transparent; }
+.badge-fuente.video { background: rgba(100, 116, 139, 0.15); color: var(--text-secondary); border-color: var(--border); }
+.badge-fuente.stream { background: rgba(37, 99, 235, 0.15); color: #3b82f6; border-color: rgba(37, 99, 235, 0.3); }
+.badge-fuente.remota { background: rgba(147, 51, 234, 0.15); color: #9333ea; border-color: rgba(147, 51, 234, 0.3); }
+.badge-fuente.en-persona { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
+
+.orador-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.cong-mini { font-size: 11px; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+
+.traits-container { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+.trait-badge { display: inline-flex; align-items: center; justify-content: center; background: var(--bg-body); border: 1px solid var(--border); color: var(--text-secondary); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.2px; }
+
+.bosquejo-parentesis { color: var(--text-secondary); font-weight: 600; font-size: 0.9em; margin-left: 5px; }
+
+/* BOTÓN EXPANDIR/CONTRAER (Estilo Sólido Original) */
+.btn-expandir-todos { 
+  background: #475569; 
+  color: white; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  border: none; 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  font-size: 12px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  margin-left: auto; /* Mantiene el botón pegado a la derecha */
 }
 
-/* Botón PDF Oficina: Estilo "Ghost" (Fantasma/Limpio) */
-.btn-icon-pdf {
-  background: rgba(128, 128, 128, 0.1);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-left: auto;
-  margin-right: 8px;
+.btn-expandir-todos:hover { 
+  background: #334155; 
+  transform: translateY(-1px); 
 }
-
-.btn-icon-pdf:hover {
-  background: var(--hover-bg);
-  border-color: var(--primary);
-  color: var(--primary);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px var(--shadow-color);
-}
-
-/* Efecto al hacer clic */
-.btn-icon-pdf:active {
-  transform: translateY(1px);
-}
-
-/* =========================================
-   BOTÓN EXPORTAR PDF (Estilo Profesional)
-   ========================================= */
-
-.btn-header-pdf {
-  /* Estructura */
-  display: flex;
-  align-items: center;
-  gap: 6px;                /* Espacio entre el icono y el texto */
-  
-  /* Tamaño y Forma */
-  padding: 8px 14px;       /* Un poco más ancho para que se vea bien */
-  border-radius: 6px;
-  
-  /* Colores (Rojo PDF estándar) */
-  background-color: transparent; 
-  border: 1px solid #ef4444;  /* Rojo vibrante pero elegante */
-  color: #ef4444;
-  
-  /* Texto */
-  font-size: 12px;
-  font-weight: 700;        /* Letra un poco más gruesa */
-  cursor: pointer;
-  
-  /* Animación suave */
-  transition: all 0.2s ease-in-out;
-}
-
-/* Efecto al pasar el mouse (Hover) */
-.btn-header-pdf:hover {
-  background-color: rgba(239, 68, 68, 0.08); /* Fondo rojo muy sutil */
-  transform: translateY(-2px);               /* Se eleva un poquito */
-  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2); /* Sombrita roja */
-}
-
-/* Efecto al hacer click */
-.btn-header-pdf:active {
-  transform: translateY(0);
-  background-color: rgba(239, 68, 68, 0.15);
-}
-
-/* ==========================================================================
-   RESPONSIVIDAD: MODO COMPACTO PARA BOTONES DE PROGRAMA
-   ========================================================================== */
 @media (max-width: 850px) {
-  /* Ocultamos las palabras (Importar, Limpiar, PDF, etc.) */
-  .header-sesion-left button span,
-  .acciones-header button span {
-      display: none; 
-  }
-  
-  /* Convertimos los botones en cuadrados perfectos centrando el icono */
-  .header-sesion-left button,
-  .acciones-header button {
-      padding: 8px 10px; 
-      justify-content: center;
-  }
+  .header-sesion-left button span, .acciones-header button span { display: none; }
+  .header-sesion-left button, .acciones-header button { padding: 8px 10px; justify-content: center; }
 }
-
-/* ==========================================================================
-   RESPONSIVIDAD: MÓVILES Y TABLETAS (Un solo scroll maestro)
-   ========================================================================== */
 @media (max-width: 900px) {
-  
-  /* 1. EL CONTENEDOR PRINCIPAL: Le quitamos el límite de altura */
-  .layout-programa {
-    display: flex;
-    flex-direction: column;
-    height: auto;       /* 👈 LA CLAVE: Permite que crezca infinitamente hacia abajo */
-    overflow: visible;  /* 👈 Apaga su scroll interno */
-    gap: 15px;
-    padding-bottom: 20px;
-  }
-
-  /* 2. PANEL DE OFICINA: Crecimiento libre y sin scroll */
-  .panel-oficina.dark-theme {
-    height: auto;     
-    max-height: none; 
-    overflow: visible; /* 👈 Apaga el scroll de la tarjeta */
-    width: 100%;       
-    margin-bottom: 0;
-  }
-  
-  .contenido-oficina {
-    height: auto;
-    overflow: visible; /* 👈 Apaga el scroll de la lista de oradores */
-  }
-
-  /* 3. PANEL DE DISCURSOS: Crecimiento libre y sin scroll */
-  .panel-discursos {
-    height: auto;
-    overflow: visible; /* 👈 Apaga el scroll de la tarjeta */
-    width: 100%;       
-  }
-  
-  .lista-partes {
-    height: auto;
-    overflow: visible; /* 👈 Apaga el scroll de la lista de discursos */
-    padding-bottom: 20px; 
-  }
-
-  /* 4. PROTECCIÓN HORIZONTAL PARA BOTONES Y PESTAÑAS */
-  .tabs {
-    flex-wrap: wrap; 
-  }
-  
-  .tabs button {
-    padding: 12px 5px; 
-    font-size: 13px;   
-  }
-
-  .btn-select-dark,
-  .item-personal {
-    width: 100%;
-    box-sizing: border-box;
-  }
+  .layout-programa { overflow: visible; padding-bottom: 20px; }
+  .lista-partes { overflow: visible; }
 }
 
-/* --- CONTENEDOR DEL MODAL --- */
-.modal-emails {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 90%;
-  max-width: 650px;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
-}
 
-/* --- ENCABEZADO --- */
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.modal-header h3 {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #1e293b;
-  font-size: 1.1rem;
-}
-
-/* --- SECCIÓN DE ACCIONES RÁPIDAS (TARJETAS) --- */
-.opciones-email-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 20px;
-  background: #ffffff;
-}
-
-.opcion-email {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #475569;
-  text-align: left;
-}
-
-.opcion-email:hover {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  transform: translateY(-2px);
-}
-
-.opcion-email span {
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* --- SECCIÓN AVANZADA (FORMULARIO) --- */
-.modal-contenido {
-  padding: 0 24px 24px 24px;
-}
-
-.seccion-editor {
-  background: #f8fafc;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  margin-top: 10px;
-}
-
-.label-titulo {
-  display: block;
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
-}
-
-/* --- INPUTS Y FORMULARIO --- */
-input[type="text"], select, textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  margin-bottom: 12px;
-  transition: all 0.2s;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* --- BADGE DE DESTINATARIOS --- */
-.destinatarios-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #dcfce7;
-  color: #166534;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-/* --- BOTONES DE ACCIÓN --- */
-.modal-button {
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid #e2e8f0;
-  background: white;
-}
-
-.modal-button.primary {
-  background: #2563eb;
-  color: white;
-  border: none;
-}
-
-.modal-button.primary:hover {
-  background: #1d4ed8;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
-}
-
-.modal-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* --- ICONOS --- */
-:global(.lucide) {
-  stroke-width: 2.5px;
-}
-
-/* FONDO OSCURO */
-  .modal-backdrop {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-
-  /* CAJA DEL MODAL */
-  .modal-emails {
-    background: white;
-    width: 95%;
-    max-width: 700px;
-    max-height: 90vh;
-    border-radius: 20px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid #e2e8f0;
-  }
-
-  /* HEADER */
-  .modal-header {
-    padding: 18px 24px;
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .modal-header h3 {
-    margin: 0;
-    font-size: 1.15rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #1e293b;
-  }
-
-  .btn-close {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 8px;
-    transition: all 0.2s;
-  }
-
-  .btn-close:hover {
-    background: #fee2e2;
-    color: #ef4444;
-  }
-
-  /* CONTENIDO */
-  .modal-contenido {
-    padding: 24px;
-    overflow-y: auto;
-  }
-
-  .label-titulo {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: #64748b;
-    margin-bottom: 12px;
-    letter-spacing: 0.05em;
-  }
-
-  /* GRID DE TARJETAS RÁPIDAS */
-  .opciones-email-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-  }
-
-  .opcion-email {
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .opcion-email:hover {
-    background: white;
-    border-color: #3b82f6;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  }
-
-  .icon-wrapper {
-    position: relative;
-    padding: 10px;
-    border-radius: 10px;
-  }
-
-  .icon-wrapper.azul { background: #dbeafe; color: #2563eb; }
-  .icon-wrapper.morado { background: #f3e8ff; color: #9333ea; }
-  .icon-wrapper.naranja { background: #ffedd5; color: #ea580c; }
-
-  .mini-badge {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    background: #ea580c;
-    color: white;
-    border-radius: 50%;
-    padding: 3px;
-    border: 2px solid white;
-  }
-
-  /* Selector de días (Viernes / Sábado / Domingo / Todos) */
-  .selector-dias {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .btn-dia {
-    background: transparent;
-    border: 1px solid #e6eef8;
-    padding: 8px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    color: #1e293b;
-    font-weight: 700;
-    transition: all 0.15s ease;
-  }
-
-  .btn-dia:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(2,6,23,0.06); }
-
-  .btn-dia.activo {
-    background: #2563eb;
-    color: white;
-    border-color: transparent;
-    box-shadow: 0 10px 30px rgba(37,99,235,0.14);
-  }
-
-  .opcion-email span {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #334155;
-    text-align: center;
-  }
-
-  /* SECCIÓN EDITOR */
-  .seccion-editor {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 20px;
-  }
-
-  .editor-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-  }
-
-  .destinatarios-badge {
-    background: #dcfce7;
-    color: #166534;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .status-dot {
-    width: 8px; height: 8px;
-    background: #22c55e;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0% { transform: scale(0.95); opacity: 0.7; }
-    50% { transform: scale(1.1); opacity: 1; }
-    100% { transform: scale(0.95); opacity: 0.7; }
-  }
-
-  /* FORMULARIO */
-  .grid-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 15px;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 15px;
-  }
-
-  .form-group label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #475569;
-  }
-
-  .radio-group {
-    display: flex;
-    gap: 12px;
-    padding: 8px 0;
-  }
-
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    cursor: pointer;
-  }
-
-  input[type="text"], select, textarea {
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 10px;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-
-  input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  /* FOOTER */
-  .modal-footer {
-    display: flex;
-    gap: 12px;
-    padding-top: 20px;
-    align-items: center;
-  }
-
-  .flex-spacer { flex: 1; }
-
-  .modal-button {
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid #cbd5e1;
-    background: white;
-    color: #334155;
-  }
-
-  .modal-button:hover:not(:disabled) { background: #f1f5f9; }
-
-  .modal-button.primary {
-    background: #2563eb;
-    color: white;
-    border: none;
-  }
-
-  .modal-button.primary:hover:not(:disabled) {
-    background: #1d4ed8;
-    transform: scale(1.02);
-  }
-
-  .modal-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* --- ANIMACIONES --- */
-.modal-backdrop {
-  /* ... tu código anterior ... */
-  animation: fadeIn 0.3s ease-out;
-}
-
-.modal-emails {
-  /* ... tu código anterior ... */
-  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(-30px) scale(0.95); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
-  }
-}
-
-.btn-status-toggle.orange.active {
-  background: rgba(249, 115, 22, 0.15);
-  border-color: #f97316;
-  color: #f97316;
-}
-
-.icon-indicator.orange {
-  background: rgba(249, 115, 22, 0.2);
-  color: #f97316;
-}
-
-.item-personal.ocupado {
-  background: #dbeafe; /* azul muy claro sólido */
-  border-color: #3b82f6;
-}
-
-/* Estilo común para botones ocupados y items de personal */
-.btn-select-dark.ocupado,
-.item-personal.ocupado {
-  background: rgba(59, 130, 246, 0.15); /* azul suave */
-  border-color: #3b82f6;                /* borde azul */
-}
-
-/* Si quieres un azul más intenso, aumenta la opacidad o usa un color sólido */
-.btn-select-dark.ocupado,
-.item-personal.ocupado {
-  background: #dbeafe;  /* azul claro sólido */
-  border-color: #3b82f6;
-}
-
-/* Hover común con sombra y ligera elevación */
-.btn-select-dark:hover,
-.item-personal.clickable:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
-  transition: all 0.2s;
-}
-
-/* Mantener el cambio de fondo específico de cada uno si ya lo tienen */
-.btn-select-dark:hover {
-  background: var(--hover-bg);
-  border-color: var(--primary);
-}
-.item-personal.clickable:hover {
-  background: var(--hover-bg);
-}
-
-/* Para los botones de selección (Presidente, Oración, etc.) */
-.btn-select-dark {
-  background: var(--bg-body);
-  border: 1px solid var(--border-color);
-  color: var(--text-main) !important; /* Fuerza color claro en modo oscuro */
-}
-
-/* Cuando están ocupados (asignados) */
-.btn-select-dark.ocupado {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: #3b82f6;
-  color: var(--text-main) !important;
-}
-
-/* Para los items de personal */
-.item-personal {
-  background: var(--bg-body);
-  border: 1px solid var(--border-color);
-  color: var(--text-main) !important;
-}
-
-.item-personal.ocupado {
-  background: rgba(59, 130, 246, 0.15);
-  border-color: #3b82f6;
-  color: var(--text-main) !important;
-}
-
-/* Para los textos dentro de los items */
-.nombre-p, .text-truncate {
-  color: var(--text-main) !important;
-}
-
-/* Texto secundario (puede ser un poco más suave) */
-.cong-mini, .detalle, .label-tiny {
-  color: var(--text-secondary);
-}
-
-.modal-confirm {
-  width: 400px;
-  max-width: 90vw;
-}
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 15px 20px;
-  border-top: 1px solid var(--border-color);
-}
-.btn-delete {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-delete:hover {
-  background: #dc2626;
-}
-.btn-cancel {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-cancel:hover {
-  background: var(--hover-bg);
-}
 </style>
