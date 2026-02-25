@@ -1,6 +1,5 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { guiaUsuario } from '$lib/data/ayuda';
   import { getVersion } from '@tauri-apps/api/app';
   import { onMount } from 'svelte';
   import Datos from '$lib/components/gestion/Datos.svelte';
@@ -29,7 +28,7 @@
   // ESTADO: ¿Hay un editor abierto en pantalla completa en alguno de los hijos?
   let editorAbierto = false; 
 
-  let versionReal = "Cargando...";
+  let versionReal = "";
 
   function cerrar() { dispatch('close'); }
   
@@ -96,8 +95,13 @@
   }
 }
 
-  onMount(async () => {
-    versionReal = await getVersion();
+ onMount(async () => {
+      try {
+          versionReal = await getVersion();
+      } catch (e) {
+          console.error("Error al leer la versión:", e);
+          versionReal = "Desconocida";
+      }
   });
   
 </script>
@@ -127,8 +131,10 @@
                 
                 <div class="about-row">
                     <span class="about-label">Versión:</span>
-                    <span class="about-value">v{versionReal}</span>
-                </div>
+                    <span class="about-value">
+                        v{#if versionReal}{versionReal}{:else}...{/if}
+                    </span>
+                    </div>
                 
                 <div class="about-row">
                     <span class="about-label">Tecnología:</span>

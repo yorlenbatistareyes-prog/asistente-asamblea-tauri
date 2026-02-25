@@ -8,8 +8,11 @@
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
+  import { getVersion } from '@tauri-apps/api/app';
 
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
+
+  let versionApp = "";
 
   // --- VARIABLES DE ESTADO ---
   let horaActual = "";
@@ -40,8 +43,14 @@
     fotoUsuario = localStorage.getItem('fotoPerfil') || "";
     iniciarReloj(); 
     cargarTemaGuardado();
-    cargarLocales(); 
-  });
+    cargarLocales();
+    try {
+        versionApp = await getVersion();
+    } catch (e) {
+        console.error("Error al obtener la versión:", e);
+        versionApp = "Desconocida"; 
+    }
+  }); 
 
   // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
   async function cargarNombreUsuario() {
@@ -224,8 +233,11 @@
             <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
         </div>
         <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
-        <div class="status-right">v1.0.0</div>
-    </footer>
+        
+        <div class="status-right">
+            v{#if versionApp}{versionApp}{:else}...{/if}
+        </div>
+        </footer>
 
     {#if mostrarModalLocales}
       <div class="modal-backdrop" on:click|self={()=>mostrarModalLocales=false}>
