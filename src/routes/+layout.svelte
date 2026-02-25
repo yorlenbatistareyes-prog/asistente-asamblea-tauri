@@ -2,7 +2,7 @@
 // 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
   import '../app.css';
   import { onMount } from 'svelte';
-  import { User, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  import { User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
@@ -17,6 +17,17 @@
   let saludo = "Hola"; 
   let temaActual = 'sistema';
   let nombreUsuario = "Usuario";
+  let fotoUsuario = ""; // 👈 VARIABLE PARA LA FOTO
+  let mostrarMenuAvatar = false; // 👈 CONTROL DEL MENÚ PROFESIONAL
+  let fileInput: HTMLInputElement;
+
+  // --- QUITAR FOTO ---
+  function quitarFoto() {
+      fotoUsuario = ""; 
+      localStorage.removeItem('fotoPerfil'); 
+      if (fileInput) fileInput.value = ""; 
+      mostrarMenuAvatar = false; // Cerramos el menú
+  }
   
   // --- VARIABLES GESTIÓN SALONES ---
   let mostrarModalLocales = false;
@@ -26,6 +37,7 @@
   onMount(async () => {
     await cargarDatosGlobales();
     await cargarNombreUsuario();
+    fotoUsuario = localStorage.getItem('fotoPerfil') || "";
     iniciarReloj(); 
     cargarTemaGuardado();
     cargarLocales(); 
@@ -47,6 +59,22 @@
   // se vuelve a buscar el nombre automáticamente sin recargar la página.
   $: if ($appStore) {
       cargarNombreUsuario();
+  }
+
+  // --- CARGAR NUEVA FOTO ---
+  function manejarCambioFoto(event: Event) {
+      const input = event.target as HTMLInputElement;
+      if (input.files && input.files.length > 0) {
+          const archivo = input.files[0];
+          const reader = new FileReader();
+          
+          reader.onload = (e) => {
+              const resultado = e.target?.result as string;
+              fotoUsuario = resultado; // Mostramos la foto
+              localStorage.setItem('fotoPerfil', resultado); // La guardamos para siempre
+          };
+          reader.readAsDataURL(archivo); // Convertimos la imagen a texto (Base64)
+      }
   }
 
   // --- FUNCIÓN QUE ARREGLA EL BOTÓN ---
@@ -126,10 +154,38 @@
 
 </script>
 
+<svelte:window on:click={() => mostrarMenuAvatar = false} />
+
 <div class="app-layout">
-    <header class="top-header">
+   <header class="top-header">
         <div class="header-left">
-            <div class="avatar"><User size={24} /></div>
+            <input type="file" accept="image/*" style="display: none;" bind:this={fileInput} on:change={manejarCambioFoto} />
+            
+            <div class="avatar-container" on:click|stopPropagation={() => mostrarMenuAvatar = !mostrarMenuAvatar}>
+                <div class="avatar" title="Opciones de perfil">
+                    {#if fotoUsuario}
+                        <img src={fotoUsuario} alt="Perfil" class="foto-perfil" />
+                    {:else}
+                        <User size={24} />
+                    {/if}
+                </div>
+                
+                {#if mostrarMenuAvatar}
+                    <div class="dropdown-avatar" on:click|stopPropagation>
+                        <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
+                            <Upload size={16} /> Cambiar foto
+                        </button>
+                        
+                        {#if fotoUsuario}
+                            <div class="dropdown-separator"></div>
+                            <button class="menu-item text-red" on:click={quitarFoto}>
+                                <Trash2 size={16} /> Quitar foto
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+            </div>
+
             <div class="user-data">
                 <h2>{saludo}, {$appStore.usuario}!</h2>
                 <span>{fechaActual}</span>
@@ -276,7 +332,29 @@
   }
 
   .header-left { display: flex; gap: 12px; align-items: center; }
-  .avatar { width: 40px; height: 40px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
+  
+  .avatar { 
+      width: 40px; 
+      height: 40px; 
+      background: var(--primary); 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white; 
+      cursor: pointer; /* 👈 NUEVO: Ratón de manito */
+      overflow: hidden; /* 👈 NUEVO: Evita que la foto se salga del círculo */
+      transition: opacity 0.2s; 
+  }
+  .avatar:hover { opacity: 0.8; } /* 👈 NUEVO: Efecto al pasar el ratón */
+  
+  /* 👈 NUEVA CLASE PARA LA IMAGEN */
+  .foto-perfil { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; /* Asegura que la foto no se deforme */
+  }
+
   .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
   .header-center { background: var(--bg-body); padding: 5px 15px; border-radius: 20px; border: 1px solid var(--border); display: flex; gap: 8px; font-weight: 600; align-items: center; }
   .header-right { display: flex; gap: 8px; }
@@ -355,4 +433,66 @@
   .btn-red:hover { background: #fee2e2; border-radius: 6px; }
   
   .empty-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: var(--text-sec); font-size: 13px; }
+
+  /* ===== MENÚ DE AVATAR PROFESIONAL ===== */
+  .avatar-container { 
+      position: relative; 
+      display: flex; 
+  }
+
+  .dropdown-avatar {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      z-index: 9999;
+      overflow: hidden;
+      animation: fadeInDown 0.2s ease;
+  }
+
+  .menu-item {
+      width: 100%;
+      padding: 12px 15px;
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s;
+  }
+
+  .menu-item:hover {
+      background: var(--hover-bg);
+  }
+
+  .menu-item.text-red {
+      color: #ef4444;
+  }
+
+  .menu-item.text-red:hover {
+      background: #fee2e2;
+  }
+
+  .dropdown-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 0;
+  }
+
+  @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+  }
+
 </style>
