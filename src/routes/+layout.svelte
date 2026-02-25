@@ -173,7 +173,7 @@
                 {#if mostrarMenuAvatar}
                     <div class="dropdown-avatar" on:click|stopPropagation>
                         <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
-                            <Upload size={16} /> Cambiar foto
+                            <Upload size={16} /> Seleccionar foto
                         </button>
                         
                         {#if fotoUsuario}
