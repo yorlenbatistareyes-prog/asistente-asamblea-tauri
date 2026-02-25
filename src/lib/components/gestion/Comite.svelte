@@ -20,6 +20,7 @@
 
   // --- ESTADO ---
   let asambleaId = 0; // <--- ID DE LA ASAMBLEA ACTUAL
+  let asambleaIdentificador = "";
   
   let hermanos: any[] = [];
   let congregaciones: any[] = []; 
@@ -46,7 +47,9 @@
     // 1. RECUPERAR ID
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
-        asambleaId = JSON.parse(datosGuardados).id;
+        const asamblea = JSON.parse(datosGuardados);
+        asambleaId = asamblea.id;
+        asambleaIdentificador = asamblea.identificador || "Sin ID";
         await recargarTodo();
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
@@ -274,7 +277,7 @@
 
 <div class="panel-comite">
   <div class="header">
-    <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea (Asamblea #{asambleaId})</h3>
+    <h3><ShieldCheck class="text-blue"/> Organización de la Asamblea ({asambleaIdentificador})</h3>
     
     <div style="display: flex; gap: 10px; align-items: center;">
 
@@ -615,7 +618,7 @@
     <div class="modal-body">
       {#if modoCreacionRapida}
         <div class="form-rapido">
-            <h4 class="form-title">Nuevo Registro (En Asamblea #{asambleaId})</h4>
+            <h4 class="form-title">Nuevo Registro ({asambleaIdentificador})</h4>
             
             <div class="campo">
                 <label>Nombre Completo</label>
