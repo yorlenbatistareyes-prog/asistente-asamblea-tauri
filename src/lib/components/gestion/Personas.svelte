@@ -7,6 +7,7 @@
 
   // --- VARIABLES ---
   let asambleaId = 0; 
+  let asambleaIdentificador = "";
   let mostrarModal = false;
 
   let nombre = "";
@@ -23,7 +24,9 @@
   onMount(() => { 
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
-        asambleaId = JSON.parse(datosGuardados).id;
+        const asamblea = JSON.parse(datosGuardados);
+        asambleaId = asamblea.id;
+        asambleaIdentificador = asamblea.identificador || "Sin ID"; 
         cargarDatos(); 
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
@@ -166,7 +169,7 @@ async function guardarYcerrar() {
 
   <Panel padding="0" clasesExtra="lista-panel">
     <div class="header-lista">
-        <h4>Personas Registradas (Asamblea #{asambleaId}) - Total: {listaFiltrada.length}</h4>
+        <h4>Personas Registradas (Asamblea {asambleaIdentificador}) - Total: {listaFiltrada.length}</h4>
     </div>
     
     <div class="tabla-header">
