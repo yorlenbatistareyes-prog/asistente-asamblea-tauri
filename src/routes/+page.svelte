@@ -62,18 +62,25 @@ function manejarSeleccionFinal() {
 
 
 
-  // --- TRADUCTOR DE FECHAS A PRUEBA DE BALAS (TypeScript) ---
-  function obtenerTiempoSeguro(fechaStr: string): number {
+  // --- TRADUCTOR DE FECHAS A PRUEBA DE RANGOS (TypeScript) ---
+  function obtenerTiempoSeguro(fechaStr: string, usarFin: boolean = false): number {
       if (!fechaStr) return 0;
       
-      // Intentamos parsear formato ISO (YYYY-MM-DD)
-      let t = new Date(fechaStr).getTime();
+      // 1. Separamos el rango si tiene el formato "YYYY-MM-DD a YYYY-MM-DD"
+      const partesFecha = fechaStr.split(' a ');
       
-      // Si falla o si es una fecha manual, descomponemos para forzar hora LOCAL
-      const partes = fechaStr.split(/[\/\-]/);
+      // 2. Elegimos qué parte usar (Inicio por defecto, Fin si lo pedimos y existe)
+      let fechaObjetivo = partesFecha[0];
+      if (usarFin && partesFecha.length > 1) {
+          fechaObjetivo = partesFecha[1];
+      }
+      
+      fechaObjetivo = fechaObjetivo.trim();
+
+      // 3. Descomponemos para forzar hora LOCAL y evitar desfases
+      const partes = fechaObjetivo.split(/[\/\-]/);
       if (partes.length === 3) {
           let y: number, m: number, d: number;
-          // Detectar si el año viene primero (YYYY-MM-DD) o al final (DD-MM-YYYY)
           if (partes[0].length === 4) {
               y = parseInt(partes[0], 10);
               m = parseInt(partes[1], 10) - 1;
@@ -86,6 +93,8 @@ function manejarSeleccionFinal() {
           }
           return new Date(y, m, d).getTime();
       }
+      
+      let t = new Date(fechaObjetivo).getTime();
       return isNaN(t) ? 0 : t;
   }
 
@@ -96,17 +105,16 @@ function manejarSeleccionFinal() {
           if (filtroCategoria === 'activas') {
               if (!a.fecha) return false;
 
-              // Usamos la función inteligente para evitar desfases UTC
-              const timeAsamblea = obtenerTiempoSeguro(a.fecha);
+              // Para saber si está activa, comprobamos su fecha de FIN
+              const timeFinAsamblea = obtenerTiempoSeguro(a.fecha, true); 
               
-              if (timeAsamblea > 0) {
+              if (timeFinAsamblea > 0) {
                   const hoy = new Date();
-                  hoy.setHours(0, 0, 0, 0); // Inicio del día local
+                  hoy.setHours(0, 0, 0, 0); 
                   const tiempoHoy = hoy.getTime();
 
-                  // CORRECCIÓN: Si es menor que hoy (ayer hacia atrás), se oculta.
-                  // Si es igual a hoy o futuro, se queda.
-                  if (timeAsamblea < tiempoHoy) return false;
+                  // Si la fecha de fin ya pasó, la ocultamos
+                  if (timeFinAsamblea < tiempoHoy) return false;
               } else {
                   return false;
               }
@@ -122,8 +130,9 @@ function manejarSeleccionFinal() {
           );
       })
       .sort((a: any, b: any) => {
-          const timeA = obtenerTiempoSeguro(a.fecha);
-          const timeB = obtenerTiempoSeguro(b.fecha);
+          // Para ORDENAR, usamos siempre la fecha de INICIO
+          const timeA = obtenerTiempoSeguro(a.fecha, false);
+          const timeB = obtenerTiempoSeguro(b.fecha, false);
 
           if (ordenamiento === 'fecha_desc') return timeB - timeA;
           if (ordenamiento === 'fecha_asc') return timeA - timeB;
@@ -137,16 +146,22 @@ function manejarSeleccionFinal() {
               hoy.setHours(0, 0, 0, 0);
               const tiempoHoy = hoy.getTime();
 
-              const aEsFuturo = timeA >= tiempoHoy;
-              const bEsFuturo = timeB >= tiempoHoy;
+              // Usamos el fin para saber de qué lado de "hoy" están
+              const finA = obtenerTiempoSeguro(a.fecha, true);
+              const finB = obtenerTiempoSeguro(b.fecha, true);
 
-              if (aEsFuturo && !bEsFuturo) return -1;
-              if (!aEsFuturo && bEsFuturo) return 1;
+              const aEsActiva = finA >= tiempoHoy;
+              const bEsActiva = finB >= tiempoHoy;
 
-              if (aEsFuturo && bEsFuturo) {
-                  return timeA - timeB; // La futura más cercana primero
+              if (aEsActiva && !bEsActiva) return -1; // Futuras/Activas van primero
+              if (!aEsActiva && bEsActiva) return 1;
+
+              if (aEsActiva && bEsActiva) {
+                  // Ambas son futuras: la más cercana a hoy va primero
+                  return timeA - timeB; 
               } else {
-                  return timeB - timeA; // La pasada más reciente primero
+                  // Ambas son pasadas: la que pasó más recientemente va primero
+                  return timeB - timeA; 
               }
           }
           return 0;
