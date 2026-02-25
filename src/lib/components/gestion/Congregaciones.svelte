@@ -7,6 +7,7 @@
 
   // --- VARIABLES ---
   let asambleaId = 0; 
+  let asambleaIdentificador = "";
   
   let nombre = "";
   let circuito = "";
@@ -28,6 +29,7 @@
     if (datosGuardados) {
         const asamblea = JSON.parse(datosGuardados);
         asambleaId = asamblea.id;
+        asambleaIdentificador = asamblea.identificador || "Sin ID";
         cargar(); 
     } else {
         alert("⚠️ No hay asamblea seleccionada. Vuelve al inicio.");
@@ -161,7 +163,7 @@ async function guardarYcerrar() {
 
   <Panel padding="0" clasesExtra="lista-panel">
     <div class="header-lista">
-        <h4>Congregaciones (Asamblea #{asambleaId}) - Total: {listaFiltrada.length}</h4>
+        <h4>Congregaciones (Asamblea {asambleaIdentificador}) - Total: {listaFiltrada.length}</h4>
     </div>
     
     <div class="tabla-header">
