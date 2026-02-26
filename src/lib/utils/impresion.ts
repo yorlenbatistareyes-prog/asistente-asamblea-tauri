@@ -135,8 +135,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         }
 
         // LIMPIEZA HTML BÁSICA PARA PDFMAKE
-        htmlContent = htmlContent.replace(/<p[^>]*style="[^"]*"[^>]*>/gi, '<p>');
-        htmlContent = htmlContent.replace(/<span[^>]*style="[^"]*"[^>]*>/gi, '<span>');
+        // Dejamos los estilos intactos para que conserve el centrado y los colores del editor
         htmlContent = htmlContent.replace(/&nbsp;/gi, ' ');
         htmlContent = htmlContent.replace(/<p>\s*<\/p>/g, '');
 
