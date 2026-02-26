@@ -1,7 +1,24 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
+
+// 1. IMPORTACIONES DE PDFMAKE (Nativo y limpio)
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces';
+
+// 2. INYECCIÓN DE FUENTES (TypeScript Estricto Puro)
+interface CustomPdfFonts {
+    pdfMake?: { vfs: Record<string, string> };
+    vfs?: Record<string, string>;
+}
+interface CustomPdfMake {
+    vfs: Record<string, string>;
+    createPdf: typeof pdfMake.createPdf;
+}
+
+const fonts = pdfFonts as unknown as CustomPdfFonts;
+const pdf = pdfMake as unknown as CustomPdfMake;
+pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
 
 // --- HELPERS ---
 const check = (valor: boolean) => valor ? 'SÍ' : '-';
@@ -9,277 +26,245 @@ const estado = (txt: string) => txt === 'Confirmado' ? 'SÍ' : '-';
 
 /**
  * EXPORTAR PROGRAMA
- * Versión con Encabezado y Pie de Página desde localStorage
+ * Genera el PDF del programa (Orientación Horizontal para que quepan las columnas)
  */
 export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
-    if (!partes || !Array.isArray(partes)) {
+    if (!partes || !Array.isArray(partes) || partes.length === 0) {
+        alert("No hay datos para exportar.");
         return;
     }
 
-    // 1. OBTENER DATOS DE LA ASAMBLEA (Para el Encabezado)
+    // 1. Obtener Datos
     let asamblea = { tema: 'Asamblea', fecha: '', nombre: 'Asamblea Regional' };
     const guardadoAsamblea = localStorage.getItem('asambleaActiva');
-    if (guardadoAsamblea) {
-        asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
-    }
+    if (guardadoAsamblea) asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
 
-    // 2. OBTENER PIE DE PÁGINA (Desde la Configuración del Membrete en LocalStorage)
     let pieDePagina = "";
     const guardadoMembrete = localStorage.getItem('config_membrete');
     if (guardadoMembrete) {
         try {
             const configMembrete = JSON.parse(guardadoMembrete);
-            // Solo lo usamos si el interruptor "usarPiePagina" está encendido
             if (configMembrete.usarPiePagina && configMembrete.piePagina) {
                 pieDePagina = configMembrete.piePagina;
             }
-        } catch (e) {
-            console.error("Error al leer config_membrete:", e);
-        }
+        } catch (e) { console.error("Error al leer config_membrete:", e); }
     }
 
-    const doc = new jsPDF();
+    let textoObjetivo = tituloDia.toUpperCase();
+    if (!textoObjetivo.includes("PROGRAMA")) textoObjetivo = "PROGRAMA DEL DÍA: " + textoObjetivo;
+
+    const contenidoDoc: Content[] = [];
     const ordenDias = ['Viernes', 'Sábado', 'Domingo'];
-    let esPrimeraPaginaGlobal = true;
+    let esPrimeraPagina = true;
 
     for (const dia of ordenDias) {
         const partesDelDia = partes.filter(p => p && p.dia === dia);
         if (partesDelDia.length === 0) continue;
 
-        if (!esPrimeraPaginaGlobal) {
-            doc.addPage();
+        // Si no es la primera página, forzamos un salto de página
+        const pageBreakConfig = !esPrimeraPagina ? { pageBreak: 'before' as const } : {};
+
+        // --- ENCABEZADO (Solo en la primera página) ---
+        if (esPrimeraPagina) {
+            contenidoDoc.push({ text: (asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 4] });
+            contenidoDoc.push({ text: (asamblea.tema || "").toUpperCase(), fontSize: 12, color: '#4b5563', alignment: 'center', margin: [0, 0, 0, 4] });
+            contenidoDoc.push({ text: asamblea.fecha || "", fontSize: 10, alignment: 'center', margin: [0, 0, 0, 6] });
+            contenidoDoc.push({ text: textoObjetivo, fontSize: 11, bold: true, color: '#3b82f6', alignment: 'center', margin: [0, 0, 0, 15] });
+            esPrimeraPagina = false;
         }
 
-        let startY = 15; 
+        // --- PÍLDORA DEL DÍA ---
+        contenidoDoc.push({
+            ...pageBreakConfig, // Aquí se aplica el salto de página si corresponde
+            table: {
+                widths: ['auto'],
+                body: [[{ text: dia.toUpperCase(), bold: true, color: 'white', fillColor: '#3b82f6', margin: [10, 4, 10, 4] }]]
+            },
+            layout: 'noBorders',
+            margin: [0, 10, 0, 5]
+        });
 
-        // --- ENCABEZADO (SOLO EN LA PRIMERA PÁGINA) ---
-        if (esPrimeraPaginaGlobal) {
-            // 1. Título principal (Asamblea)
-            doc.setFontSize(14);
-            doc.setTextColor(40);
-            doc.setFont("helvetica", "bold");
-            doc.text((asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), 105, 15, { align: 'center' });
+        // --- TABLA DEL PROGRAMA ---
+        const tableBody: TableCell[][] = [
+            // Cabecera
+            [
+                { text: 'Hora', style: 'th' }, { text: 'Tema', style: 'th' }, { text: 'Orador', style: 'th' }, 
+                { text: 'Bosq.', style: 'th' }, { text: 'Recib.', style: 'th', alignment: 'center' }, 
+                { text: 'Pres.', style: 'th', alignment: 'center' }, { text: 'Ens.', style: 'th', alignment: 'center' }
+            ]
+        ];
+
+        partesDelDia.forEach(p => {
+            const isVideo = p.es_video || (p.fuente && p.fuente.toLowerCase().includes('video'));
+            const temaFinal = isVideo ? `(V) ${p.tema || ""}` : (p.tema || "");
             
-            // 2. Tema
-            doc.setFontSize(12);
-            doc.setTextColor(80);
-            doc.text((asamblea.tema || "").toUpperCase(), 105, 21, { align: 'center' });
+            tableBody.push([
+                { text: p.hora_inicio || "-", style: 'td' },
+                { text: temaFinal, style: 'td' },
+                { text: p.nombre_orador || "---", style: 'td', bold: true },
+                { text: p.numero_bosquejo || "", style: 'td' },
+                { text: estado(p.estado), style: 'td', alignment: 'center' },
+                { text: check(p.esta_presente), style: 'td', alignment: 'center' },
+                { text: check(p.ensayo_terminado), style: 'td', alignment: 'center' }
+            ]);
+        });
 
-            // 3. Fecha
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text(asamblea.fecha || "", 105, 26, { align: 'center' });
-
-            // 4. NUEVO: Subtítulo del objetivo del documento
-            doc.setFontSize(11);
-            doc.setTextColor(59, 130, 246); // El mismo azul de los botones para que combine
-            doc.setFont("helvetica", "bold");
-            
-            // Verificamos si la variable ya trae la palabra "Programa"
-            let textoObjetivo = tituloDia.toUpperCase();
-            if (!textoObjetivo.includes("PROGRAMA")) {
-                textoObjetivo = "PROGRAMA DEL DÍA: " + textoObjetivo;
-            }
-            
-            doc.text(textoObjetivo, 105, 34, { align: 'center' });
-
-            // Empujamos el inicio del primer día más abajo
-            startY = 44; 
-        }
-
-        esPrimeraPaginaGlobal = false;
-
-       // --- ETIQUETA DEL DÍA (Alineada al margen izquierdo) ---
-        const margenIzquierdo = 14; // El mismo margen donde empieza la tabla
-        const anchoBoton = 35;      // Ancho suficiente para la palabra más larga ("DOMINGO")
-        
-        doc.setFillColor(59, 130, 246); // Color azul
-        doc.roundedRect(margenIzquierdo, startY, anchoBoton, 7, 3.5, 3.5, 'F'); 
-        
-        // Texto del día centrado justo en el medio del botón
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.text(dia.toUpperCase(), margenIzquierdo + (anchoBoton / 2), startY + 5, { align: 'center' });
-        
-        // --- TABLA ---
-        autoTable(doc, {
-            startY: startY + 10,
-            margin: { top: 15, bottom: 20 }, 
-            head: [["Hora", "Tema", "Orador", "Bosq.", "Recib.", "Pres.", "Ens."]],
-            body: partesDelDia.map(p => [
-                p.hora_inicio || "-",
-                p.es_video ? `(V) ${p.tema}` : (p.tema || ""),
-                p.nombre_orador || "---",
-                p.numero_bosquejo || "",
-                estado(p.estado),
-                check(p.esta_presente),
-                check(p.ensayo_terminado)
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: [71, 85, 105], fontSize: 8 },
-            styles: { fontSize: 8, cellPadding: 2 },
-            columnStyles: {
-                0: { cellWidth: 15 },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 12 },
-                4: { cellWidth: 12 },
-                5: { cellWidth: 12 },
-                6: { cellWidth: 12 }
-            }
+        contenidoDoc.push({
+            table: {
+                headerRows: 1,
+                widths: ['auto', '*', '25%', 'auto', 'auto', 'auto', 'auto'],
+                body: tableBody
+            },
+            layout: {
+                fillColor: (rowIndex) => rowIndex === 0 ? '#475569' : (rowIndex % 2 === 0 ? '#f8fafc' : null),
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0,
+                hLineColor: () => '#e2e8f0'
+            },
+            margin: [0, 0, 0, 20]
         });
     }
 
-    // --- PIE DE PÁGINA (SOLO EN LA ÚLTIMA PÁGINA) ---
-    if (pieDePagina) {
-        const pageHeight = doc.internal.pageSize.getHeight();
-        doc.setFontSize(8);
-        doc.setTextColor(120);
-        doc.setFont("helvetica", "italic");
-        
-        const textLines = doc.splitTextToSize(pieDePagina, 180);
-        doc.text(textLines, 105, pageHeight - 12, { align: 'center' });
-    }
+    const docDefinition: TDocumentDefinitions = {
+        pageSize: 'A4',
+        pageOrientation: 'landscape', // Horizontal para que quepa bien la tabla
+        pageMargins: [30, 30, 30, pieDePagina ? 40 : 30],
+        content: contenidoDoc,
+        footer: pieDePagina ? function(currentPage, pageCount) {
+            if (currentPage !== pageCount) return null; // Solo en la última página
+            return { text: pieDePagina, alignment: 'center', fontSize: 8, color: '#6b7280', margin: [40, 10, 40, 0], italics: true };
+        } : undefined,
+        styles: {
+            th: { bold: true, fontSize: 9, color: 'white', margin: [0, 4, 0, 4] },
+            td: { fontSize: 9, color: '#1f2937', margin: [0, 4, 0, 4] }
+        },
+        defaultStyle: { font: 'Roboto' }
+    };
 
-    // --- PROCESO DE GUARDADO CON FS ---
-    try {
-        const pdfArrayBuffer = doc.output('arraybuffer');
-        const pdfBytes = new Uint8Array(pdfArrayBuffer);
-
-        const selectedPath = await save({
-            defaultPath: `Programa_${tituloDia.replace(/ /g, '_')}.pdf`,
-            filters: [{ name: 'PDF', extensions: ['pdf'] }],
-        });
-
-        if (selectedPath) {
-            await writeFile(selectedPath, pdfBytes);
-            alert(`✅ Archivo guardado correctamente.`);
-        }
-    } catch (err) {
-        console.error("Error al escribir el archivo:", err);
-        alert("No se pudo guardar el PDF. Verifique los permisos de carpeta.");
-    }
+    generarYGuardarPDF(docDefinition, `Programa_${tituloDia.replace(/ /g, '_')}`);
 }
 
 /**
  * EXPORTAR OFICINA
  * Personal en página 1, y cada día de asignación en una página nueva.
  */
+/**
+ * EXPORTAR OFICINA
+ * Personal en página 1, y cada día de asignación en una página nueva.
+ */
 export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo: string) {
-    // 1. OBTENER DATOS DE LA ASAMBLEA
     let asamblea = { tema: 'Asamblea', fecha: '', nombre: 'Asamblea Regional' };
     const guardadoAsamblea = localStorage.getItem('asambleaActiva');
-    if (guardadoAsamblea) {
-        asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
-    }
+    if (guardadoAsamblea) asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
 
-    const doc = new jsPDF();
-    let startY = 15;
+    const contenidoDoc: Content[] = [];
 
     // --- PÁGINA 1: ENCABEZADO Y PERSONAL DE OFICINA ---
-    doc.setFontSize(14);
-    doc.setTextColor(40);
-    doc.setFont("helvetica", "bold");
-    doc.text((asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), 105, startY, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.setTextColor(80);
-    doc.text((asamblea.tema || "").toUpperCase(), 105, startY + 6, { align: 'center' });
+    contenidoDoc.push({ text: (asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 4] });
+    contenidoDoc.push({ text: (asamblea.tema || "").toUpperCase(), fontSize: 12, color: '#4b5563', alignment: 'center', margin: [0, 0, 0, 4] });
+    contenidoDoc.push({ text: asamblea.fecha || "", fontSize: 10, alignment: 'center', margin: [0, 0, 0, 6] });
+    contenidoDoc.push({ text: "RESUMEN GENERAL DE OFICINA", fontSize: 11, bold: true, color: '#3b82f6', alignment: 'center', margin: [0, 0, 0, 20] });
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(asamblea.fecha || "", 105, startY + 11, { align: 'center' });
+    // Píldora Auxiliares
+    contenidoDoc.push({
+        table: { widths: ['auto'], body: [[{ text: 'AUXILIARES', bold: true, color: 'white', fillColor: '#475569', margin: [10, 4, 10, 4] }]] },
+        layout: 'noBorders', margin: [0, 0, 0, 5]
+    });
 
-    doc.setFontSize(11);
-    doc.setTextColor(59, 130, 246); 
-    doc.setFont("helvetica", "bold");
-    doc.text("RESUMEN GENERAL DE OFICINA", 105, startY + 19, { align: 'center' });
+    const bodyPersonal: TableCell[][] = [
+        [ { text: 'Nombre Completo', style: 'th' }, { text: 'Congregación', style: 'th' }, { text: 'Recibido', style: 'th', alignment: 'center' }, { text: 'Presente', style: 'th', alignment: 'center' } ]
+    ];
 
-    startY += 28;
+    // Mostrar filas de auxiliares o un mensaje si está vacío
+    if (personal.length === 0) {
+        bodyPersonal.push([{ text: 'No hay personal asignado', style: 'td', colSpan: 4, alignment: 'center' }, {}, {}, {}]);
+    } else {
+        personal.forEach(p => {
+            bodyPersonal.push([
+                { text: p.nombre_completo || '-', style: 'td' },
+                { text: p.nombre_congregacion || '-', style: 'td' },
+                { text: estado(p.estado), style: 'td', alignment: 'center' },
+                { text: check(p.esta_presente), style: 'td', alignment: 'center' }
+            ]);
+        });
+    }
 
-    // Píldora de Auxiliares
-    doc.setFillColor(71, 85, 105); // Gris oscuro
-    doc.roundedRect(14, startY, 45, 7, 3.5, 3.5, 'F'); 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.text("AUXILIARES", 14 + (45 / 2), startY + 5, { align: 'center' });
-
-    autoTable(doc, {
-        startY: startY + 10,
-        margin: { top: 15, bottom: 20 },
-        head: [['Nombre Completo', 'Congregación', 'Recibido', 'Presente']],
-        body: personal.map(p => [
-            p.nombre_completo || '-', 
-            p.nombre_congregacion || '-', 
-            estado(p.estado),
-            check(p.esta_presente)
-        ]),
-        theme: 'striped',
-        headStyles: { fillColor: [71, 85, 105], fontSize: 9, fontStyle: 'bold' },
-        styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' }
+    contenidoDoc.push({
+        table: { headerRows: 1, widths: ['*', '*', 'auto', 'auto'], body: bodyPersonal },
+        layout: { fillColor: (i) => i === 0 ? '#475569' : (i % 2 === 0 ? '#f8fafc' : null), hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => '#e2e8f0' }
     });
 
     // --- PÁGINAS SIGUIENTES: ASIGNACIONES DIARIAS ---
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     
     for (const dia of dias) {
-        const d = datosDias[dia];
-        // Comprobamos si hay al menos un hermano asignado ese día
-        const hayDatos = Object.values(d).some(val => val !== null && val !== undefined);
-        
-        if (!hayDatos) continue;
+        // Aseguramos que 'd' siempre sea un objeto, incluso si viene vacío, para que no falle.
+        // Ya no verificamos si "hayDatos", siempre dibujamos la tabla.
+        const d = datosDias[dia] || {}; 
 
-        // AQUÍ ESTÁ LA MAGIA: Forzamos una página nueva para cada día que tenga datos
-        doc.addPage();
-        startY = 20; // Reiniciamos la altura para la nueva página
+        // Píldora Día (CON SALTO DE PÁGINA ANTES)
+        contenidoDoc.push({
+            pageBreak: 'before',
+            table: { widths: ['auto'], body: [[{ text: dia.toUpperCase(), bold: true, color: 'white', fillColor: '#3b82f6', margin: [10, 4, 10, 4] }]] },
+            layout: 'noBorders', margin: [0, 0, 0, 10]
+        });
 
-        // Píldora del Día
-        doc.setFillColor(59, 130, 246); // Azul
-        doc.roundedRect(14, startY, 35, 7, 3.5, 3.5, 'F'); 
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.text(dia.toUpperCase(), 14 + (35 / 2), startY + 5, { align: 'center' });
-
-        const rows = [
-            ['Presidente (Mañana)', d.presidente_manana?.nombre_completo || '-'],
-            ['Oración de Apertura', d.oracion_apertura?.nombre_completo || '-'],
-            ['Seguimiento de Bosquejos (M)', d.bosquejos_manana?.nombre_completo || '-'],
-            ['Acompañante de Plataforma (M)', d.plataforma_manana?.nombre_completo || '-'],
-            ['Presidente (Tarde)', d.presidente_tarde?.nombre_completo || '-'],
-            ['Oración de Conclusión', d.oracion_conclusion?.nombre_completo || '-'],
-            ['Seguimiento de Bosquejos (T)', d.bosquejos_tarde?.nombre_completo || '-'],
-            ['Acompañante de Plataforma (T)', d.plataforma_tarde?.nombre_completo || '-'],
+        // Si la casilla está vacía (sin asignar), pondrá '---'
+        const rowsAsignaciones: TableCell[][] = [
+            [ { text: 'Asignación / Responsabilidad', style: 'thOficina' }, { text: 'Hermano Asignado', style: 'thOficina' } ],
+            [ { text: 'Presidente (Mañana)', style: 'tdLabel' }, { text: d.presidente_manana?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Oración de Apertura', style: 'tdLabel' }, { text: d.oracion_apertura?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Seguimiento de Bosquejos (M)', style: 'tdLabel' }, { text: d.bosquejos_manana?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Acompañante de Plataforma (M)', style: 'tdLabel' }, { text: d.plataforma_manana?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Presidente (Tarde)', style: 'tdLabel' }, { text: d.presidente_tarde?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Oración de Conclusión', style: 'tdLabel' }, { text: d.oracion_conclusion?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Seguimiento de Bosquejos (T)', style: 'tdLabel' }, { text: d.bosquejos_tarde?.nombre_completo || '---', style: 'tdValue' } ],
+            [ { text: 'Acompañante de Plataforma (T)', style: 'tdLabel' }, { text: d.plataforma_tarde?.nombre_completo || '---', style: 'tdValue' } ]
         ];
 
-        autoTable(doc, {
-            startY: startY + 10,
-            margin: { top: 15, bottom: 20 },
-            head: [['Asignación / Responsabilidad', 'Hermano Asignado']],
-            body: rows,
-            theme: 'grid',
-            headStyles: { fillColor: [59, 130, 246], fontSize: 9, fontStyle: 'bold' },
-            styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' },
-            columnStyles: {
-                0: { cellWidth: 80, fontStyle: 'bold', textColor: [60, 60, 60] },
-            }
+        contenidoDoc.push({
+            table: { headerRows: 1, widths: ['50%', '*'], body: rowsAsignaciones },
+            layout: { fillColor: (i) => i === 0 ? '#3b82f6' : null, hLineWidth: () => 0.5, vLineWidth: () => 0.5, vLineColor: () => '#e2e8f0', hLineColor: () => '#e2e8f0' }
         });
     }
 
-    // --- GUARDAR ---
+    const docDefinition: TDocumentDefinitions = {
+        pageSize: 'A4',
+        pageOrientation: 'portrait', // Vertical para la oficina
+        pageMargins: [40, 40, 40, 40],
+        content: contenidoDoc,
+        styles: {
+            th: { bold: true, fontSize: 9, color: 'white', margin: [0, 4, 0, 4] },
+            td: { fontSize: 9, color: '#1f2937', margin: [0, 4, 0, 4] },
+            thOficina: { bold: true, fontSize: 10, color: 'white', margin: [0, 5, 0, 5] },
+            tdLabel: { bold: true, fontSize: 9, color: '#4b5563', margin: [0, 5, 0, 5] },
+            tdValue: { fontSize: 9, color: '#1f2937', margin: [0, 5, 0, 5] }
+        },
+        defaultStyle: { font: 'Roboto' }
+    };
+
+    generarYGuardarPDF(docDefinition, `Resumen_Oficina`);
+}
+
+// --- FUNCIÓN REUTILIZABLE PARA GUARDAR EL PDF ---
+async function generarYGuardarPDF(docDefinition: TDocumentDefinitions, nombreBase: string) {
     try {
-        const pdfArrayBuffer = doc.output('arraybuffer');
-        const pdfBytes = new Uint8Array(pdfArrayBuffer);
+        const pdfDocGenerator = pdf.createPdf(docDefinition);
+        const blob = await pdfDocGenerator.getBlob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const binary = new Uint8Array(arrayBuffer);
+
         const selectedPath = await save({
-            defaultPath: `Resumen_Oficina.pdf`,
+            defaultPath: `${nombreBase}.pdf`,
             filters: [{ name: 'PDF', extensions: ['pdf'] }],
         });
+
         if (selectedPath) {
-            await writeFile(selectedPath, pdfBytes);
-            alert(`✅ Resumen de oficina guardado correctamente.`);
+            await writeFile(selectedPath, binary);
+            alert(`✅ Documento exportado correctamente.`);
         }
     } catch (err: any) {
-        console.error(err);
-        alert("⚠️ Error al guardar el PDF. Verifique si el archivo está abierto.");
+        console.error("Error al exportar PDF:", err);
+        alert("⚠️ Error al generar PDF. Asegúrate de no tener un archivo con el mismo nombre abierto.");
     }
 }

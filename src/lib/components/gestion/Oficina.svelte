@@ -203,22 +203,23 @@ function organizarOficina(datos: any[]) {
   const getHermanosFiltrados = () => !terminoBusqueda ? listaHermanos : listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
 
-  // --- EXPORTACIÓN INTEGRAL ---
+  // --- EXPORTACIÓN INTEGRAL CORREGIDA ---
   async function manejarExportacionTotal() {
       if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
       
       try {
-          // 1. Cargamos el personal (Auxiliares) 
-          const personalData = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: 'Viernes' }) as any[];
-          const personal = personalData.filter((d: any) => d.tipo_asignacion === 'personal_oficina');
-
-          // 2. Cargamos las asignaciones de los 3 días
           const dias = ['Viernes', 'Sábado', 'Domingo'];
           const asignacionesPorDia: { [key: string]: any } = {};
+          let todosLosAuxiliares: any[] = []; // Recopilador global
 
           for (const dia of dias) {
               const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia }) as any[];
               
+              // 1. Recopilamos auxiliares de TODOS los días
+              const auxiliaresDelDia = datos.filter(d => d.tipo_asignacion === 'personal_oficina');
+              todosLosAuxiliares = [...todosLosAuxiliares, ...auxiliaresDelDia];
+              
+              // 2. Mapeamos las asignaciones del día
               asignacionesPorDia[dia] = {
                   presidente_manana: datos.find(d => d.tipo_asignacion === 'presidente_manana'),
                   oracion_apertura: datos.find(d => d.tipo_asignacion === 'oracion_apertura'),
@@ -231,8 +232,11 @@ function organizarOficina(datos: any[]) {
               };
           }
 
+          // Filtramos para asegurarnos de que no haya auxiliares duplicados
+          const auxiliaresUnicos = Array.from(new Map(todosLosAuxiliares.map(p => [p.id, p])).values());
+
           // 3. Enviamos toda esta información masiva al generador de PDF
-          await exportarOficinaPDF(asignacionesPorDia, personal, "Resumen General de Oficina");
+          await exportarOficinaPDF(asignacionesPorDia, auxiliaresUnicos, "Resumen General de Oficina");
 
       } catch (e) {
           console.error("Error al recopilar datos para PDF:", e);
