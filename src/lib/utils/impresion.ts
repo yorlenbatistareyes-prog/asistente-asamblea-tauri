@@ -115,11 +115,19 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         }
 
         // LIMPIEZA HTML
-        htmlContent = htmlContent
-            .replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/gi, '') 
-            .replace(/^\s*(<br\s*\/?>\s*)+/gi, '')
-            .replace(/<p>\s*<\/p>/g, '')
-            .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
+        // Quitar estilos inline de <p> que confunden a jsPDF
+        htmlContent = htmlContent.replace(/<p[^>]*style="[^"]*"[^>]*>/gi, '<p>');
+        // Quitar estilos inline de <span> pero conservar el contenido
+        htmlContent = htmlContent.replace(/<span[^>]*style="[^"]*"[^>]*>/gi, '<span>');
+        // Reemplazar &nbsp; por espacio normal
+        htmlContent = htmlContent.replace(/&nbsp;/gi, ' ');
+        // Eliminar párrafos vacíos al inicio
+        htmlContent = htmlContent.replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/gi, '');
+        htmlContent = htmlContent.replace(/^\s*(<br\s*\/?>\s*)+/gi, '');
+        htmlContent = htmlContent.replace(/<p>\s*<\/p>/g, '');
+        htmlContent = htmlContent.replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
+        // Eliminar espacios múltiples consecutivos
+        htmlContent = htmlContent.replace(/ {2,}/g, ' ');
 
         // 4. CÁLCULO DE POSICIONES
         const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -141,28 +149,45 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         }
 
         const container = document.createElement('div');
-        
-        // CSS RESET
-        const estilosReset = `
-            <style>
-                * { box-sizing: border-box; }
-                body { margin: 0; padding: 0; }
-                p { margin: 0 0 3mm 0; line-height: 1.25; text-align: justify; }
-                .pdf-content > *:first-child { 
-                    margin-top: 0 !important; 
-                    padding-top: 0 !important; 
-                }
-            </style>
-        `;
 
-        container.innerHTML = `${estilosReset}<div class="pdf-content">${htmlContent}</div>`;
+// CSS RESET (se mantiene igual)
+const estilosReset = `
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; }
+        p { 
+            margin: 0 0 3mm 0; 
+            line-height: 1.5; 
+            text-align: left; 
+            word-wrap: break-word; 
+            white-space: pre-wrap; 
+        }
+        .pdf-content > *:first-child { 
+            margin-top: 0 !important; 
+            padding-top: 0 !important; 
+        }
+    </style>
+`;
 
-        Object.assign(container.style, {
-            position: 'absolute', top: '0', left: '0', width: '186mm', 
-            padding: '0', margin: '0', backgroundColor: 'white', color: 'black',
-            zIndex: '-9999', fontFamily: '"Times New Roman", Times, serif',
-            fontSize: '11pt', lineHeight: '1.25'
-        });
+container.innerHTML = `${estilosReset}<div class="pdf-content">${htmlContent}</div>`;
+
+// ESTILOS DEL CONTENEDOR (cambios aquí)
+Object.assign(container.style, {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: '1000px',                     // <-- aumentado de 800 a 1000
+    padding: '0',
+    margin: '0',
+    backgroundColor: 'white',
+    color: 'black',
+    zIndex: '-9999',
+    fontFamily: '"Times New Roman", Times, serif',
+    fontSize: '11pt',
+    lineHeight: '1.25',
+    overflowWrap: 'break-word',          // <-- añadido
+    wordWrap: 'break-word'                // <-- añadido (compatibilidad)
+});
 
         document.body.appendChild(container);
         await new Promise(resolve => setTimeout(resolve, 300));
