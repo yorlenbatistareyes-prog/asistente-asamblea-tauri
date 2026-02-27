@@ -789,4 +789,100 @@ input:focus, select:focus {
   background: var(--hover-bg);
   border-color: var(--text-secondary);
 }
+
+/* =========================================================
+   DISEÑO RESPONSIVO (PERSONAS: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. TOOLBAR: BOTONES Y BUSCADOR APILADOS */
+    :global(.toolbar) {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px !important;
+        gap: 12px;
+    }
+    
+    .busqueda {
+        min-width: 0 !important; /* Matamos los 300px fijos */
+        width: 100%;
+        height: 48px; /* Altura ideal para el pulgar */
+    }
+    
+    .btn-primary, .btn-importar, .btn-danger {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 2. ADIÓS A LA TABLA, HOLA TARJETAS APILADAS */
+    .tabla-header {
+        display: none; /* Ocultamos las cabeceras porque ya no será una tabla */
+    }
+    
+    .header-lista h4 {
+        font-size: 13px; /* Título un poco más pequeño */
+    }
+
+    /* 3. TRANSFORMAMOS LA FILA EN UNA TARJETA (Similar a Congregaciones) */
+    .fila {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 15px;
+        gap: 8px;
+        position: relative; /* Para poder posicionar el botón de borrar de forma absoluta */
+    }
+    
+    .col-nombre {
+        padding-right: 40px; /* Dejamos espacio para que el texto no choque con el bote de basura */
+        margin-bottom: 5px;
+    }
+    
+    /* El botón de borrar se va a la esquina superior derecha de la tarjeta */
+    .acciones {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+    }
+    
+    .btn-icon-delete {
+        min-width: 44px;
+        min-height: 44px; /* Botón grande y fácil de tocar */
+        background: var(--bg-body); /* Le damos un fondo sutil para que resalte más en móvil */
+        border: 1px solid var(--border);
+    }
+
+    /* 4. MODAL ADAPTADO AL TELÉFONO */
+    .modal {
+        width: 95vw !important;
+        padding: 15px;
+    }
+    
+    /* Pasamos el grid de 2 columnas a 1 columna */
+    .grid-modal {
+        grid-template-columns: 1fr;
+    }
+
+    input, select, .icon-input input, .icon-input select {
+        height: 48px; /* Inputs más altos */
+        font-size: 15px;
+    }
+    
+    .icon-input :global(.ico) {
+        top: 16px; /* Centramos el iconito al nuevo alto del input */
+    }
+    
+    .modal-footer {
+        flex-direction: column-reverse; /* Guardar arriba, Cancelar abajo */
+        margin-top: 20px;
+        gap: 10px;
+    }
+    
+    .btn-save, .btn-cancel {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+}
 </style>

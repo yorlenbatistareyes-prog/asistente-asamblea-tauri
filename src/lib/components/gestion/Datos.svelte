@@ -197,4 +197,59 @@
         }
         .btn-data-action { width: 100%; }
     }
+
+    /* =========================================================
+   DISEÑO RESPONSIVO (GESTIÓN DE DATOS: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. MÁRGENES DEL CONTENEDOR */
+    .data-management-container {
+        padding: 10px;
+        max-width: 100%;
+        gap: 15px;
+    }
+
+    /* 2. TRANSFORMACIÓN DE LAS TARJETAS (Heredando el Panel) */
+    :global(.data-card-override) {
+        flex-direction: column !important; /* Icono arriba, texto medio, botón abajo */
+        text-align: center !important;
+        align-items: center !important;
+        padding: 25px 20px !important;
+        gap: 15px !important;
+    }
+
+    /* 3. AJUSTES DE CONTENIDO */
+    .data-icon-wrapper {
+        width: 65px; /* Iconos un poco más grandes para que luzcan */
+        height: 65px;
+        margin-bottom: 5px;
+    }
+
+    .data-content h3 {
+        font-size: 18px; /* Título más destacado */
+    }
+
+    .data-content p {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    /* 4. BOTONES DE ACCIÓN "FINGER-FRIENDLY" */
+    .btn-data-action {
+        width: 100%; /* Botón gordo que ocupa todo el ancho */
+        height: 50px;
+        font-size: 16px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+    }
+
+    /* 5. SEPARACIÓN EXTRA PARA LA ZONA DE PELIGRO */
+    :global(.danger-zone) {
+        margin-top: 20px;
+        border-top: 2px dashed #ef4444 !important; /* Un aviso visual extra */
+    }
+}
 </style>

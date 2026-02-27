@@ -1,8 +1,32 @@
 import { invoke } from '@tauri-apps/api/core';
-import { jsPDF } from 'jspdf';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
+
+// 1. IMPORTACIONES DE PDFMAKE (Estándar ES6 puro para Svelte/Vite)
+import pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
+import htmlToPdfmake from 'html-to-pdfmake';
+import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
+
+// 2. INYECCIÓN DE FUENTES (TypeScript Estricto Puro)
+// Creamos interfaces formales para declarar las propiedades que le faltan a @types/pdfmake
+interface CustomPdfFonts {
+    pdfMake?: { vfs: Record<string, string> };
+    vfs?: Record<string, string>;
+}
+
+interface CustomPdfMake {
+    vfs: Record<string, string>;
+    createPdf: typeof pdfMake.createPdf;
+}
+
+// Convertimos los módulos importados a nuestras interfaces seguras
+const fonts = pdfFonts as unknown as CustomPdfFonts;
+const pdf = pdfMake as unknown as CustomPdfMake;
+
+// Ahora TypeScript reconoce 'vfs' perfectamente
+pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
 
 // CONFIGURACIÓN DE TIPOS
 interface MembreteConfig {
@@ -35,10 +59,10 @@ const DEFAULT_MEMBRETE: MembreteConfig = {
     tamanoPiePagina: 8 
 };
 
-export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string) {
+export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string): Promise<void> {
     try {
         // 1. CARGAR CONFIGURACIÓN
-        let configMembrete = DEFAULT_MEMBRETE;
+        let configMembrete: MembreteConfig = DEFAULT_MEMBRETE;
         const configGuardada = localStorage.getItem('config_membrete');
         if (configGuardada) {
             configMembrete = { ...DEFAULT_MEMBRETE, ...JSON.parse(configGuardada) };
@@ -48,18 +72,16 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         const sizeContacto = configMembrete.tamanoContacto || 10;
         const sizePie = configMembrete.tamanoPiePagina || 8;
 
-        // 2. OBTENER PLANTILLA (DIAGNÓSTICO)
+        // 2. OBTENER PLANTILLA
         console.log(`🔍 Buscando plantilla ID: "${idPlantilla}"`);
-        const plantillaData: any = await invoke('obtener_plantilla', { id: idPlantilla });
+        const plantillaData = await invoke<any>('obtener_plantilla', { id: idPlantilla });
         
         if (!plantillaData) {
             alert(`⛔ ERROR: No se encontró la plantilla con ID "${idPlantilla}" en la base de datos.`);
             return;
         }
 
-        // --- EXTRACCIÓN ROBUSTA DE CONTENIDO ---
-        // Buscamos en todas las variantes posibles por si la BD cambió el nombre del campo
-        let htmlContent = 
+        let htmlContent: string = 
             plantillaData.cuerpo || 
             plantillaData.contenido || 
             plantillaData.body || 
@@ -67,10 +89,8 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             plantillaData.text || 
             '';
 
-        // Si sigue vacío, mostramos alerta de depuración para que veas qué llegó
         if (!htmlContent || htmlContent.trim() === '') {
-            console.error("Objeto recibido:", plantillaData);
-            alert(`⚠️ LA PLANTILLA ESTÁ VACÍA.\n\nEl sistema encontró la plantilla "${idPlantilla}", pero no tiene texto.\nDatos recibidos de la BD:\n${JSON.stringify(plantillaData)}`);
+            alert(`⚠️ LA PLANTILLA ESTÁ VACÍA.`);
             return;
         }
 
@@ -93,7 +113,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             '[[Nombre del lugar]]': datos.lugar_nombre,
             '[[Dirección]]': datos.lugar_direccion,
             '[[Ciudad]]': datos.ciudad,
-            '[[Estado o Provincia]]': 'Holguín',
+            '[[Estado o Provincia]]': datos.estado || '', 
             '[[Fecha]]': datos.fecha_evento_texto,
             '[[Tipo de Evento]]': datos.tipo_evento,
             '[[Tema del Evento]]': datos.tema_evento,
@@ -114,146 +134,92 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             htmlContent = htmlContent.replace(regex, String(valor || ''));
         }
 
-        // LIMPIEZA HTML
-        htmlContent = htmlContent
-            .replace(/^\s*(<p>\s*<br\s*\/?>\s*<\/p>\s*)+/gi, '') 
-            .replace(/^\s*(<br\s*\/?>\s*)+/gi, '')
-            .replace(/<p>\s*<\/p>/g, '')
-            .replace(/<br\s*\/?>\s*<br\s*\/?>/g, '<br>');
+        // LIMPIEZA HTML BÁSICA PARA PDFMAKE
+        // Dejamos los estilos intactos para que conserve el centrado y los colores del editor
+        htmlContent = htmlContent.replace(/&nbsp;/gi, ' ');
+        htmlContent = htmlContent.replace(/<p>\s*<\/p>/g, '');
 
-        // 4. CÁLCULO DE POSICIONES
-        const docCalc = new jsPDF({ unit: 'mm', format: 'a4' });
-        let inicioTextoY = 15; 
+        // 4. CONVERSIÓN DE HTML A ESTRUCTURA NATIVA
+        const htmlConvertido = htmlToPdfmake(htmlContent, {
+            defaultStyles: {
+                p: { margin: [0, 0, 0, 10], alignment: 'justify' }
+            }
+        }) as Content[];
 
+        // 5. CONSTRUCCIÓN DEL DOCUMENTO NATIVO
+        let contenidoDocumento: Content[] = [];
+
+        // --- Dibujar Membrete ---
         if (configMembrete.usarEncabezado) {
-            const alturaTituloMm = sizeTitulo * 0.352;
-            docCalc.setFontSize(sizeContacto);
-            const lineas = docCalc.splitTextToSize(configMembrete.contacto, 180);
+            contenidoDocumento.push({
+                text: configMembrete.titulo.toUpperCase(),
+                fontSize: sizeTitulo,
+                bold: true,
+                alignment: 'center',
+                color: configMembrete.colorTexto,
+                margin: [0, 0, 0, 5]
+            });
+            contenidoDocumento.push({
+                text: configMembrete.contacto,
+                fontSize: sizeContacto,
+                alignment: 'center',
+                color: configMembrete.colorTexto,
+                margin: [0, 0, 0, 10]
+            });
             
-            // Factor ajustado
-            const alturaPorLinea = sizeContacto * 0.352; 
-            const alturaBloqueContacto = lineas.length * alturaPorLinea;
-
-            const lineaNegraY = 14 + alturaTituloMm + alturaBloqueContacto + 2;
-            
-            // TU AJUSTE MANUAL (-10mm)
-            inicioTextoY = lineaNegraY - 10;
+            contenidoDocumento.push({
+                canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: configMembrete.colorLinea }],
+                margin: [0, 0, 0, 20] 
+            });
         }
 
-        const container = document.createElement('div');
-        
-        // CSS RESET
-        const estilosReset = `
-            <style>
-                * { box-sizing: border-box; }
-                body { margin: 0; padding: 0; }
-                p { margin: 0 0 3mm 0; line-height: 1.25; text-align: justify; }
-                .pdf-content > *:first-child { 
-                    margin-top: 0 !important; 
-                    padding-top: 0 !important; 
-                }
-            </style>
-        `;
+        // Unimos el membrete con el texto de la carta
+        contenidoDocumento = contenidoDocumento.concat(htmlConvertido);
 
-        container.innerHTML = `${estilosReset}<div class="pdf-content">${htmlContent}</div>`;
-
-        Object.assign(container.style, {
-            position: 'absolute', top: '0', left: '0', width: '186mm', 
-            padding: '0', margin: '0', backgroundColor: 'white', color: 'black',
-            zIndex: '-9999', fontFamily: '"Times New Roman", Times, serif',
-            fontSize: '11pt', lineHeight: '1.25'
-        });
-
-        document.body.appendChild(container);
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // MÁRGENES
-        const margenSide = 8; 
-        const margenBottom = configMembrete.usarPiePagina ? 20 : 15;
-        // TU AJUSTE MANUAL (15mm)
-        const margenTopSegundasPaginas = 15; 
-
-        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-
-        // --- FUNCIONES DE DIBUJO ---
-        const dibujarEncabezadoP1 = (pdf: jsPDF) => {
-            if (!configMembrete.usarEncabezado) return;
-            const w = pdf.internal.pageSize.getWidth();
-            const cx = w / 2;
-
-            pdf.setFont("helvetica", "bold");
-            pdf.setFontSize(sizeTitulo);
-            pdf.setTextColor(configMembrete.colorTexto);
-            pdf.text(configMembrete.titulo.toUpperCase(), cx, 14, { align: 'center' });
-
-            pdf.setFont("helvetica", "normal");
-            pdf.setFontSize(sizeContacto);
-            pdf.setTextColor(configMembrete.colorTexto);
-
-            const lineas = pdf.splitTextToSize(configMembrete.contacto, 180);
-            const alturaPorLinea = sizeContacto * 0.352;
-            let cursorY = 14 + (sizeTitulo * 0.352) + 1;
-
-            lineas.forEach((line: string) => {
-                pdf.text(line, cx, cursorY, { align: 'center' });
-                cursorY += alturaPorLinea;
-            });
-
-            pdf.setDrawColor(configMembrete.colorLinea);
-            pdf.setLineWidth(0.5);
-            const lineaY = cursorY + 1;
-            pdf.line(margenSide, lineaY, w - margenSide, lineaY);
-        };
-
-        const dibujarPieUltimaPagina = (pdf: jsPDF) => {
-            if (!configMembrete.usarPiePagina) return;
-            const w = pdf.internal.pageSize.getWidth();
-            const h = pdf.internal.pageSize.getHeight();
-            const cx = w / 2;
-
-            const fY = h - 15;
-            pdf.setDrawColor(configMembrete.colorLineaPie);
-            pdf.setLineWidth(0.2);
-            pdf.line(margenSide, fY, w - margenSide, fY);
-            
-            pdf.setFontSize(sizePie); 
-            pdf.setTextColor(configMembrete.colorTextoPie);
-            pdf.text(configMembrete.piePagina, cx, fY + 5, { align: 'center' });
-        };
-
-        // --- GENERACIÓN PDF ---
-        await doc.html(container, {
-            callback: async function (pdf) {
-                const totalPages = pdf.getNumberOfPages();
-                for (let i = 1; i <= totalPages; i++) {
-                    pdf.setPage(i);
-                    if (i === 1) dibujarEncabezadoP1(pdf);
-                    if (i === totalPages) dibujarPieUltimaPagina(pdf);
-                }
-                document.body.removeChild(container);
-                
-                const pdfData = pdf.output('arraybuffer');
-                const binary = new Uint8Array(pdfData);
-                const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
-
-                try {
-                    const path = await save({
-                        defaultPath: `Carta_${safeName}.pdf`,
-                        filters: [{ name: 'PDF', extensions: ['pdf'] }]
-                    });
-                    if (path) {
-                        await writeFile(path, binary);
-                        alert("✅ Carta generada correctamente.");
-                    }
-                } catch (e) { console.log("Cancelado", e); }
+        // --- Configuración Final de PDFMake ---
+        const docDefinition: TDocumentDefinitions = {
+            content: contenidoDocumento,
+            pageSize: 'A4',
+            pageMargins: [40, 40, 40, configMembrete.usarPiePagina ? 60 : 40], // Izq, Arriba, Der, Abajo
+            defaultStyle: {
+                font: 'Roboto', 
+                fontSize: 11,
+                lineHeight: 1.2
             },
-            x: 4, 
-            y: inicioTextoY, 
-            width: 208, 
-            windowWidth: 800,
-            margin: [margenTopSegundasPaginas, margenSide, margenBottom, margenSide],
-            autoPaging: 'text'
-        });
+            footer: function(currentPage: number, pageCount: number): Content | null {
+                if (!configMembrete.usarPiePagina || currentPage !== pageCount) return null;
+                return {
+                    margin: [40, 10, 40, 0],
+                    stack: [
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: configMembrete.colorLineaPie }], margin: [0, 0, 0, 5] },
+                        { text: configMembrete.piePagina, alignment: 'center', fontSize: sizePie, color: configMembrete.colorTextoPie }
+                    ]
+                };
+            }
+        };
+
+        // 6. GENERAR Y GUARDAR A TRAVÉS DE TAURI
+        // Usamos nuestro objeto 'pdf' estrictamente tipado
+        const pdfDocGenerator = pdf.createPdf(docDefinition);
+        
+        const blob = await pdfDocGenerator.getBlob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const binary = new Uint8Array(arrayBuffer);
+        const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
+
+        try {
+            const path = await save({
+                defaultPath: `Carta_${safeName}.pdf`,
+                filters: [{ name: 'PDF', extensions: ['pdf'] }]
+            });
+            
+            if (path) {
+                await writeFile(path, binary);
+                alert("✅ Carta generada correctamente con motor nativo.");
+            }
+        } catch (e) {
+            console.log("Guardado cancelado", e);
+        }
 
     } catch (error) {
         console.error("Error PDF:", error);

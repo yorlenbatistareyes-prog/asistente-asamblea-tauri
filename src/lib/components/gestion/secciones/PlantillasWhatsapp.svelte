@@ -453,4 +453,117 @@
   .m-label { font-size: 13px; font-weight: 600; color: var(--text-main); }
   .marker-row-desc { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 6px; line-height: 1.4; }
   .m-code { font-size: 11px; font-family: 'Courier New', Courier, monospace; color: var(--primary); background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; width: fit-content; font-weight: 600; }
+
+  /* =========================================================
+   DISEÑO RESPONSIVO (PLANTILLAS WHATSAPP: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 1024px) {
+    /* 1. CAMBIO DE GRID A FLEX VERTICAL */
+    .editor-layout-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: auto;
+    }
+
+    .editor-sidebar {
+        width: 100%;
+        max-height: 350px; /* Un poco más bajo que el de correos */
+        order: 2; /* Marcadores abajo */
+    }
+
+    .editor-main {
+        width: 100% !important;
+        max-width: 100vw !important; /* Prohibido salirse del ancho del visor */
+        overflow-x: hidden !important; /* Candado extra */
+        order: 1; /* Editor arriba */
+    }
+}
+
+@media (max-width: 768px) {
+    /* 2. OPTIMIZACIÓN DE LA LISTA DE ACORDEONES */
+    .accordion-body-template {
+        padding: 15px;
+    }
+
+    .template-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .group-center {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-template-action {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 3. TOOLBAR DESLIZABLE (Para no tapar el mensaje) */
+    .toolbar-ribbon {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 12px;
+    }
+
+    .tool-btn {
+        min-width: 42px;
+        min-height: 42px;
+        flex-shrink: 0;
+    }
+
+    /* 4. ÁREA DEL EDITOR */
+    .editor-form {
+        padding: 15px;
+    }
+
+    .editor-container {
+        min-height: 250px;
+        font-size: 16px; /* Letra clara para WhatsApp */
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important; /* El padding no suma ancho */
+        word-wrap: break-word !important; /* Rompe palabras largas */
+        overflow-wrap: anywhere !important; /* Rompe enlaces larguísimos */
+    }
+
+    /* 5. ACCIONES DEL EDITOR (PIE DE PÁGINA) */
+    .editor-footer-actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .btn-guardar-editor, .btn-cancel {
+        width: 100%;
+        height: 48px;
+    }
+
+    /* 6. MARCADORES (Píldoras táctiles) */
+    .marker-pill {
+        padding: 16px 20px; /* Más área de toque para el dedo */
+    }
+
+    /* Blindaje para el contenido que vive dentro de TipTap */
+:global(.ProseMirror) {
+    width: 100% !important;
+    max-width: 100% !important;
+    white-space: pre-wrap !important; /* Respeta saltos pero ajusta al ancho */
+    word-break: break-word !important;
+}
+
+/* Evitar que el Asunto de correo también lo rompa */
+.input-subject {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+}
+
 </style>

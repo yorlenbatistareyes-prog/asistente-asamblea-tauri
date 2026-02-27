@@ -283,4 +283,87 @@
     }
     .btn-seleccionar:hover:not(:disabled) { background: #23416b; }
     .btn-seleccionar:disabled { background: #9ca3af; cursor: not-allowed; opacity: 0.7; }
+
+    /* =========================================================
+   DISEÑO RESPONSIVO (CALENDARIO RANGO: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. EL CONTENEDOR SE VUELVE FLEXIBLE */
+    .calendario-contenedor {
+        width: 95vw !important;
+        max-width: 360px;
+        padding: 15px;
+        margin: 0 auto;
+        max-height: 90vh;
+        overflow-y: auto; /* Permitimos scroll si la pantalla es muy pequeña */
+    }
+
+    /* 2. HEADER DE NAVEGACIÓN */
+    .header-nav {
+        margin-bottom: 10px;
+    }
+
+    /* 3. APILADO DE MESES (De horizontal a vertical) */
+    .meses-wrapper {
+        flex-direction: column; /* Un mes arriba del otro */
+        gap: 20px;
+        align-items: center;
+    }
+
+    .mes {
+        width: 100%; /* El mes ocupa todo el ancho disponible */
+    }
+
+    .separador {
+        width: 100%;
+        height: 1px; /* El separador ahora es una línea horizontal */
+        margin: 5px 0;
+    }
+
+    /* 4. AJUSTE DE DÍAS (Más grandes para el dedo) */
+    .grid-calendario {
+        gap: 6px 2px;
+    }
+
+    .dia-btn {
+        height: 40px; /* Área de toque más cómoda */
+        font-size: 15px;
+    }
+
+    /* 5. FOOTER DE FECHAS SELECCIONADAS */
+    .footer-fechas {
+        flex-direction: column; /* Inicio arriba, Fin abajo */
+        gap: 10px;
+        padding-top: 15px;
+    }
+
+    .caja-fecha {
+        width: 100%; /* Ocupan todo el ancho */
+        padding: 8px 12px;
+    }
+
+    .linea-conexion {
+        display: none; /* Quitamos la línea pequeña en móvil */
+    }
+
+    /* 6. BOTONES DE ACCIÓN GIGANTES */
+    .footer-acciones {
+        margin-top: 15px;
+    }
+
+    .botones-accion {
+        flex-direction: column-reverse; /* "Seleccionar" arriba, "Cancelar" abajo */
+        width: 100%;
+        gap: 10px;
+    }
+
+    .btn-cancelar, .btn-seleccionar {
+        width: 100%;
+        height: 48px; /* Altura estándar para dedos en Android */
+        font-size: 16px;
+        justify-content: center;
+    }
+}
+
 </style>

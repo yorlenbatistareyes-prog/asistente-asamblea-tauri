@@ -918,4 +918,92 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
     }
+
+    /* =========================================================
+   DISEÑO RESPONSIVO (COMITÉ: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. CABECERA: APILAR TÍTULO Y BOTONES */
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        padding: 15px;
+    }
+
+    .header h3 {
+        font-size: 15px;
+    }
+
+    .btn-save {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 2. MENÚ JW EMAIL (Asegurar que no se desborde) */
+    .dropdown-jw {
+        position: fixed; /* Lo fijamos a la pantalla en móviles */
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90vw;
+        max-width: 320px;
+    }
+
+    /* 3. GRIDS: TODO A UNA SOLA COLUMNA */
+    :global(.grid-dos), :global(.grid-dos-grande) {
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    :global(.seccion-comite) {
+        padding: 15px !important;
+    }
+
+    /* 4. TARJETAS DE HERMANOS (Más grandes para el dedo) */
+    :global(.tarjeta) {
+        border-left-width: 6px !important; /* Resaltamos más el borde en móvil */
+    }
+
+    :global(.t-nombre) {
+        font-size: 16px !important; /* Nombre más legible */
+        white-space: normal !important; /* Permitir que el nombre baje de línea si es muy largo */
+    }
+
+    :global(.btn-select) {
+        height: 60px; /* Botón de "Seleccionar..." más gordo */
+        font-size: 15px !important;
+    }
+
+    /* 5. MODAL DE SELECCIÓN (Pantalla completa casi total) */
+    .modal {
+        width: 95vw;
+        max-height: 90vh;
+    }
+
+    .search-box {
+        height: 48px;
+    }
+
+    .item-persona {
+        padding: 15px 10px; /* Más espacio para tocar */
+    }
+
+    /* Formulario de creación rápida */
+    .grid-form {
+        grid-template-columns: 1fr; /* Teléfono y Email uno debajo del otro */
+    }
+
+    .botones-form {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .btn-confirmar, .btn-cancelar {
+        height: 48px;
+        width: 100%;
+    }
+}
 </style>

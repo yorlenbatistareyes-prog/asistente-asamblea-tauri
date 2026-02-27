@@ -1,18 +1,27 @@
-/* --- 1. RESET BÁSICO --- */
-/* Quita márgenes por defecto y asegura que el padding no rompa los tamaños */
+/* --- 1. RESET BÁSICO Y CANDADO MÓVIL --- */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* Evita que el usuario pueda seleccionar texto por accidente (útil en apps de escritorio), 
-   excepto en los inputs */
+/* Candado estricto para Android/iOS */
+/* Candado estricto para Android/iOS */
+html, body {
+  width: 100vw;
+  max-width: 100%;
+  overflow-x: hidden; /* Prohibido terminantemente el scroll horizontal fantasma */
+  -webkit-text-size-adjust: 100%; /* Para navegadores móviles antiguos */
+  text-size-adjust: 100%;         /* Para navegadores modernos (Quita la advertencia 1) */
+  -webkit-tap-highlight-color: transparent; 
+}
+
+/* Evita que el usuario pueda seleccionar texto por accidente */
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; /* Usa la fuente nativa del sistema */
-  user-select: none; 
-  -webkit-user-select: none;
-  overflow: hidden; /* Evita el scroll global innecesario en la app de escritorio */
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-user-select: none; /* Primero la de webkit (Quita la advertencia 2) */
+  user-select: none;         /* Luego la estándar */
+  overflow: hidden; 
 }
 
 input, textarea {
@@ -83,4 +92,34 @@ body {
 /* Cuando el usuario pasa el mouse sobre la barra */
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-sec); /* Resalta sutilmente usando tu color de texto secundario */
+}
+
+/* --- 5. OPTIMIZACIONES ESPECÍFICAS PARA MÓVILES --- */
+
+/* Elimina el cuadro azul/gris feo que sale en Android al tocar botones rápidamente */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none; /* Evita que al dejar presionado salga el menú de copiar imagen */
+}
+
+/* Suavizado de fuentes para pantallas móviles de alta densidad (Retina/OLED) */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Ajuste para que los inputs no se vean "hundidos" en algunos navegadores Android antiguos */
+input, textarea, select {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+/* Asegurar que las imágenes no causen desbordes accidentales */
+img {
+    max-width: 100%;
+    height: auto;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
 }

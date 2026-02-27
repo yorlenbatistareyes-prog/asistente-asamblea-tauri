@@ -426,4 +426,117 @@ if (asambleaActual?.id) {
     margin-right: 16px;
     flex-shrink: 0;
   }
+
+  /* =========================================================
+   DISEÑO RESPONSIVO (+PAGE GESTIÓN: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. LAYOUT PRINCIPAL (De fila a columna) */
+    .layout-gestion {
+        flex-direction: column;
+        height: 100vh;
+        width: 100vw;
+    }
+
+    /* 2. SIDEBAR SE CONVIERTE EN BARRA DE NAVEGACIÓN INFERIOR */
+    .sidebar {
+        width: 100% !important; /* Ocupa todo el ancho */
+        height: 65px; /* Altura fija para la barra inferior */
+        flex-direction: row; /* Elementos uno al lado del otro */
+        border-right: none;
+        border-top: 1px solid var(--border);
+        order: 2; /* Lo enviamos al fondo de la pantalla */
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: 1000;
+        background-color: var(--bg-card);
+    }
+
+    /* 3. OCULTAR ELEMENTOS NO ESENCIALES DEL SIDEBAR */
+    .logo-area, .footer-sidebar {
+        display: none; /* Adiós logo y botón de salir en la barra inferior */
+    }
+
+    /* 4. MENÚ FLUIDO Y DESLIZABLE (SWIPE) */
+    .menu {
+        flex-direction: row;
+        padding: 5px;
+        gap: 5px;
+        overflow-x: auto; /* Permite deslizar si hay muchos botones */
+        -webkit-overflow-scrolling: touch;
+        align-items: center;
+    }
+    
+    .menu::-webkit-scrollbar { display: none; } /* Ocultar scrollbar feo */
+
+    /* 5. BOTONES DEL MENÚ (Modo "App Nativa") */
+    .menu button {
+        flex-direction: column; /* Icono arriba, texto (si cabe) abajo */
+        padding: 5px 10px;
+        min-width: 60px;
+        justify-content: center;
+        gap: 4px;
+        border-radius: 8px;
+    }
+
+    :global(.icono-nav) {
+        margin-right: 0 !important; /* Quitamos el margen para que el icono se centre */
+        min-width: 24px !important;
+        height: 24px !important;
+    }
+
+    .texto-menu {
+        display: none; /* Ocultamos el texto para que quepan todos los iconos */
+    }
+
+    .menu button.activo {
+        background-color: transparent;
+        border: none;
+        color: var(--primary);
+        box-shadow: none;
+        position: relative;
+    }
+    
+    /* Pequeño punto indicador para la sección activa */
+    .menu button.activo::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: var(--primary);
+    }
+
+    /* 6. ÁREA DE CONTENIDO (Arreglar espacios) */
+    .contenido {
+        order: 1; /* El contenido va arriba */
+        height: calc(100vh - 65px); /* Restamos la altura de la nueva barra inferior */
+        margin-bottom: 65px; /* Espacio para que la barra inferior no tape el contenido */
+    }
+
+    header {
+        padding: 15px; /* Encabezado más compacto */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* 7. BOTÓN DE SALIDA EN EL HEADER (Para compensar que lo quitamos del sidebar) */
+    header::before {
+        content: '← Salir';
+        display: flex;
+        align-items: center;
+        color: var(--text-sec);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .area-trabajo {
+        padding: 15px; /* Aprovechamos la pantalla al máximo */
+    }
+}
 </style>

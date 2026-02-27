@@ -384,4 +384,82 @@ const DEFAULT_CONFIG = {
   .espacio-vacio { text-align: center; font-size: 10px; color: #9ca3af; padding: 15px; border: 1px dashed #d1d5db; border-radius: 4px; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+  /* =========================================================
+   DISEÑO RESPONSIVO (MEMBRETE: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. CABECERA: APILAR TITULO Y BOTONES */
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 15px;
+        gap: 15px;
+    }
+
+    .acciones-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Botones lado a lado para no ser tan largos */
+        gap: 10px;
+    }
+
+    .btn-reset, .btn-guardar-main {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+        padding: 0;
+    }
+
+    /* 2. CUERPO: DE DOS COLUMNAS A UNA SOLA VERTICAL */
+    .cuerpo-config {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+    }
+
+    .panel-editor {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 20px 15px;
+    }
+
+    /* 3. CONTROLES TACTILES (SLIDERS Y COLORES) */
+    .config-slider {
+        height: 40px; /* Más grueso para el dedo */
+    }
+
+    .fila-colores-group {
+        flex-direction: column; /* Colores uno debajo del otro */
+        gap: 10px;
+    }
+
+    .color-picker-btn {
+        height: 50px;
+        width: 100%;
+    }
+
+    /* 4. ÁREA DE VISTA PREVIA (Ajustada para móvil) */
+    .area-preview {
+        padding: 20px 15px;
+        background: var(--bg-card); /* Cambiamos fondo para que resalte la hoja */
+    }
+
+    .hoja-papel {
+        max-width: 100%; /* Que ocupe todo el ancho disponible */
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        padding: 20px;
+    }
+
+    /* Ajustamos el tamaño visual en la preview para que quepa en pantalla pequeña */
+    .p-titulo {
+        font-size: 14px !important; /* Forzamos un poco menos de escala solo en el dibujo */
+    }
+
+    .p-contacto {
+        width: 100%;
+        font-size: 9px !important;
+    }
+}
+
 </style>

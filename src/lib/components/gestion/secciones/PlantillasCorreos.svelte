@@ -487,4 +487,98 @@
   .m-label { font-size: 13px; font-weight: 600; color: var(--text-main); }
   .marker-row-desc { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 6px; opacity: 0.9; line-height: 1.4; }
   .m-code { font-size: 11px; font-family: 'Courier New', Courier, monospace; color: var(--primary); background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px; width: fit-content; font-weight: 600; }
+
+  /* =========================================================
+   DISEÑO RESPONSIVO (PLANTILLAS CORREO: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 1024px) {
+    /* 1. ELIMINAR LA DOBLE COLUMNA (Editor y Marcadores uno sobre otro) */
+    .editor-layout-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: auto;
+    }
+
+    .editor-sidebar {
+        width: 100%;
+        max-height: 400px; /* Limitamos la altura de los marcadores en tablet/móvil */
+        order: 2; /* Los marcadores pasan abajo del editor */
+    }
+
+    .editor-main {
+        width: 100%;
+        order: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    /* 2. OPTIMIZACIÓN DE ACCIONES EN LA LISTA */
+    .template-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .group-center {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .btn-template-action {
+        width: 100%;
+        height: 48px; /* Botones grandes para el dedo */
+    }
+
+    /* 3. TOOLBAR DEL EDITOR (Scroll horizontal) */
+    .toolbar-ribbon {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 15px; /* Espacio para el dedo al deslizar */
+    }
+
+    .tool-btn {
+        min-width: 40px;
+        min-height: 40px;
+        flex-shrink: 0;
+    }
+
+    /* 4. AJUSTES DEL EDITOR */
+    .editor-form-area {
+        padding: 15px;
+    }
+
+    .input-subject {
+        height: 48px;
+        font-size: 16px; /* Evita que iOS/Android haga zoom automático al enfocar */
+    }
+
+    .editor-container {
+        min-height: 300px;
+    }
+
+    /* 5. FOOTER DEL EDITOR */
+    .editor-footer {
+        flex-direction: column-reverse;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .btn-save, .btn-cancel {
+        width: 100%;
+        height: 48px;
+    }
+
+    /* 6. PÍLDORAS DE MARCADORES MÁS GRANDES */
+    .marker-pill {
+        padding: 15px 20px;
+    }
+    
+    .m-code {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+}
+
 </style>

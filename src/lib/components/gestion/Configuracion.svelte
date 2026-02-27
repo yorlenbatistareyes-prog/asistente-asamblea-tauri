@@ -350,4 +350,130 @@
 .btn-save-user { background: var(--primary); border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; transition: transform 0.2s; }
 .btn-save-user:hover { opacity: 0.9; transform: translateY(-1px); }
 
+/* =========================================================
+   DISEÑO RESPONSIVO (CONFIGURACIÓN: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. LAYOUT PRINCIPAL (De 2 columnas a 1 columna vertical) */
+    .config-layout {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
+
+    /* 2. LA BARRA LATERAL SE CONVIERTE EN PESTAÑAS DESLIZABLES */
+    .config-sidebar {
+        height: auto;
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 15px 0 0 0;
+    }
+
+    .config-header {
+        padding: 0 15px 10px 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .config-header h2 { margin: 0; }
+    .btn-back-config { margin: 0; }
+
+    .config-nav {
+        flex-direction: row;
+        overflow-x: auto; /* Permite deslizar con el dedo */
+        -webkit-overflow-scrolling: touch;
+        padding: 10px 15px;
+        gap: 10px;
+    }
+
+    /* Ocultar la fea barra de scroll debajo de las pestañas */
+    .config-nav::-webkit-scrollbar { 
+        display: none; 
+    }
+    
+    .config-nav button {
+        width: auto;
+        white-space: nowrap; /* Evita que el texto del botón se rompa en dos líneas */
+        padding: 10px 18px;
+        border-radius: 20px; /* Estilo de "píldoras" modernas */
+        background: var(--bg-body);
+        border: 1px solid var(--border);
+    }
+    
+    .config-nav button.active {
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .nav-divider { display: none; } /* Ocultamos las líneas divisorias */
+    .config-footer { display: none; } /* Ocultamos la info del software para ahorrar pantalla */
+
+    /* 3. ÁREA DE CONTENIDO PRINCIPAL */
+    .config-content {
+        height: auto;
+        flex: 1;
+    }
+
+    .config-title-bar {
+        padding: 15px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .config-title-bar h1 { font-size: 20px; }
+    .config-actions { width: 100%; }
+    .btn-save-config { width: 100%; min-height: 48px; }
+
+    .config-scroll-area {
+        padding: 15px;
+    }
+
+    /* 4. FORMULARIOS A 1 SOLA COLUMNA */
+    .config-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .user-info-grid {
+        grid-template-columns: 1fr; /* Todo hacia abajo */
+        gap: 15px;
+    }
+
+    .user-info-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .btn-edit-user { width: 100%; min-height: 48px; }
+
+    /* 5. MODAL DE EDITAR USUARIO (Antidesbordes) */
+    .modal-content-user {
+        width: 95vw !important;
+        max-height: 90vh;
+    }
+
+    .modal-header-user, .modal-body-user, .modal-footer-user {
+        padding: 15px;
+    }
+
+    .form-user-grid {
+        grid-template-columns: 1fr; /* Los inputs uno debajo del otro */
+        gap: 15px;
+    }
+
+    .modal-footer-user {
+        flex-direction: column-reverse; /* Botón de guardar arriba, cancelar abajo */
+        gap: 10px;
+    }
+
+    .btn-save-user, .btn-cancel-user {
+        width: 100%;
+        min-height: 48px;
+    }
+}
 </style>

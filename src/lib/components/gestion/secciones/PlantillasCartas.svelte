@@ -931,4 +931,150 @@
   :global(.ProseMirror) { min-height: 100%; outline: none; color: #000000 !important; }
   :global(.ProseMirror p) { margin-bottom: 0em; margin-top: 0; }
   :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5em; }
+
+/* =========================================================
+   DISEÑO RESPONSIVO (WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 1024px) {
+    /* 1. ÁREAS TÁCTILES (TOUCH TARGETS) PARA TABLETS Y MÓVILES */
+    .ribbon-btn.small {
+        width: 38px !important; /* Más fáciles de tocar con el dedo */
+        height: 38px !important;
+    }
+    
+    .ribbon-btn.large {
+        width: 65px;
+        height: 75px;
+    }
+
+    select, .font-select, .size-select, .margin-input {
+        height: 36px !important; /* Cajas de texto e inputs más altos */
+        font-size: 14px !important;
+    }
+
+    .color-picker-btn {
+        width: 38px;
+        height: 36px;
+    }
+
+    .ribbon {
+        height: auto;
+        min-height: 120px;
+        padding: 10px;
+    }
+    
+    .divider-v {
+        height: 30px; /* Ajustar divisores al nuevo tamaño de botones */
+    }
+}
+
+@media (max-width: 768px) {
+    /* 2. CONTENEDORES FLUIDOS (EL GRAN CAMBIO PARA PANTALLAS PEQUEÑAS) */
+    .word-layout {
+        flex-direction: column-reverse; /* ¡La barra lateral pasa abajo como una app móvil! */
+    }
+
+    .sidebar {
+        width: 100%;
+        height: 60px;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        justify-content: space-around;
+        padding: 0 10px;
+    }
+
+    .sidebar-top {
+        margin-bottom: 0;
+        flex-direction: row;
+        gap: 10px;
+    }
+
+    .doc-type-label {
+        writing-mode: horizontal-tb; /* El texto vuelve a ser horizontal */
+        transform: none;
+        margin-top: 0;
+    }
+
+    .sidebar-content {
+        flex-direction: row;
+    }
+
+    /* 3. MÁRGENES INTELIGENTES Y ENCABEZADOS */
+    .app-header {
+        padding: 0 10px;
+    }
+
+    .doc-title {
+        font-size: 14px; /* Título más pequeño para que quepa todo */
+    }
+
+    .save-btn span {
+        display: none; /* En móviles, ocultamos el texto y dejamos solo el icono de guardar */
+    }
+    
+    .save-btn {
+        padding: 8px;
+    }
+
+    /* 4. MODALES A PRUEBA DE DESBORDES */
+    .marker-dropdown, .color-picker-dropdown {
+        width: 90vw; /* Ocupa el 90% de la pantalla, nunca se sale */
+        right: 5vw !important; /* Lo forzamos a centrarse */
+        left: auto !important;
+        max-height: 60vh; /* Que no tape toda la hoja si es muy largo */
+    }
+    
+    /* Tarjetas de inicio en una sola columna limpia */
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    /* 1. LA HOJA DE PAPEL SE ADAPTA AL TELÉFONO */
+    .paper-sheet {
+        width: 100% !important; /* Ya no mide 21cm, mide el ancho de la pantalla */
+        min-height: 80vh !important;
+    }
+    
+    .scroll-container {
+        padding: 10px !important; /* Quitamos el fondo gris gigante */
+    }
+
+    /* 2. LA CINTA DE OPCIONES SE VUELVE DESLIZABLE (SWIPE) */
+    .ribbon {
+        flex-wrap: nowrap;
+        overflow-x: auto; /* Permite deslizar con el dedo hacia los lados */
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 10px; 
+    }
+    
+    /* 3. LIMPIEZA VISUAL EXTRAMA PARA MÓVILES */
+    .group-label {
+        display: none; /* Ocultamos los textos base como "Portapapeles" o "Fuente" */
+    }
+    
+    .ribbon-btn.large span {
+        display: none; /* Dejamos solo los iconos en los botones grandes */
+    }
+    
+    .ribbon-btn.large {
+        height: 45px;
+        width: 45px;
+    }
+
+    /* 4. ENCABEZADO MÁS COMPACTO */
+    .app-header { padding: 0 5px; }
+    .doc-title { font-size: 11px; }
+    .save-btn { padding: 6px; }
+
+    /* 5. TARJETAS DE INICIO MÁS CÓMODAS */
+    .template-card-btn {
+        flex-direction: column; /* Apila el icono y el texto */
+        text-align: center;
+        padding: 15px;
+    }
+}
 </style>

@@ -203,22 +203,23 @@ function organizarOficina(datos: any[]) {
   const getHermanosFiltrados = () => !terminoBusqueda ? listaHermanos : listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
   const nombreTxt = (obj: any) => obj ? obj.nombre_completo : "Seleccionar...";
 
-  // --- EXPORTACIÓN INTEGRAL ---
+  // --- EXPORTACIÓN INTEGRAL CORREGIDA ---
   async function manejarExportacionTotal() {
       if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
       
       try {
-          // 1. Cargamos el personal (Auxiliares) 
-          const personalData = await invoke('obtener_asignaciones_especiales', { asambleaId, dia: 'Viernes' }) as any[];
-          const personal = personalData.filter((d: any) => d.tipo_asignacion === 'personal_oficina');
-
-          // 2. Cargamos las asignaciones de los 3 días
           const dias = ['Viernes', 'Sábado', 'Domingo'];
           const asignacionesPorDia: { [key: string]: any } = {};
+          let todosLosAuxiliares: any[] = []; // Recopilador global
 
           for (const dia of dias) {
               const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia }) as any[];
               
+              // 1. Recopilamos auxiliares de TODOS los días
+              const auxiliaresDelDia = datos.filter(d => d.tipo_asignacion === 'personal_oficina');
+              todosLosAuxiliares = [...todosLosAuxiliares, ...auxiliaresDelDia];
+              
+              // 2. Mapeamos las asignaciones del día
               asignacionesPorDia[dia] = {
                   presidente_manana: datos.find(d => d.tipo_asignacion === 'presidente_manana'),
                   oracion_apertura: datos.find(d => d.tipo_asignacion === 'oracion_apertura'),
@@ -231,8 +232,11 @@ function organizarOficina(datos: any[]) {
               };
           }
 
+          // Filtramos para asegurarnos de que no haya auxiliares duplicados
+          const auxiliaresUnicos = Array.from(new Map(todosLosAuxiliares.map(p => [p.id, p])).values());
+
           // 3. Enviamos toda esta información masiva al generador de PDF
-          await exportarOficinaPDF(asignacionesPorDia, personal, "Resumen General de Oficina");
+          await exportarOficinaPDF(asignacionesPorDia, auxiliaresUnicos, "Resumen General de Oficina");
 
       } catch (e) {
           console.error("Error al recopilar datos para PDF:", e);
@@ -291,11 +295,11 @@ function organizarOficina(datos: any[]) {
 
     <div class="tabs-principales">
         <button class:active={tabPrincipal === 'auxiliares'} on:click={() => tabPrincipal = 'auxiliares'}>
-            <Users size={18}/> Auxiliar(es) 
+            <Users size={18}/> Auxiliar(es)  
         </button>
-        <button class:active={tabPrincipal === 'horario'} on:click={() => tabPrincipal = 'horario'}>
+        <!-- <button class:active={tabPrincipal === 'horario'} on:click={() => tabPrincipal = 'horario'}>
             <CalendarClock size={18}/> Horario
-        </button>
+        </button>-->
         <button class:active={tabPrincipal === 'asignaciones'} on:click={() => tabPrincipal = 'asignaciones'}>
             <ClipboardList size={18}/> Asignaciones 
         </button>
@@ -347,7 +351,7 @@ function organizarOficina(datos: any[]) {
             </Panel>
         {/if}
 
-        {#if tabPrincipal === 'horario'}
+        <!--{#if tabPrincipal === 'horario'}
             <Panel padding="20px" clasesExtra="panel-full-override center-content">
                 <div class="placeholder-horario">
                     <CalendarClock size={48} color="var(--text-secondary)"/>
@@ -355,7 +359,7 @@ function organizarOficina(datos: any[]) {
                     <p>Funcionalidad en construcción...</p>
                 </div>
             </Panel>
-        {/if}
+        {/if}-->
 
         {#if tabPrincipal === 'asignaciones'}
             <div class="layout-asignaciones">
@@ -643,4 +647,120 @@ function organizarOficina(datos: any[]) {
         background: rgba(249, 115, 22, 0.1);
         border-color: #f97316;
     }
+
+    /* =========================================================
+   DISEÑO RESPONSIVO (OFICINA: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. MÁRGENES Y CABECERA */
+    .contenedor-oficina {
+        padding: 15px;
+    }
+
+    .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .titulo-seccion p {
+        margin-left: 0;
+    }
+
+    .btn-exportar {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 2. PESTAÑAS (TABS) MÁS GRANDES */
+    .tabs-principales {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Dividimos el ancho en dos */
+        gap: 0;
+    }
+
+    .tabs-principales button {
+        padding: 15px 5px;
+        justify-content: center;
+        font-size: 13px;
+        border-bottom-width: 4px; /* Resaltamos la pestaña activa */
+    }
+
+    /* 3. AUXILIARES: TARJETAS A UNA COLUMNA */
+    .lista-personal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-personal {
+        padding: 18px;
+    }
+
+    .avatar-placeholder {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    /* 4. ASIGNACIONES: MAÑANA Y TARDE UNA DEBAJO DE OTRA */
+    .bar-dias {
+        flex-direction: column;
+        gap: 12px;
+        padding: 15px;
+    }
+
+    .tabs-dias {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .tabs-dias button {
+        padding: 10px 5px;
+        text-align: center;
+    }
+
+    .grid-sesiones {
+        grid-template-columns: 1fr; /* ¡Adiós a las 2 columnas! */
+        gap: 20px;
+    }
+
+    .btn-puesto {
+        height: auto;
+        min-height: 60px;
+        padding: 15px;
+    }
+
+    /* 5. MODALES ADAPTADOS */
+    .modal, .modal-grande {
+        width: 95vw !important;
+        padding: 15px;
+    }
+
+    .estados-row {
+        flex-direction: column; /* Botones RECIBIDO/PRESENTE uno sobre otro */
+    }
+
+    .btn-estado {
+        width: 100%;
+        height: 70px;
+        flex-direction: row; /* Icono al lado del texto para que no sea tan alto */
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .acciones-lista {
+        gap: 12px;
+    }
+
+    .btn-accion {
+        height: 50px;
+    }
+
+    .item-opcion {
+        padding: 15px 10px;
+    }
+}
 </style>

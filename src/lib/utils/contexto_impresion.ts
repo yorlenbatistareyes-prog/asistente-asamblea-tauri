@@ -41,12 +41,12 @@ export interface ContextoDocumento {
 
 export async function generarContexto(objeto: any, asambleaId: number, esPartePrograma: boolean): Promise<ContextoDocumento> {
     
-    // 1. OBTENER DATOS GLOBALES DE LA ASAMBLEA
-    const infoAsamblea: any = await invoke('obtener_asamblea_activa') || {};
+    // 1. OBTENER DATOS GLOBALES (¡CORREGIDO!)
+    // Ahora busca exactamente la asamblea que tienes abierta, no la última.
+    const infoAsamblea: any = await invoke('obtener_asamblea_por_id', { id: asambleaId }) || {};
     const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
 
-    // 2. DETECCIÓN INTELEGENTE DEL NOMBRE
-    // Busca en todos los posibles campos que usa tu app (oradores vs oficina)
+    // 2. DETECCIÓN INTELIGENTE DEL NOMBRE
     let nombreCompleto = (
         objeto.nombre_orador || 
         objeto.nombre_completo || 
@@ -64,20 +64,17 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         if (partes.length > 0) {
             nombrePila = partes[0];
             if (partes.length > 1) {
-                if (!apellidos) apellidos = partes.slice(1).join(' '); // Deducir apellidos si no existen
+                if (!apellidos) apellidos = partes.slice(1).join(' '); 
                 if (partes.length > 2) segundoNombre = partes[1];
             }
         }
     }
 
-    // 3. LÓGICA DE ASIGNACIÓN (EL CEREBRO DEL SISTEMA)
-    // Aquí decidimos qué texto va en "Asunto" y "Tema" según quién sea.
-    
+    // 3. LÓGICA DE ASIGNACIÓN
     let tipoAsignacionFinal = 'Asignación';
     let temaFinal = objeto.tema || '';
 
     if (esPartePrograma) {
-        // --- LÓGICA PARA ORADORES (INTACTA) ---
         if (objeto.numero_bosquejo) {
             tipoAsignacionFinal = 'Discurso';
             if (!temaFinal) temaFinal = 'Discurso de Asamblea';
@@ -87,8 +84,6 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
             tipoAsignacionFinal = objeto.tipo || 'Parte del Programa';
         }
     } else {
-        // --- LÓGICA PARA OFICINA (NUEVA) ---
-        // Usamos rol_key (ej: 'presidente_manana') o tipo_asignacion
         const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
 
         if (rol.includes('presidente')) {
@@ -96,7 +91,6 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
             temaFinal = 'Presidente de la sesión';
         } else if (rol.includes('oracion') || rol.includes('oración')) {
             tipoAsignacionFinal = 'Oración';
-            // Detectar si es apertura o conclusión
             if (rol.includes('apertura')) temaFinal = 'Oración de apertura';
             else if (rol.includes('conclusion') || rol.includes('conclusión')) temaFinal = 'Oración de conclusión';
             else temaFinal = 'Oración';
@@ -104,7 +98,7 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
             tipoAsignacionFinal = 'Plataforma';
             temaFinal = 'Superintendente de Plataforma';
         } else if (rol.includes('bosquejo')) {
-            tipoAsignacionFinal = 'Discurso'; // Rara vez pasa en oficina, pero por si acaso
+            tipoAsignacionFinal = 'Discurso'; 
         } else if (rol.includes('personal') || objeto.es_personal) {
             tipoAsignacionFinal = 'Personal de Oficina';
             temaFinal = objeto.tarea || 'Asignación en la Oficina';
@@ -113,7 +107,7 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         }
     }
 
-    // 4. DATOS DE CONTACTO (Priorizamos los datos visuales del modal)
+    // 4. DATOS DE CONTACTO
     const congregacionFinal = objeto.congregacion_visual || objeto.congregacion_orador || objeto.nombre_congregacion || '';
 
     // 5. EVENTO
@@ -130,14 +124,12 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         apellidos: apellidos,
         nombre_completo: nombreCompleto,
         sexo: objeto.sexo || 'M',
-        circuito: 'HG-06',
+        circuito: infoAsamblea.circuito || 'HG-06',
 
         // --- ASIGNACIÓN ---
         tema_asignacion: temaFinal,
         tipo_asignacion: tipoAsignacionFinal,
-        // En oficina no hay bosquejo, devolvemos vacío para que no salga "undefined"
         num_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '', 
-        
         hora: objeto.hora_inicio || objeto.hora || '---',
         fecha_asignacion: objeto.dia || objeto.fecha || infoAsamblea.fecha || '---',
         congregacion: congregacionFinal,
@@ -151,21 +143,24 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         // --- LUGAR ---
         lugar_nombre: infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
         lugar_direccion: infoExtra.direccion || infoAsamblea.local_direccion || '',
-        ciudad: infoAsamblea.ciudad || 'Holguín',
-        estado: 'Holguín',
+        ciudad: infoAsamblea.ciudad || '', 
+        estado: infoAsamblea.estado || infoAsamblea.provincia || '', 
 
         // --- ENSAYOS ---
         ensayo_fecha: infoAsamblea.ensayo_fecha || infoExtra.fecha_ensayo || '---',
         ensayo_hora: infoAsamblea.ensayo_hora || infoExtra.hora_ensayo || '---',
         ensayo_lugar: infoAsamblea.ensayo_lugar || infoExtra.lugar || '',
         ensayo_direccion: infoExtra.direccion_ensayo || infoExtra.direccion || '',
+        
+        // 👇 AHORA SÍ: Conectado a los nombres reales de tu base de datos
         ensayo_notas: infoAsamblea.ensayo_notas || '',
 
         // --- INSTRUCCIONES ---
-        orientaciones: infoAsamblea.recorridos_info || infoExtra.recorridos_info || '',
-        instrucciones: infoAsamblea.instrucciones_esp || infoExtra.instrucciones_esp || '',
+        // 👇 AHORA SÍ: Conectado a 'recorridos_info' y 'instrucciones_esp' de Rust
+        orientaciones: infoAsamblea.recorridos_info || '',
+        instrucciones: infoAsamblea.instrucciones_esp || '',
 
-        // --- PRESIDENTE (Datos para el pie de página o contacto) ---
+        // --- PRESIDENTE ---
         email_presidente: infoAsamblea.email_presidente || '',
         tel_presidente: infoAsamblea.telefono_presidente || ''
     };

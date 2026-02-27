@@ -217,6 +217,8 @@ $: if (tempGeneral.idLocal && locales.length > 0) {
     tema,
     fecha,
     idLocal,
+    fechaInicio: null, // Campo requerido por el nuevo tipo
+    fechaFin: null,    // Campo requerido por el nuevo tipo
   };
   editGeneral = true;
   editEnsayos = false;
@@ -375,9 +377,15 @@ async function guardarOrientaciones() {
       }
 
       // Inicializar datos temporales
-      tempGeneral = { tema, fecha, idLocal };
-      tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
-      tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
+tempGeneral = { 
+  tema, 
+  fecha, 
+  idLocal, 
+  fechaInicio: null, 
+  fechaFin: null 
+};
+tempEnsayos = { ensayoLugar, ensayoFecha, ensayoHora, htmlNotas };
+tempOrientaciones = { htmlOrientaciones, instruccionesEsp, jwStreamStudio };
       
       // 4. Iniciar los editores (TipTap)
       initEditors();

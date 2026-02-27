@@ -1876,5 +1876,170 @@ async function cargarTodosDias() {
   .lista-partes { overflow: visible; }
 }
 
+/* =========================================================
+   DISEÑO RESPONSIVO (PROGRAMA: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. CABECERA Y CONTROLES APILADOS */
+    .header-sesion {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 15px;
+        gap: 12px;
+    }
+
+    .header-sesion-left {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    /* Restauramos el texto de los botones que se ocultaba en 850px */
+    .header-sesion-left button span, .acciones-header button span { 
+        display: inline !important; 
+    }
+
+    .selector-dia-container, .btn-selector-dia {
+        width: 100% !important;
+        min-width: 100% !important;
+        height: 48px;
+    }
+
+    /* Botones de acción en cuadrícula de 2 o lista completa */
+    .acciones-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .acciones-header button, .btn-header-filtros, .btn-expandir-todos {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+        margin: 0 !important;
+    }
+
+    /* Modales de dropdown centrados */
+    .dropdown-dias {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90vw !important;
+        max-height: 80vh;
+        z-index: 10001;
+    }
+
+    /* 2. TARJETAS DEL PROGRAMA (VISTA CERRADA) */
+    .header-parte {
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+        padding: 15px;
+    }
+
+    .col-main-info {
+        width: 100%;
+        padding-right: 30px; /* Espacio para el chevron */
+    }
+
+    .col-orador-mini {
+        width: 100%;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--border);
+    }
+
+    /* Mini Iconos de estado arriba a la derecha */
+    .col-estados-mini {
+        position: absolute;
+        top: 15px;
+        right: 40px; 
+    }
+
+    /* Flecha de abrir/cerrar fija a la derecha */
+    .col-toggle {
+        position: absolute;
+        top: 15px;
+        right: 10px;
+        margin: 0;
+    }
+
+    /* 3. INTERIOR DE LA TARJETA (VISTA ABIERTA) */
+    .body-parte {
+        padding: 15px;
+    }
+
+    .fila-superior-control {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    /* Los 3 checks principales en línea pero ajustados */
+    .checks-grandes {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .btn-status-toggle {
+        width: 100%;
+        padding: 8px 2px;
+    }
+
+    /* Acciones inferiores (WhatsApp, Correo, PDF) a 1 sola columna */
+    .grid-acciones {
+        grid-template-columns: 1fr; 
+        gap: 15px;
+    }
+
+    .grupo-accion.center, .grupo-accion.right {
+        align-items: flex-start; /* Todo alineado a la izquierda */
+    }
+
+    .btn-outline-blue, .btn-outline-orange, .btn-outline-gray, .btn-outline-green {
+        height: 48px; /* Botones más altos y cómodos */
+    }
+
+    .footer-tools {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .footer-tools button {
+        width: 100%;
+        justify-content: center;
+        height: 40px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+    }
+
+    /* 4. MODALES (AÑADIR/EDITAR PARTE) */
+    .modal, .modal-emails, .modal-filtros, .modal-confirm {
+        width: 95vw !important;
+        padding: 0;
+    }
+
+    .modal-body .fila {
+        flex-direction: column; /* Apila los campos de Hora y Minutos */
+        gap: 0;
+    }
+
+    .modal-body .campo, .grid-modal .campo {
+        width: 100%;
+    }
+
+    .modal-footer, .modal-footer-filtros {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .modal-footer button, .modal-footer-filtros button {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+}
 
 </style>
