@@ -507,4 +507,73 @@
       to { opacity: 1; transform: translateY(0); }
   }
 
+  /* =========================================================
+   DISEÑO RESPONSIVO (+LAYOUT: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. HEADER MÁS COMPACTO Y LIMPIO */
+    .top-header {
+        padding: 10px 15px; /* Reducimos márgenes laterales */
+        gap: 10px;
+    }
+
+    /* 2. OCULTAR ELEMENTOS NO ESENCIALES */
+    .header-center {
+        display: none; /* Ocultamos el reloj en el teléfono para liberar espacio */
+    }
+    
+    .user-data h2 {
+        font-size: 13px; /* Saludo un poco más pequeño */
+    }
+
+    /* 3. BOTONES DE NAVEGACIÓN (Solo Iconos, sin texto) */
+    .header-right {
+        gap: 5px;
+    }
+    
+    .btn-nav span {
+        display: none; /* Ocultamos las palabras "Inicio" y "Salones" */
+    }
+    
+    .btn-nav, .btn-icon {
+        padding: 10px; /* Áreas táctiles seguras de 40x40px aprox */
+        min-width: 42px;
+        min-height: 42px;
+        justify-content: center;
+    }
+
+    /* 4. BARRA DE ESTADO (Antidesbordes) */
+    .status-center {
+        display: none; /* Ocultamos la frase larga para que no se amontone */
+    }
+    
+    .status-bar {
+        padding: 0 10px;
+        font-size: 10px; /* Letra un poco más pequeña */
+    }
+
+    /* 5. MODAL DE SALONES (Apilado y fluido) */
+    :global(.modal-salones) {
+        width: 95vw !important; /* Ancho fluido */
+        max-height: 90vh; /* Que no se pase del alto de la pantalla */
+        overflow-y: auto; /* Permite hacer scroll si el teclado tapa algo */
+        padding: 15px !important;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr; /* 1 sola columna hacia abajo */
+        gap: 12px;
+    }
+    
+    /* Reseteamos los elementos que abarcaban 2 columnas en Windows */
+    .input-group.full-width, .btn-blue {
+        grid-column: 1 / -1; 
+    }
+    
+    .btn-blue {
+        min-height: 48px; /* Botón grande para el dedo */
+    }
+}
+
 </style>

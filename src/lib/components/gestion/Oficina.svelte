@@ -647,4 +647,120 @@ function organizarOficina(datos: any[]) {
         background: rgba(249, 115, 22, 0.1);
         border-color: #f97316;
     }
+
+    /* =========================================================
+   DISEÑO RESPONSIVO (OFICINA: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. MÁRGENES Y CABECERA */
+    .contenedor-oficina {
+        padding: 15px;
+    }
+
+    .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .titulo-seccion p {
+        margin-left: 0;
+    }
+
+    .btn-exportar {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 2. PESTAÑAS (TABS) MÁS GRANDES */
+    .tabs-principales {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* Dividimos el ancho en dos */
+        gap: 0;
+    }
+
+    .tabs-principales button {
+        padding: 15px 5px;
+        justify-content: center;
+        font-size: 13px;
+        border-bottom-width: 4px; /* Resaltamos la pestaña activa */
+    }
+
+    /* 3. AUXILIARES: TARJETAS A UNA COLUMNA */
+    .lista-personal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-personal {
+        padding: 18px;
+    }
+
+    .avatar-placeholder {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    /* 4. ASIGNACIONES: MAÑANA Y TARDE UNA DEBAJO DE OTRA */
+    .bar-dias {
+        flex-direction: column;
+        gap: 12px;
+        padding: 15px;
+    }
+
+    .tabs-dias {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .tabs-dias button {
+        padding: 10px 5px;
+        text-align: center;
+    }
+
+    .grid-sesiones {
+        grid-template-columns: 1fr; /* ¡Adiós a las 2 columnas! */
+        gap: 20px;
+    }
+
+    .btn-puesto {
+        height: auto;
+        min-height: 60px;
+        padding: 15px;
+    }
+
+    /* 5. MODALES ADAPTADOS */
+    .modal, .modal-grande {
+        width: 95vw !important;
+        padding: 15px;
+    }
+
+    .estados-row {
+        flex-direction: column; /* Botones RECIBIDO/PRESENTE uno sobre otro */
+    }
+
+    .btn-estado {
+        width: 100%;
+        height: 70px;
+        flex-direction: row; /* Icono al lado del texto para que no sea tan alto */
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .acciones-lista {
+        gap: 12px;
+    }
+
+    .btn-accion {
+        height: 50px;
+    }
+
+    .item-opcion {
+        padding: 15px 10px;
+    }
+}
 </style>

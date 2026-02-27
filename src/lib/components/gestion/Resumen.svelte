@@ -834,4 +834,99 @@
     border-color: var(--primary);
     color: var(--primary);
 }
+
+/* =========================================================
+   DISEÑO RESPONSIVO (RESUMEN: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. LAYOUT DE COLUMNAS (TODO HACIA ABAJO) */
+    .main-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    /* 2. ESTADÍSTICAS: 1 SOLA COLUMNA O CUADRÍCULA DE 2 */
+    .stats-row {
+        grid-template-columns: 1fr; /* Una por fila para máxima legibilidad */
+        gap: 12px;
+    }
+
+    :global(.stat-card), :global(.btn-card-asistencia) {
+        padding: 20px !important; /* Más aire en el móvil */
+    }
+
+    .numero-grande, .editable-num {
+        font-size: 2rem; /* Números bien grandes */
+    }
+
+    /* 3. MONITOR EN VIVO (MÁS IMPACTANTE) */
+    .hora-big {
+        font-size: 3.5rem; /* Que se vea desde lejos si la tablet está en el atril */
+        text-align: center;
+    }
+
+    .tema-big {
+        font-size: 1.5rem;
+        text-align: center;
+    }
+
+    .orador-box {
+        width: 100%;
+        justify-content: center;
+        height: 50px;
+    }
+
+    .monitor-header {
+        padding: 15px;
+    }
+
+    /* 4. TABLA DE PENDIENTES (MODO TARJETA) */
+    table thead {
+        display: none; /* Ocultamos cabecera de tabla */
+    }
+
+    table, tbody, tr, td {
+        display: block;
+        width: 100%;
+    }
+
+    tr {
+        padding: 15px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    td {
+        border: none;
+        padding: 5px 0;
+    }
+
+    .btn-sm-confirmar {
+        width: 100%;
+        height: 44px;
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+
+    /* 5. MODAL DE ASISTENCIA (APILADO POR DÍAS) */
+    .grid-dias {
+        grid-template-columns: 1fr; /* Un día debajo de otro */
+        padding: 15px;
+        gap: 25px;
+    }
+
+    .input-group-modal input {
+        height: 55px; /* Inputs gigantes para no fallar el número */
+        font-size: 1.5rem;
+    }
+
+    /* 6. BOTÓN DE ACTUALIZAR DATOS */
+    .btn-acceso {
+        height: 55px;
+        font-size: 16px;
+    }
+}
 </style>

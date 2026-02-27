@@ -727,4 +727,96 @@ input:focus {
 .tabla-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+/* =========================================================
+   DISEÑO RESPONSIVO (CONGREGACIONES: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. TOOLBAR: BOTONES Y BUSCADOR APILADOS */
+    :global(.toolbar) {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px !important;
+        gap: 12px;
+    }
+    
+    .busqueda {
+        min-width: 0 !important; /* Matamos los 300px fijos que rompen el móvil */
+        width: 100%;
+        height: 48px; /* Altura ideal para el pulgar */
+    }
+    
+    .btn-primary, .btn-importar, .btn-danger {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 2. ADIÓS A LA TABLA, HOLA TARJETAS */
+    .tabla-header {
+        display: none; /* Ocultamos las cabeceras porque ya no será una tabla */
+    }
+    
+    .header-lista h4 {
+        font-size: 13px; /* Título un poco más pequeño */
+    }
+
+    /* 3. TRANSFORMAMOS LA FILA EN UNA TARJETA */
+    .fila {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 15px;
+        gap: 10px;
+        position: relative; /* Para poder posicionar el botón de borrar */
+    }
+    
+    .nombre {
+        font-size: 15px;
+        padding-right: 40px; /* Dejamos espacio para que el texto no choque con el bote de basura */
+        margin-bottom: 5px;
+    }
+    
+    /* El botón de borrar se va a la esquina superior derecha de la tarjeta */
+    .acciones {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+    }
+    
+    .btn-icon-delete {
+        min-width: 44px;
+        min-height: 44px; /* Botón grande y fácil de tocar */
+        background: var(--bg-body); /* Le damos un fondo sutil para que resalte más en móvil */
+        border: 1px solid var(--border);
+    }
+
+    /* 4. MODAL ADAPTADO AL TELÉFONO */
+    .modal {
+        width: 95vw !important;
+        padding: 15px;
+    }
+    
+    input, .icon-input input {
+        height: 48px; /* Inputs más altos */
+        font-size: 15px;
+    }
+    
+    .icon-input :global(.ico) {
+        top: 16px; /* Centramos el iconito de la lupa/mapa al nuevo alto del input */
+    }
+    
+    .modal-footer {
+        flex-direction: column-reverse; /* Guardar arriba, Cancelar abajo */
+        margin-top: 20px;
+        gap: 10px;
+    }
+    
+    .btn-save, .btn-cancel {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+}
 </style>

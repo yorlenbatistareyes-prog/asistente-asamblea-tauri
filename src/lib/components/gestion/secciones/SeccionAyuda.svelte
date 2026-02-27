@@ -157,4 +157,67 @@
   @media (max-width: 700px) {
       .help-grid { grid-template-columns: 1fr; }
   }
+
+  /* =========================================================
+   DISEÑO RESPONSIVO (SECCIÓN AYUDA: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. MÁRGENES Y CONTENEDOR */
+    .help-container {
+        padding: 10px;
+    }
+
+    :global(.monitor-guide-card-override) {
+        padding: 15px !important;
+    }
+
+    /* 2. LA REJILLA DE AYUDA (ADELANTAR/ATRASAR) */
+    .help-grid {
+        grid-template-columns: 1fr; /* Una columna para que el texto no se vea apretado */
+        gap: 12px;
+    }
+
+    .help-item {
+        flex-direction: row; /* Icono a la izquierda, texto a la derecha */
+        text-align: left;
+        align-items: flex-start;
+        padding: 15px;
+    }
+
+    .icon-box {
+        min-width: 45px; /* Evitamos que el icono se encoja */
+        height: 45px;
+    }
+
+    .text-box strong {
+        font-size: 1rem;
+    }
+
+    .text-box p {
+        font-size: 0.85rem;
+    }
+
+    /* 3. CAJA DE TIP/CONSEJO */
+    .tip-box {
+        flex-direction: column;
+        text-align: center;
+        padding: 15px;
+    }
+
+    /* 4. ACORDEONES (PREGUNTAS FRECUENTES) */
+    .accordion-header {
+        padding: 18px 15px; /* Más área de toque para el dedo */
+    }
+
+    .acc-title {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .accordion-body {
+        padding: 15px;
+        font-size: 14px; /* Un pelín más grande para leer sin cansar la vista */
+    }
+}
 </style>

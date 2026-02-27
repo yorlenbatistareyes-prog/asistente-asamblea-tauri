@@ -93,3 +93,33 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-sec); /* Resalta sutilmente usando tu color de texto secundario */
 }
+
+/* --- 5. OPTIMIZACIONES ESPECÍFICAS PARA MÓVILES --- */
+
+/* Elimina el cuadro azul/gris feo que sale en Android al tocar botones rápidamente */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none; /* Evita que al dejar presionado salga el menú de copiar imagen */
+}
+
+/* Suavizado de fuentes para pantallas móviles de alta densidad (Retina/OLED) */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Ajuste para que los inputs no se vean "hundidos" en algunos navegadores Android antiguos */
+input, textarea, select {
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+/* Asegurar que las imágenes no causen desbordes accidentales */
+img {
+    max-width: 100%;
+    height: auto;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}

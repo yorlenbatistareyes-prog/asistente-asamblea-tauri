@@ -337,4 +337,89 @@
         background: rgba(255, 255, 255, 0.3);
     }
 
+/* =========================================================
+   DISEÑO RESPONSIVO (CRONÓMETRO: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. POSICIONAMIENTO: Evitamos que flote en el medio */
+    .modo-barra-top {
+        top: 10px;
+        left: 50%;
+        width: 95vw;
+        transform: translateX(-50%) !important; /* Desactivamos el arrastre manual en móvil para evitar bugs */
+    }
+
+    /* 2. TRANSFORMACIÓN DE BARRA A PANEL VERTICAL COMPACTO */
+    .top-bar-panel {
+        flex-direction: column; /* De horizontal a vertical */
+        padding: 15px;
+        border-radius: 20px; /* Menos redondeado, más forma de tarjeta */
+        gap: 15px;
+        height: auto;
+        white-space: normal;
+        transform: scale(1) !important; /* En móvil ignoramos los tamaños S/M/L para que sea legible */
+    }
+
+    /* 3. SECCIONES REORGANIZADAS */
+    .left-section {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-right: 0;
+        padding-bottom: 10px;
+        justify-content: space-between;
+    }
+
+    .drag-handle {
+        display: none; /* El arrastre manual con mouse no sirve en táctil, lo ocultamos */
+    }
+
+    .center-section {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .main-display {
+        font-size: 48px; /* Tiempo mucho más grande para ver desde lejos */
+    }
+
+    .minute-adjuster {
+        width: 100%;
+        justify-content: center;
+        height: 44px;
+    }
+
+    .select-compacto {
+        font-size: 16px; /* Evita zoom en Android */
+        padding: 0 10px;
+    }
+
+    .right-section {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding-left: 0;
+        padding-top: 15px;
+        justify-content: space-around;
+    }
+
+    /* 4. BOTONES MÁS GRANDES PARA EL PULGAR */
+    .btn-ctrl.reset, .btn-ctrl.close {
+        width: 50px;
+        height: 50px;
+    }
+
+    .btn-ctrl.play-pause {
+        width: 65px;
+        height: 65px;
+    }
+
+    /* 5. EL BOTÓN MINIMIZADO (Burbuja flotante) */
+    .modo-boton-esquina {
+        bottom: 80px; /* Subimos un poco para que no choque con la barra de navegación de Android */
+        left: 20px;
+    }
+}
 </style>
