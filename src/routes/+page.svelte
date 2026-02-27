@@ -854,4 +854,110 @@ function manejarSeleccionFinal() {
         from { opacity: 0; transform: translateY(-5px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+   /* =========================================================
+   DISEÑO RESPONSIVO (PANTALLA DE INICIO: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. MÁRGENES GENERALES MÁS COMPACTOS */
+    .dashboard {
+        padding: 15px; /* Aprovechamos toda la pantalla del teléfono */
+    }
+
+    /* 2. CABECERA: APILAR TÍTULO Y BOTÓN */
+    .header-principal {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .btn-new {
+        width: 100%; /* Botón gigante fácil de tocar */
+        justify-content: center;
+        height: 48px;
+    }
+
+    /* 3. BUSCADOR Y FILTROS: APILADO TOTAL ANTIDESBORDES (¡AQUÍ ESTÁ LA MAGIA!) */
+    .controles-busqueda {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+        width: 100%;
+    }
+    
+    .filtros-box {
+        flex-direction: column; /* Apilamos los selectores */
+        width: 100%;
+        gap: 12px;
+    }
+
+    .search-box {
+        min-width: 0 !important; /* Matamos los 280px fijos que rompían el teléfono */
+        width: 100%;
+        height: 48px;
+    }
+
+    .filter-select {
+        width: 100%; /* Que ocupen exactamente el ancho disponible */
+        max-width: 100%;
+        height: 48px;
+        text-overflow: ellipsis; /* Si el texto es largo, pone "..." */
+    }
+
+    /* 4. LA CUADRÍCULA DE TARJETAS (ARREGLO DEL "DESASTRE") */
+    .grid {
+        grid-template-columns: 1fr; /* 1 sola columna que ocupa el 100% de la pantalla */
+        gap: 15px;
+    }
+
+    /* 5. AJUSTES DENTRO DE LA TARJETA */
+    .card-content {
+        padding: 15px;
+    }
+    
+    .text-section h3 {
+        font-size: 16px; /* Título un pelín más pequeño */
+    }
+    
+    .icon-section {
+        display: none; /* Ocultamos el icono del atril gigante en móviles */
+    }
+
+    /* 6. BOTONES INFERIORES SIEMPRE VISIBLES (Sin necesidad de Hover) */
+    .card-hover-footer {
+        opacity: 1 !important; /* Siempre visibles en el teléfono */
+        transform: translateY(0) !important;
+        padding: 12px 15px;
+    }
+    
+    .btn-trash {
+        min-width: 48px;
+        min-height: 48px; /* Botón de papelera seguro de tocar */
+    }
+    
+    .btn-manage-blue {
+        min-height: 48px;
+    }
+
+    /* 7. MODAL DE NUEVA ASAMBLEA ADAPTADO AL TELÉFONO */
+    :global(.modal-ancho) {
+        width: 95vw !important; /* Que no se salga de la pantalla */
+        padding: 15px !important;
+    }
+
+    /* Hacemos que "Identificador" e "Idioma" se pongan uno encima del otro */
+    .modal-form > div[style*="display: flex"] {
+        flex-direction: column !important;
+    }
+
+    .modal-foot {
+        flex-direction: column-reverse; /* El botón de crear arriba, cancelar abajo */
+        gap: 10px;
+    }
+    
+    .btn-pri, .btn-sec {
+        width: 100%;
+        height: 48px;
+    }
+}
 </style>

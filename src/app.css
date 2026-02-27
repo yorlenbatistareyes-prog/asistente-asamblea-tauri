@@ -1,18 +1,27 @@
-/* --- 1. RESET BÁSICO --- */
-/* Quita márgenes por defecto y asegura que el padding no rompa los tamaños */
+/* --- 1. RESET BÁSICO Y CANDADO MÓVIL --- */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* Evita que el usuario pueda seleccionar texto por accidente (útil en apps de escritorio), 
-   excepto en los inputs */
+/* Candado estricto para Android/iOS */
+/* Candado estricto para Android/iOS */
+html, body {
+  width: 100vw;
+  max-width: 100%;
+  overflow-x: hidden; /* Prohibido terminantemente el scroll horizontal fantasma */
+  -webkit-text-size-adjust: 100%; /* Para navegadores móviles antiguos */
+  text-size-adjust: 100%;         /* Para navegadores modernos (Quita la advertencia 1) */
+  -webkit-tap-highlight-color: transparent; 
+}
+
+/* Evita que el usuario pueda seleccionar texto por accidente */
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; /* Usa la fuente nativa del sistema */
-  user-select: none; 
-  -webkit-user-select: none;
-  overflow: hidden; /* Evita el scroll global innecesario en la app de escritorio */
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-user-select: none; /* Primero la de webkit (Quita la advertencia 2) */
+  user-select: none;         /* Luego la estándar */
+  overflow: hidden; 
 }
 
 input, textarea {
