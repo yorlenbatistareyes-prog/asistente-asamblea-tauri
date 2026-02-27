@@ -295,11 +295,11 @@ function organizarOficina(datos: any[]) {
 
     <div class="tabs-principales">
         <button class:active={tabPrincipal === 'auxiliares'} on:click={() => tabPrincipal = 'auxiliares'}>
-            <Users size={18}/> Auxiliar(es) 
+            <Users size={18}/> Auxiliar(es)  
         </button>
-        <button class:active={tabPrincipal === 'horario'} on:click={() => tabPrincipal = 'horario'}>
+        <!-- <button class:active={tabPrincipal === 'horario'} on:click={() => tabPrincipal = 'horario'}>
             <CalendarClock size={18}/> Horario
-        </button>
+        </button>-->
         <button class:active={tabPrincipal === 'asignaciones'} on:click={() => tabPrincipal = 'asignaciones'}>
             <ClipboardList size={18}/> Asignaciones 
         </button>
@@ -351,7 +351,7 @@ function organizarOficina(datos: any[]) {
             </Panel>
         {/if}
 
-        {#if tabPrincipal === 'horario'}
+        <!--{#if tabPrincipal === 'horario'}
             <Panel padding="20px" clasesExtra="panel-full-override center-content">
                 <div class="placeholder-horario">
                     <CalendarClock size={48} color="var(--text-secondary)"/>
@@ -359,7 +359,7 @@ function organizarOficina(datos: any[]) {
                     <p>Funcionalidad en construcción...</p>
                 </div>
             </Panel>
-        {/if}
+        {/if}-->
 
         {#if tabPrincipal === 'asignaciones'}
             <div class="layout-asignaciones">
