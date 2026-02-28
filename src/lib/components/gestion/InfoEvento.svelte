@@ -1564,39 +1564,42 @@ input:disabled, select:disabled {
 .line-height { min-width: 48px !important; }
 
 /* =========================================================
-   BLINDAJE: BORDES FINOS Y DEFINIDOS (PLANO, SIN RELIEVES)
+   BLINDAJE: LÍNEA FINA GRIS DÉBIL PARA CAMPOS Y EDITOR
    ========================================================= */
 
-/* 1. Todos los campos de texto, selectores, fecha y el marco del editor */
+/* 1. Aplicamos un color gris exacto (#cbd5e1) a todos los campos y grupos del editor */
 input, 
 select, 
 .campo-falso-input, 
 .native-select, 
 .tiptap-frame,
-.salon-info-card {
-    border: 1px solid var(--border, #cbd5e1) !important; /* Borde fino de 1px */
-    box-shadow: none !important; /* Forzar diseño 100% plano */
+.toolbar .group {
+    border: 1px solid #cbd5e1 !important; /* La línea fina gris muy débil */
 }
 
-/* 2. Las tarjetitas de herramientas dentro del editor */
-.toolbar .group {
-    border: 1px solid var(--border, #cbd5e1) !important; /* Mismo borde fino */
-    box-shadow: none !important; /* Sin relieve */
+/* 2. Respetamos tu modo oscuro (para que la línea gris cambie a un tono adecuado de noche) */
+:global(html.dark-theme) input, 
+:global(html.dark-theme) select, 
+:global(html.dark-theme) .campo-falso-input, 
+:global(html.dark-theme) .native-select, 
+:global(html.dark-theme) .tiptap-frame,
+:global(html.dark-theme) .toolbar .group {
+    border: 1px solid #475569 !important; /* Línea gris oscura para modo noche */
+}
+
+/* 3. Evitamos el doble borde en los selectores de fuente/tamaño del editor */
+.toolbar .group.inputs {
+    border: none !important;
     background: transparent !important;
 }
 
-/* Excepción: El grupo que envuelve a Fuente y Tamaño no necesita borde doble */
-.toolbar .group.inputs {
-    border: none !important;
-}
-
-/* 3. Color azul al hacer clic o pasar el ratón (Interacción visual) */
+/* 4. Color azul al interactuar */
 input:focus, 
 select:focus, 
 .campo-falso-input:hover, 
 .native-select:focus,
 .native-select:hover {
-    border: 1px solid var(--primary, #3b82f6) !important;
+    border-color: var(--primary, #3b82f6) !important;
     outline: none !important;
 }
 </style>
