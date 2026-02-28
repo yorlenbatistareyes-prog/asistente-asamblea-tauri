@@ -13,7 +13,7 @@ export const guiaUsuario: AyudaItem[] = [
         Desplácese hasta la parte inferior de esa pantalla para ubicar la tarjeta 
         'Información del usuario'. Allí podrá editar su nombre, contacto e identificación. 
         Estos datos son fundamentales, ya que se usan para firmar automáticamente 
-        las plantillas de correo y reportes.`
+        las plantillas de correo y cartas.`
     },
 
     {
@@ -29,20 +29,19 @@ export const guiaUsuario: AyudaItem[] = [
     {
         title: "Gestión de Locales y Salones",
         content: `Desde la pantalla de inicio, utilice el botón 'Locales' para registrar 
-        los Salones de Asambleas disponibles. Esta base de datos centralizada le permitirá 
+        los Salones de Asambleas disponibles. Esta base de datos le permitirá 
         vincular una asamblea a su ubicación física al momento de crearla. Además, 
         estos locales estarán disponibles en la sección 'Información del Evento' para 
-        programar ensayos y reuniones previas de forma rápida.`
+        programar ensayos.`
     },
 
     {
         title: "Gestión del Programa y Oradores",
         content: `El proceso comienza en la pantalla principal creando una nueva asamblea. 
         Al entrar en la tarjeta del evento, accederá a un panel lateral con todas las herramientas: 
-        desde el 'Resumen' con estadísticas y monitor, hasta la importación de 'Congregaciones' 
-        y 'Personas' mediante archivos CSV de JW. En la sección 'Programa y Oradores', podrá 
-        gestionar la Oficina (presidentes, oraciones, etc.), importar el programa, 
-        y utilizar las herramientas de comunicación (Email/WhatsApp) y seguimiento 
+        desde el 'Panel de control' con estadísticas y monitor, hasta la importación de 'Congregaciones' 
+        y 'Personas' mediante archivos CSV de JW Hub. En la sección 'Programa y Oradores', podrá
+        importar el programa, y utilizar las herramientas de comunicación (Email/WhatsApp) y seguimiento 
         (Confirmación, Ensayo, Presencia) en cada tarjeta de discurso.`
     },
 
@@ -73,17 +72,15 @@ export const guiaUsuario: AyudaItem[] = [
     {
         title: "Marcadores de Posición y Mezcla de Datos",
         content: `Los marcadores son textos entre corchetes dobles, por ejemplo [[Nombre]]. 
-        Cuando el sistema genera un correo o una carta, busca estos marcadores y los 
-        sustituye por la información correspondiente de la base de datos. Si coloca un 
+        Cuando el sistema genera un correo, un mensaje de WhatsApp, o una carta, busca estos marcadores 
+        y los sustituye por la información correspondiente de la base de datos. Si coloca un 
         marcador en el campo 'Asunto' de una plantilla, también será reemplazado correctamente.`
     },
     {
         title: "Envío de Correos y Cuentas JWPub",
         content: `Para el envío de asignaciones, el sistema intentará abrir su cliente 
         de correo predeterminado. Si utiliza una cuenta institucional (jwpub.org), 
-        se recomienda tener la sesión iniciada en Outlook Web. Puede forzar el uso de 
-        su aplicación de escritorio activando la opción 'Utilice el cliente de correo 
-        electrónico en lugar de Outlook Online' en la pestaña General.`
+        se recomienda tener la sesión iniciada en Outlook Web.`
     },
     
     {
