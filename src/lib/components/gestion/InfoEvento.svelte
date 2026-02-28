@@ -1528,4 +1528,75 @@ input:disabled, select:disabled {
             transform: translateY(0); 
         }
     }
+
+    /* =========================================================
+   BLINDAJE: RECUPERAR CONTROLES NATIVOS (CHECKBOX Y SELECTS)
+   ========================================================= */
+
+/* 1. Recuperar el cuadrito del check de transmisión */
+.stream-check-compact input[type="checkbox"] {
+    display: inline-block !important;
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important; /* Fuerza a dibujar el cuadrado */
+    width: 16px !important;
+    height: 16px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    accent-color: var(--primary); /* Azul corporativo */
+    pointer-events: auto !important; 
+}
+
+/* 2. Recuperar los menús desplegables del Editor (Fuente, Tamaño, Interlineado) */
+.native-select {
+    display: inline-block !important;
+    appearance: auto !important;
+    -webkit-appearance: menulist !important; /* Fuerza el estilo de menú desplegable */
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+/* Forzar que los menús respeten su tamaño y no se aplasten */
+.font-family { min-width: 95px !important; }
+.font-size { min-width: 55px !important; }
+.line-height { min-width: 48px !important; }
+
+/* =========================================================
+   BLINDAJE: BORDES FINOS Y DEFINIDOS (PLANO, SIN RELIEVES)
+   ========================================================= */
+
+/* 1. Todos los campos de texto, selectores, fecha y el marco del editor */
+input, 
+select, 
+.campo-falso-input, 
+.native-select, 
+.tiptap-frame,
+.salon-info-card {
+    border: 1px solid var(--border, #cbd5e1) !important; /* Borde fino de 1px */
+    box-shadow: none !important; /* Forzar diseño 100% plano */
+}
+
+/* 2. Las tarjetitas de herramientas dentro del editor */
+.toolbar .group {
+    border: 1px solid var(--border, #cbd5e1) !important; /* Mismo borde fino */
+    box-shadow: none !important; /* Sin relieve */
+    background: transparent !important;
+}
+
+/* Excepción: El grupo que envuelve a Fuente y Tamaño no necesita borde doble */
+.toolbar .group.inputs {
+    border: none !important;
+}
+
+/* 3. Color azul al hacer clic o pasar el ratón (Interacción visual) */
+input:focus, 
+select:focus, 
+.campo-falso-input:hover, 
+.native-select:focus,
+.native-select:hover {
+    border: 1px solid var(--primary, #3b82f6) !important;
+    outline: none !important;
+}
 </style>
