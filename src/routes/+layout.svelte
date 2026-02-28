@@ -387,7 +387,9 @@
       z-index: 9999; backdrop-filter: blur(2px); 
   }
   :global(.modal-salones) { 
-      width: 550px; 
+      width: 95%;          /* 1. Ocupa casi todo el espacio disponible */
+      max-width: 700px;    /* 2. EL FRENO: En Windows se detiene en 700px */
+      margin: 0 auto;      /* 3. Lo mantiene perfectamente centrado */
       display: flex; 
       flex-direction: column; 
       gap: 15px;
@@ -420,7 +422,11 @@
       background: var(--primary); color: white; border: none; 
       padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 700; 
       display: flex; justify-content: center; gap: 8px; align-items: center;
-      margin-top: 5px;
+      
+      /* EL FRENO PARA EL BOTÓN */
+      width: 100%; 
+      max-width: 350px; 
+      margin: 15px auto 0 auto; /* Centrado en Windows */
   }
 
   .separator { height: 1px; background: var(--border); margin: 5px 0; }
