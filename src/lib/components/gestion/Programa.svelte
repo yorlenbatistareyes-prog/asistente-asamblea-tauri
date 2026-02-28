@@ -2042,4 +2042,45 @@ async function cargarTodosDias() {
     }
 }
 
+/* FORZAR VISIBILIDAD DE CASILLAS DENTRO DE LOS BOTONES DEL MENÚ */
+.dia-opcion input[type="checkbox"],
+.dia-opcion input[type="radio"] {
+    display: inline-block !important;
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important; /* Fuerza a Chrome/Safari a mostrarlo */
+    width: 16px !important;
+    height: 16px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin: 0 !important;
+    pointer-events: none; /* Hace que el clic pase directamente al botón de Svelte */
+}
+
+.dia-opcion input[type="radio"] {
+    -webkit-appearance: radio !important; /* Estilo redondo para ordenar */
+}
+
+/* FORZAR VISIBILIDAD DE CIRCULITOS Y CASILLAS EN "OTROS FILTROS" */
+.radio-label-filtro input[type="radio"],
+.checkbox-label input[type="checkbox"] {
+    display: inline-block !important;
+    appearance: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    accent-color: var(--primary); /* Mantendrá tu azul corporativo */
+}
+
+/* Asegurar que los de estado sean perfectamente circulares */
+.radio-label-filtro input[type="radio"] {
+    -webkit-appearance: radio !important; 
+}
+
+/* Asegurar que los de características/fuente sean cuadrados */
+.checkbox-label input[type="checkbox"] {
+    -webkit-appearance: checkbox !important;
+}
 </style>

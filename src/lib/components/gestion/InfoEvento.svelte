@@ -1528,4 +1528,78 @@ input:disabled, select:disabled {
             transform: translateY(0); 
         }
     }
+
+    /* =========================================================
+   BLINDAJE: RECUPERAR CONTROLES NATIVOS (CHECKBOX Y SELECTS)
+   ========================================================= */
+
+/* 1. Recuperar el cuadrito del check de transmisión */
+.stream-check-compact input[type="checkbox"] {
+    display: inline-block !important;
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important; /* Fuerza a dibujar el cuadrado */
+    width: 16px !important;
+    height: 16px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    accent-color: var(--primary); /* Azul corporativo */
+    pointer-events: auto !important; 
+}
+
+/* 2. Recuperar los menús desplegables del Editor (Fuente, Tamaño, Interlineado) */
+.native-select {
+    display: inline-block !important;
+    appearance: auto !important;
+    -webkit-appearance: menulist !important; /* Fuerza el estilo de menú desplegable */
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+/* Forzar que los menús respeten su tamaño y no se aplasten */
+.font-family { min-width: 95px !important; }
+.font-size { min-width: 55px !important; }
+.line-height { min-width: 48px !important; }
+
+/* =========================================================
+   BLINDAJE: LÍNEA FINA GRIS DÉBIL PARA CAMPOS Y EDITOR
+   ========================================================= */
+
+/* 1. Aplicamos un color gris exacto (#cbd5e1) a todos los campos y grupos del editor */
+input, 
+select, 
+.campo-falso-input, 
+.native-select, 
+.tiptap-frame,
+.toolbar .group {
+    border: 1px solid #cbd5e1 !important; /* La línea fina gris muy débil */
+}
+
+/* 2. Respetamos tu modo oscuro (para que la línea gris cambie a un tono adecuado de noche) */
+:global(html.dark-theme) input, 
+:global(html.dark-theme) select, 
+:global(html.dark-theme) .campo-falso-input, 
+:global(html.dark-theme) .native-select, 
+:global(html.dark-theme) .tiptap-frame,
+:global(html.dark-theme) .toolbar .group {
+    border: 1px solid #475569 !important; /* Línea gris oscura para modo noche */
+}
+
+/* 3. Evitamos el doble borde en los selectores de fuente/tamaño del editor */
+.toolbar .group.inputs {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* 4. Color azul al interactuar */
+input:focus, 
+select:focus, 
+.campo-falso-input:hover, 
+.native-select:focus,
+.native-select:hover {
+    border-color: var(--primary, #3b82f6) !important;
+    outline: none !important;
+}
 </style>
