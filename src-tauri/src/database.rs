@@ -212,7 +212,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     conn.execute(
         "CREATE TABLE IF NOT EXISTS configuracion (
         id INTEGER PRIMARY KEY CHECK (id = 1),
-        nombre TEXT DEFAULT 'Yorlen',
+        nombre TEXT DEFAULT 'Usuario',
         segundo_nombre TEXT,
         apellido TEXT,
         sufijo TEXT,
@@ -249,7 +249,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     // Insertamos el registro inicial si la tabla está vacía
     conn.execute(
         "INSERT OR IGNORE INTO configuracion (id, nombre, tema, idioma) 
-         VALUES (1, 'Yorlen', 'claro', 'es')",
+         VALUES (1, 'Usuario', 'claro', 'es')",
         [],
     )?;
 
