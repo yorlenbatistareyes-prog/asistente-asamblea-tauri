@@ -392,14 +392,12 @@
 
                         <div class="sync-main-actions">
                             <button class="btn-sync-primary" on:click={elegirCarpetaSync}>Elegir carpeta sincronizada</button>
-                            {#if rutaSincronizacion}
-                                <button class="btn-sync-secondary" on:click={exportarSync}>Exportar sincronización</button>
-                                <button class="btn-sync-secondary" on:click={importarSync}>Importar sincronización</button>
-                            {/if}
+                            <button class="btn-sync-secondary" on:click={exportarSync} disabled={!rutaSincronizacion}>Exportar sincronización</button>
+                            <button class="btn-sync-secondary" on:click={importarSync} disabled={!rutaSincronizacion}>Importar sincronización</button>
                         </div>
 
-                        <label class="sync-checkbox">
-                            <input type="checkbox" bind:checked={autoExportar} on:change={toggleAutoExportar} />
+                        <label class="sync-checkbox" style={!rutaSincronizacion ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
+                            <input type="checkbox" bind:checked={autoExportar} on:change={toggleAutoExportar} disabled={!rutaSincronizacion} />
                             <span>Exportar cambios automáticamente al cerrar</span>
                         </label>
 
@@ -710,7 +708,8 @@
 .btn-sync-primary { background-color: #e11d48; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
 .btn-sync-primary:hover { opacity: 0.9; }
 .btn-sync-secondary { background-color: #ffffff; color: #334155; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-.btn-sync-secondary:hover { background-color: #f8fafc; border-color: #94a3b8; }
+.btn-sync-secondary:not(:disabled):hover { background-color: #f8fafc; border-color: #94a3b8; }
+.btn-sync-secondary:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f1f5f9; color: #94a3b8; }
 
 .sync-danger-actions { display: flex; gap: 15px; border-top: 1px solid var(--border); padding-top: 20px; }
 .btn-sync-warning { background: transparent; color: #d97706; border: 1px solid #fcd34d; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
