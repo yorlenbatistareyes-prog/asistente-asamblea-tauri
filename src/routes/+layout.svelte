@@ -10,9 +10,8 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import { getVersion } from '@tauri-apps/api/app';
 
-  // 👈 NUEVAS HERRAMIENTAS DE TAURI PARA FS Y WINDOW
+  // 👈 HERRAMIENTAS DE TAURI PARA LECTURA/ESCRITURA
   import { stat, readFile, writeFile, BaseDirectory } from '@tauri-apps/plugin-fs';
-  import { getCurrentWindow } from '@tauri-apps/api/window';
 
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
@@ -24,8 +23,8 @@
   let saludo = "Hola"; 
   let temaActual = 'sistema';
   let nombreUsuario = "Usuario";
-  let fotoUsuario = ""; // 👈 VARIABLE PARA LA FOTO
-  let mostrarMenuAvatar = false; // 👈 CONTROL DEL MENÚ PROFESIONAL
+  let fotoUsuario = ""; 
+  let mostrarMenuAvatar = false; 
   let fileInput: HTMLInputElement;
 
   // --- QUITAR FOTO ---
@@ -33,7 +32,7 @@
       fotoUsuario = ""; 
       localStorage.removeItem('fotoPerfil'); 
       if (fileInput) fileInput.value = ""; 
-      mostrarMenuAvatar = false; // Cerramos el menú
+      mostrarMenuAvatar = false; 
   }
   
   // --- VARIABLES GESTIÓN SALONES ---
@@ -61,20 +60,16 @@
           const barra = rutaSync.endsWith(separador) ? '' : separador;
           const rutaFinal = `${rutaSync}${barra}${BACKUP_NAME}`;
 
-          // 1. Verificamos si la nube existe
           let cloudStat: any = null;
           try { cloudStat = await stat(rutaFinal); } catch(e) {}
 
-          // 2. Leemos la DB local a la RAM
           const localBytes = await readFile(DB_NAME, { baseDir: BaseDirectory.AppData });
 
           if (!cloudStat) {
-              // Si no existe en la nube, es la primera exportación
               await writeFile(rutaFinal, localBytes);
               localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-              alert("✅ Primera copia de seguridad creada en la nube.");
+              alert("Primera copia de seguridad creada en la nube.");
           } else {
-              // 3. RAYOS X: Leemos la nube y comparamos bytes
               const cloudBytes = await readFile(rutaFinal);
 
               let sonIdenticos = false;
@@ -83,96 +78,58 @@
               }
 
               if (sonIdenticos) {
-                  alert("☁️ Tus datos ya están completamente sincronizados y al día.");
+                  alert("Tus datos ya están completamente sincronizados y al día.");
                   isSyncing = false;
                   return;
               }
 
-              // 4. Si son diferentes, comparamos fechas
               const localStat = await stat(DB_NAME, { baseDir: BaseDirectory.AppData });
               const localTime = localStat.mtime ? new Date(localStat.mtime).getTime() : 0;
               const cloudTime = cloudStat.mtime ? new Date(cloudStat.mtime).getTime() : 0;
 
               if (cloudTime > localTime) {
-                  if (confirm("☁️ Hay datos más recientes en tu carpeta compartida. ¿Deseas importarlos a este equipo?")) {
+                  if (confirm("Hay datos más recientes en tu carpeta compartida. ¿Deseas importarlos a este equipo?")) {
                       await writeFile(DB_NAME, cloudBytes, { baseDir: BaseDirectory.AppData });
                       localStorage.setItem('assembly_last_import', new Date().toLocaleString());
-                      alert("✅ Datos importados correctamente. La aplicación se reiniciará.");
+                      alert("Datos importados correctamente. La aplicación se reiniciará.");
                       window.location.reload();
                   }
               } else {
                   await writeFile(rutaFinal, localBytes);
                   localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-                  alert("✅ Tus cambios recientes se guardaron en la carpeta de sincronización.");
+                  alert("Tus cambios recientes se guardaron en la carpeta de sincronización.");
               }
           }
       } catch (error) {
           console.error("Error en sincronización:", error);
-          alert("❌ Ocurrió un error al intentar sincronizar. Revisa que la carpeta exista.");
+          alert("Ocurrió un error al intentar sincronizar. Revisa que la carpeta exista.");
       } finally {
           isSyncing = false;
       }
   }
 
+  // ==========================================
+  // INICIALIZACIÓN (ONMOUNT LIMPIO)
+  // ==========================================
   onMount(() => {
-      let unlisten: (() => void) | undefined;
-
       const inicializarApp = async () => {
           await cargarDatosGlobales();
           await cargarNombreUsuario();
           fotoUsuario = localStorage.getItem('fotoPerfil') || "";
-          rutaSync = localStorage.getItem('assembly_sync_path') || ""; // 👈 Cargamos la ruta para el botón
+          rutaSync = localStorage.getItem('assembly_sync_path') || "";
           iniciarReloj(); 
           cargarTemaGuardado();
           cargarLocales();
+          
           try {
               versionApp = await getVersion();
           } catch (e) {
               console.error("Error al obtener la versión:", e);
               versionApp = "Desconocida"; 
           }
-
-          // 👈 MODO SEGURO AL CERRAR (Intercepta la X)
-          const appWindow = getCurrentWindow();
-          unlisten = await appWindow.onCloseRequested(async (event) => {
-              event.preventDefault(); 
-
-              const cerrarDefinitivamente = async () => {
-                  if (unlisten) unlisten(); 
-                  await appWindow.close(); 
-              };
-
-              const autoExport = localStorage.getItem('assembly_auto_export') === 'true';
-              const currentSyncPath = localStorage.getItem('assembly_sync_path');
-
-              if (autoExport && currentSyncPath) {
-                  try {
-                      const separador = currentSyncPath.includes('\\') ? '\\' : '/';
-                      const barra = currentSyncPath.endsWith(separador) ? '' : separador;
-                      const rutaFinal = `${currentSyncPath}${barra}${BACKUP_NAME}`;
-
-                      // Guardado en RAM al cerrar
-                      const localBytes = await readFile(DB_NAME, { baseDir: BaseDirectory.AppData });
-                      await writeFile(rutaFinal, localBytes);
-                      localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-                      
-                      await cerrarDefinitivamente();
-                  } catch (error) {
-                      if (confirm("⚠️ ERROR AL GUARDAR EN LA NUBE\n\nNo se pudo auto-exportar (¿USB desconectado?).\n¿Deseas FORZAR EL CIERRE y perder los cambios de hoy en tu respaldo?")) {
-                          await cerrarDefinitivamente();
-                      }
-                  }
-              } else {
-                  await cerrarDefinitivamente();
-              }
-          });
       };
 
       inicializarApp();
-
-      return () => {
-          if (unlisten) unlisten(); 
-      };
   });
 
   // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
@@ -187,8 +144,6 @@
     }
   }
 
-  // MAGIA REACTIVA: Si el appStore cambia (ej: cuando le das "Guardar" en Configuración),
-  // se vuelve a buscar el nombre automáticamente sin recargar la página.
   $: if ($appStore) {
       cargarNombreUsuario();
   }
@@ -202,19 +157,18 @@
           
           reader.onload = (e) => {
               const resultado = e.target?.result as string;
-              fotoUsuario = resultado; // Mostramos la foto
-              localStorage.setItem('fotoPerfil', resultado); // La guardamos para siempre
+              fotoUsuario = resultado; 
+              localStorage.setItem('fotoPerfil', resultado); 
           };
-          reader.readAsDataURL(archivo); // Convertimos la imagen a texto (Base64)
+          reader.readAsDataURL(archivo); 
       }
   }
 
-  // --- FUNCIÓN QUE ARREGLA EL BOTÓN ---
+  // --- GESTIÓN DE SALONES ---
   function abrirModalSalones() {
-      console.log("Abriendo modal de salones..."); // Para verificar en consola
-      mostrarModalLocales = true; // 1. Abrimos modal inmediatamente
-      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; // 2. Limpiamos
-      cargarLocales(); // 3. Cargamos datos
+      mostrarModalLocales = true; 
+      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
+      cargarLocales(); 
   }
 
   async function cargarLocales() {
@@ -224,7 +178,6 @@
   async function guardarLocal() {
     if (!nuevoLocal.nombre) return alert("El nombre es obligatorio");
     try {
-        // OJO: Tu backend en Rust debe aceptar estos campos nuevos (direccion, estado, capacidad)
         await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
         cargarLocales();
         nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
@@ -275,7 +228,6 @@
   function irInicio() { vistaActual.set('inicio'); goto('/'); }
 
   function irConfig() {
-  // Guardar la ruta actual (si no es la página de inicio)
   const currentPath = window.location.pathname;
   if (currentPath !== '/') {
     localStorage.setItem('rutaAnterior', currentPath);
@@ -283,7 +235,6 @@
   vistaActual.set('configuracion');
   goto('/');
 }
-
 </script>
 
 <svelte:window on:click={() => mostrarMenuAvatar = false} />
