@@ -12,11 +12,17 @@
   import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
   import SeccionAyuda from './secciones/SeccionAyuda.svelte';
   import PlantillasCartas from './secciones/PlantillasCartas.svelte';
+ 
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
     ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
-    ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity, FileText 
-    } from 'lucide-svelte';
+    ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity, FileText,
+    FolderSync, FolderX, Trash2 // 👈 NUEVOS ICONOS
+  } from 'lucide-svelte';
+
+  // 👈 NUEVAS HERRAMIENTAS DE SINCRONIZACIÓN (TAURI FS y DIALOG)
+  import { open as openDialog } from '@tauri-apps/plugin-dialog';
+  import { readFile, writeFile, remove, stat, BaseDirectory } from '@tauri-apps/plugin-fs';
 
   import Panel from '$lib/components/ui/Panel.svelte';
 
@@ -31,6 +37,14 @@
   let versionReal = "";
 
   function cerrar() { dispatch('close'); }
+  
+  // 👈 ACTUALIZA A RUST EN TIEMPO REAL SI EL USUARIO CAMBIA ALGO
+  $: if (typeof window !== 'undefined') {
+      invoke('actualizar_config_sync', { 
+          auto_export: autoExportar, 
+          sync_path: rutaSincronizacion 
+      }).catch(e => console.error("Error notificando a Rust:", e));
+  }
   
   // Recibe el aviso del hijo (WhatsApp/Correo) para expandir la pantalla
   function manejarCambioModo(e: CustomEvent<boolean>) {
@@ -95,6 +109,132 @@
   }
 }
 
+// ==========================================
+  // LÓGICA DE SINCRONIZACIÓN (NUBE/USB EN RAM)
+  // ==========================================
+  const DB_NAME = 'asamblea_db_v7.sqlite';
+  const BACKUP_NAME = 'rassembly_sync_backup.db';
+
+  let rutaSincronizacion = typeof localStorage !== 'undefined' ? localStorage.getItem('assembly_sync_path') || '' : '';
+  let autoExportar = typeof localStorage !== 'undefined' ? localStorage.getItem('assembly_auto_export') === 'true' : false;
+  let ultimaExportacion = typeof localStorage !== 'undefined' ? localStorage.getItem('assembly_last_export') || 'Desconocido' : 'Desconocido';
+  let ultimaImportacion = typeof localStorage !== 'undefined' ? localStorage.getItem('assembly_last_import') || 'Desconocido' : 'Desconocido';
+
+  let fechaArchivoSync = "Buscando...";
+  let tamanoArchivoSync = "0 KB";
+
+  function obtenerFechaActual() { return new Date().toLocaleString(); }
+
+  function obtenerRutaArchivoSync() {
+      const separador = rutaSincronizacion.includes('\\') ? '\\' : '/';
+      const barra = rutaSincronizacion.endsWith(separador) ? '' : separador;
+      return `${rutaSincronizacion}${barra}${BACKUP_NAME}`;
+  }
+
+  async function revisarArchivoSync() {
+      if (!rutaSincronizacion || rutaSincronizacion.trim() === "") {
+          fechaArchivoSync = "No hay carpeta vinculada";
+          tamanoArchivoSync = "-";
+          return;
+      }
+      try {
+          const rutaFinal = obtenerRutaArchivoSync();
+          const metadata = await stat(rutaFinal);
+          if (metadata.mtime) {
+              fechaArchivoSync = new Date(metadata.mtime).toLocaleString();
+          }
+          const kb = (metadata.size / 1024).toFixed(1);
+          tamanoArchivoSync = `${kb} KB`;
+      } catch (error) {
+          fechaArchivoSync = "No hay archivo en la carpeta";
+          tamanoArchivoSync = "0 KB";
+      }
+  }
+
+  async function elegirCarpetaSync() {
+      try {
+          const carpeta = await openDialog({ directory: true, multiple: false });
+          if (!carpeta) return;
+          rutaSincronizacion = carpeta as string;
+          localStorage.setItem('assembly_sync_path', rutaSincronizacion);
+          await revisarArchivoSync();
+          alert("✅ Carpeta de sincronización vinculada.");
+      } catch (error) {
+          alert("❌ Ocurrió un error al abrir el explorador.");
+      }
+  }
+
+  async function exportarSync() {
+      if (!rutaSincronizacion) return;
+      try {
+          // 1. Leemos los bytes de RAssembly usando AppData
+          const dbBytes = await readFile(DB_NAME, { baseDir: BaseDirectory.AppData });
+          // 2. Escribimos en la ruta externa elegida
+          const rutaFinal = obtenerRutaArchivoSync();
+          await writeFile(rutaFinal, dbBytes);
+
+          ultimaExportacion = obtenerFechaActual();
+          localStorage.setItem('assembly_last_export', ultimaExportacion);
+          await revisarArchivoSync();
+          alert("✅ Datos exportados correctamente a la carpeta de sincronización.");
+      } catch (error) {
+          console.error(error);
+          alert("❌ Error al exportar. Comprueba que la carpeta sigue existiendo y tienes permisos.");
+      }
+  }
+
+  async function importarSync() {
+      if (!rutaSincronizacion) return;
+      if (!confirm("⚠️ ATENCIÓN: Esto SOBRESCRIBIRÁ tu base de datos actual en esta PC. ¿Deseas continuar?")) return;
+      try {
+          const rutaFinal = obtenerRutaArchivoSync();
+          const backupBytes = await readFile(rutaFinal);
+
+          await writeFile(DB_NAME, backupBytes, { baseDir: BaseDirectory.AppData });
+
+          ultimaImportacion = obtenerFechaActual();
+          localStorage.setItem('assembly_last_import', ultimaImportacion);
+          await revisarArchivoSync();
+          
+          alert("✅ Datos sincronizados con éxito. La aplicación se reiniciará.");
+          window.location.reload();
+      } catch (error) {
+          alert("❌ Error al importar. ¿Estás seguro de que existe el archivo en la nube?");
+      }
+  }
+
+  async function restablecerCarpeta() {
+      if (confirm("¿Seguro que deseas desvincular la carpeta?")) {
+          rutaSincronizacion = "";
+          autoExportar = false;
+          localStorage.removeItem('assembly_sync_path');
+          localStorage.setItem('assembly_auto_export', 'false');
+          await revisarArchivoSync();
+      }
+  }
+
+  async function limpiarCarpetaSync() {
+      if (confirm("⚠️ ¿Deseas borrar el archivo de copia de tu nube/USB?")) {
+          try {
+              const rutaFinal = obtenerRutaArchivoSync();
+              await remove(rutaFinal);
+              ultimaExportacion = "Desconocido";
+              ultimaImportacion = "Desconocido";
+              localStorage.setItem('assembly_last_export', "Desconocido");
+              localStorage.setItem('assembly_last_import', "Desconocido");
+              await revisarArchivoSync();
+              alert("✅ Archivo eliminado de la nube.");
+          } catch (error) {
+              alert("❌ No se pudo borrar el archivo. Puede que esté bloqueado.");
+          }
+      }
+  }
+
+  function toggleAutoExportar(e: Event) {
+      autoExportar = (e.target as HTMLInputElement).checked;
+      localStorage.setItem('assembly_auto_export', autoExportar ? 'true' : 'false');
+  }
+
  onMount(async () => {
       try {
           versionReal = await getVersion();
@@ -102,6 +242,7 @@
           console.error("Error al leer la versión:", e);
           versionReal = "Desconocida";
       }
+      await revisarArchivoSync(); // 👈 NUEVA LÍNEA
   });
   
 </script>
@@ -209,7 +350,77 @@
                 <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
             
             {:else if configSeccion === 'datos'}
-                <Datos />
+                <div style="display: flex; flex-direction: column; gap: 30px; padding-bottom: 20px;">
+                    <Datos />
+
+                    <Panel padding="30px" clasesExtra="panel-sincronizacion">
+                        <div class="sync-header">
+                            <div class="sync-icon-box">
+                                <FolderSync size={24} strokeWidth={2} />
+                            </div>
+                            <div class="sync-title">
+                                <h3>Carpeta de Sincronización</h3>
+                                <p>Elige una carpeta en la nube (Google Drive, OneDrive, etc.) para compartir datos entre tus dispositivos.</p>
+                            </div>
+                        </div>
+
+                        <div class="sync-info-box">
+                            <div class="sync-grid-info">
+                                <span class="label">Carpeta actual:</span>
+                                <div>
+                                    {#if rutaSincronizacion}
+                                        <span class="path-badge">{rutaSincronizacion}</span>
+                                    {:else}
+                                        <span class="path-badge" style="color: var(--text-secondary); background: var(--bg-body); border-color: var(--border);">Ninguna configurada</span>
+                                    {/if}
+                                </div>
+
+                                <span class="label">Última exportación local:</span>
+                                <span class="value">{ultimaExportacion}</span>
+
+                                <span class="label">Última importación local:</span>
+                                <span class="value">{ultimaImportacion}</span>
+                            </div>
+                        </div>
+
+                        {#if rutaSincronizacion}
+                            <div class="sync-status-box">
+                                <h4>ESTADO DEL ARCHIVO DE SINCRONIZACIÓN</h4>
+                                <p>Lectura en tiempo real del archivo físico en tu carpeta vinculada. Si la fecha detectada aquí es más reciente que tu memoria local, significa que tienes datos nuevos listos para importar.</p>
+                                
+                                <div class="sync-grid-info mt-15">
+                                    <span class="label">Última modificación detectada:</span>
+                                    <strong class="value-dark">{fechaArchivoSync}</strong>
+
+                                    <span class="label">Peso del archivo:</span>
+                                    <strong class="value-dark">{tamanoArchivoSync}</strong>
+                                </div>
+                            </div>
+                        {/if}
+
+                        <div class="sync-main-actions">
+                            <button class="btn-sync-primary" on:click={elegirCarpetaSync}>Elegir carpeta sincronizada</button>
+                            <button class="btn-sync-secondary" on:click={exportarSync} disabled={!rutaSincronizacion}>Exportar sincronización</button>
+                            <button class="btn-sync-secondary" on:click={importarSync} disabled={!rutaSincronizacion}>Importar sincronización</button>
+                        </div>
+
+                        <label class="sync-checkbox" style={!rutaSincronizacion ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
+                            <input type="checkbox" bind:checked={autoExportar} on:change={toggleAutoExportar} disabled={!rutaSincronizacion} />
+                            <span>Exportar cambios automáticamente al cerrar</span>
+                        </label>
+
+                        {#if rutaSincronizacion}
+                            <div class="sync-danger-actions">
+                                <button class="btn-sync-warning" on:click={restablecerCarpeta}>
+                                    <FolderX size={16} /> Restablecer carpeta
+                                </button>
+                                <button class="btn-sync-danger" on:click={limpiarCarpetaSync}>
+                                    <Trash2 size={16} /> Limpiar carpeta
+                                </button>
+                            </div>
+                        {/if}
+                    </Panel>
+                </div>
 
             {:else if configSeccion === 'ayuda'} 
               <SeccionAyuda />
@@ -476,4 +687,55 @@
         min-height: 48px;
     }
 }
+
+/* =========================================================
+   ESTILOS PANEL DE SINCRONIZACIÓN (ASISTENTE VISITAS)
+   ========================================================= */
+
+.panel-sincronizacion { font-family: 'Segoe UI', system-ui, sans-serif; }
+
+.sync-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; }
+.sync-icon-box { width: 48px; height: 48px; background-color: #ffe4e6; color: #e11d48; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sync-title h3 { margin: 0 0 5px 0; font-size: 18px; color: var(--text-main); font-weight: 700; }
+.sync-title p { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.4; }
+
+.sync-info-box { border: 1px dashed #cbd5e1; background-color: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+.sync-status-box { background-color: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
+.sync-status-box h4 { margin: 0 0 10px 0; color: #1e3a8a; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }
+.sync-status-box p { margin: 0; font-size: 13px; color: #475569; line-height: 1.5; }
+
+.sync-grid-info { display: grid; grid-template-columns: 200px 1fr; gap: 12px 15px; align-items: center; }
+.sync-grid-info.mt-15 { margin-top: 15px; }
+.sync-grid-info .label { font-size: 13px; color: #475569; }
+.sync-grid-info .value { font-size: 13px; color: #334155; }
+.sync-grid-info .value-dark { font-size: 13px; color: #0f172a; font-weight: 700; text-align: right; }
+
+.path-badge { background-color: #fff1f2; color: #e11d48; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; border: 1px solid #fecdd3; }
+
+.sync-main-actions { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.btn-sync-primary { background-color: #e11d48; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+.btn-sync-primary:hover { opacity: 0.9; }
+.btn-sync-secondary { background-color: #ffffff; color: #334155; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-sync-secondary:not(:disabled):hover { background-color: #f8fafc; border-color: #94a3b8; }
+.btn-sync-secondary:disabled { opacity: 0.4; cursor: not-allowed; background-color: #f1f5f9; color: #94a3b8; }
+
+.sync-danger-actions { display: flex; gap: 15px; border-top: 1px solid var(--border); padding-top: 20px; }
+.btn-sync-warning { background: transparent; color: #d97706; border: 1px solid #fcd34d; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
+.btn-sync-warning:hover { background: #fef3c7; }
+.btn-sync-danger { background: transparent; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s; }
+.btn-sync-danger:hover { background: #fee2e2; }
+
+/* FIX DEL CHECKBOX (A prueba de balas) */
+.sync-checkbox { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #334155; margin-bottom: 25px; cursor: pointer; }
+.sync-checkbox input[type="checkbox"] { display: inline-block !important; appearance: auto !important; -webkit-appearance: checkbox !important; width: 16px !important; height: 16px !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; margin: 0 !important; cursor: pointer !important; accent-color: #e11d48; }
+
+/* Adaptación para modo oscuro RAssembly */
+:global(html.dark-theme) .sync-info-box { background-color: var(--bg-card); border-color: var(--border); }
+:global(html.dark-theme) .sync-status-box { background-color: rgba(30, 58, 138, 0.2); border-color: #1e3a8a; }
+:global(html.dark-theme) .sync-status-box h4 { color: #60a5fa; }
+:global(html.dark-theme) .sync-status-box p, :global(html.dark-theme) .sync-grid-info .label, :global(html.dark-theme) .sync-grid-info .value { color: var(--text-main); }
+:global(html.dark-theme) .sync-grid-info .value-dark { color: #ffffff; }
+:global(html.dark-theme) .btn-sync-secondary { background-color: var(--bg-body); border-color: var(--border); color: var(--text-main); }
+:global(html.dark-theme) .sync-checkbox { color: var(--text-main); }
+
 </style>

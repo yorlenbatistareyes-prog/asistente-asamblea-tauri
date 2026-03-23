@@ -2,13 +2,16 @@
 // 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
   import '../app.css';
   import { onMount } from 'svelte';
-  import { User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  import { RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
   import { getVersion } from '@tauri-apps/api/app';
+
+  // 👈 HERRAMIENTAS DE TAURI PARA LECTURA/ESCRITURA
+  import { stat, readFile, writeFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
@@ -20,8 +23,8 @@
   let saludo = "Hola"; 
   let temaActual = 'sistema';
   let nombreUsuario = "Usuario";
-  let fotoUsuario = ""; // 👈 VARIABLE PARA LA FOTO
-  let mostrarMenuAvatar = false; // 👈 CONTROL DEL MENÚ PROFESIONAL
+  let fotoUsuario = ""; 
+  let mostrarMenuAvatar = false; 
   let fileInput: HTMLInputElement;
 
   // --- QUITAR FOTO ---
@@ -29,7 +32,7 @@
       fotoUsuario = ""; 
       localStorage.removeItem('fotoPerfil'); 
       if (fileInput) fileInput.value = ""; 
-      mostrarMenuAvatar = false; // Cerramos el menú
+      mostrarMenuAvatar = false; 
   }
   
   // --- VARIABLES GESTIÓN SALONES ---
@@ -37,20 +40,104 @@
   let listaLocales: any[] = [];
   let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
-  onMount(async () => {
-    await cargarDatosGlobales();
-    await cargarNombreUsuario();
-    fotoUsuario = localStorage.getItem('fotoPerfil') || "";
-    iniciarReloj(); 
-    cargarTemaGuardado();
-    cargarLocales();
-    try {
-        versionApp = await getVersion();
-    } catch (e) {
-        console.error("Error al obtener la versión:", e);
-        versionApp = "Desconocida"; 
-    }
-  }); 
+  // ==========================================
+  // LÓGICA DE SINCRONIZACIÓN INTELIGENTE
+  // ==========================================
+  const DB_NAME = 'asamblea_db_v7.sqlite';
+  const BACKUP_NAME = 'rassembly_sync_backup.db';
+  
+  let rutaSync = "";
+  let isSyncing = false;
+
+  async function ejecutarSincronizacionInteligente() {
+      rutaSync = localStorage.getItem('assembly_sync_path') || "";
+      if (!rutaSync) return;
+      isSyncing = true;
+
+      try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const separador = rutaSync.includes('\\') ? '\\' : '/';
+          const barra = rutaSync.endsWith(separador) ? '' : separador;
+          const rutaFinal = `${rutaSync}${barra}${BACKUP_NAME}`;
+
+          let cloudStat: any = null;
+          try { cloudStat = await stat(rutaFinal); } catch(e) {}
+
+          const localBytes = await readFile(DB_NAME, { baseDir: BaseDirectory.AppData });
+
+          if (!cloudStat) {
+              await writeFile(rutaFinal, localBytes);
+              localStorage.setItem('assembly_last_export', new Date().toLocaleString());
+              alert("Primera copia de seguridad creada en la nube.");
+          } else {
+              const cloudBytes = await readFile(rutaFinal);
+
+              let sonIdenticos = false;
+              if (localBytes.length === cloudBytes.length) {
+                  sonIdenticos = localBytes.every((val, index) => val === cloudBytes[index]);
+              }
+
+              if (sonIdenticos) {
+                  alert("Tus datos ya están completamente sincronizados y al día.");
+                  isSyncing = false;
+                  return;
+              }
+
+              const localStat = await stat(DB_NAME, { baseDir: BaseDirectory.AppData });
+              const localTime = localStat.mtime ? new Date(localStat.mtime).getTime() : 0;
+              const cloudTime = cloudStat.mtime ? new Date(cloudStat.mtime).getTime() : 0;
+
+              if (cloudTime > localTime) {
+                  if (confirm("Hay datos más recientes en tu carpeta compartida. ¿Deseas importarlos a este equipo?")) {
+                      await writeFile(DB_NAME, cloudBytes, { baseDir: BaseDirectory.AppData });
+                      localStorage.setItem('assembly_last_import', new Date().toLocaleString());
+                      alert("Datos importados correctamente. La aplicación se reiniciará.");
+                      window.location.reload();
+                  }
+              } else {
+                  await writeFile(rutaFinal, localBytes);
+                  localStorage.setItem('assembly_last_export', new Date().toLocaleString());
+                  alert("Tus cambios recientes se guardaron en la carpeta de sincronización.");
+              }
+          }
+      } catch (error) {
+          console.error("Error en sincronización:", error);
+          alert("Ocurrió un error al intentar sincronizar. Revisa que la carpeta exista.");
+      } finally {
+          isSyncing = false;
+      }
+  }
+
+  // ==========================================
+  // INICIALIZACIÓN (ONMOUNT LIMPIO)
+  // ==========================================
+  onMount(() => {
+      const inicializarApp = async () => {
+          await cargarDatosGlobales();
+          await cargarNombreUsuario();
+          fotoUsuario = localStorage.getItem('fotoPerfil') || "";
+          rutaSync = localStorage.getItem('assembly_sync_path') || "";
+          iniciarReloj(); 
+          cargarTemaGuardado();
+          cargarLocales();
+          
+          try {
+              versionApp = await getVersion();
+          } catch (e) {
+              console.error("Error al obtener la versión:", e);
+              versionApp = "Desconocida"; 
+          }
+      };
+
+      inicializarApp();
+
+      // 👈 ENVÍA LA CONFIGURACIÓN INICIAL A RUST
+          const autoExport = localStorage.getItem('assembly_auto_export') === 'true';
+          invoke('actualizar_config_sync', { 
+              auto_export: autoExport, // Ojo: snake_case porque Rust lo espera así
+              sync_path: rutaSync 
+          }).catch(console.error);
+  });
 
   // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
   async function cargarNombreUsuario() {
@@ -64,8 +151,6 @@
     }
   }
 
-  // MAGIA REACTIVA: Si el appStore cambia (ej: cuando le das "Guardar" en Configuración),
-  // se vuelve a buscar el nombre automáticamente sin recargar la página.
   $: if ($appStore) {
       cargarNombreUsuario();
   }
@@ -79,19 +164,18 @@
           
           reader.onload = (e) => {
               const resultado = e.target?.result as string;
-              fotoUsuario = resultado; // Mostramos la foto
-              localStorage.setItem('fotoPerfil', resultado); // La guardamos para siempre
+              fotoUsuario = resultado; 
+              localStorage.setItem('fotoPerfil', resultado); 
           };
-          reader.readAsDataURL(archivo); // Convertimos la imagen a texto (Base64)
+          reader.readAsDataURL(archivo); 
       }
   }
 
-  // --- FUNCIÓN QUE ARREGLA EL BOTÓN ---
+  // --- GESTIÓN DE SALONES ---
   function abrirModalSalones() {
-      console.log("Abriendo modal de salones..."); // Para verificar en consola
-      mostrarModalLocales = true; // 1. Abrimos modal inmediatamente
-      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; // 2. Limpiamos
-      cargarLocales(); // 3. Cargamos datos
+      mostrarModalLocales = true; 
+      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
+      cargarLocales(); 
   }
 
   async function cargarLocales() {
@@ -101,7 +185,6 @@
   async function guardarLocal() {
     if (!nuevoLocal.nombre) return alert("El nombre es obligatorio");
     try {
-        // OJO: Tu backend en Rust debe aceptar estos campos nuevos (direccion, estado, capacidad)
         await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
         cargarLocales();
         nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
@@ -152,7 +235,6 @@
   function irInicio() { vistaActual.set('inicio'); goto('/'); }
 
   function irConfig() {
-  // Guardar la ruta actual (si no es la página de inicio)
   const currentPath = window.location.pathname;
   if (currentPath !== '/') {
     localStorage.setItem('rutaAnterior', currentPath);
@@ -160,7 +242,6 @@
   vistaActual.set('configuracion');
   goto('/');
 }
-
 </script>
 
 <svelte:window on:click={() => mostrarMenuAvatar = false} />
@@ -209,6 +290,17 @@
             <button class="btn-nav" on:click={irInicio} title="Inicio">
                 <Home size={18}/><span>Inicio</span>
             </button>
+
+            {#if rutaSync}
+                <button 
+                    class="btn-icon" 
+                    class:anim-spin={isSyncing} 
+                    on:click={ejecutarSincronizacionInteligente} 
+                    disabled={isSyncing} 
+                    title="Sincronización Inteligente">
+                    <RefreshCw size={18} />
+                </button>
+            {/if}
             
             <button class="btn-icon" on:click={cambiarTema}>
                 {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
@@ -582,4 +674,52 @@
     }
 }
 
+/* ANIMACIÓN DE GIRO PARA EL BOTÓN SYNC */
+  .anim-spin {
+      pointer-events: none; /* Evita doble clic */
+  }
+  .anim-spin :global(svg) {
+      animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+  }
+  
+  /* =========================================================
+     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
+     ========================================================= */
+  .btn-icon.anim-spin {
+      color: #3b82f6 !important; /* El azul brillante */
+      background-color: transparent;
+      pointer-events: none; /* Bloquea clics dobles */
+  }
+
+  /* Hace que solo el icono SVG gire, no todo el botón */
+  .btn-icon.anim-spin :global(svg) {
+      animation: rotar-radar 1s linear infinite;
+  }
+
+  @keyframes rotar-radar {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+  }
+
+  /* =========================================================
+     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
+     ========================================================= */
+  button.anim-spin {
+      color: #3b82f6 !important; /* El azul brillante */
+      background-color: transparent !important;
+  }
+
+  /* Hace que solo el icono SVG gire */
+  button.anim-spin :global(svg) {
+      animation: rotar-radar 1s linear infinite !important;
+  }
+
+  @keyframes rotar-radar {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+  }
 </style>
