@@ -56,6 +56,7 @@
       isSyncing = true;
 
       try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
           const separador = rutaSync.includes('\\') ? '\\' : '/';
           const barra = rutaSync.endsWith(separador) ? '' : separador;
           const rutaFinal = `${rutaSync}${barra}${BACKUP_NAME}`;
@@ -333,8 +334,13 @@
             </button>
 
             {#if rutaSync}
-                <button class="btn-icon {isSyncing ? 'anim-spin' : ''}" on:click={ejecutarSincronizacionInteligente} disabled={isSyncing} title="Sincronización Inteligente">
-                    <RefreshCw size={18} color={isSyncing ? 'var(--primary)' : 'currentColor'}/>
+                <button 
+                    class="btn-icon" 
+                    class:anim-spin={isSyncing} 
+                    on:click={ejecutarSincronizacionInteligente} 
+                    disabled={isSyncing} 
+                    title="Sincronización Inteligente">
+                    <RefreshCw size={18} />
                 </button>
             {/if}
             
@@ -722,4 +728,40 @@
       to { transform: rotate(360deg); }
   }
   
+  /* =========================================================
+     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
+     ========================================================= */
+  .btn-icon.anim-spin {
+      color: #3b82f6 !important; /* El azul brillante */
+      background-color: transparent;
+      pointer-events: none; /* Bloquea clics dobles */
+  }
+
+  /* Hace que solo el icono SVG gire, no todo el botón */
+  .btn-icon.anim-spin :global(svg) {
+      animation: rotar-radar 1s linear infinite;
+  }
+
+  @keyframes rotar-radar {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+  }
+
+  /* =========================================================
+     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
+     ========================================================= */
+  button.anim-spin {
+      color: #3b82f6 !important; /* El azul brillante */
+      background-color: transparent !important;
+  }
+
+  /* Hace que solo el icono SVG gire */
+  button.anim-spin :global(svg) {
+      animation: rotar-radar 1s linear infinite !important;
+  }
+
+  @keyframes rotar-radar {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+  }
 </style>
