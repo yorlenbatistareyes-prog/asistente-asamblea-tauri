@@ -38,6 +38,14 @@
 
   function cerrar() { dispatch('close'); }
   
+  // 👈 ACTUALIZA A RUST EN TIEMPO REAL SI EL USUARIO CAMBIA ALGO
+  $: if (typeof window !== 'undefined') {
+      invoke('actualizar_config_sync', { 
+          auto_export: autoExportar, 
+          sync_path: rutaSincronizacion 
+      }).catch(e => console.error("Error notificando a Rust:", e));
+  }
+  
   // Recibe el aviso del hijo (WhatsApp/Correo) para expandir la pantalla
   function manejarCambioModo(e: CustomEvent<boolean>) {
       editorAbierto = e.detail;

@@ -130,6 +130,13 @@
       };
 
       inicializarApp();
+
+      // 👈 ENVÍA LA CONFIGURACIÓN INICIAL A RUST
+          const autoExport = localStorage.getItem('assembly_auto_export') === 'true';
+          invoke('actualizar_config_sync', { 
+              auto_export: autoExport, // Ojo: snake_case porque Rust lo espera así
+              sync_path: rutaSync 
+          }).catch(console.error);
   });
 
   // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---

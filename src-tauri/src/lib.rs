@@ -24,8 +24,23 @@ pub mod commands {
 
 use crate::database::DbState;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, State};
 use std::fs; // Necesario para mover archivos
+
+// ==========================================
+// 1. ESTADO Y COMANDO DE SINCRONIZACIÓN
+// ==========================================
+pub struct SyncState {
+    pub auto_export: Mutex<bool>,
+    pub sync_path: Mutex<String>,
+}
+
+#[tauri::command]
+fn actualizar_config_sync(state: State<'_, SyncState>, auto_export: bool, sync_path: String) {
+    *state.auto_export.lock().unwrap() = auto_export;
+    *state.sync_path.lock().unwrap() = sync_path;
+}
+// ==========================================
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,6 +52,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         
+        // 2. REGISTRAMOS LA MEMORIA PARA LA SINCRONIZACIÓN
+        .manage(SyncState {
+            auto_export: Mutex::new(false),
+            sync_path: Mutex::new(String::new()),
+        })
         // Si usas el reinicio automático en Restaurar, necesitas este plugin
         // --- BASE DE DATOS ---
         // --- AQUÍ ESTÁ EL CAMBIO: LÓGICA DE INICIO ---
@@ -108,7 +128,25 @@ if ruta_pendiente.exists() {
                }
                Err(e) => println!("❌ Error inicializando DB: {}", e),
             }
-            Ok(()) 
+            Ok(())
+        }) 
+
+            .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                let state = window.state::<SyncState>();
+                let auto_export = *state.auto_export.lock().unwrap();
+                let sync_path = state.sync_path.lock().unwrap().clone();
+
+                if auto_export && !sync_path.trim().is_empty() {
+                    if let Ok(app_data_dir) = window.app_handle().path().app_data_dir() {
+                        // OJO: Usamos database::DB_NAME que ya tienes definido
+                        let db_path = app_data_dir.join(database::DB_NAME);
+                        let dest_path = std::path::Path::new(&sync_path).join("rassembly_sync_backup.db");
+                        
+                        let _ = fs::copy(&db_path, &dest_path);
+                    }
+                }
+            }
         })
         // --- REGISTRO DE COMANDOS (INVOKE HANDLER) ---
         .invoke_handler(tauri::generate_handler![
@@ -179,6 +217,7 @@ if ruta_pendiente.exists() {
             commands::datos::exportar_base_datos,
             commands::datos::importar_base_datos,
             commands::datos::limpiar_datos,
+            actualizar_config_sync
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
