@@ -42,6 +42,30 @@ fn actualizar_config_sync(state: State<'_, SyncState>, auto_export: bool, sync_p
 }
 // ==========================================
 
+// ==========================================
+// COMANDO PARA LLAMAR POR TELÉFONO (Windows)
+// ==========================================
+#[tauri::command]
+fn llamar_telefono(telefono: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let output = Command::new("cmd")
+            .args(&["/C", "start", format!("tel:{}", telefono).as_str()])
+            .output()
+            .map_err(|e| format!("Error al ejecutar comando: {}", e))?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("No se pudo abrir el marcador: {}", stderr));
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Esta función solo está implementada para Windows".into())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -217,7 +241,9 @@ if ruta_pendiente.exists() {
             commands::datos::exportar_base_datos,
             commands::datos::importar_base_datos,
             commands::datos::limpiar_datos,
-            actualizar_config_sync
+            actualizar_config_sync,
+
+            llamar_telefono
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

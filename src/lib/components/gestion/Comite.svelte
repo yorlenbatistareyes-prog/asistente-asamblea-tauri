@@ -339,27 +339,40 @@ async function enviarEmailHermano(hermano: any) {
 }
 
 // --- LLAMAR POR TELÉFONO ---
-function llamarTelefono(hermano: any) {
+async function llamarTelefono(hermano: any) {
     if (!hermano.telefono) {
         alert("⚠️ Este hermano no tiene número de teléfono registrado.");
         return;
     }
     
-    // Limpiar el número: eliminar espacios, guiones, paréntesis, etc.
     let telefonoLimpio = hermano.telefono.replace(/[\s\-\(\)]/g, '');
-    
-    // Asegurar que tenga el prefijo internacional si es necesario (opcional)
-    // Si el número no empieza con '+' y es cubano, podrías añadir '+53'
     if (!telefonoLimpio.startsWith('+') && !telefonoLimpio.startsWith('00')) {
-        // Ejemplo para Cuba: asume que es un número nacional (5XXXXXXX)
-        // Puedes ajustar la lógica según tu país
         if (telefonoLimpio.length === 8 && telefonoLimpio.startsWith('5')) {
             telefonoLimpio = '+53' + telefonoLimpio;
         }
     }
     
-    const url = `tel:${telefonoLimpio}`;
-    openUrl(url);
+    // Mostrar advertencia solo una vez
+    const yaVisto = localStorage.getItem('tel_warning_shown');
+    if (!yaVisto) {
+        const confirmar = await confirm(
+            "Para realizar llamadas, Windows necesita una aplicación predeterminada.\n\n" +
+            "Si ves un selector de aplicaciones, elige 'Teléfono' (Phone) o tu app favorita.\n\n" +
+            "También puedes configurarlo en: Configuración > Aplicaciones > Aplicaciones predeterminadas > 'Elegir aplicaciones predeterminadas por protocolo' > tel.\n\n" +
+            "¿Quieres continuar con la llamada?",
+            { title: "Información sobre llamadas", kind: "info" }
+        );
+        if (!confirmar) return;
+        localStorage.setItem('tel_warning_shown', 'true');
+    }
+    
+    // Usar el comando Rust en lugar de openUrl
+    try {
+        await invoke('llamar_telefono', { telefono: telefonoLimpio });
+    } catch (error) {
+        console.error("Error al intentar llamar:", error);
+        alert("No se pudo abrir el marcador. Asegúrate de tener una aplicación configurada para llamadas.");
+    }
 }
 
 // --- ABRIR WHATSAPP ---
@@ -480,7 +493,7 @@ function abrirWhatsApp(hermano: any) {
                                   <MessageSquare size={14}/>
                                </button>
                             </div>
-                            
+
                             <div class="lista-contactos">
                                 {#if p.email}<div class="item-contacto"><Mail size={14}/> {p.email}</div>{/if}
                                 {#if p.telefono}<div class="item-contacto"><Phone size={14}/> {p.telefono}</div>{/if}
