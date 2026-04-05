@@ -305,7 +305,83 @@
       }
   }
 
-  
+  // --- ENVIAR CORREO INDIVIDUAL A UN HERMANO ---
+async function enviarEmailHermano(hermano: any) {
+    if (!hermano.email) {
+        alert("⚠️ Este hermano no tiene dirección de correo registrada.");
+        return;
+    }
+
+    try {
+        // Usamos la plantilla "superintendente" como base (puedes cambiarla)
+        const idPlantilla = 'superintendente';
+        const plantilla = obtenerPlantillaPorId(idPlantilla);
+        const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+        const cuerpoBase = plantilla?.body || "";
+
+        // Generar contexto para este hermano
+        const contexto = await generarContexto(hermano, asambleaId, false);
+        
+        const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+        const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+        // Abrir JW Mail con el destinatario
+        const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+                    `&to=${encodeURIComponent(hermano.email)}` +
+                    `&subject=${encodeURIComponent(asuntoFinal)}` +
+                    `&body=${encodeURIComponent(cuerpoFinal)}`;
+        
+        await openUrl(url);
+    } catch (error) {
+        console.error("Error al generar correo individual:", error);
+        alert("Ocurrió un error al intentar abrir el correo.");
+    }
+}
+
+// --- LLAMAR POR TELÉFONO ---
+function llamarTelefono(hermano: any) {
+    if (!hermano.telefono) {
+        alert("⚠️ Este hermano no tiene número de teléfono registrado.");
+        return;
+    }
+    
+    // Limpiar el número: eliminar espacios, guiones, paréntesis, etc.
+    let telefonoLimpio = hermano.telefono.replace(/[\s\-\(\)]/g, '');
+    
+    // Asegurar que tenga el prefijo internacional si es necesario (opcional)
+    // Si el número no empieza con '+' y es cubano, podrías añadir '+53'
+    if (!telefonoLimpio.startsWith('+') && !telefonoLimpio.startsWith('00')) {
+        // Ejemplo para Cuba: asume que es un número nacional (5XXXXXXX)
+        // Puedes ajustar la lógica según tu país
+        if (telefonoLimpio.length === 8 && telefonoLimpio.startsWith('5')) {
+            telefonoLimpio = '+53' + telefonoLimpio;
+        }
+    }
+    
+    const url = `tel:${telefonoLimpio}`;
+    openUrl(url);
+}
+
+// --- ABRIR WHATSAPP ---
+function abrirWhatsApp(hermano: any) {
+    if (!hermano.telefono) {
+        alert("⚠️ Este hermano no tiene número de teléfono registrado.");
+        return;
+    }
+    
+    // Limpiar el número: eliminar espacios, guiones, paréntesis y el signo '+'
+    let telefonoLimpio = hermano.telefono.replace(/[\s\-\(\)]/g, '');
+    // Eliminar el '+' si existe para el formato de WhatsApp
+    telefonoLimpio = telefonoLimpio.replace(/^\+/, '');
+    
+    // Si el número no tiene código de país, asumir +53 (Cuba) - ajusta según necesidad
+    if (!telefonoLimpio.startsWith('53') && telefonoLimpio.length === 8) {
+        telefonoLimpio = '53' + telefonoLimpio;
+    }
+    
+    const url = `https://wa.me/${telefonoLimpio}`;
+    openUrl(url);
+}
 
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
 </script>
@@ -390,12 +466,21 @@
                             <div class="avatar-grande filled bg-{def.color}">
                                 <User size={32} color="white"/>
                             </div>
+                            
                             <h4 class="nombre-miembro">{p.nombre_completo}</h4>
+                            
                             <div class="acciones-rapidas">
-                                <button class="qa-btn" title="Enviar correo"><Mail size={14}/></button>
-                                <button class="qa-btn" title="Llamar"><Phone size={14}/></button>
-                                <button class="qa-btn" title="WhatsApp"><MessageSquare size={14}/></button>
+                               <button class="qa-btn" title="Enviar correo" on:click={() => enviarEmailHermano(p)}>
+                                  <Mail size={14}/>
+                               </button>
+                               <button class="qa-btn" title="Llamar" on:click={() => llamarTelefono(p)}>
+                                  <Phone size={14}/>
+                               </button>
+                               <button class="qa-btn" title="WhatsApp" on:click={() => abrirWhatsApp(p)}>
+                                  <MessageSquare size={14}/>
+                               </button>
                             </div>
+                            
                             <div class="lista-contactos">
                                 {#if p.email}<div class="item-contacto"><Mail size={14}/> {p.email}</div>{/if}
                                 {#if p.telefono}<div class="item-contacto"><Phone size={14}/> {p.telefono}</div>{/if}
