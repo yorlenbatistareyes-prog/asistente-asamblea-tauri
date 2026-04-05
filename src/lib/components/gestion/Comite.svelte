@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { confirm } from '@tauri-apps/plugin-dialog';
   import { 
     ShieldCheck, Save, Search, X, MapPin, Phone, Mail, 
     User, ChevronDown, Layers, Monitor, Mic, Radio, Users, Plus, Droplet, BookOpen,
@@ -141,8 +142,17 @@
   }
 
   async function quitar(rol: string) { 
-    c[rol] = 0; 
-    await guardar(true); // <-- Auto-guardado silencioso
+    // 1. Llamamos a la ventana nativa de Tauri
+    const confirmado = await confirm(
+      '¿Estás seguro de que deseas quitar a este hermano de la responsabilidad?', 
+      { title: 'Confirmar eliminación', kind: 'warning' }
+    );
+
+    // 2. Si el usuario da clic en "Sí" / "Aceptar", borramos y guardamos
+    if (confirmado) {
+      c[rol] = 0; 
+      await guardar(true); // <-- Auto-guardado silencioso
+    }
   }
 
   // --- CREAR CON DETALLES EN LA ASAMBLEA ACTUAL ---
@@ -295,6 +305,8 @@
       }
   }
 
+  
+
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
 </script>
 
@@ -362,8 +374,12 @@
                         <span class="badge-rol badge-{def.color}">{def.label}</span>
                         {#if getDetalles(c[rolId])}
                             <div class="acciones-tarjeta">
-                                <button class="icon-btn" title="Editar"><Edit2 size={14}/></button>
-                                <button class="icon-btn" title="Eliminar" on:click={() => quitar(rolId)}><Trash2 size={14}/></button>
+                                <button class="icon-btn btn-editar" title="Editar" on:click={() => abrirModal(rolId)}>
+                                    <Edit2 size={14}/>
+                                </button>
+                                <button class="icon-btn btn-eliminar" title="Eliminar" on:click={() => quitar(rolId)}>
+                                   <Trash2 size={14}/>
+                                </button>
                             </div>
                         {/if}
                     </div>
@@ -565,10 +581,51 @@
 .bg-baut  { background: #0d9488; }
 
 .acciones-tarjeta { display: flex; gap: 5px; }
+/* Estilo base del botón de acción */
+/* ========================================================
+   EFECTOS VISUALES AVANZADOS (HOVER)
+   ======================================================== */
+/* ========================================================
+   EFECTOS HOVER PREMIUM (LÁPIZ AZUL / BASURA ROJA)
+   ======================================================== */
+
 .icon-btn { 
-    background: transparent; border: none; color: var(--text-secondary); 
-    cursor: pointer; padding: 6px; border-radius: 4px; transition: 0.2s;
+    background: #ffffff; 
+    border: 1.5px solid #e5e7eb; /* Borde inicial gris claro */
+    color: #6b7280; 
+    cursor: pointer; 
+    padding: 8px; 
+    border-radius: 8px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
+
+/* --- HOVER LÁPIZ (AZUL ACERO) --- */
+.icon-btn.btn-editar:hover { 
+    background: rgba(40, 110, 180, 0.05);
+    color: #286eb4;
+    border-color: #286eb4;
+    box-shadow: 0 0 10px rgba(40, 110, 180, 0.25);
+    transform: translateY(-2px);
+}
+
+.icon-btn.btn-eliminar:hover { 
+    background: rgba(239, 68, 68, 0.05);
+    color: #ef4444;
+    border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Efecto de pulsación */
+.icon-btn:active {
+    transform: translateY(0) scale(0.95);
+    box-shadow: none;
+}
+
 .icon-btn:hover { background: var(--hover-bg); color: var(--text-main); }
 
 .tarjeta-body {
