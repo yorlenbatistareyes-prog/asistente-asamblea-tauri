@@ -42,7 +42,6 @@ pub struct Asamblea {
     pub local_id: Option<i32>,
     pub identificador: Option<String>,
     // --- Campos del comité ---
-    pub presidente_id: Option<i32>,
     pub coordinador_id: Option<i32>,
     pub coordinador_aux_id: Option<i32>,
     pub prog_super_id: Option<i32>,

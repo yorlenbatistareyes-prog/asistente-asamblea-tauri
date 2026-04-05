@@ -26,7 +26,7 @@
   let congregaciones: any[] = []; 
   
   let c: any = {
-    presi: 0, coord: 0, coord_a: 0, 
+    coord: 0, coord_a: 0, 
     prog: 0, prog_a: 0, aloj: 0, aloj_a: 0,
     av: 0, video: 0, audio: 0, plat: 0
   };
@@ -71,7 +71,6 @@
 
       if (asamblea) {
         c = {
-          presi: asamblea.presidente_id || 0,
           coord: asamblea.coordinador_id || 0,
           coord_a: asamblea.coordinador_aux_id || 0,
           prog: asamblea.prog_super_id || 0,
@@ -162,7 +161,6 @@
       // Enviamos TODOS los datos al backend (Rust)
       await invoke('guardar_comite', { 
         id: asambleaId, 
-        presidenteId: n(c.presi),
         coordinadorId: n(c.coord), 
         coordinadorAuxId: n(c.coord_a),
         progSuperId: n(c.prog), 
@@ -328,32 +326,6 @@
   </div>
 
   <div class="scroll-container">
-    
-    <Panel padding="24px" clasesExtra="seccion-comite">
-       <h4 class="titulo-seccion"><User size={18} />PRESIDENTE</h4>
-      <div class="grid-uno">
-         <div class="role-wrapper">
-            <span class="label-rol">Presidente de la Asamblea</span>
-            {#if getDetalles(c.presi)}
-                {@const p = getDetalles(c.presi)}
-                <div class="tarjeta">
-                    <div class="card-top">
-                        <div class="avatar"><User size={20}/></div>
-                        <div class="info"><span class="t-nombre">{p.nombre_completo}</span><span class="t-priv">{p.privilegios || 'Publicador'}</span></div>
-                        <button class="btn-x" on:click={() => quitar('presi')}><X size={16}/></button>
-                    </div>
-                    <div class="card-bottom">
-                        <div class="row"><MapPin size={12}/> {p.nombre_congregacion || 'Sin Congregación'}</div>
-                        <div class="row"><Phone size={12}/> {p.telefono || 'Sin Teléfono'}</div>
-                        <div class="row"><Mail size={12}/> {p.email || 'Sin Email'}</div>
-                    </div>
-                </div>
-            {:else}
-                <button class="btn-select" on:click={() => abrirModal('presi')}>Seleccionar... <ChevronDown size={16}/></button>
-            {/if}
-         </div>
-      </div>
-    </Panel>
 
     <h3 class="titulo-separador">Miembros del Comité de Asamblea</h3>
 

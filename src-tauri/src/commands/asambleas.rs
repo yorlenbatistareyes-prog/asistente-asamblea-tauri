@@ -131,7 +131,6 @@ pub fn guardar_info_evento(
 pub fn guardar_comite(
     app: AppHandle,
     id: i32,
-    presidente_id: Option<i32>,
     coordinador_id: Option<i32>,
     coordinador_aux_id: Option<i32>,
     prog_super_id: Option<i32>,
@@ -147,7 +146,6 @@ pub fn guardar_comite(
 ) -> Result<String, String> {
     println!("=== Guardando comité ===");
     println!("ID de asamblea: {}", id);
-    println!("presidente_id: {:?}", presidente_id);
     println!("coordinador_id: {:?}", coordinador_id);
     println!("coordinador_aux_id: {:?}", coordinador_aux_id);
     println!("prog_super_id: {:?}", prog_super_id);
@@ -166,22 +164,20 @@ pub fn guardar_comite(
     let rows_affected = conn
         .execute(
             "UPDATE asambleas SET 
-            presidente_id = ?1,
-            coordinador_id = ?2,
-            coordinador_aux_id = ?3,
-            prog_super_id = ?4,
-            prog_aux_id = ?5,
-            aloj_super_id = ?6,
-            aloj_aux_id = ?7,
-            audio_video_super_id = ?8,
-            video_super_id = ?9,
-            audio_super_id = ?10,
-            plataforma_super_id = ?11,
-            bautismo_super_id = ?12,
-            bautismo_aux_id = ?13
-         WHERE id = ?14",
+            coordinador_id = ?1,
+            coordinador_aux_id = ?2,
+            prog_super_id = ?3,
+            prog_aux_id = ?4,
+            aloj_super_id = ?5,
+            aloj_aux_id = ?6,
+            audio_video_super_id = ?7,
+            video_super_id = ?8,
+            audio_super_id = ?9,
+            plataforma_super_id = ?10,
+            bautismo_super_id = ?11,
+            bautismo_aux_id = ?12
+         WHERE id = ?13",
             params![
-                presidente_id,
                 coordinador_id,
                 coordinador_aux_id,
                 prog_super_id,
@@ -222,7 +218,7 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Valu
             a.recorridos_info, a.instrucciones_esp, a.jw_stream_studio,
             l.nombre as nombre_local,
             -- Campos del comité
-            a.presidente_id, a.coordinador_id, a.coordinador_aux_id,
+            a.coordinador_id, a.coordinador_aux_id,
             a.prog_super_id, a.prog_aux_id,
             a.aloj_super_id, a.aloj_aux_id,
             a.audio_video_super_id, a.video_super_id, a.audio_super_id, a.plataforma_super_id,
@@ -251,7 +247,6 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Valu
                 "jw_stream_studio": row.get::<_, i32>(11).unwrap_or(0) == 1,
                 "nombre_local": row.get::<_, Option<String>>(12).ok(),
                 // Comité
-                "presidente_id": row.get::<_, Option<i32>>(13).ok(),
                 "coordinador_id": row.get::<_, Option<i32>>(14).ok(),
                 "coordinador_aux_id": row.get::<_, Option<i32>>(15).ok(),
                 "prog_super_id": row.get::<_, Option<i32>>(16).ok(),
@@ -288,7 +283,7 @@ pub fn obtener_asamblea_por_id(
             a.ensayo_lugar, a.ensayo_fecha, a.ensayo_hora, a.ensayo_notas, 
             a.recorridos_info, a.instrucciones_esp, a.jw_stream_studio,
             l.nombre as nombre_local,
-            a.presidente_id, a.coordinador_id, a.coordinador_aux_id,
+            a.coordinador_id, a.coordinador_aux_id,
             a.prog_super_id, a.prog_aux_id,
             a.aloj_super_id, a.aloj_aux_id,
             a.audio_video_super_id, a.video_super_id, a.audio_super_id, a.plataforma_super_id,
@@ -316,7 +311,6 @@ pub fn obtener_asamblea_por_id(
                 "instrucciones_esp": row.get::<_, String>(10).unwrap_or_default(),
                 "jw_stream_studio": row.get::<_, i32>(11).unwrap_or(0) == 1,
                 "nombre_local": row.get::<_, Option<String>>(12).ok(),
-                "presidente_id": row.get::<_, Option<i32>>(13).ok(),
                 "coordinador_id": row.get::<_, Option<i32>>(14).ok(),
                 "coordinador_aux_id": row.get::<_, Option<i32>>(15).ok(),
                 "prog_super_id": row.get::<_, Option<i32>>(16).ok(),
