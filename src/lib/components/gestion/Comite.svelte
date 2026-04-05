@@ -37,6 +37,8 @@
   let rolEditando = ""; 
   let terminoBusqueda = "";
 
+  let inputEnFoco = false;
+
   // --- VARIABLES PARA CREACIÓN RÁPIDA ---
   let modoCreacionRapida = false;
   let nuevoNombre = "";
@@ -411,69 +413,75 @@
             <span class="subtexto-modal">Seleccionar entre personas existentes</span>
             <label class="label-modal">Seleccione una persona</label>
             <div class="input-con-icono">
-                <input type="text" placeholder="Seleccione Miembro..." bind:value={terminoBusqueda} autofocus class="input-modal" />
-                <Search size={18} class="icono-der" color="#6b7280"/>
+                <div class="icono-izq">
+                    <Search size={18} color="#6b7280"/>
+                </div>
+                
+                <input type="text" 
+                       placeholder="Buscar o seleccionar hermano..." 
+                       bind:value={terminoBusqueda} 
+                       autofocus 
+                       class="input-modal"
+                       on:focus={() => inputEnFoco = true} 
+                       on:blur={() => setTimeout(() => inputEnFoco = false, 200)} 
+                />
             </div>
             
-            {#if terminoBusqueda.length > 0}
-            <div class="lista-resultados">
-                {#each filtrados as p}
-                <button class="item-resultado" on:click={() => seleccionar(p.id)}>
-                    <div class="avatar-small">{p.nombre_completo.charAt(0)}</div>
-                    <div class="datos"><span class="p-nombre">{p.nombre_completo}</span><span class="p-cong">{p.nombre_congregacion || '-'}</span></div>
-                </button>
-                {/each}
-            </div>
+            {#if terminoBusqueda.length > 0 || (inputEnFoco && filtrados.length > 0)}
+                <div class="lista-resultados">
+                    {#each filtrados as p}
+                    <button class="item-resultado" on:click={() => seleccionar(p.id)}>
+                        <div class="avatar-small">{p.nombre_completo.charAt(0)}</div>
+                        <div class="datos">
+                            <span class="p-nombre">{p.nombre_completo}</span>
+                            <span class="p-cong">{p.nombre_congregacion || '-'}</span>
+                        </div>
+                    </button>
+                    {/each}
+                </div>
             {/if}
         </div>
 
         <div class="divisor-modal">
-            <span>O ingresa los detalles a continuación para crear un nuevo miembro</span>
+            <span>O ingresa los detalles para crear uno nuevo</span>
         </div>
 
-        {#if modoCreacionRapida}
-            <div class="formulario-creacion">
-                <div class="campo-full">
-                    <label class="label-modal">Nombre completo</label>
-                    <input type="text" bind:value={nuevoNombre} class="input-modal" />
-                </div>
-
-                <div class="campo-full">
-                    <label class="label-modal">Congregación</label>
-                    <select bind:value={nuevaCongregacionId} class="input-modal">
-                        <option value={0}>-- Sup. de Circuito / Ninguna --</option>
-                        {#each congregaciones as cong}
-                            <option value={cong.id}>{cong.nombre}</option>
-                        {/each}
-                    </select>
-                </div>
-
-                <div class="campo-full">
-                    <label class="label-modal">Dirección de correo electrónico</label>
-                    <input type="text" bind:value={nuevoEmail} class="input-modal" />
-                </div>
-
-                <div class="campo-full">
-                    <label class="label-modal">Teléfono móvil</label>
-                    <input type="text" bind:value={nuevoTelefono} class="input-modal" />
-                </div>
+        <div class="formulario-creacion">
+            <div class="campo-full">
+                <label class="label-modal">Nombre completo</label>
+                <input type="text" placeholder="Ej: Juan Pérez" bind:value={nuevoNombre} class="input-modal" />
             </div>
-        {:else}
-            <button class="btn-dashed" on:click={() => modoCreacionRapida = true}>
-                <Plus size={18}/> Crear Nuevo Miembro
-            </button>
-        {/if}
+
+            <div class="campo-full">
+                <label class="label-modal">Congregación</label>
+                <select bind:value={nuevaCongregacionId} class="input-modal">
+                    <option value={0}>-- Sup. de Circuito / Ninguna --</option>
+                    {#each congregaciones as cong}
+                        <option value={cong.id}>{cong.nombre}</option>
+                    {/each}
+                </select>
+            </div>
+
+            <div class="campo-full">
+                <label class="label-modal">Dirección de correo electrónico</label>
+                <input type="text" placeholder="hermano@email.com" bind:value={nuevoEmail} class="input-modal" />
+            </div>
+
+            <div class="campo-full">
+                <label class="label-modal">Teléfono móvil</label>
+                <input type="text" placeholder="+53..." bind:value={nuevoTelefono} class="input-modal" />
+            </div>
+        </div>
+
     </div>
     
     <div class="footer-modal">
-        <button class="btn-cancelar-accion" on:click={() => { if(modoCreacionRapida) modoCreacionRapida = false; else mostrarModal = false; }}>
+        <button class="btn-cancelar-accion" on:click={() => mostrarModal = false}>
             Cancelar
         </button>
-        {#if modoCreacionRapida}
-            <button class="btn-crear-accion" on:click={crearYSeleccionar}>
-                <Check size={16}/> Crear
-            </button>
-        {/if}
+        <button class="btn-crear-accion" on:click={crearYSeleccionar}>
+            <Check size={16}/> Crear y Asignar
+        </button>
     </div>
   </div>
 </div>
@@ -613,11 +621,48 @@
 .subtexto-modal { font-size: 13px; color: #4b5563; }
 .label-modal { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 2px; text-align: left; }
 
-.input-con-icono { position: relative; display: flex; align-items: center; }
-.input-modal { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; color: #111827; outline: none; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; background: #ffffff; }
-/* Azul Corporativo al hacer click */
-.input-modal:focus { border-color: #286eb4; box-shadow: 0 0 0 3px rgba(40,110,180,0.15); }
-.icono-der { position: absolute; right: 12px; pointer-events: none; }
+/* Contenedor relativo */
+.input-con-icono { 
+    position: relative; 
+    display: flex; 
+    align-items: center; 
+    width: 100%;
+}
+
+/* Forzamos el icono a la izquierda absoluta */
+.icono-izq { 
+    position: absolute; 
+    left: 12px; 
+    display: flex;
+    align-items: center;
+    pointer-events: none; 
+}
+
+/* El input hace el espacio para la lupa */
+.input-modal { 
+    width: 100%; 
+    /* Forzamos el espacio a la izquierda con 40px */
+    padding: 10px 12px 10px 40px !important; 
+    border: 1px solid #d1d5db; 
+    border-radius: 6px; 
+    font-size: 14px; 
+    color: #111827; 
+    outline: none; 
+    transition: border-color 0.2s, box-shadow 0.2s; 
+    box-sizing: border-box; 
+    background: #ffffff; 
+}
+.input-modal:focus { 
+    border-color: #286eb4; 
+    box-shadow: 0 0 0 3px rgba(40,110,180,0.15); 
+}
+
+/* 3. Movemos el icono a la izquierda (aunque la clase se llame 'icono-der', la forzamos a la izquierda) */
+.icono-der { 
+    position: absolute; 
+    left: 12px; /* <-- Cambiamos 'right' por 'left' */
+    pointer-events: none; 
+}
 
 .lista-resultados { max-height: 200px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px; margin-top: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
 .item-resultado { padding: 12px 15px; display: flex; gap: 12px; align-items: center; background: #fff; border: none; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background 0.2s; width: 100%; text-align: left; }
