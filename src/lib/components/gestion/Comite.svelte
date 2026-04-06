@@ -469,16 +469,24 @@ function abrirWhatsApp(hermano: any) {
                             <h4 class="nombre-miembro">{p.nombre_completo}</h4>
                             
                             <div class="acciones-rapidas">
-                               <button class="qa-btn" title="Enviar correo" on:click={() => enviarEmailHermano(p)}>
-                                  <Mail size={14}/>
-                               </button>
-                               <button class="qa-btn" title="Llamar" on:click={() => llamarTelefono(p)}>
-                                  <Phone size={14}/>
-                               </button>
-                               <button class="qa-btn" title="WhatsApp" on:click={() => abrirWhatsApp(p)}>
-                                  <MessageSquare size={14}/>
-                               </button>
-                            </div>
+    <button class="qa-btn btn-phone" 
+            title="Llamar" 
+            on:click={() => llamarTelefono(p)}>
+        <Phone size={16}/>
+    </button>
+
+    <button class="qa-btn btn-ws" 
+            title="Enviar WhatsApp" 
+            on:click={() => abrirWhatsApp(p)}>
+        <MessageSquare size={16}/>
+    </button>
+
+    <button class="qa-btn btn-jw-card" 
+            title="Enviar correo JW" 
+            on:click={() => enviarEmailHermano(p)}>
+        <Mail size={16}/>
+    </button>
+</div>
 
                             <div class="lista-contactos">
                                 {#if p.email}<div class="item-contacto"><Mail size={14}/> {p.email}</div>{/if}
@@ -579,8 +587,12 @@ function abrirWhatsApp(hermano: any) {
         <button class="btn-cancelar-accion" on:click={() => mostrarModal = false}>
             Cancelar
         </button>
-        <button class="btn-crear-accion" on:click={crearYSeleccionar}>
-            <Check size={16}/> Crear y Asignar
+        <button 
+           class="btn-crear-accion" 
+           on:click={crearYSeleccionar} 
+           disabled={!nuevoNombre.trim()}
+        >
+           <Check size={16}/> Crear y Asignar
         </button>
     </div>
   </div>
@@ -918,4 +930,39 @@ function abrirWhatsApp(hermano: any) {
 .asamblea-badge svg {
   color: var(--primary);
 }
+
+/* Estilo base para los botones circulares de la tarjeta */
+.qa-btn {
+    width: 36px; height: 36px; border-radius: 50%; 
+    border: 1.5px solid #e5e7eb; background: white;
+    color: #6b7280; display: flex; align-items: center; 
+    justify-content: center; cursor: pointer; 
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover Teléfono / Llamar (Azul) */
+.qa-btn[title="Llamar"]:hover {
+    border-color: #286eb4 !important; 
+    color: #286eb4 !important;
+    background: rgba(40, 110, 180, 0.05) !important;
+    box-shadow: 0 0 8px rgba(40, 110, 180, 0.2) !important;
+}
+
+/* Hover WhatsApp (Verde WhatsApp) */
+.qa-btn[title="Enviar WhatsApp"]:hover {
+    border-color: #22c55e !important; 
+    color: #22c55e !important;
+    background: rgba(34, 197, 94, 0.05) !important;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Hover JW Email (Naranja JW) */
+.btn-jw-card:hover {
+    border-color: #f97316 !important; 
+    color: #f97316 !important;
+    background: rgba(249, 115, 22, 0.05) !important;
+    box-shadow: 0 0 8px rgba(249, 115, 22, 0.2) !important;
+}
+
+.qa-btn:active { transform: scale(0.9); }
 </style>
