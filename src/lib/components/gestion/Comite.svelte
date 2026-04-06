@@ -427,7 +427,37 @@ function abrirWhatsApp(hermano: any) {
         
         {#if mostrarMenuJW}
           <div class="dropdown-jw" on:click|stopPropagation>
-            <!-- ... contenido del menú ... -->
+            <button class="jw-item" on:click={() => enviarEmailComite('comite_entero')}>
+                <div class="jw-icon-wrapper">
+                    <Users size={18} color="#2563eb"/> 
+                </div>
+                <div class="jw-text">
+                    <span class="jw-label">Al Comité de Asamblea</span>
+                    <span class="jw-sub">Coord., Prog. y Alojamiento</span>
+                </div>
+            </button>
+            
+            <div class="jw-divider"></div>
+
+            <button class="jw-item" on:click={() => enviarEmailComite('sup_programa')}>
+                <div class="jw-icon-wrapper">
+                    <ScrollText size={18} color="#d97706"/> 
+                </div>
+                <div class="jw-text">
+                    <span class="jw-label">Al Sup. de Programa</span>
+                </div>
+            </button>
+
+            <div class="jw-divider"></div>
+            
+            <button class="jw-item" on:click={() => enviarEmailComite('audio_video')}>
+                <div class="jw-icon-wrapper">
+                    <Radio size={18} color="#16a34a"/> 
+                </div>
+                <div class="jw-text">
+                    <span class="jw-label">Al Sup. de Audio/Video</span>
+                </div>
+            </button>
           </div>
         {/if}
       </div>
