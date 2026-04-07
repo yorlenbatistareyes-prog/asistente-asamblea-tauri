@@ -2,17 +2,9 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
-  import Oficina from '$lib/components/gestion/Oficina.svelte';
-
-  // --- IMPORTAMOS LOS ICONOS ---
-  import { User, Users, ArrowLeft, Bookmark, BookUser, UserCog, Mic2, PanelLeftClose, PanelLeftOpen,
-    IdCard, UserCheck, ListChecks, ClipboardList, Network, Layers, Key, HeartHandshake, 
-    Workflow, Briefcase, LayoutDashboard, UsersRound } from 'lucide-svelte';
   
-  import Icon from 'mdi-svelte';
-  import { IconosMDI } from '$lib/data/iconosMDI';
-
   // --- COMPONENTES ---
+  import Oficina from '$lib/components/gestion/Oficina.svelte';
   import Resumen from '$lib/components/gestion/Resumen.svelte';
   import Congregaciones from '$lib/components/gestion/Congregaciones.svelte';
   import Personas from '$lib/components/gestion/Personas.svelte';
@@ -21,14 +13,30 @@
   import Programa from '$lib/components/gestion/Programa.svelte';
   import { setResumen } from '$lib/stores/gestion';
 
-  // Controla qué sección vemos
+  // --- IMPORTAMOS LOS ICONOS ---
+  import { 
+      User, Users, ArrowLeft, Bookmark, Mic2, 
+      ClipboardList, Briefcase, LayoutDashboard, 
+      ChevronDown, Building2 
+  } from 'lucide-svelte';
+  
+  import Icon from 'mdi-svelte';
+  import { IconosMDI } from '$lib/data/iconosMDI';
+
+  // --- ESTADO ---
   let seccionActiva = 'inicio';
   let asambleaActual: any = {};
-  
-  // NUEVO: Controla si el sidebar está encogido
-  let colapsado = false;
+  let mostrarMenuMas = false; // Controla el dropdown "Más"
 
   onMount(async () => {
+    // Cierra el menú "Más" si haces clic en cualquier otra parte de la pantalla
+    const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (mostrarMenuMas && !target.closest('.tab-mas-container')) {
+            mostrarMenuMas = false;
+        }
+    };
+    window.addEventListener('click', handleClickOutside);
 
     // Recuperar el nombre de la asamblea activa para mostrarlo en el menú
     const data = localStorage.getItem('asambleaActiva');
@@ -36,37 +44,35 @@
         asambleaActual = JSON.parse(data);
     }
 
-    // PASO 8: Validar si la asamblea guardada existe realmente en la base
-if (asambleaActual?.id) {
-    try {
-        const existe = await invoke('obtener_asamblea_por_id', { id: asambleaActual.id });
-        if (!existe) {
-            console.warn("Asamblea guardada ya no existe. Limpiando localStorage...");
+    // Validar si la asamblea guardada existe realmente en la base
+    if (asambleaActual?.id) {
+        try {
+            const existe = await invoke('obtener_asamblea_por_id', { id: asambleaActual.id });
+            if (!existe) {
+                console.warn("Asamblea guardada ya no existe. Limpiando localStorage...");
+                localStorage.removeItem('asambleaActiva');
+                asambleaActual = null;
+            }
+        } catch (e) {
+            console.warn("Error validando asamblea activa:", e);
             localStorage.removeItem('asambleaActiva');
             asambleaActual = null;
         }
-    } catch (e) {
-        console.warn("Error validando asamblea activa:", e);
-        localStorage.removeItem('asambleaActiva');
-        asambleaActual = null;
     }
-}
-    // Intentar inicializar los datos del resumen desde localStorage
+
+    // Intentar inicializar los datos del resumen
     const resumenRaw = localStorage.getItem('resumen');
     if (resumenRaw) {
       try {
-        const parsed = JSON.parse(resumenRaw);
-        setResumen(parsed);
+        setResumen(JSON.parse(resumenRaw));
       } catch (e) {
-        // si falla parsing, cargamos valores por defecto
         setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12 });
       }
     } else {
-      // Valores por defecto para la primera carga
       setResumen({ totalAsistencia: 1250, totalBautismos: 12, congregacionesReportadas: 8, totalCongregaciones: 12 });
     }
 
-    // Cargar oradores pendientes para el resumen (cargar 3 días)
+    // Cargar oradores pendientes para el resumen
     (async () => {
       try {
         const dias = ['Viernes', 'Sábado', 'Domingo'];
@@ -84,96 +90,78 @@ if (asambleaActual?.id) {
         oradoresPendientes.set(pendientes);
       } catch (e) { console.warn('Error cargando oradores pendientes', e); }
     })();
+
+    // Limpieza del listener al desmontar
+    return () => window.removeEventListener('click', handleClickOutside);
   });
 
   function cambiarSeccion(nuevaSeccion: string) {
     seccionActiva = nuevaSeccion;
-  }
-
-  // NUEVO: Función para alternar el menú
-  function toggleSidebar() {
-    colapsado = !colapsado;
+    mostrarMenuMas = false; // Cerramos el menú al elegir algo
   }
 </script>
 
 <div class="layout-gestion">
   
-  <aside class="sidebar" class:colapsado={colapsado}>
-    
-    <div class="logo-area">
-      <div class="header-acciones">
-          <button class="btn-toggle" on:click={toggleSidebar} title={colapsado ? "Expandir menú" : "Contraer menú"}>
-              {#if colapsado}
-                  <PanelLeftOpen size={25} />
-              {:else}
-                  <PanelLeftClose size={25} />
-              {/if}
-          </button>
-      </div>
+  <nav class="top-nav">
       
-      <div class="texto-logo">
-          <h3>Asamblea Regional</h3>
-          <p class="subtitulo">{asambleaActual.tema || 'Panel de Control'}</p>
+      <div class="nav-izq">
+          <div class="texto-logo">
+              <h3>Asamblea Regional</h3>
+              <span class="subtitulo">{asambleaActual.tema || 'Panel de Control'}</span>
+          </div>
       </div>
-    </div>
 
-    <nav class="menu">
-      <button class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')} title="Inicio / Resumen">
-        <LayoutDashboard size={20} class="icono-nav" /> <span class="texto-menu">Panel de control</span>
-      </button>
+      <div class="nav-centro">
+          <button class="tab-btn" class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')}>
+              <LayoutDashboard size={16} /> <span class="txt-tab">Panel de control</span>
+          </button>
 
-      <button class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')} title="Información Evento">
-        <Bookmark size={20} class="icono-nav" /> <span class="texto-menu">Detalles de la Asamblea</span>
-      </button>
+          <button class="tab-btn" class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')}>
+              <Bookmark size={16} /> <span class="txt-tab">Detalles de la asamblea</span>
+          </button>
 
-      <button class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')} title="Congregaciones">
-        <Users size={20} class="icono-nav" /> <span class="texto-menu">Congregaciones</span>
-      </button>
+          <button class="tab-btn" class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')}>
+              <Icon path={IconosMDI.Responsabilidades} size={0.8} /> <span class="txt-tab">Responsabilidades</span>
+          </button>
 
-      <button class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')} title="Personas">
-        <User size={20} class="icono-nav" /> <span class="texto-menu">Personas</span>
-      </button>
+          <button class="tab-btn" class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')}>
+              <Mic2 size={16} /> <span class="txt-tab">Programa</span>
+          </button>
 
-      <button class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')} title="Responsabilidades">
-         <div class="icono-nav">
-         <Icon path={IconosMDI.Responsabilidades} size={0.85} />
-         </div>
-         <span class="texto-menu">Responsabilidades</span>
-      </button>
+          <button class="tab-btn" class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')}>
+              <Briefcase size={16} /> <span class="txt-tab">Oficina</span>
+          </button>
 
-      <button class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')} title="Programa">
-        <Mic2 size={20} class="icono-nav" /> <span class="texto-menu">Programa</span>
-      </button>
+          <div class="tab-mas-container">
+              <button class="tab-btn btn-mas" 
+                      class:activo={['congregaciones', 'personas'].includes(seccionActiva)} 
+                      on:click|stopPropagation={() => mostrarMenuMas = !mostrarMenuMas}>
+                  <span class="txt-tab">Más</span> <ChevronDown size={14} />
+              </button>
 
-      <button class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')} title="Oficina">
-        <Briefcase size={20} class="icono-nav" /> <span class="texto-menu">Oficina</span>
-      </button>
+              {#if mostrarMenuMas}
+                  <div class="dropdown-mas" on:click|stopPropagation>
+                      <button class="dropdown-item" class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')}>
+                          <Building2 size={16} /> Congregaciones
+                      </button>
+                      <button class="dropdown-item" class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')}>
+                          <Users size={16} /> Personas
+                      </button>
+                  </div>
+              {/if}
+          </div>
+      </div>
 
-    </nav>
-
-    <div class="footer-sidebar">
-      <a href="/" class="btn-salir" title="Salir al Inicio">
-        <ArrowLeft size={18} class="icono-nav" /> <span class="texto-menu">Salir al Inicio</span>
-      </a>
-    </div>
-  </aside>
+      <div class="nav-der">
+          <a href="/" class="btn-salir" title="Salir al Inicio">
+              <ArrowLeft size={16} /> <span class="txt-salir">Salir</span>
+          </a>
+      </div>
+  </nav>
 
   <main class="contenido">
-    
-    <header>
-      <h2>
-        {#if seccionActiva === 'inicio'} Panel de control {/if}
-        {#if seccionActiva === 'info_evento'} Detalles de la Asamblea {/if} 
-        {#if seccionActiva === 'congregaciones'} Congregaciones asignadas {/if}
-        {#if seccionActiva === 'personas'} Registro de personas {/if}
-        {#if seccionActiva === 'comite'} Responsabilidades {/if}
-        {#if seccionActiva === 'programa'} Programa {/if}
-        {#if seccionActiva === 'oficina'} Oficina {/if}
-      </h2>
-    </header>
-
     <div class="area-trabajo">
-      
       {#if seccionActiva === 'inicio'} <Resumen /> {/if}
       {#if seccionActiva === 'info_evento'} <InfoEvento /> {/if}
       {#if seccionActiva === 'congregaciones'} <Congregaciones /> {/if}
@@ -181,362 +169,203 @@ if (asambleaActual?.id) {
       {#if seccionActiva === 'comite'} <Comite /> {/if}
       {#if seccionActiva === 'programa'} <Programa /> {/if}
       {#if seccionActiva === 'oficina'} <Oficina /> {/if}
-
     </div>
-
   </main>
+
 </div>
 
 <style>
-  /* APLICANDO VARIABLES GLOBALES DE TEMA */
-  :global(body) { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; } /* Evita scroll doble en la app entera */
+  /* ========================================================
+     VARIABLES GLOBALES Y RESET
+     ======================================================== */
+  :global(body) { 
+      margin: 0; 
+      font-family: 'Segoe UI', sans-serif; 
+      overflow: hidden; 
+  }
   
   .layout-gestion { 
-      display: flex; height: 100vh; width: 100vw;
+      display: flex; 
+      flex-direction: column; /* Cambiamos a columna para el nav superior */
+      height: 100vh; 
+      width: 100vw;
       background-color: var(--bg-body); 
       color: var(--text-main);          
-      transition: background 0.3s, color 0.3s;
   }
 
-  /* --- SIDEBAR --- */
-  .sidebar { 
-      width: 260px; /* ANCHO NORMAL */
-      background-color: var(--bg-card); 
-      border-right: 1px solid var(--border); 
-      display: flex; flex-direction: column; 
-      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transición súper suave */
-      overflow-x: hidden; /* CRUCIAL: Para que el texto no se asome al achicar */
-      flex-shrink: 0; /* Evita que flexbox lo aplaste sin permiso */
-  }
-  
-  .logo-area { 
-      padding: 20px 24px; 
-      border-bottom: 1px solid var(--border); 
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-  }
-
-  .header-acciones {
+  /* ========================================================
+     TOP NAV (BARRA SUPERIOR)
+     ======================================================== */
+  .top-nav {
       display: flex;
       align-items: center;
-      justify-content: flex-end; /* Pone el botón a la derecha */
+      justify-content: space-between;
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 60px;
+      flex-shrink: 0;
+      z-index: 50;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
   }
 
-  .btn-toggle {
+  /* --- SECCIÓN IZQUIERDA (Logo) --- */
+  .nav-izq { 
+      display: flex; 
+      align-items: center; 
+      min-width: 200px; 
+  }
+  
+  .texto-logo { display: flex; flex-direction: column; }
+  .texto-logo h3 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1rem; }
+  .subtitulo { font-size: 11px; color: var(--text-sec); opacity: 0.8; margin-top: 2px; }
+
+  /* --- SECCIÓN CENTRAL (Pestañas) --- */
+  .nav-centro {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 100%;
+      flex: 1;
+      justify-content: center;
+      /* SIN overflow-x aquí, para que el dropdown pueda salir hacia abajo */
+  }
+
+  .tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       background: transparent;
       border: none;
       color: var(--text-sec);
+      font-size: 14px;
+      font-weight: 500;
+      height: 100%;
+      padding: 0 15px;
       cursor: pointer;
-      padding: 6px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s, color 0.2s;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s ease;
+      white-space: nowrap;
   }
 
-  .btn-toggle:hover {
-      background: var(--border); /* Usamos el color del borde como fondo sutil */
+  .tab-btn:hover { 
+      color: var(--text-main); 
+      background: rgba(0,0,0,0.02); 
+  }
+
+  .tab-btn.activo {
       color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
+      background: rgba(40, 110, 180, 0.05);
   }
 
-  .texto-logo {
+  /* --- CONTENEDOR DROPDOWN "MÁS" --- */
+  .tab-mas-container { 
+      position: relative; 
+      height: 100%; 
+  }
+
+  .btn-mas { 
+      padding-right: 10px; 
+  }
+
+  .dropdown-mas {
+      position: absolute;
+      top: 60px; /* Se abre justo debajo de la barra */
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      min-width: 200px;
+      padding: 8px;
       display: flex;
       flex-direction: column;
-      transition: opacity 0.2s;
-      white-space: nowrap; /* Evita que el texto baje de línea */
+      gap: 4px;
+      z-index: 9999; /* Z-index altísimo para que pase sobre las tablas */
   }
 
-  .texto-logo h3 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1.1rem;}
-  .subtitulo { margin: 5px 0 0; font-size: 12px; color: var(--text-sec); opacity: 0.8; }
-
-  .menu { flex: 1; padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
-  
-  .menu button { 
-      display: flex; align-items: center; width: 100%; 
-      padding: 12px 14px; border: none; background: none; 
-      text-align: left; cursor: pointer;
-      gap: 16px; 
-      color: var(--text-sec); 
-      border-radius: 8px; font-size: 14px; font-weight: 500; 
-      transition: all 0.2s; 
-      white-space: nowrap; /* CRUCIAL para el colapso */
-  }
-
-    /* svelte-ignore css-unused-selector */
-    :global(.icono-nav) {
-      min-width: 20px; /* Mantiene el icono cuadrado sin aplastarse */
-      margin-right: 16px;
-      flex-shrink: 0;
-    }
-  
-  .texto-menu {
-      transition: opacity 0.2s;
-  }
-
-  .menu button:hover { 
-      background-color: var(--border); /* Fondo gris claro en hover */
-      color: var(--text-main); 
-  }
-  
-  .menu button.activo { 
-      background-color: var(--bg-body); /* Usamos el fondo oscuro/claro global */
-      border: 1px solid var(--border);
-      color: var(--primary); 
-      font-weight: 700; 
-      box-shadow: var(--shadow-sm); /* Le damos relieve al botón seleccionado */
-  }
-
-  /* --- FOOTER DEL SIDEBAR (PROFESIONAL) --- */
-  
-  .footer-sidebar {
-      padding: 20px 10px; /* Un poco más de aire */
-      padding-bottom: 55px;
-      border-top: 1px solid var(--border);
-      /* Opcional: un fondo muy sutil para separar el footer */
-      background-color: rgba(0, 0, 0, 0.02); 
-  }
-  
-  .btn-salir { 
-      text-decoration: none; 
-      color: var(--text-sec); 
-      display: flex; align-items: center;
-      padding: 12px 14px; border-radius: 8px;
-      font-size: 14px; font-weight: 500;
-      transition: all 0.2s; 
-      white-space: nowrap;
-  }
-  .btn-salir { 
+  .dropdown-item {
       display: flex; 
-      align-items: center;
-      justify-content: flex-start;
-      
+      align-items: center; 
+      gap: 12px;
+      background: transparent; 
+      border: none; 
       width: 100%;
-      box-sizing: border-box; /* 👈 CORRECCIÓN 2: Evita que el padding desborde el botón hacia la derecha */
-      padding: 12px 14px; /* 👈 CORRECCIÓN 3: Igualamos el padding interno al de los botones del menú */
-      
-      background-color: var(--bg-body); 
-      border: 1px solid var(--border); 
-      border-radius: 12px; 
-      
-      text-decoration: none; 
-      color: var(--text-main); 
-      font-size: 14px; 
+      text-align: left; 
+      padding: 10px 12px; 
+      font-size: 14px;
+      color: #4b5563; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      transition: background 0.2s;
+  }
+  .dropdown-item:hover { 
+      background: #f3f4f6; 
+      color: #111827; 
+  }
+  .dropdown-item.activo { 
+      background: rgba(40, 110, 180, 0.08); 
+      color: #286eb4; 
       font-weight: 600; 
-      
-      transition: all 0.2s ease-in-out; 
-      white-space: nowrap;
   }
 
-  /* Efecto HOVER (Cuando pasas el ratón) */
-  .btn-salir:hover { 
-      background-color: var(--bg-secondary); 
-      border-color: var(--primary); 
-      color: var(--primary); 
-      transform: translateY(-2px); 
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+  /* --- SECCIÓN DERECHA (Salir) --- */
+  .nav-der { 
+      display: flex; 
+      align-items: center; 
+      justify-content: flex-end; 
+      min-width: 100px; 
   }
 
-  /* Ajuste para que el icono tenga el color correcto en hover */
-    /* svelte-ignore css-unused-selector */
-    :global(.btn-salir:hover .icono-nav) {
-      color: var(--primary);
-    }
-
-  /* --- ESTILOS CUANDO ESTÁ COLAPSADO --- */
-
-  /* --- AJUSTE PARA CUANDO ESTÁ COLAPSADO --- */
-  .sidebar.colapsado .btn-salir {
-      justify-content: center; 
-      padding-left: 0;  /* Quitamos paddings laterales para centrar el icono perfecto */
-      padding-right: 0;
+  .btn-salir {
+      display: flex; 
+      align-items: center; 
+      gap: 8px;
+      background: transparent; 
+      border: 1px solid var(--border);
+      color: var(--text-sec); 
+      padding: 8px 16px;
+      border-radius: 8px; 
+      font-size: 13px; 
+      font-weight: 600;
+      text-decoration: none; 
+      transition: all 0.2s;
   }
-  
-  .sidebar.colapsado {
-      width: 72px; /* Solo espacio para iconos */
-  }
-
-  .sidebar.colapsado .header-acciones {
-      justify-content: center; /* Centra el botón de toggle */
+  .btn-salir:hover {
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.3);
   }
 
-  .sidebar.colapsado .texto-logo {
-      opacity: 0;
-      pointer-events: none;
-      height: 0; /* Oculta totalmente el espacio del título */
-      overflow: hidden;
-  }
-
-  .sidebar.colapsado .texto-menu {
-      opacity: 0;
-      pointer-events: none;
-      display: none;
-  }
-
-    /* svelte-ignore css-unused-selector */
-    :global(.sidebar.colapsado .icono-nav) {
-      margin-right: 0; /* Quita el margen derecho para que el icono quede en el centro del botón */
-    }
-
-  .sidebar.colapsado .menu button,
-  .sidebar.colapsado .btn-salir {
-      justify-content: center;
-      padding: 12px;
-      padding-right: 0; /* Centra el icono en el botón encogido */
-  }
-
-
-  /* --- RESPONSIVIDAD AUTOMÁTICA --- */
-  /* Si la ventana se hace menor a 900px, colapsamos automáticamente */
-  @media (max-width: 900px) {
-      .sidebar { width: 72px; }
-      .header-acciones { justify-content: center; }
-      .texto-logo, .texto-menu { opacity: 0; pointer-events: none; height: 0; }
-      /* svelte-ignore css-unused-selector */
-      :global(.icono-nav) { margin-right: 0; }
-      .menu button, .btn-salir { justify-content: center; }
-  }
-
-
-  /* Contenido */
-  .contenido { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-body); overflow: hidden; }
-  
-  header { 
-      background-color: var(--bg-card); 
-      background-image: linear-gradient(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.04)); /* Tinte premium */
-      padding: 20px 30px; 
-      border-bottom: 1px solid var(--border); 
-      box-shadow: var(--shadow-sm); /* Sombra sutil que despega el header */
-      flex-shrink: 0;
-      z-index: 10;
+  /* ========================================================
+     CONTENIDO PRINCIPAL
+     ======================================================== */
+  .contenido { 
+      flex: 1; 
+      display: flex; 
+      flex-direction: column; 
+      background-color: var(--bg-body); 
+      overflow: hidden; 
   }
   
-  header h2 { margin: 0; font-size: 1.2rem; color: var(--text-main); }
-  
-  .area-trabajo { padding: 30px; flex: 1; overflow-y: auto; }
-
-  /* Busca tu regla :global(.icono-nav) y asegúrate de que se vea así */
-  :global(.icono-nav) {
-    min-width: 20px;
-    height: 20px; /* Añade altura fija para que MDI se centre bien */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 16px;
-    flex-shrink: 0;
+  .area-trabajo { 
+      padding: 0; /* Quité el padding global para que los componentes lo manejen a su gusto (ej. Comite.svelte ya tiene sus márgenes) */
+      flex: 1; 
+      overflow-y: auto; 
   }
 
   /* =========================================================
-   DISEÑO RESPONSIVO (+PAGE GESTIÓN: WINDOWS + ANDROID)
-   ========================================================= */
-
-@media (max-width: 768px) {
-    /* 1. LAYOUT PRINCIPAL (De fila a columna) */
-    .layout-gestion {
-        flex-direction: column;
-        height: 100vh;
-        width: 100vw;
-    }
-
-    /* 2. SIDEBAR SE CONVIERTE EN BARRA DE NAVEGACIÓN INFERIOR */
-    .sidebar {
-        width: 100% !important; /* Ocupa todo el ancho */
-        height: 65px; /* Altura fija para la barra inferior */
-        flex-direction: row; /* Elementos uno al lado del otro */
-        border-right: none;
-        border-top: 1px solid var(--border);
-        order: 2; /* Lo enviamos al fondo de la pantalla */
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        z-index: 1000;
-        background-color: var(--bg-card);
-    }
-
-    /* 3. OCULTAR ELEMENTOS NO ESENCIALES DEL SIDEBAR */
-    .logo-area, .footer-sidebar {
-        display: none; /* Adiós logo y botón de salir en la barra inferior */
-    }
-
-    /* 4. MENÚ FLUIDO Y DESLIZABLE (SWIPE) */
-    .menu {
-        flex-direction: row;
-        padding: 5px;
-        gap: 5px;
-        overflow-x: auto; /* Permite deslizar si hay muchos botones */
-        -webkit-overflow-scrolling: touch;
-        align-items: center;
-    }
-    
-    .menu::-webkit-scrollbar { display: none; } /* Ocultar scrollbar feo */
-
-    /* 5. BOTONES DEL MENÚ (Modo "App Nativa") */
-    .menu button {
-        flex-direction: column; /* Icono arriba, texto (si cabe) abajo */
-        padding: 5px 10px;
-        min-width: 60px;
-        justify-content: center;
-        gap: 4px;
-        border-radius: 8px;
-    }
-
-    :global(.icono-nav) {
-        margin-right: 0 !important; /* Quitamos el margen para que el icono se centre */
-        min-width: 24px !important;
-        height: 24px !important;
-    }
-
-    .texto-menu {
-        display: none; /* Ocultamos el texto para que quepan todos los iconos */
-    }
-
-    .menu button.activo {
-        background-color: transparent;
-        border: none;
-        color: var(--primary);
-        box-shadow: none;
-        position: relative;
-    }
-    
-    /* Pequeño punto indicador para la sección activa */
-    .menu button.activo::after {
-        content: '';
-        position: absolute;
-        bottom: 2px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background-color: var(--primary);
-    }
-
-    /* 6. ÁREA DE CONTENIDO (Arreglar espacios) */
-    .contenido {
-        order: 1; /* El contenido va arriba */
-        height: calc(100vh - 65px); /* Restamos la altura de la nueva barra inferior */
-        margin-bottom: 65px; /* Espacio para que la barra inferior no tape el contenido */
-    }
-
-    header {
-        padding: 15px; /* Encabezado más compacto */
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    /* 7. BOTÓN DE SALIDA EN EL HEADER (Para compensar que lo quitamos del sidebar) */
-    header::before {
-        content: '← Salir';
-        display: flex;
-        align-items: center;
-        color: var(--text-sec);
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .area-trabajo {
-        padding: 15px; /* Aprovechamos la pantalla al máximo */
-    }
-}
+     DISEÑO RESPONSIVO (PANTALLAS PEQUEÑAS)
+     ========================================================= */
+  @media (max-width: 950px) {
+      .top-nav { padding: 0 10px; }
+      .nav-izq { display: none; } /* Ocultamos el logo para dar espacio */
+      .txt-tab { display: none; } /* Ocultamos los textos, dejamos iconos */
+      .btn-mas .txt-tab { display: inline; } /* Mantenemos "Más" para saber qué es */
+      .txt-salir { display: none; } /* Ocultamos "Salir", dejamos la flecha */
+      .btn-salir { padding: 8px; }
+  }
 </style>
