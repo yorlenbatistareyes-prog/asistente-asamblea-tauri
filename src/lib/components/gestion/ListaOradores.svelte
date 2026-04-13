@@ -31,12 +31,17 @@
         res.forEach(parte => {
           if (parte.nombre_orador && parte.nombre_orador.trim() !== '') {
             const nombre = parte.nombre_orador.trim();
+
             if (!oradoresMap.has(nombre)) {
               oradoresMap.set(nombre, {
                 nombre: nombre,
                 congregacion: parte.congregacion_orador || '---',
+                circuito: parte.circuito_orador || '---', // ✅ Añadido circuito
                 telefono: parte.telefono_orador || '',
                 email: parte.email_orador || '',
+                es_betelita: parte.es_betelita || false,  // ✅ Añadido betelita
+                es_interprete: parte.es_interprete || false,
+                es_visitante: parte.es_visitante || false,// ✅ Añadido visitante
                 partesCount: 1,
                 parteIds: [parte.id], 
                 co11_recibido: parte.estado === 'Confirmado', 
@@ -44,6 +49,7 @@
                 recordatorio_fecha: ''
               });
             } else {
+
               const oradorExistente = oradoresMap.get(nombre);
               oradorExistente.partesCount += 1;
               oradorExistente.parteIds.push(parte.id); 
@@ -181,9 +187,17 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
           <div class="tarjeta-header">
             <div class="header-izq">
               <h2>{orador.nombre}</h2>
-              {#if !orador.co11_recibido}
-                <span class="badge-alerta">CO-11 needed</span>
-              {/if}
+              <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                {#if !orador.co11_recibido}
+                  <span class="badge-alerta">CO-11 needed</span>
+                {/if}
+                {#if orador.es_betelita}
+                  <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Betelita</span>
+                {/if}
+                {#if orador.es_visitante}
+                  <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Visitante</span>
+                {/if}
+              </div>
             </div>
             <div class="header-der">
               <label class="check-co11">
@@ -215,7 +229,7 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
           <div class="grid-datos">
             <div class="dato-bloque">
               <span class="dato-lbl">Circuito</span>
-              <span class="dato-val">---</span>
+              <span class="dato-val" style="font-weight: 700; color: #286eb4;">{orador.circuito}</span>
             </div>
             <div class="dato-bloque">
               <span class="dato-lbl">Congregación</span>
