@@ -393,7 +393,7 @@
   
   <Panel padding="30px" clasesExtra="tarjeta-evento">
     <div class="header-card-lectura">
-      <h3>Detalles de la asamblea</h3>
+      <h3>Información de la asamblea</h3>
       <button class="btn-edit-burgundy" on:click={abrirModalDetalles} title="Editar detalles">
         <Pencil size={18} color="white"/>
       </button>
@@ -401,7 +401,7 @@
     
     <div class="grid-lectura">
       <div class="col-lectura">
-        <h4>Información de la asamblea</h4>
+        <h4>Datos de la asamblea</h4>
         
         <div class="fila-info">
           <span class="lbl">Tema:</span> 

@@ -118,7 +118,7 @@
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')}>
-              <Bookmark size={16} /> <span class="txt-tab">Detalles de la asamblea</span>
+              <Bookmark size={16} /> <span class="txt-tab">Información de la asamblea</span>
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')}>
