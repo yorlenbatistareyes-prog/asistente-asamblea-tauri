@@ -25,8 +25,8 @@
     AlignLeft, Bold, Italic, Underline as UnderIcon, List, 
     AlignCenter, AlignRight, AlignJustify, Eraser, Building, Users, Plus, X, 
     MonitorPlay, FileText, Palette, Link as LinkIcon, ListTodo,
-    ListOrdered, Minus, IndentDecrease, IndentIncrease, Edit, Pencil, Map, Flag
-  } from 'lucide-svelte';
+    ListOrdered, Minus, IndentDecrease, IndentIncrease, Edit, Pencil, 
+    Map, Flag, FileSpreadsheet } from 'lucide-svelte';
 
   // --- EXTENSIONES PERSONALIZADAS (TIPTAP) ---
   const FontSize = Extension.create({
@@ -436,6 +436,26 @@
             <span class="val text-multi-line">{localDetalle?.direccion || 'Carretera a Mayarí'}</span>
           </div>
         </div>
+      </div>
+    </div>
+  </Panel>
+
+  <Panel padding="20px 30px" clasesExtra="tarjeta-evento">
+    <div class="fila-accion">
+      <h3 class="titulo-fila">Oradores</h3>
+      <div class="grupo-botones">
+        <button class="btn-azul">Programa</button>
+        <button class="btn-azul">Registro de oradores</button>
+        <button class="btn-azul">Lista de oradores <span class="badge-amarillo">0</span></button>
+      </div>
+    </div>
+
+    <div class="divisor-fino"></div>
+
+    <div class="fila-accion">
+      <h3 class="titulo-fila">Utilidades</h3>
+      <div class="grupo-botones">
+        <button class="btn-azul"><FileSpreadsheet size={16} strokeWidth={2.5}/> Importar desde CSV</button>
       </div>
     </div>
   </Panel>
@@ -915,4 +935,85 @@ input:disabled { background: #f5f5f5; color: #888; border-color: #ddd; cursor: n
 .toolbar button[data-tooltip], .color-wrapper[data-tooltip] { position: relative; }
 .toolbar button[data-tooltip]:hover::after, .color-wrapper[data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background-color: #1a1a1a; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; white-space: nowrap; z-index: 99999; pointer-events: none; }
 .toolbar button[data-tooltip]:hover::before, .color-wrapper[data-tooltip]:hover::before { content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: #1a1a1a transparent transparent transparent; pointer-events: none; z-index: 99999; }
+
+/* ========================================
+   PANEL DE ORADORES Y UTILIDADES (ESTILO FILAS)
+   ======================================== */
+.fila-accion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  gap: 20px;
+}
+
+.titulo-fila {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.grupo-botones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-azul {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-azul:hover {
+  background: #1d4ed8;
+}
+
+.btn-azul:active {
+  transform: scale(0.98);
+}
+
+.badge-amarillo {
+  background: #fef08a;
+  color: #854d0e;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.divisor-fino {
+  height: 1px;
+  background: #f1f5f9;
+  width: 100%;
+}
+
+/* Responsivo para pantallas pequeñas */
+@media (max-width: 768px) {
+  .fila-accion {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  .grupo-botones {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .btn-azul {
+    flex-grow: 1;
+    justify-content: center;
+  }
+}
 </style>
