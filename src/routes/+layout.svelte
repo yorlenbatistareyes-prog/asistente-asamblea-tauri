@@ -2,7 +2,7 @@
 // 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
   import '../app.css';
   import { onMount } from 'svelte';
-  import { RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  import { Loader2, CheckCircle, AlertTriangle, CloudOff, RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
@@ -14,6 +14,10 @@
   import { stat, readFile, writeFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
+
+  // 2. Importa las herramientas de sincronización
+  import { sesionApp } from '$lib/stores/authStore';
+  import { syncStatus, iniciarRadarNube, detenerRadarNube } from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
 
@@ -131,12 +135,18 @@
 
       inicializarApp();
 
+      // 👈 NUEVO: Encendemos el radar de la nube
+      iniciarRadarNube();
+
       // 👈 ENVÍA LA CONFIGURACIÓN INICIAL A RUST
           const autoExport = localStorage.getItem('assembly_auto_export') === 'true';
           invoke('actualizar_config_sync', { 
               auto_export: autoExport, // Ojo: snake_case porque Rust lo espera así
               sync_path: rutaSync 
           }).catch(console.error);
+
+          // 👈 NUEVO: Apagamos el radar si el usuario cierra la app
+      return () => detenerRadarNube();
   });
 
   // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
@@ -287,6 +297,26 @@
         </div>
 
         <div class="header-right">
+            
+            {#if $sesionApp.isLoggedIn && $syncStatus.estado !== 'inactivo'}
+                <div class="sync-badge state-{$syncStatus.estado}" 
+                     title={$syncStatus.mensaje}
+                     on:click={() => { if ($syncStatus.estado === 'conflicto') goto('/sincronizacion'); }}>
+                    
+                    {#if $syncStatus.estado === 'esperando'}
+                        <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
+                    {:else if $syncStatus.estado === 'sincronizando'}
+                        <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
+                    {:else if $syncStatus.estado === 'al_dia'}
+                        <CheckCircle size={16} /> <span class="badge-text">Al día</span>
+                    {:else if $syncStatus.estado === 'conflicto'}
+                        <AlertTriangle size={16} /> <span class="badge-text">Datos Nuevos</span>
+                    {:else if $syncStatus.estado === 'error'}
+                        <CloudOff size={16} /> <span class="badge-text">Error</span>
+                    {/if}
+                </div>
+            {/if}
+            
             <button class="btn-nav" on:click={irInicio} title="Inicio">
                 <Home size={18}/><span>Inicio</span>
             </button>
@@ -411,6 +441,26 @@
                     {/each}
                 {/if}
             </div>
+        </Panel>
+      </div>
+    {/if}
+
+    {#if $syncStatus.estado === 'conflicto'}
+      <div class="modal-backdrop">
+        <Panel padding="25px" clasesExtra="modal-salones">
+            <div class="modal-top">
+                <h3 style="color: #ef4444;"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
+            </div>
+            
+            <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
+                <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
+                <p>Para proteger esos datos y no borrarlos accidentalmente, hemos pausado tu guardado automático temporalmente.</p>
+                <p style="margin-top: 10px; font-weight: bold;">Ve a Sincronización para descargar los cambios recientes.</p>
+            </div>
+
+            <button class="btn-blue" on:click={() => goto('/sincronizacion')}>
+                Ir a Sincronización
+            </button>
         </Panel>
       </div>
     {/if}
@@ -605,6 +655,37 @@
       to { opacity: 1; transform: translateY(0); }
   }
 
+/* =============================================
+     ESTILOS DEL INDICADOR DE SINCRONIZACIÓN NUBE
+     ============================================= */
+  .sync-badge {
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 700;
+      transition: all 0.3s ease; border: 1px solid transparent;
+      margin-right: 10px;
+  }
+  .state-esperando { background: rgba(234, 179, 8, 0.15); color: #ca8a04; border-color: rgba(234, 179, 8, 0.3); }
+  .state-sincronizando { background: rgba(59, 130, 246, 0.15); color: #2563eb; border-color: rgba(59, 130, 246, 0.3); }
+  .state-al_dia { background: rgba(34, 197, 94, 0.15); color: #16a34a; border-color: rgba(34, 197, 94, 0.3); }
+  .state-error { background: rgba(107, 114, 128, 0.15); color: #4b5563; border-color: rgba(107, 114, 128, 0.3); }
+  
+  .state-conflicto { 
+      background: rgba(239, 68, 68, 0.15); color: #dc2626; border-color: rgba(239, 68, 68, 0.4); 
+      cursor: pointer; box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  }
+  .state-conflicto:hover { background: rgba(239, 68, 68, 0.25); transform: scale(1.05); }
+
+  /* MODO OSCURO */
+  :global(.dark-theme) .state-esperando { color: #fde047; }
+  :global(.dark-theme) .state-sincronizando { color: #60a5fa; }
+  :global(.dark-theme) .state-al_dia { color: #4ade80; }
+  :global(.dark-theme) .state-conflicto { color: #f87171; }
+  :global(.dark-theme) .state-error { color: #9ca3af; }
+
+  .spin-icon { animation: spin 1.5s linear infinite; }
+  .pulse-icon { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  
   /* =========================================================
    DISEÑO RESPONSIVO (+LAYOUT: WINDOWS + ANDROID)
    ========================================================= */

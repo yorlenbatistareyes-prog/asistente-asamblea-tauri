@@ -2,6 +2,7 @@
 
 pub mod database;
 pub mod models;
+pub mod sync_cmds;
 
 // Declaración de módulos de comandos
 // Asegúrate de que los archivos existan en la carpeta src-tauri/src/commands/
@@ -26,21 +27,6 @@ use crate::database::DbState;
 use std::sync::Mutex;
 use tauri::{Manager, State};
 use std::fs; // Necesario para mover archivos
-
-// ==========================================
-// 1. ESTADO Y COMANDO DE SINCRONIZACIÓN
-// ==========================================
-pub struct SyncState {
-    pub auto_export: Mutex<bool>,
-    pub sync_path: Mutex<String>,
-}
-
-#[tauri::command]
-fn actualizar_config_sync(state: State<'_, SyncState>, auto_export: bool, sync_path: String) {
-    *state.auto_export.lock().unwrap() = auto_export;
-    *state.sync_path.lock().unwrap() = sync_path;
-}
-// ==========================================
 
 // ==========================================
 // COMANDO PARA LLAMAR POR TELÉFONO (Windows)
@@ -69,6 +55,10 @@ fn llamar_telefono(telefono: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        
+        // --- AÑADE ESTA LÍNEA AQUÍ (Sin Stronghold) ---
+        .plugin(tauri_plugin_store::Builder::new().build())
+        
         .plugin(tauri_plugin_process::init())
         // --- PLUGINS ---
         .plugin(tauri_plugin_shell::init())
@@ -76,13 +66,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         
-        // 2. REGISTRAMOS LA MEMORIA PARA LA SINCRONIZACIÓN
-        .manage(SyncState {
-            auto_export: Mutex::new(false),
-            sync_path: Mutex::new(String::new()),
-        })
-        // Si usas el reinicio automático en Restaurar, necesitas este plugin
-        // --- BASE DE DATOS ---
         // --- AQUÍ ESTÁ EL CAMBIO: LÓGICA DE INICIO ---
         .setup(|app| {
             let app_handle = app.handle();
@@ -155,23 +138,6 @@ if ruta_pendiente.exists() {
             Ok(())
         }) 
 
-            .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let state = window.state::<SyncState>();
-                let auto_export = *state.auto_export.lock().unwrap();
-                let sync_path = state.sync_path.lock().unwrap().clone();
-
-                if auto_export && !sync_path.trim().is_empty() {
-                    if let Ok(app_data_dir) = window.app_handle().path().app_data_dir() {
-                        // OJO: Usamos database::DB_NAME que ya tienes definido
-                        let db_path = app_data_dir.join(database::DB_NAME);
-                        let dest_path = std::path::Path::new(&sync_path).join("rassembly_sync_backup.db");
-                        
-                        let _ = fs::copy(&db_path, &dest_path);
-                    }
-                }
-            }
-        })
         // --- REGISTRO DE COMANDOS (INVOKE HANDLER) ---
         .invoke_handler(tauri::generate_handler![
             // LOCALES
@@ -241,9 +207,15 @@ if ruta_pendiente.exists() {
             commands::datos::exportar_base_datos,
             commands::datos::importar_base_datos,
             commands::datos::limpiar_datos,
-            actualizar_config_sync,
 
-            llamar_telefono
+            llamar_telefono,
+
+            // NUBE: COMANDOS DE SINCRONIZACIÓN 
+            // ==========================================
+            sync_cmds::obtener_last_sync_local,
+            sync_cmds::actualizar_last_sync_local,
+            sync_cmds::exportar_db_json,
+            sync_cmds::importar_db_json
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

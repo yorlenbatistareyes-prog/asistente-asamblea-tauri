@@ -8,7 +8,8 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
-  
+  import { dispararSincronizacionLocal } from '$lib/stores/autoSyncStore';
+
   // DATOS
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = [];
@@ -217,6 +218,9 @@ function manejarSeleccionFinal() {
           mostrarModal = false; 
           cargarTodo();
 
+          // 👈 AQUÍ  Avisamos al AutoSync
+          dispararSincronizacionLocal();
+
       } catch (error) {
           // Si Rust se queja, ahora sí lo veremos en pantalla
           console.error("Error desde Rust:", error);
@@ -229,7 +233,11 @@ function manejarSeleccionFinal() {
       const respuesta = await ask('¿Estás seguro de que deseas eliminar esta asamblea permanentemente?', { 
           title: 'Confirmar eliminación', kind: 'warning', okLabel: 'Eliminar', cancelLabel: 'Cancelar'
       });
-      if(respuesta) { await invoke('eliminar_asamblea', { id }); cargarTodo(); }
+      if(respuesta) { await invoke('eliminar_asamblea', { id }); cargarTodo(); 
+    
+      // 👈 ¡TAMBIÉN AQUÍ! Avisamos al AutoSync
+          dispararSincronizacionLocal();
+    }
   }
 
   function gestionar(item: any) {
