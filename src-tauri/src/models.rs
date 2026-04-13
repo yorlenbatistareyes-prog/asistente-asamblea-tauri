@@ -81,6 +81,7 @@ pub struct PartePrograma {
     pub orador_id: Option<i32>,
     pub nombre_orador: Option<String>,
     pub congregacion_orador: Option<String>,
+    pub circuito_orador: Option<String>,
     pub email_orador: Option<String>,
     pub telefono_orador: Option<String>,
     pub es_video: bool,

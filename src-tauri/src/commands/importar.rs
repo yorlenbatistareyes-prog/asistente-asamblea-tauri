@@ -297,6 +297,16 @@ pub fn importar_programa_jw(
                         .unwrap_or(None);
                     if let Some(pid) = existe_p {
                         orador_id = Some(pid);
+                        
+                        // ✅ AÑADIDO: Si el orador ya existe, le actualizamos el circuito
+                        let _ = tx.execute(
+                            "UPDATE personas SET circuito = ?1, telefono_fijo = ?2 WHERE id = ?3",
+                            params![
+                                fila.circuito.clone().unwrap_or_default(),
+                                fila.fijo.clone().unwrap_or_default(),
+                                pid
+                            ]
+                        );
                     } else {
                         let mut id_cong = 0;
                         if let Some(c) = fila.congregacion {

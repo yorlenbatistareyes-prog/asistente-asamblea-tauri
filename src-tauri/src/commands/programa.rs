@@ -15,7 +15,7 @@ pub fn obtener_programa_dia(
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
     
-    // ✅ Añadidas las 4 columnas al final del SELECT
+    // ✅ Añadido 'per.circuito' al final del SELECT
     let sql = "
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
@@ -23,7 +23,8 @@ pub fn obtener_programa_dia(
         per.email, per.telefono, 
         p.es_video, p.estado, p.esta_presente,
         p.numero_bosquejo, p.ensayo_terminado,
-        p.fuente, p.es_betelita, p.es_interprete, p.es_visitante
+        p.fuente, p.es_betelita, p.es_interprete, p.es_visitante,
+        per.circuito
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -51,11 +52,11 @@ pub fn obtener_programa_dia(
                 esta_presente: row.get(14).unwrap_or(false),
                 numero_bosquejo: row.get(15).ok(),
                 ensayo_terminado: row.get(16).unwrap_or(false),
-                // ✅ Capturamos los nuevos campos para los filtros
                 fuente: row.get(17).unwrap_or_else(|_| Some("en_persona".to_string())),
                 es_betelita: row.get(18).unwrap_or(false),
                 es_interprete: row.get(19).unwrap_or(false),
                 es_visitante: row.get(20).unwrap_or(false),
+                circuito_orador: row.get(21).ok(), // ✅ CAPTURAMOS EL CIRCUITO AQUÍ
             })
         })
         .map_err(|e| e.to_string())?;

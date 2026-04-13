@@ -824,6 +824,7 @@ async function cargarTodosDias() {
       const partesConDia = res.map(p => ({ 
         ...p, 
         dia: dia,
+        circuito_orador: p.circuito_orador || '',
         _expanded: abiertos.has(p.id),
         recibido_manual: p.estado === 'Confirmado',
         estado: p.estado || 'Pendiente',
@@ -1061,6 +1062,9 @@ async function cargarTodosDias() {
                 <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
                 
                 <div class="orador-meta">
+                  {#if parte.circuito_orador}
+                    <span class="cong-mini" style="font-weight: 800; color: var(--primary);">[{parte.circuito_orador}]</span>
+                  {/if}
                   {#if parte.congregacion_orador}
                     <span class="cong-mini">{parte.congregacion_orador}</span>
                   {/if}
@@ -1108,15 +1112,23 @@ async function cargarTodosDias() {
                     <span class="label-tiny">ORADOR:</span>
                     <strong>{parte.nombre_orador || "---"}</strong>
                     <div class="detalles-contacto-panel">
+
+                      {#if parte.circuito_orador}
+                        <span class="cong-tag" style="background: var(--primary); color: white; border-color: var(--primary);">{parte.circuito_orador}</span>
+                      {/if}
+
                       {#if parte.congregacion_orador}
                         <span class="cong-tag">{parte.congregacion_orador}</span>
                       {/if}
+
                       {#if parte.telefono_orador}
                         <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
                       {/if}
+
                       {#if parte.email_orador}
                         <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
                       {/if}
+                      
                     </div>
                   </div>
                   
