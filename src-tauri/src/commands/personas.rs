@@ -158,3 +158,25 @@ pub fn limpiar_personas(app: AppHandle, asamblea_id: i32) -> Result<String, Stri
     
     Ok("Lista vaciada".to_string())
 }
+
+#[tauri::command]
+pub fn guardar_recordatorio_orador(
+    state: tauri::State<'_, crate::database::DbState>,
+    asamblea_id: i32,
+    persona_id: i32,
+    texto: String,
+    fecha: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().unwrap();
+
+    conn.execute(
+        "INSERT INTO recordatorios_oradores (asamblea_id, persona_id, texto, fecha_recordatorio)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(asamblea_id, persona_id) DO UPDATE SET
+         texto = excluded.texto,
+         fecha_recordatorio = excluded.fecha_recordatorio",
+        rusqlite::params![asamblea_id, persona_id, texto, fecha],
+    ).map_err(|e| format!("Error al guardar recordatorio: {}", e))?;
+
+    Ok(())
+}

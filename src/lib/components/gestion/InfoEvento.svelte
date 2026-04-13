@@ -296,6 +296,31 @@
     editOrientaciones = false;
   }
 
+  // --- VARIABLES PARA EL CONTADOR DE ORADORES ---
+  let pendientesCO11 = 0;
+
+  async function contarOradoresPendientes(idAsamblea: number) {
+    try {
+      const dias = ['Viernes', 'Sábado', 'Domingo'];
+      let oradoresUnicos = new Set();
+      
+      for (const dia of dias) {
+        const res = await invoke('obtener_programa_dia', { asambleaId: idAsamblea, dia }) as any[];
+        res.forEach(parte => {
+          if (parte.nombre_orador && parte.nombre_orador.trim() !== '') {
+            // MAGIA: Solo sumamos al contador si el estado NO es 'Confirmado'
+            if (parte.estado !== 'Confirmado') {
+              oradoresUnicos.add(parte.nombre_orador.trim());
+            }
+          }
+        });
+      }
+      pendientesCO11 = oradoresUnicos.size;
+    } catch (e) {
+      console.error("Error al contar oradores:", e);
+    }
+  }
+
   // --- CICLO DE VIDA ---
   onMount(async () => {
     try {
@@ -323,6 +348,7 @@
         
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
+        await contarOradoresPendientes(asamblea.id);
       }
 
       initEditors();
@@ -447,7 +473,12 @@
       <div class="grupo-botones">
         <button class="btn-azul" on:click={() => vistaActual.set('vista_programa')}>Programa</button>
         <button class="btn-azul" on:click={() => vistaActual.set('registro_oradores')}>Registro de oradores</button>
-        <button class="btn-azul">Lista de oradores <span class="badge-amarillo">0</span></button>
+        <button class="btn-azul" on:click={() => vistaActual.set('lista_oradores')}>
+          Lista de oradores 
+          {#if pendientesCO11 > 0}
+            <span class="badge-amarillo">{pendientesCO11}</span>
+          {/if}
+        </button>
       </div>
     </div>
 
@@ -1000,6 +1031,16 @@ input:disabled { background: #f5f5f5; color: #888; border-color: #ddd; cursor: n
   background: #f1f5f9;
   width: 100%;
 }
+
+.badge-amarillo {
+    background: #fef08a;
+    color: #854d0e;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: 6px;
+  }
 
 /* Responsivo para pantallas pequeñas */
 @media (max-width: 768px) {

@@ -89,6 +89,14 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         [],
     );
 
+    // Asegurar que la tabla personas tenga los campos necesarios para contacto
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN telefono TEXT", []);
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN email TEXT", []);
+    // Añadimos específicamente el email de JWPub por si quieres separarlo del personal
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN email_jwpub TEXT", []);
+
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN notas_programa TEXT", []);
+    
     // --- 2. LOCALES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS locales (
@@ -253,6 +261,20 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     conn.execute(
         "INSERT OR IGNORE INTO configuracion (id, nombre, tema, idioma) 
          VALUES (1, 'Usuario', 'claro', 'es')",
+        [],
+    )?;
+
+    // --- 10. RECORDATORIOS DE ORADORES ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS recordatorios_oradores (
+            asamblea_id INTEGER,
+            persona_id INTEGER,
+            texto TEXT,
+            fecha_recordatorio TEXT,
+            PRIMARY KEY(asamblea_id, persona_id),
+            FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE,
+            FOREIGN KEY(persona_id) REFERENCES personas(id) ON DELETE CASCADE
+        )",
         [],
     )?;
 

@@ -155,6 +155,9 @@ if ruta_pendiente.exists() {
             commands::personas::actualizar_persona,
             commands::personas::eliminar_persona,
             commands::personas::limpiar_personas,
+
+            commands::personas::guardar_recordatorio_orador,
+            
             // ASAMBLEA
             commands::asambleas::guardar_info_evento,
             commands::asambleas::guardar_comite,
@@ -215,7 +218,8 @@ if ruta_pendiente.exists() {
             sync_cmds::obtener_last_sync_local,
             sync_cmds::actualizar_last_sync_local,
             sync_cmds::exportar_db_json,
-            sync_cmds::importar_db_json
+            sync_cmds::importar_db_json,
+            
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

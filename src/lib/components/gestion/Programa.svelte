@@ -1196,11 +1196,11 @@ async function cargarTodosDias() {
                 </div>
               {/if}
               <div class="footer-tools">
-                <button class="btn-tool edit" on:click={() => abrirModalPrograma(parte)}>
-                  <Edit size={14}/> Editar Datos / Asignar
+                <button class="btn-icon-square edit" title="Editar Datos / Asignar" on:click={() => abrirModalPrograma(parte)}>
+                  <Edit size={20} strokeWidth={2}/>
                 </button>
-                <button class="btn-tool delete" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
-                 <Trash2 size={14}/> Eliminar Parte
+                <button class="btn-icon-square delete" title="Eliminar Parte" on:click={() => {idParteAEliminar = parte.id; mostrarModalEliminar = true;}}>
+                 <Trash2 size={20} strokeWidth={2}/>
                 </button>
               </div>
             </div>
@@ -1781,7 +1781,46 @@ async function cargarTodosDias() {
 .check-inline { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
 .checks-row { display: flex; flex-direction: column; gap: 2px; }
 .strong-check { color: var(--text-main); font-weight: 600; font-size: 11px; }
-.footer-tools { display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid var(--border); padding-top: 15px; }
+/* =====================================
+   BOTONES DE EDICIÓN Y ELIMINAR (ESTILO CUADRADO)
+   ===================================== */
+.footer-tools { 
+  display: flex; 
+  justify-content: flex-end; 
+  gap: 12px; 
+  border-top: 1px solid var(--border); 
+  padding-top: 15px; 
+}
+
+.btn-icon-square {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px; /* Bordes bien redondeados como en la foto */
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ffffff;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-icon-square:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15); /* Se aclaran un poquito al pasar el ratón */
+}
+
+/* Color vino tinto para Editar */
+.btn-icon-square.edit {
+  background-color: #5c1424; 
+}
+
+/* Color rojo brillante para Eliminar */
+.btn-icon-square.delete {
+  background-color: #ff2b3d; 
+}
+
 .btn-tool { background: none; border: none; font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-secondary); }
 .btn-tool:hover { color: var(--primary); text-decoration: underline; }
 .btn-tool.delete:hover { color: #ef4444; }
@@ -2003,16 +2042,15 @@ async function cargarTodosDias() {
     }
 
     .footer-tools {
-        flex-direction: column;
-        gap: 10px;
+        flex-direction: row; /* Los mantenemos uno al lado del otro */
+        justify-content: flex-end; /* Alineados a la derecha */
+        gap: 12px;
     }
     
-    .footer-tools button {
-        width: 100%;
-        justify-content: center;
-        height: 40px;
-        border: 1px solid var(--border);
-        border-radius: 6px;
+    .footer-tools button.btn-icon-square {
+        width: 42px !important; /* Mantenemos el tamaño cuadrado */
+        height: 42px !important;
+        border: none;
     }
 
     /* 4. MODALES (AÑADIR/EDITAR PARTE) */
