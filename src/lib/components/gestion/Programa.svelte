@@ -1514,7 +1514,7 @@ async function cargarTodosDias() {
           </div>
           
           {#if mostrarSugerenciasEdit}
-            <div class="sugerencias-lista">
+            <div class="sugerencias-lista" style="position: relative; max-height: 220px; margin-top: 8px; margin-bottom: 25px; border-radius: 8px; box-shadow: none;">
               <button class="sugerencia-item video-option" style="color: #3b82f6; border-bottom: 1px solid var(--border);" on:click={() => asignarOrador(null, true)}>
                 <Video size={14} style="margin-right: 8px;"/> <span style="font-weight: 600;">Asignar como Video</span>
               </button>
