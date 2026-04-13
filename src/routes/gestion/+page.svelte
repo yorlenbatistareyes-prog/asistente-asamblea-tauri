@@ -3,7 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
   import VistaPrograma from '$lib/components/gestion/VistaPrograma.svelte';
-
+  import RegistroOradores from '$lib/components/gestion/RegistroOradores.svelte';
   // --- COMPONENTES ---
   import Oficina from '$lib/components/gestion/Oficina.svelte';
   import Resumen from '$lib/components/gestion/Resumen.svelte';
@@ -178,6 +178,7 @@
       {#if seccionActiva === 'programa'} <Programa /> {/if}
       {#if seccionActiva === 'oficina'} <Oficina /> {/if}
       {#if seccionActiva === 'vista_programa'} <VistaPrograma /> {/if}
+      {#if seccionActiva === 'registro_oradores'} <RegistroOradores /> {/if}
     </div>
   </main>
 

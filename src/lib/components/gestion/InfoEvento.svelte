@@ -446,7 +446,7 @@
       <h3 class="titulo-fila">Oradores</h3>
       <div class="grupo-botones">
         <button class="btn-azul" on:click={() => vistaActual.set('vista_programa')}>Programa</button>
-        <button class="btn-azul">Registro de oradores</button>
+        <button class="btn-azul" on:click={() => vistaActual.set('registro_oradores')}>Registro de oradores</button>
         <button class="btn-azul">Lista de oradores <span class="badge-amarillo">0</span></button>
       </div>
     </div>
