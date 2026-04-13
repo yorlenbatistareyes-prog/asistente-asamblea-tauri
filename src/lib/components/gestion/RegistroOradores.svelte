@@ -269,8 +269,8 @@
   /* GRID PARA TABLAS */
   .tabla-encabezado, .fila-registro {
     display: grid;
-    /* La magia de las columnas: Tiempo, Discurso, Orador, Móvil, Check1, Check2, Check30 */
-    grid-template-columns: 80px 3.5fr 2fr 130px 70px 70px 110px;
+    /* Ajustamos levemente los anchos para que todo respire mejor */
+    grid-template-columns: 75px 3.5fr 2.5fr 140px 70px 70px 110px;
     gap: 15px;
     align-items: center;
   }
@@ -278,11 +278,34 @@
   .tabla-encabezado {
     background-color: #f8fafc;
     border-top: 1px solid #e2e8f0;
-    padding: 12px 24px;
+    padding: 8px 24px; /* <-- Redujimos de 12px a 8px para que sea más compacta */
     font-size: 11px;
     font-weight: 700;
     color: #64748b;
     letter-spacing: 0.5px;
+  }
+
+  /* Centramos los textos de "VIERNES" y "DIA DE" para que coincidan con las cajas */
+  .th-check {
+    text-align: center;
+  }
+  
+  /* Mantenemos "30 MINUTOS" alineado a la izquierda para que empate con su cajita y la hora */
+  .th-check30 {
+    text-align: left;
+  }
+
+  /* --- CELDAS DE LAS CAJITAS (Sincronizadas con la cabecera) --- */
+  .td-check { 
+    display: flex; 
+    justify-content: center; /* Centrado exacto bajo el texto */
+  }
+  
+  .td-check30 { 
+    display: flex; 
+    align-items: center; 
+    justify-content: flex-start; /* Alineado a la izquierda exacto bajo su texto */
+    gap: 8px; 
   }
 
   /* =======================================
@@ -291,7 +314,7 @@
   .filas-contenedor {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px; /* <-- Antes era 8px, las pegamos más */
     margin-bottom: 30px;
   }
 
@@ -299,25 +322,26 @@
     background-color: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    padding: 16px 24px;
+    padding: 8px 24px; /* <-- Antes era 16px arriba/abajo. Ahora es 8px */
+    min-height: 56px; /* Asegura un alto mínimo pero compacto */
   }
 
-  .td-tiempo { font-size: 13px; font-weight: 600; color: #475569; }
+ .td-tiempo { font-size: 13px; font-weight: 600; color: #475569; }
   
-  .td-discurso { display: flex; flex-direction: column; gap: 4px; }
-  .discurso-meta strong { font-size: 14px; color: #0f172a; margin-right: 5px; }
-  .fuente-tag { font-size: 12px; color: #64748b; }
-  .discurso-tema { font-size: 14px; color: #334155; line-height: 1.3; }
+  .td-discurso { display: flex; flex-direction: column; gap: 1px; } /* <-- Menos gap */
+  .discurso-meta strong { font-size: 13px; color: #0f172a; margin-right: 5px; } /* Fuente un poquito más pequeña */
+  .fuente-tag { font-size: 11px; color: #64748b; }
+  .discurso-tema { font-size: 13px; color: #334155; line-height: 1.2; } /* Interlineado más apretado */
 
-  .td-orador { display: flex; flex-direction: column; gap: 2px; }
-  .orador-nombre { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .td-orador { display: flex; flex-direction: column; gap: 0px; } /* <-- Quitamos el gap */
+  .orador-nombre { font-size: 13px; font-weight: 600; color: #1e293b; }
   .orador-cong { font-size: 11px; color: #94a3b8; text-transform: uppercase; }
 
   /* BOTONES DE TELÉFONO Y WHATSAPP */
   .acciones-tel {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0px; /* <-- Pegamos los dos botones */
     align-items: flex-start;
   }
 
@@ -325,11 +349,11 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 11px; /* <-- Letra más pequeña */
     font-weight: 600;
     background: transparent;
     border: 1px solid transparent;
-    padding: 4px 6px;
+    padding: 2px 4px; /* <-- Menos relleno interior */
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -374,5 +398,97 @@
     display: inline-block !important;
     visibility: visible !important;
     opacity: 1 !important;
+  }
+
+  /* =======================================
+     DISEÑO RESPONSIVO (MÓVILES)
+     ======================================= */
+  @media (max-width: 768px) {
+    /* 1. Ajustar el contenedor para ganar espacio en pantalla */
+    .vista-programa-container {
+      padding: 15px;
+    }
+
+    .controles-vista {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .btn-pdf, .btn-pdf-outline {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+
+    /* 2. Ocultar la barra de títulos de la tabla (no cabe en móvil) */
+    .tabla-encabezado {
+      display: none;
+    }
+
+    /* 3. Convertir la cuadrícula horizontal en una "Tarjeta" vertical */
+    .fila-registro {
+      grid-template-columns: 1fr; /* Todo en 1 sola columna */
+      gap: 12px;
+      padding: 15px;
+    }
+
+    /* 4. Separadores visuales y ajustes de tarjeta */
+    .td-tiempo {
+      font-size: 16px;
+      color: #286eb4;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+
+    .td-movil {
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    /* Poner los botones de llamadas uno al lado del otro */
+    .acciones-tel {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    
+    .btn-celular, .btn-whatsapp {
+      padding: 8px 12px;
+      font-size: 13px;
+      border: 1px solid #e2e8f0; /* Borde visible para que parezcan botones táctiles */
+    }
+
+    /* 5. EL TRUCO MÁGICO: Crear etiquetas falsas para las cajitas */
+    .td-check, .td-check30 {
+      justify-content: flex-start; /* Alineamos a la izquierda */
+      align-items: center;
+    }
+
+    /* Le inyectamos el texto "VIERNES:" al quinto elemento (la 1ra cajita) */
+    .fila-registro > div:nth-child(5)::before {
+      content: "VIERNES:";
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      width: 90px; /* Ancho fijo para que las cajitas queden alineadas */
+    }
+
+    /* Le inyectamos el texto "DÍA DE:" al sexto elemento (la 2da cajita) */
+    .fila-registro > div:nth-child(6)::before {
+      content: "DÍA DE:";
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      width: 90px;
+    }
+
+    /* Le inyectamos el texto "30 MINUTOS:" al séptimo elemento */
+    .fila-registro > div:nth-child(7)::before {
+      content: "30 MINUTOS:";
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      width: 90px;
+    }
   }
 </style>
