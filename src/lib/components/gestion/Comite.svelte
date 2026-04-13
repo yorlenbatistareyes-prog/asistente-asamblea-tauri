@@ -64,7 +64,8 @@
   };
 
   const gruposResponsabilidades = [
-      { titulo: 'Comité de Asamblea', roles: ['coord', 'coord_a', 'prog', 'prog_a', 'aloj', 'aloj_a'] },
+      { titulo: 'Miembros del Comité de Asamblea', roles: ['coord', 'prog', 'aloj'] },
+      { titulo: 'Auxiliares del Comité de Asamblea', roles: ['coord_a', 'prog_a', 'aloj_a'] },
       { titulo: 'Departamento de Audio, Video y Plataforma', roles: ['av', 'video', 'audio', 'plat'] },
       { titulo: 'Departamento de Bautismo', roles: ['baut', 'baut_a'] }
   ];
@@ -468,10 +469,16 @@ function abrirWhatsApp(hermano: any) {
 </div>
 
 <div class="scroll-container">
-    {#each gruposResponsabilidades as grupo}
+    {#each gruposResponsabilidades as grupo, i}
+        
+        {#if i === 2}
+            <h2 class="subtitulo-general">Otras responsabilidades</h2>
+        {/if}
+
         <h3 class="titulo-separador">{grupo.titulo}</h3>
         
         <div class="grid-tarjetas">
+
             {#each grupo.roles as rolId}
                 {@const def = definicionRoles[rolId]}
                 <div class="tarjeta-miembro">
@@ -995,4 +1002,13 @@ function abrirWhatsApp(hermano: any) {
 }
 
 .qa-btn:active { transform: scale(0.9); }
+
+.subtitulo-general {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 40px 0 15px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
 </style>
