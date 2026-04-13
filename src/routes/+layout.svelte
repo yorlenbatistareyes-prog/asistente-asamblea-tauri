@@ -10,9 +10,6 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import { getVersion } from '@tauri-apps/api/app';
 
-  // 👈 HERRAMIENTAS DE TAURI PARA LECTURA/ESCRITURA
-  import { stat, readFile, writeFile, BaseDirectory } from '@tauri-apps/plugin-fs';
-
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
   // 2. Importa las herramientas de sincronización
@@ -45,74 +42,6 @@
   let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
   // ==========================================
-  // LÓGICA DE SINCRONIZACIÓN INTELIGENTE
-  // ==========================================
-  const DB_NAME = 'asamblea_db_v7.sqlite';
-  const BACKUP_NAME = 'rassembly_sync_backup.db';
-  
-  let rutaSync = "";
-  let isSyncing = false;
-
-  async function ejecutarSincronizacionInteligente() {
-      rutaSync = localStorage.getItem('assembly_sync_path') || "";
-      if (!rutaSync) return;
-      isSyncing = true;
-
-      try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const separador = rutaSync.includes('\\') ? '\\' : '/';
-          const barra = rutaSync.endsWith(separador) ? '' : separador;
-          const rutaFinal = `${rutaSync}${barra}${BACKUP_NAME}`;
-
-          let cloudStat: any = null;
-          try { cloudStat = await stat(rutaFinal); } catch(e) {}
-
-          const localBytes = await readFile(DB_NAME, { baseDir: BaseDirectory.AppData });
-
-          if (!cloudStat) {
-              await writeFile(rutaFinal, localBytes);
-              localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-              alert("Primera copia de seguridad creada en la nube.");
-          } else {
-              const cloudBytes = await readFile(rutaFinal);
-
-              let sonIdenticos = false;
-              if (localBytes.length === cloudBytes.length) {
-                  sonIdenticos = localBytes.every((val, index) => val === cloudBytes[index]);
-              }
-
-              if (sonIdenticos) {
-                  alert("Tus datos ya están completamente sincronizados y al día.");
-                  isSyncing = false;
-                  return;
-              }
-
-              const localStat = await stat(DB_NAME, { baseDir: BaseDirectory.AppData });
-              const localTime = localStat.mtime ? new Date(localStat.mtime).getTime() : 0;
-              const cloudTime = cloudStat.mtime ? new Date(cloudStat.mtime).getTime() : 0;
-
-              if (cloudTime > localTime) {
-                  if (confirm("Hay datos más recientes en tu carpeta compartida. ¿Deseas importarlos a este equipo?")) {
-                      await writeFile(DB_NAME, cloudBytes, { baseDir: BaseDirectory.AppData });
-                      localStorage.setItem('assembly_last_import', new Date().toLocaleString());
-                      alert("Datos importados correctamente. La aplicación se reiniciará.");
-                      window.location.reload();
-                  }
-              } else {
-                  await writeFile(rutaFinal, localBytes);
-                  localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-                  alert("Tus cambios recientes se guardaron en la carpeta de sincronización.");
-              }
-          }
-      } catch (error) {
-          console.error("Error en sincronización:", error);
-          alert("Ocurrió un error al intentar sincronizar. Revisa que la carpeta exista.");
-      } finally {
-          isSyncing = false;
-      }
-  }
-
-  // ==========================================
   // INICIALIZACIÓN (ONMOUNT LIMPIO)
   // ==========================================
   onMount(() => {
@@ -120,7 +49,6 @@
           await cargarDatosGlobales();
           await cargarNombreUsuario();
           fotoUsuario = localStorage.getItem('fotoPerfil') || "";
-          rutaSync = localStorage.getItem('assembly_sync_path') || "";
           iniciarReloj(); 
           cargarTemaGuardado();
           cargarLocales();
@@ -137,13 +65,6 @@
 
       // 👈 NUEVO: Encendemos el radar de la nube
       iniciarRadarNube();
-
-      // 👈 ENVÍA LA CONFIGURACIÓN INICIAL A RUST
-          const autoExport = localStorage.getItem('assembly_auto_export') === 'true';
-          invoke('actualizar_config_sync', { 
-              auto_export: autoExport, // Ojo: snake_case porque Rust lo espera así
-              sync_path: rutaSync 
-          }).catch(console.error);
 
           // 👈 NUEVO: Apagamos el radar si el usuario cierra la app
       return () => detenerRadarNube();
@@ -320,17 +241,6 @@
             <button class="btn-nav" on:click={irInicio} title="Inicio">
                 <Home size={18}/><span>Inicio</span>
             </button>
-
-            {#if rutaSync}
-                <button 
-                    class="btn-icon" 
-                    class:anim-spin={isSyncing} 
-                    on:click={ejecutarSincronizacionInteligente} 
-                    disabled={isSyncing} 
-                    title="Sincronización Inteligente">
-                    <RefreshCw size={18} />
-                </button>
-            {/if}
             
             <button class="btn-icon" on:click={cambiarTema}>
                 {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
@@ -685,7 +595,7 @@
   .spin-icon { animation: spin 1.5s linear infinite; }
   .pulse-icon { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-  
+
   /* =========================================================
    DISEÑO RESPONSIVO (+LAYOUT: WINDOWS + ANDROID)
    ========================================================= */

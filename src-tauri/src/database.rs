@@ -221,7 +221,8 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         identificador TEXT,
         fecha_creacion TEXT,
         tema TEXT DEFAULT 'claro',
-        idioma TEXT DEFAULT 'es'
+        idioma TEXT DEFAULT 'es',
+        last_synced_at TEXT
     )",
         [],
     )?;
@@ -229,8 +230,11 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     // Migraciones para configuracion (agregar columnas faltantes)
     let _ = conn.execute(
         "ALTER TABLE configuracion ADD COLUMN segundo_nombre TEXT",
-        [],
-    );
+        []);
+
+    // 👈 NUEVA MIGRACIÓN PREVENTIVA
+    let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN last_synced_at TEXT", []);
+
     let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN apellido TEXT", []);
     let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN sufijo TEXT", []);
     let _ = conn.execute("ALTER TABLE configuracion ADD COLUMN email TEXT", []);

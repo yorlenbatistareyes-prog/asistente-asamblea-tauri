@@ -110,55 +110,69 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
     }
   }
 
-  // --- PASO 3A: Subida Manual ---
-  async function handleSubir() {
-    estado = 'cargando';
-    mensaje = 'Preparando datos...';
-    try {
-      const backupJson = await DbSyncHelper.prepararRespaldoLocal();
-      mensaje = 'Subiendo a la nube...';
-      const fechaLocalISO = new Date().toISOString();
-      await SyncService.subirRespaldo(backupJson, fechaLocalISO, $lastDeviceName);
-      await DbSyncHelper.actualizarFechaSincronizacion(fechaLocalISO);
-      
-      estado = 'exito';
-      mensaje = '¡Respaldo subido correctamente!';
+// --- PASO 3A: Subida Manual ---
+  async function handleSubir() {
+    estado = 'cargando';
+    mensaje = 'Preparando datos...';
+    try {
+      const backupJson = await DbSyncHelper.prepararRespaldoLocal();
+      mensaje = 'Subiendo a la nube...';
+      const fechaLocalISO = new Date().toISOString();
+      await SyncService.subirRespaldo(backupJson, fechaLocalISO, $lastDeviceName);
+      await DbSyncHelper.actualizarFechaSincronizacion(fechaLocalISO);
       
-      // CAMBIO AQUÍ: Actualizamos el objeto syncStatus
-      syncStatus.update(s => ({ ...s, estado: 'al_dia' }));
-      setTimeout(() => estado = 'inactivo', 5000);
-    } catch (error) {
-      mostrarError(getErrorMessage(error));
-      syncStatus.update(s => ({ ...s, estado: 'error' }));
-    }
-  }
-
-  // --- PASO 3B: Descarga Manual ---
-  async function handleDescargar() {
-    const confirmar = confirm("⚠️ ATENCIÓN: Esto borrará todas las asambleas locales de este dispositivo. ¿Estás seguro?");
-    if (!confirmar) return;
-
-    estado = 'cargando';
-    mensaje = 'Buscando datos en la nube...';
-
-    try {
-      const res = await SyncService.descargarRespaldo();
-      mensaje = 'Restaurando base de datos local...';
-      await DbSyncHelper.aplicarRespaldoNube(res.backup_data);
-      await DbSyncHelper.actualizarFechaSincronizacion(res.last_synced_at);
-
-      estado = 'exito';
-      const fechaSinc = new Date(res.last_synced_at).toLocaleString();
-      mensaje = `¡Datos restaurados con éxito! (De: ${fechaSinc})`;
+      estado = 'exito';
+      mensaje = '¡Respaldo subido correctamente!';
       
-      // CAMBIO AQUÍ: Actualizamos el objeto syncStatus
-      syncStatus.update(s => ({ ...s, estado: 'al_dia' }));
-      setTimeout(() => estado = 'inactivo', 6000);
-    } catch (error) {
-      mostrarError(getErrorMessage(error));
-      syncStatus.update(s => ({ ...s, estado: 'error' }));
-    }
-  }
+      // CAMBIO AQUÍ: Actualizamos a al_dia y luego a inactivo para la TopBar
+      syncStatus.update(s => ({ ...s, estado: 'al_dia', mensaje: '¡Subida manual exitosa!' }));
+      
+      setTimeout(() => {
+          estado = 'inactivo';
+          syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' }));
+      }, 5000);
+
+    } catch (error) {
+      mostrarError(getErrorMessage(error));
+      syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al subir' }));
+      setTimeout(() => syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' })), 4000);
+    }
+  }
+
+  // --- PASO 3B: Descarga Manual ---
+  async function handleDescargar() {
+    const confirmar = confirm("⚠️ ATENCIÓN: Esto borrará todas las asambleas locales de este dispositivo. ¿Estás seguro?");
+    if (!confirmar) return;
+
+    estado = 'cargando';
+    mensaje = 'Buscando datos en la nube...';
+
+    try {
+      const res = await SyncService.descargarRespaldo();
+      mensaje = 'Restaurando base de datos local...';
+      await DbSyncHelper.aplicarRespaldoNube(res.backup_data);
+      await DbSyncHelper.actualizarFechaSincronizacion(res.last_synced_at);
+
+      estado = 'exito';
+      const fechaSinc = new Date(res.last_synced_at).toLocaleString();
+      mensaje = `¡Datos restaurados con éxito! (De: ${fechaSinc})`;
+      
+      // CAMBIO AQUÍ: Actualizamos a al_dia y luego a inactivo para la TopBar
+      syncStatus.update(s => ({ ...s, estado: 'al_dia', mensaje: '¡Descarga exitosa!' }));
+      
+      setTimeout(() => {
+          estado = 'inactivo';
+          syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' }));
+          // Opcional pero recomendado: Recargar la página para que la UI lea los datos nuevos
+          window.location.reload(); 
+      }, 3000);
+
+    } catch (error) {
+      mostrarError(getErrorMessage(error));
+      syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al descargar' }));
+      setTimeout(() => syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' })), 4000);
+    }
+  }
 
   // --- CERRAR SESIÓN ---
   async function handleCerrarSesion() {
