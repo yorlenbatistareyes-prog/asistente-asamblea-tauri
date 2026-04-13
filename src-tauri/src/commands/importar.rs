@@ -141,28 +141,36 @@ pub fn importar_personas_csv(
                 continue;
             }
 
-            let mut id_cong = 0;
+            // ✅ CORRECCIÓN: Permitimos que sea Nulo si viene vacío
+            let mut id_cong: Option<i32> = None;
+            
             if let Some(cong) = &fila.congregacion {
-                let existe_c: Option<i32> = stmt_find_cong
-                    .query_row(params![asamblea_id, cong.trim()], |row| row.get(0))
-                    .optional()
-                    .unwrap_or(None);
-                if let Some(cid) = existe_c {
-                    id_cong = cid;
-                } else {
-                    stmt_ins_cong
-                        .execute(params![asamblea_id, cong.trim()])
-                        .unwrap_or(0);
-                    id_cong = tx.last_insert_rowid() as i32;
+                let c_limpio = cong.trim();
+                if !c_limpio.is_empty() {
+                    let existe_c: Option<i32> = stmt_find_cong
+                        .query_row(params![asamblea_id, c_limpio], |row| row.get(0))
+                        .optional()
+                        .unwrap_or(None);
+                    if let Some(cid) = existe_c {
+                        id_cong = Some(cid);
+                    } else {
+                        stmt_ins_cong
+                            .execute(params![asamblea_id, c_limpio])
+                            .unwrap_or(0);
+                        id_cong = Some(tx.last_insert_rowid() as i32);
+                    }
                 }
             }
+            
             let tel = fila.celular.or(fila.fijo).unwrap_or_default();
             let email = fila.email.unwrap_or_default();
             let privi = fila.privilegio.unwrap_or_default();
+            
             let existe_p: Option<i32> = stmt_check_pers
                 .query_row(params![asamblea_id, &nombre_final], |row| row.get(0))
                 .optional()
                 .unwrap_or(None);
+                
             if let Some(pid) = existe_p {
                 stmt_upd_pers
                     .execute(params![id_cong, privi, tel, email, pid])
@@ -173,7 +181,7 @@ pub fn importar_personas_csv(
                         asamblea_id,
                         nombre_final,
                         privi,
-                        id_cong,
+                        id_cong, // Ahora pasará NULL si no tiene en lugar de 0
                         tel,
                         email
                     ])
@@ -308,27 +316,33 @@ pub fn importar_programa_jw(
                             ]
                         );
                     } else {
-                        let mut id_cong = 0;
+                        // ✅ CORRECCIÓN: Ahora es Option<i32>, permite nulos
+                        let mut id_cong: Option<i32> = None;
+                        
                         if let Some(c) = fila.congregacion {
-                            let ex_c: Option<i32> = stmt_find_cong
-                                .query_row(params![asamblea_id, c.trim()], |row| row.get(0))
-                                .optional()
-                                .unwrap_or(None);
-                            if let Some(cid) = ex_c {
-                                id_cong = cid;
-                            } else {
-                                stmt_ins_cong
-                                    .execute(params![asamblea_id, c.trim()])
-                                    .unwrap_or(0);
-                                id_cong = tx.last_insert_rowid() as i32;
+                            let c_limpio = c.trim();
+                            if !c_limpio.is_empty() {
+                                let ex_c: Option<i32> = stmt_find_cong
+                                    .query_row(params![asamblea_id, c_limpio], |row| row.get(0))
+                                    .optional()
+                                    .unwrap_or(None);
+                                if let Some(cid) = ex_c {
+                                    id_cong = Some(cid);
+                                } else {
+                                    stmt_ins_cong
+                                        .execute(params![asamblea_id, c_limpio])
+                                        .unwrap_or(0);
+                                    id_cong = Some(tx.last_insert_rowid() as i32);
+                                }
                             }
                         }
-                        // 👇 ACTUALIZADO: Pasamos circuito y fijo a la tabla personas
+                        
+                        // 👇 ACTUALIZADO: Pasamos id_cong como Option, permite nulos (sin congregación)
                         stmt_ins_pers
                             .execute(params![
                                 asamblea_id,
                                 nombre_final,
-                                id_cong,
+                                id_cong, // Ahora pasa NULL si no tiene congregación
                                 fila.movil.unwrap_or_default(),
                                 fila.email.unwrap_or_default(),
                                 fila.circuito.unwrap_or_default(), // ?6
