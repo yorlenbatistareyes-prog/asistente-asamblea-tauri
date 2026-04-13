@@ -70,6 +70,22 @@ let tempFiltroEstado = 'todos';
 let tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
 let tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
 
+// --- BUSCADOR DEL MODAL DE EDICIÓN ---
+  let busquedaEdit = "";
+  let sugerenciasEdit: any[] = [];
+  let mostrarSugerenciasEdit = false;
+
+  function filtrarOradoresEdit() {
+    const t = busquedaEdit.toLowerCase();
+    if (t.length < 2) {
+      sugerenciasEdit = [];
+      mostrarSugerenciasEdit = false;
+      return;
+    }
+    sugerenciasEdit = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t));
+    mostrarSugerenciasEdit = true;
+  }
+  
 // --- FUNCIONES DE CONTROL DEL MODAL DE FILTROS ---
 function abrirPanelFiltros() {
   // 1. Al abrir el modal, copiamos los filtros reales a los temporales
@@ -444,6 +460,10 @@ onDestroy(() => {
   function abrirModalPrograma(parte: any) { 
     parteEditando = { ...parte }; 
     terminoBusqueda = ""; 
+    // ✅ Agregamos estas dos líneas para limpiar el nuevo buscador
+    busquedaEdit = ""; 
+    mostrarSugerenciasEdit = false;
+    
     mostrarModalAsignar = true; 
   }
 
@@ -463,8 +483,14 @@ async function actualizarDetallesParte(parteId: number) {
             esBetelita: parteEditando.es_betelita || false,
             esInterprete: parteEditando.es_interprete || false,
             esVisitante: parteEditando.es_visitante || false,
-            duracion: Number(parteEditando.duracion) || 0 // Envía los minutos
-        });
+            duracion: Number(parteEditando.duracion) || 0, // Envía los minutos
+            requiereEnsayo: parteEditando.requiere_ensayo || false,
+            fechaEnsayo: parteEditando.fecha_ensayo || null,
+            horaEnsayo: parteEditando.hora_ensayo || null,
+            lugarEnsayo: parteEditando.lugar_ensayo || null,
+            notasEnsayo: parteEditando.notas_ensayo || null
+        
+          });
         await cargarTodosDias();
         alert("✅ Datos de la parte actualizados correctamente.");
     } catch (e) {
@@ -841,7 +867,13 @@ async function cargarTodosDias() {
         fuente: p.fuente || 'en_persona',
         es_betelita: p.es_betelita || false,
         es_interprete: p.es_interprete || false,
-        es_visitante: p.es_visitante || false
+        es_visitante: p.es_visitante || false,
+        // ✅ NUEVOS CAMPOS ENSAYO
+        requiere_ensayo: p.requiere_ensayo || false,
+        fecha_ensayo: p.fecha_ensayo || '',
+        hora_ensayo: p.hora_ensayo || '',
+        lugar_ensayo: p.lugar_ensayo || '',
+        notas_ensayo: p.notas_ensayo || ''
       }));
       todasLasPartes = [...todasLasPartes, ...partesConDia];
     }
@@ -1440,32 +1472,62 @@ async function cargarTodosDias() {
 
         <div class="separator-line" style="margin: 15px 0;"></div>
 
-        <div class="campo" style="margin-bottom: 10px;">
-          <label>Buscar y Asignar Orador</label>
+        <div class="ensayos-card" style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 15px; background: var(--bg-body);">
+          <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--text-main);">Ensayos</h4>
+          <label class="checkbox-label" style="margin-bottom: 12px; font-weight: bold;">
+            <input type="checkbox" bind:checked={parteEditando.requiere_ensayo}> Agregar a ensayos
+          </label>
+          
+          {#if parteEditando.requiere_ensayo}
+            <div class="fila" style="margin-top: 10px;">
+              <div class="campo">
+                <label>Fecha de ensayos</label>
+                <input type="date" bind:value={parteEditando.fecha_ensayo} />
+              </div>
+              <div class="campo">
+                <label>Hora de ensayos</label>
+                <div class="input-icon">
+                  <Clock size={14}/>
+                  <input type="time" bind:value={parteEditando.hora_ensayo} />
+                </div>
+              </div>
+            </div>
+            <div class="campo">
+              <label>Lugar de ensayos</label>
+              <input type="text" bind:value={parteEditando.lugar_ensayo} />
+            </div>
+            <div class="campo">
+              <label>Notas de los ensayos</label>
+              <textarea bind:value={parteEditando.notas_ensayo} style="min-height: 80px;"></textarea>
+            </div>
+          {/if}
+        </div>
+
+        <div class="campo autocomplete-container" style="margin-bottom: 30px;">
+          <label>Buscar y Asignar Nuevo Orador</label>
           <div class="input-icon">
             <Search size={16} />
-            <input type="text" placeholder="Escribe el nombre del hermano..." bind:value={terminoBusqueda} />
+            <input type="text" placeholder="Escribe para buscar hermano..." 
+                   bind:value={busquedaEdit} 
+                   on:input={filtrarOradoresEdit}
+                   on:blur={() => setTimeout(() => mostrarSugerenciasEdit = false, 200)} />
           </div>
-        </div>
-        
-        <div class="lista-opciones" style="margin-top: 0;">
-          <button class="item-opcion video-option" on:click={() => asignarOrador(null, true)}>
-            <div style="display:flex; align-items:center; justify-content:center; width:32px; height:32px; background:var(--hover-bg); border-radius:50%; color:var(--text-secondary);">
-              <Video size={16}/>
-            </div>
-            <span style="font-weight:600; font-size:14px;">Asignar como Video</span>
-          </button>
           
-          {#each getHermanosFiltrados() as h}
-            <button class="item-opcion" on:click={() => asignarOrador(h.id, false)}>
-              <div class="avatar">{h.nombre_completo.charAt(0)}</div>
-              <div class="datos-opcion" style="display:flex; flex-direction:column; gap:2px;">
-                <span class="nombre">{h.nombre_completo}</span>
-                <span class="detalle">{h.nombre_congregacion || '-'}</span>
-              </div>
-            </button>
-          {/each}
+          {#if mostrarSugerenciasEdit}
+            <div class="sugerencias-lista">
+              <button class="sugerencia-item video-option" style="color: #3b82f6; border-bottom: 1px solid var(--border);" on:click={() => asignarOrador(null, true)}>
+                <Video size={14} style="margin-right: 8px;"/> <span style="font-weight: 600;">Asignar como Video</span>
+              </button>
+              {#each sugerenciasEdit as h}
+                <button class="sugerencia-item" on:click={() => asignarOrador(h.id, false)}>
+                  <span style="font-weight: 600;">{h.nombre_completo}</span>
+                  <span style="font-size: 11px; color: var(--text-secondary); margin-left: 8px;">{h.nombre_congregacion || '-'}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
+
       </div>
     </div>
   </div>

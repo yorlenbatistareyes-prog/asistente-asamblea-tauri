@@ -94,6 +94,11 @@ pub struct PartePrograma {
     pub es_betelita: bool,
     pub es_interprete: bool,
     pub es_visitante: bool,
+    pub requiere_ensayo: bool,
+    pub fecha_ensayo: Option<String>,
+    pub hora_ensayo: Option<String>,
+    pub lugar_ensayo: Option<String>,
+    pub notas_ensayo: Option<String>,
 }
 
 // ==========================================

@@ -220,6 +220,13 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN es_interprete BOOLEAN DEFAULT 0", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN es_visitante BOOLEAN DEFAULT 0", []);
     
+    // MIGRACIONES PARA ENSAYOS POR PARTE
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN requiere_ensayo BOOLEAN DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN fecha_ensayo TEXT", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN hora_ensayo TEXT", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN lugar_ensayo TEXT", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN notas_ensayo TEXT", []);
+    
     // --- 9. CONFIGURACIÓN GENERAL ---
 
     conn.execute(

@@ -24,7 +24,8 @@ pub fn obtener_programa_dia(
         p.es_video, p.estado, p.esta_presente,
         p.numero_bosquejo, p.ensayo_terminado,
         p.fuente, p.es_betelita, p.es_interprete, p.es_visitante,
-        per.circuito
+        per.circuito,
+        p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -57,6 +58,11 @@ pub fn obtener_programa_dia(
                 es_interprete: row.get(19).unwrap_or(false),
                 es_visitante: row.get(20).unwrap_or(false),
                 circuito_orador: row.get(21).ok(), // ✅ CAPTURAMOS EL CIRCUITO AQUÍ
+                requiere_ensayo: row.get(22).unwrap_or(false),
+                fecha_ensayo: row.get(23).ok(),
+                hora_ensayo: row.get(24).ok(),
+                lugar_ensayo: row.get(25).ok(),
+                notas_ensayo: row.get(26).ok(),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -203,7 +209,13 @@ pub fn actualizar_detalles_parte(
     es_betelita: bool,
     es_interprete: bool,
     es_visitante: bool,
-    duracion: i32, // <-- NUEVO PARÁMETRO
+    duracion: i32, 
+    // 👇 NUEVOS PARÁMETROS PARA ENSAYOS
+    requiere_ensayo: bool,
+    fecha_ensayo: Option<String>,
+    hora_ensayo: Option<String>,
+    lugar_ensayo: Option<String>,
+    notas_ensayo: Option<String>,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
@@ -214,8 +226,13 @@ pub fn actualizar_detalles_parte(
             es_betelita = ?3, 
             es_interprete = ?4, 
             es_visitante = ?5,
-            duracion = ?6 
-         WHERE id = ?7",
+            duracion = ?6,
+            requiere_ensayo = ?7,
+            fecha_ensayo = ?8,
+            hora_ensayo = ?9,
+            lugar_ensayo = ?10,
+            notas_ensayo = ?11
+         WHERE id = ?12",
         params![
             numero_bosquejo.as_deref(), 
             fuente, 
@@ -223,6 +240,12 @@ pub fn actualizar_detalles_parte(
             es_interprete, 
             es_visitante,
             duracion, 
+            // 👇 PASAMOS LOS DATOS A LA BASE DE DATOS
+            requiere_ensayo,
+            fecha_ensayo.as_deref(),
+            hora_ensayo.as_deref(),
+            lugar_ensayo.as_deref(),
+            notas_ensayo.as_deref(),
             id_parte
         ],
     )
