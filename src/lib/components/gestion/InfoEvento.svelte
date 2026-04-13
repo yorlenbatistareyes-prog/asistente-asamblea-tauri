@@ -2,7 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { setResumen, addNota, setNotas, totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, notasRapidas } from '$lib/stores/gestion';
-  
+  import { vistaActual } from '$lib/stores/appStore';
+
   // --- TIPTAP Y EXTENSIONES ---
   import { Editor, Extension } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
@@ -444,7 +445,7 @@
     <div class="fila-accion">
       <h3 class="titulo-fila">Oradores</h3>
       <div class="grupo-botones">
-        <button class="btn-azul">Programa</button>
+        <button class="btn-azul" on:click={() => vistaActual.set('vista_programa')}>Programa</button>
         <button class="btn-azul">Registro de oradores</button>
         <button class="btn-azul">Lista de oradores <span class="badge-amarillo">0</span></button>
       </div>

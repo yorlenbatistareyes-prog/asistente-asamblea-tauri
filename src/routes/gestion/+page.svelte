@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
-  
+  import VistaPrograma from '$lib/components/gestion/VistaPrograma.svelte';
+
   // --- COMPONENTES ---
   import Oficina from '$lib/components/gestion/Oficina.svelte';
   import Resumen from '$lib/components/gestion/Resumen.svelte';
@@ -12,6 +13,7 @@
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
   import { setResumen } from '$lib/stores/gestion';
+  import { vistaActual } from '$lib/stores/appStore';
 
   // --- IMPORTAMOS LOS ICONOS ---
   import { 
@@ -27,6 +29,10 @@
   let seccionActiva = 'inicio';
   let asambleaActual: any = {};
   let mostrarMenuMas = false; // Controla el dropdown "Más"
+
+  $: if ($vistaActual && $vistaActual !== seccionActiva) {
+      seccionActiva = $vistaActual;
+  }
 
   onMount(async () => {
     // Cierra el menú "Más" si haces clic en cualquier otra parte de la pantalla
@@ -97,8 +103,10 @@
 
   function cambiarSeccion(nuevaSeccion: string) {
     seccionActiva = nuevaSeccion;
-    mostrarMenuMas = false; // Cerramos el menú al elegir algo
+    vistaActual.set(nuevaSeccion); // 👈 Ahora el menú y el store están sincronizados
+    mostrarMenuMas = false; 
   }
+
 </script>
 
 <div class="layout-gestion">
@@ -169,6 +177,7 @@
       {#if seccionActiva === 'comite'} <Comite /> {/if}
       {#if seccionActiva === 'programa'} <Programa /> {/if}
       {#if seccionActiva === 'oficina'} <Oficina /> {/if}
+      {#if seccionActiva === 'vista_programa'} <VistaPrograma /> {/if}
     </div>
   </main>
 
