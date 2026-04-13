@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
   import { goto } from '$app/navigation';
   import { ask } from "@tauri-apps/plugin-dialog";
   import { vistaActual } from '$lib/stores/appStore';
@@ -8,7 +8,6 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
-  import { dispararSincronizacionLocal } from '$lib/stores/autoSyncStore';
 
   // DATOS
   let listaAsambleas: any[] = [];
@@ -55,7 +54,8 @@ function manejarSeleccionFinal() {
 
   async function cargarTodo() {
       try {
-          const [a, l] = await Promise.all([invoke('obtener_asambleas'), invoke('obtener_locales')]);
+          // 👈 Usamos DB en lugar de invoke
+          const [a, l] = await Promise.all([DB.obtenerAsambleas(), DB.obtenerLocales()]);
           listaAsambleas = a as any[]; 
           listaLocales = l as any[];
       } catch(e) { console.error(e); }
@@ -171,13 +171,11 @@ function manejarSeleccionFinal() {
 
   async function crear() {
       try {
-          // 1. Validación
           if(!form.tema || !form.fechaInicio || !form.fechaFin) {
               alert("Debes escribir el tema y seleccionar el rango de fechas en el calendario.");
               return;
           }
           
-          // 2. Extraemos las fechas
           const y1 = form.fechaInicio.getFullYear();
           const m1 = String(form.fechaInicio.getMonth() + 1).padStart(2, '0');
           const d1 = String(form.fechaInicio.getDate()).padStart(2, '0');
@@ -188,10 +186,8 @@ function manejarSeleccionFinal() {
           const d2 = String(form.fechaFin.getDate()).padStart(2, '0');
           const fechaFinStr = `${y2}-${m2}-${d2}`;
 
-          // Unificamos la fecha (como lo tienes en InfoEvento)
           const fechaUnida = `${fechaInicioStr} a ${fechaFinStr}`;
 
-          // 3. Local
           let nombreLugar = "Sin asignar";
           let idFinal = null;
 
@@ -205,10 +201,10 @@ function manejarSeleccionFinal() {
               }
           }
 
-          // 4. Enviamos a Rust
-          await invoke('crear_asamblea', { 
+          // 👈 Usamos DB.crearAsamblea (Esto dispara la sincronización automáticamente por dentro)
+          await DB.crearAsamblea({ 
               tema: form.tema,
-              fecha: fechaUnida, // 👈 OJO AQUÍ
+              fecha: fechaUnida, 
               identificador: form.identificador,
               idioma: form.idioma,
               lugar: nombreLugar, 
@@ -217,12 +213,10 @@ function manejarSeleccionFinal() {
           
           mostrarModal = false; 
           cargarTodo();
-
-          // 👈 AQUÍ  Avisamos al AutoSync
-          dispararSincronizacionLocal();
+          
+          // ¡Ya no necesitamos llamar a dispararSincronizacionLocal() aquí!
 
       } catch (error) {
-          // Si Rust se queja, ahora sí lo veremos en pantalla
           console.error("Error desde Rust:", error);
           alert("No se pudo crear la asamblea. Error: " + error);
       }
@@ -233,11 +227,11 @@ function manejarSeleccionFinal() {
       const respuesta = await ask('¿Estás seguro de que deseas eliminar esta asamblea permanentemente?', { 
           title: 'Confirmar eliminación', kind: 'warning', okLabel: 'Eliminar', cancelLabel: 'Cancelar'
       });
-      if(respuesta) { await invoke('eliminar_asamblea', { id }); cargarTodo(); 
-    
-      // 👈 ¡TAMBIÉN AQUÍ! Avisamos al AutoSync
-          dispararSincronizacionLocal();
-    }
+      if(respuesta) { 
+          // 👈 Usamos DB.eliminarAsamblea
+          await DB.eliminarAsamblea(id); 
+          cargarTodo(); 
+      }
   }
 
   function gestionar(item: any) {
