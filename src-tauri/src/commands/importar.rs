@@ -53,19 +53,27 @@ struct FilaProgramaJW {
     fecha: String,
     #[serde(alias = "Hora")]
     hora: String,
+    // ✅ NUEVO: Bosquejo
+    #[serde(alias = "Bosquejo", alias = "Outline")]
+    bosquejo: Option<String>,
     #[serde(alias = "Título")]
     titulo: String,
     #[serde(alias = "Fuente", alias = "Source material")]
     fuente: Option<String>,
     #[serde(alias = "Orador", alias = "Speaker")]
     orador: Option<String>,
+    // ✅ NUEVO: Circuito
+    #[serde(alias = "Circuito", alias = "Circuit")]
+    circuito: Option<String>,
     #[serde(alias = "Congregación", alias = "Congregation")]
     congregacion: Option<String>,
     #[serde(alias = "Teléfono móvil", alias = "Mobile phone")]
     movil: Option<String>,
+    // ✅ NUEVO: Teléfono fijo
+    #[serde(alias = "Teléfono fijo", alias = "Landline")]
+    fijo: Option<String>,
     #[serde(alias = "Correo electrónico", alias = "Email address")]
     email: Option<String>,
-    // ✅ NUEVAS COLUMNAS CAPTURADAS DEL CSV
     #[serde(alias = "Speaker Bethelite", alias = "Orador betelita", alias = "Betelita")]
     es_betelita: Option<String>,
     #[serde(alias = "Interpreter", alias = "Intérprete", alias = "Interprete")]
@@ -234,15 +242,16 @@ pub fn importar_programa_jw(
             .prepare("SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2")
             .map_err(|e| e.to_string())?;
 
-        // 👇 CORRECCIÓN AQUÍ: Se añade 'sexo' y se ajustan los parámetros (?1 a ?7)
-        let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5)").map_err(|e| e.to_string())?;
+        // 👇 ACTUALIZADO: Añadido circuito (?6) y telefono_fijo (?7)
+        let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email, circuito, telefono_fijo) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5, ?6, ?7)").map_err(|e| e.to_string())?;
 
+        // 👇 ACTUALIZADO: Añadido numero_bosquejo (?13)
         let mut stmt_ins_prog = tx.prepare("
             INSERT INTO programa (
                 asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, 
                 orador_id, es_video, estado, esta_presente, 
-                fuente, es_betelita, es_interprete, es_visitante
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12)
+                fuente, es_betelita, es_interprete, es_visitante, numero_bosquejo
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12, ?13)
         ").map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
@@ -304,14 +313,16 @@ pub fn importar_programa_jw(
                                 id_cong = tx.last_insert_rowid() as i32;
                             }
                         }
-                        // 👇 Ajustado para enviar el número correcto de parámetros a stmt_ins_pers
+                        // 👇 ACTUALIZADO: Pasamos circuito y fijo a la tabla personas
                         stmt_ins_pers
                             .execute(params![
                                 asamblea_id,
                                 nombre_final,
                                 id_cong,
                                 fila.movil.unwrap_or_default(),
-                                fila.email.unwrap_or_default()
+                                fila.email.unwrap_or_default(),
+                                fila.circuito.unwrap_or_default(), // ?6
+                                fila.fijo.unwrap_or_default()      // ?7
                             ])
                             .unwrap_or(0);
                         orador_id = Some(tx.last_insert_rowid() as i32);
@@ -319,11 +330,12 @@ pub fn importar_programa_jw(
                 }
             }
 
-            // Convertimos los valores de texto del CSV ("Yes", "Sí", etc) a booleanos para la DB
-            let es_betel = fila.es_betelita.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
-            let es_inter = fila.es_interprete.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
-            let es_visit = fila.es_visitante.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
+            // Convertimos los valores de texto del CSV a booleanos para la DB
+            let es_betel = fila.es_betelita.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s') || s.to_lowercase().contains('í')).unwrap_or(false);
+            let es_inter = fila.es_interprete.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s') || s.to_lowercase().contains('í')).unwrap_or(false);
+            let es_visit = fila.es_visitante.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s') || s.to_lowercase().contains('í')).unwrap_or(false);
             
+            // 👇 ACTUALIZADO: Pasamos el bosquejo a la tabla programa
             stmt_ins_prog
                 .execute(params![
                     asamblea_id,
@@ -334,10 +346,11 @@ pub fn importar_programa_jw(
                     tipo,
                     orador_id,
                     es_video,
-                    fuente,     // ?9
-                    es_betel,   // ?10
-                    es_inter,   // ?11
-                    es_visit    // ?12
+                    fuente,      // ?9
+                    es_betel,    // ?10
+                    es_inter,    // ?11
+                    es_visit,    // ?12
+                    fila.bosquejo.unwrap_or_default() // ?13 (Número de bosquejo)
                 ])
                 .unwrap_or(0);
         }

@@ -96,7 +96,7 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN email_jwpub TEXT", []);
 
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN notas_programa TEXT", []);
-    
+
     // --- 2. LOCALES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS locales (
@@ -133,8 +133,11 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         privilegios TEXT, 
         id_congregacion INTEGER, 
         congregacion TEXT, 
-        telefono TEXT, 
-        email TEXT, 
+        circuito TEXT,
+        telefono TEXT,
+        telefono_fijo TEXT, 
+        email TEXT,
+        email_jwpub TEXT, 
         FOREIGN KEY(id_congregacion) REFERENCES congregaciones(id) ON DELETE SET NULL,
         FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
     )",
@@ -204,6 +207,9 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     // --- MIGRACIONES PREVENTIVAS (Para bases de datos existentes) ---
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN sexo TEXT DEFAULT 'M'", []);
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN congregacion TEXT", []);
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN circuito TEXT", []);
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN telefono_fijo TEXT", []);
+    
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN numero_bosquejo TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN orador_id INTEGER", []); // Por si acaso existía como persona_id
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN ensayo_terminado BOOLEAN DEFAULT 0", []);
