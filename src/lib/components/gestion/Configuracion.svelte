@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import Datos from '$lib/components/gestion/Datos.svelte';
 
+  import ActualizacionApp from './ActualizacionApp.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { cargarDatosGlobales } from '$lib/stores/appStore';
   
@@ -15,13 +16,33 @@
  
   // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
   import { 
-    ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
+    DownloadCloud, ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
     ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity, FileText, 
   } from 'lucide-svelte';
 
   import Panel from '$lib/components/ui/Panel.svelte';
 
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
+
+  import { verificarActualizacion, irA_Descarga, type UpdateResult } from '$lib/services/updater';
+  
+  let buscandoUpdate = false;
+  let updateInfo: UpdateResult | null = null;
+
+  async function buscarActualizaciones() {
+    buscandoUpdate = true;
+    const resultado = await verificarActualizacion();
+    updateInfo = resultado;
+    buscandoUpdate = false;
+    
+    if (resultado.error) {
+      alert(`❌ No se pudo buscar actualizaciones.\nMotivo: ${resultado.mensajeError}`);
+      return;
+    }
+    if (!resultado.hayNueva) {
+      alert("✅ ¡Estás al día! Tienes la última versión instalada.");
+    }
+  }
 
   const dispatch = createEventDispatcher();
   let configSeccion = 'general'; 
@@ -121,6 +142,11 @@
             <div class="nav-divider"></div>
             <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}><Database size={18}/> Datos</button>
             <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}><CircleHelp size={18}/> Ayuda</button>
+        
+            <button class:active={configSeccion === 'actualizaciones'} on:click={() => configSeccion = 'actualizaciones'}>
+                <DownloadCloud size={18}/> Actualizaciones
+            </button>
+        
         </nav>
 
         <div class="config-footer">
@@ -158,7 +184,8 @@
                 {:else if configSeccion === 'correos'} Plantillas de correo electrónico 
                 {:else if configSeccion === 'cuenta'} Cuenta y Seguridad 
                 {:else if configSeccion === 'datos'} Gestión de Datos 
-                {:else if configSeccion === 'ayuda'} Centro de Ayuda {/if}
+                {:else if configSeccion === 'ayuda'} Centro de Ayuda
+                {:else if configSeccion === 'actualizaciones'} Actualizaciones del Sistema {/if}
             </h1>
             {#if configSeccion === 'general' && !editorAbierto}
                 <div class="config-actions"><button class="btn-save-config" on:click={guardarCambiosConfig}>Guardar Cambios</button></div>
@@ -217,6 +244,8 @@
 
             {:else if configSeccion === 'ayuda'} 
               <SeccionAyuda />
+            {:else if configSeccion === 'actualizaciones'}
+              <ActualizacionApp />
             {/if}
         </div>
     </main>
