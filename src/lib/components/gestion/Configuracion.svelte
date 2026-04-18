@@ -144,7 +144,7 @@
             <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}><CircleHelp size={18}/> Ayuda</button>
         
             <button class:active={configSeccion === 'actualizaciones'} on:click={() => configSeccion = 'actualizaciones'}>
-                <DownloadCloud size={18}/> Actualizaciones
+               <Info size={18}/> Acerca de 
             </button>
         
         </nav>
@@ -185,7 +185,7 @@
                 {:else if configSeccion === 'cuenta'} Cuenta y Seguridad 
                 {:else if configSeccion === 'datos'} Gestión de Datos 
                 {:else if configSeccion === 'ayuda'} Centro de Ayuda
-                {:else if configSeccion === 'actualizaciones'} Actualizaciones del Sistema {/if}
+                {:else if configSeccion === 'actualizaciones'} Acerca de RAssembly {/if}
             </h1>
             {#if configSeccion === 'general' && !editorAbierto}
                 <div class="config-actions"><button class="btn-save-config" on:click={guardarCambiosConfig}>Guardar Cambios</button></div>
