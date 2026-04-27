@@ -547,8 +547,14 @@
 <style>
   /* --- ESTILOS --- */
   .dashboard-container {
-    display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;
-    padding-bottom: 20px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 25px; /* 👈 Un poco más de espacio entre filas */
+    height: 100%; 
+    overflow-y: auto;
+    padding: 30px 40px; /* 👈 Mucho más aire arriba (30px) y a los lados (40px) */
+    max-width: 1600px; /* 👈 Evita que se estire demasiado en monitores gigantes */
+    margin: 0 auto; /* 👈 Lo centra si el monitor es ultra-ancho */
   }
   
   .header-torre {
@@ -843,6 +849,12 @@
     /* 1. LAYOUT DE COLUMNAS (TODO HACIA ABAJO) */
     .main-grid {
         grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    /* 1.5 AJUSTE DEL CONTENEDOR PRINCIPAL PARA MÓVIL */
+    .dashboard-container {
+        padding: 15px; /* En el teléfono reducimos el aire para aprovechar la pantalla */
         gap: 15px;
     }
 

@@ -88,18 +88,15 @@
   let tema = "";
   let fecha = "";
   let identificador = "";
-
-  // --- LÓGICA DE SALONES ---
-  let locales: any[] = [];
-  let idLocal: number | null = null; 
-  let localDetalle: any = null;       
+  let lugar = "";
+  let idioma = "Español";
 
   // --- VARIABLES DE ENSAYOS ---
   let ensayoLugar = ""; 
   let ensayoFecha = "";
   let ensayoHora = "";
   let jwStreamStudio = false;
-  let instruccionesEsp = ""; 
+  let instruccionesEsp = "";
 
   // --- MODALES Y ESTADOS DE EDICIÓN ---
   let mostrarModalSalon = false;
@@ -124,30 +121,20 @@
   let tempGeneral = {
     tema: '',
     identificador: '',
-    idLocal: null as number | null,
+    lugar: '',
+    idioma: 'Español',
     fechaInicio: null as Date | null,
     fechaFin: null as Date | null,
   };
 
   let tempEnsayos = { ensayoLugar: '', ensayoFecha: '', ensayoHora: '', htmlNotas: '' };
   let tempOrientaciones = { htmlOrientaciones: '', instruccionesEsp: '', jwStreamStudio: false };
-
-  // Reactividad para el detalle del salón
-  $: if (idLocal && locales.length > 0) {
-      const encontrado = locales.find(l => l.id == idLocal);
-      if (encontrado) localDetalle = encontrado;
-  } else if (!idLocal) {
-      localDetalle = null;
-  }
-
+ 
   // --- FUNCIONES DEL MODAL GENERAL ---
   function abrirModalDetalles() {
     tempGeneral = {
-      tema,
-      identificador,
-      idLocal,
-      fechaInicio: null,
-      fechaFin: null
+      tema, identificador, lugar, idioma,
+      fechaInicio: null, fechaFin: null
     };
     if (fecha && fecha.includes(' a ')) {
         const [f1, f2] = fecha.split(' a ');
@@ -162,10 +149,11 @@
     editandoFechaRango = false;
   }
 
-  async function guardarModalDetalles() {
+ async function guardarModalDetalles() {
     tema = tempGeneral.tema;
     identificador = tempGeneral.identificador;
-    idLocal = tempGeneral.idLocal;
+    lugar = tempGeneral.lugar;
+    idioma = tempGeneral.idioma;
     
     if (tempGeneral.fechaInicio && tempGeneral.fechaFin) {
         const f1 = tempGeneral.fechaInicio.toISOString().split('T')[0];
@@ -324,8 +312,7 @@
   // --- CICLO DE VIDA ---
   onMount(async () => {
     try {
-      locales = await invoke('obtener_locales') as any[];
-      const dataGuardada = localStorage.getItem('asambleaActiva');
+     const dataGuardada = localStorage.getItem('asambleaActiva');
       let asamblea = null;
       
       if (dataGuardada) {
@@ -338,7 +325,8 @@
         tema = asamblea.tema || "";
         fecha = asamblea.fecha || "";
         identificador = asamblea.identificador || "";
-        idLocal = asamblea.local_id || null;
+        lugar = asamblea.lugar || ""; // 👈 Nuevo
+        idioma = asamblea.idioma || "Español"; // 👈 Nuevo
 
         ensayoLugar = asamblea.ensayo_lugar || ""; 
         ensayoFecha = asamblea.ensayo_fecha || "";
@@ -390,24 +378,10 @@
     editorNotas?.destroy();
   });
 
-  async function guardarNuevoSalon() {
-      if(!nuevoSalon.nombre) return alert("Falta el nombre");
-      try {
-          await invoke('crear_local', { ...nuevoSalon });
-          locales = await invoke('obtener_locales') as any[];
-          const recienCreado = locales.find(l => l.nombre === nuevoSalon.nombre);
-          if (recienCreado) {
-              tempGeneral.idLocal = recienCreado.id;
-          }
-          nuevoSalon = { nombre: "", direccion: "", capacidad: 0 };
-          mostrarModalSalon = false;
-      } catch(e) { alert(e); }
-  }
-
   async function guardar() {
     try {
       await invoke('guardar_info_evento', {
-        id: asambleaId, tema, fecha, identificador, localId: idLocal,
+        id: asambleaId, tema, fecha, identificador, lugar, idioma,
         ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
         recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
       });
@@ -446,22 +420,16 @@
       </div>
 
       <div class="col-lectura col-border">
-        <h4>Información del lugar</h4>
+        <h4>Información de la ubicación</h4>
         
         <div class="fila-info">
-          <span class="lbl">Ubicación:</span> 
-          <span class="val">{localDetalle?.ciudad || 'Holguín'}, Cuba</span>
+          <span class="lbl">Lugar:</span> 
+          <span class="val text-multi-line">{lugar || 'Sin ubicación asignada'}</span>
         </div>
         
-        <div class="fila-info-split">
-          <div class="bloque-dato">
-            <span class="lbl">Nombre:</span> 
-            <span class="val">{localDetalle?.nombre || 'San Rafael'}</span>
-          </div>
-          <div class="bloque-dato dir-block">
-            <span class="lbl">Dirección:</span> 
-            <span class="val text-multi-line">{localDetalle?.direccion || 'Carretera a Mayarí'}</span>
-          </div>
+        <div class="fila-info" style="margin-top: 15px;">
+          <span class="lbl">Idioma de la asamblea:</span> 
+          <span class="val">{idioma || 'Español'}</span>
         </div>
       </div>
     </div>
@@ -505,15 +473,10 @@
       {/if}
     </div>
 
-    <div class="grid-3 mb-15">
+   <div class="grid-3 mb-15">
       <div class="campo">
         <label for="ensayoLugar">Lugar de Ensayo</label>
-        <select id="ensayoLugar" bind:value={tempEnsayos.ensayoLugar} disabled={!editEnsayos}>
-          <option value="">-- Seleccionar Lugar --</option>
-          {#each locales as l}
-            <option value={l.nombre}>{l.nombre}</option>
-          {/each}
-        </select>
+        <input id="ensayoLugar" type="text" bind:value={tempEnsayos.ensayoLugar} disabled={!editEnsayos} placeholder="Ej: Salón Principal" />
       </div>
       <div class="campo">
         <label for="ensayoFecha">Fecha de Ensayo</label>
@@ -739,21 +702,18 @@
           <legend>Detalles de la ubicación</legend>
           <div class="form-grid grid-1 mt-10">
               <div class="campo">
-                  <label>Lugar de Asamblea (Ciudad)</label>
-                  <div class="selector-salon">
-                      <select bind:value={tempGeneral.idLocal}>
-                          <option value={null}>-- Seleccionar Salón --</option>
-                          {#each locales as l}
-                            <option value={l.id}>{l.nombre} ({l.ciudad || 'Sin ciudad'})</option>
-                          {/each}
-                      </select>
-                      <button class="btn-plus" on:click={() => mostrarModalSalon = true} title="Nuevo Salón"><Plus size={14}/></button>
-                  </div>
+                  <label>Lugar de la Asamblea</label>
+                  <input type="text" bind:value={tempGeneral.lugar} placeholder="Ej: Salón de Asambleas Holguín" />
               </div>
 
               <div class="campo mt-10">
-                  <label>Dirección del lugar</label>
-                  <input type="text" value={localDetalle?.direccion || ''} disabled placeholder="Se actualizará al seleccionar un salón"/>
+                  <label>Idioma</label>
+                  <select bind:value={tempGeneral.idioma}>
+                      <option>Español</option>
+                      <option>LSC</option>
+                      <option>Inglés</option>
+                      <option>Francés</option>
+                  </select>
               </div>
           </div>
       </fieldset>
@@ -763,22 +723,6 @@
       <button class="btn-modal-save" on:click={guardarModalDetalles}>Guardar <Save size={16} style="margin-left:5px;"/></button>
     </div>
   </div>
-</div>
-{/if}
-
-{#if mostrarModalSalon}
-<div class="modal-backdrop">
-    <Panel padding="25px" clasesExtra="modal-ancho">
-        <div class="modal-header-salon">
-            <h3>Nuevo Salón</h3><button on:click={() => mostrarModalSalon = false}><X size={18}/></button>
-        </div>
-        <div class="modal-body-salon">
-            <label>Nombre</label><input type="text" bind:value={nuevoSalon.nombre}/>
-            <label>Dirección</label><input type="text" bind:value={nuevoSalon.direccion}/>
-            <label>Capacidad</label><input type="number" bind:value={nuevoSalon.capacidad}/>
-            <button class="btn-create" on:click={guardarNuevoSalon}>Crear y Asignar</button>
-        </div>
-    </Panel>
 </div>
 {/if}
 

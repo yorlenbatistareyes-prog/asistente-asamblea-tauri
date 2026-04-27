@@ -65,7 +65,9 @@ pub fn guardar_info_evento(
     id: Option<i32>,
     tema: String,
     fecha: String,
-    // 👈 local_id eliminado
+    identificador: String, // 👈 Añadido
+    lugar: String,         // 👈 Añadido
+    idioma: String,        // 👈 Añadido
     ensayo_lugar: String,
     ensayo_fecha: String,
     ensayo_hora: String,
@@ -80,13 +82,13 @@ pub fn guardar_info_evento(
     if let Some(actual_id) = id {
         conn.execute(
             "UPDATE asambleas SET 
-                tema=?1, fecha=?2, 
-                ensayo_lugar=?3, ensayo_fecha=?4, ensayo_hora=?5, 
-                ensayo_notas=?6, recorridos_info=?7, instrucciones_esp=?8, 
-                jw_stream_studio=?9 
-              WHERE id=?10",
+                tema=?1, fecha=?2, identificador=?3, lugar=?4, idioma=?5,
+                ensayo_lugar=?6, ensayo_fecha=?7, ensayo_hora=?8, 
+                ensayo_notas=?9, recorridos_info=?10, instrucciones_esp=?11, 
+                jw_stream_studio=?12 
+              WHERE id=?13",
             params![
-                tema, fecha, 
+                tema, fecha, identificador, lugar, idioma,
                 ensayo_lugar, ensayo_fecha, ensayo_hora, 
                 ensayo_notas, recorridos_info, instrucciones_esp, 
                 stream_val, actual_id
@@ -94,16 +96,15 @@ pub fn guardar_info_evento(
         )
         .map_err(|e| e.to_string())?;
     } else {
+        // (El INSERT se queda igual porque aquí solo actualizamos)
         conn.execute(
             "INSERT INTO asambleas (
-                tema, fecha, ensayo_lugar, ensayo_fecha, ensayo_hora, 
+                tema, fecha, identificador, lugar, idioma, ensayo_lugar, ensayo_fecha, ensayo_hora, 
                 ensayo_notas, recorridos_info, instrucciones_esp, jw_stream_studio
-            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
             params![
-                tema, fecha, 
-                ensayo_lugar, ensayo_fecha, ensayo_hora, 
-                ensayo_notas, recorridos_info, instrucciones_esp, 
-                stream_val
+                tema, fecha, identificador, lugar, idioma, ensayo_lugar, ensayo_fecha, ensayo_hora, 
+                ensayo_notas, recorridos_info, instrucciones_esp, stream_val
             ],
         )
         .map_err(|e| e.to_string())?;
