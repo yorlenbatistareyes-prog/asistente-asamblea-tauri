@@ -255,7 +255,7 @@
       gap: 5px;
       height: 100%;
       justify-content: center; /* 👈 Centrado perfecto garantizado */
-      overflow-x: auto;            
+                 
       white-space: nowrap;         
       -webkit-overflow-scrolling: touch; 
       scrollbar-width: none;       
@@ -306,10 +306,11 @@
   }
 
  .dropdown-mas {
-      position: fixed; /* 👈 CAMBIADO de absolute a fixed */
-      top: 60px;       /* 👈 Justo debajo de la barra */
-      left: 50%;
-      transform: translateX(-50%);
+      position: absolute; /* 👈 Vuelve a ser absolute */
+      top: 60px;
+      right: 0;           /* 👈 Se alinea con el borde derecho del botón */
+      left: auto;         /* 👈 Quitamos el centrado */
+      transform: none;    /* 👈 Quitamos el centrado */
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
@@ -401,10 +402,25 @@
       .nav-izq { display: none; } 
       
       .nav-centro {
-          justify-content: flex-start; /* 👈 Solo en móviles se va a la izquierda */
+          justify-content: flex-start;
+          /* 👇 Activamos el scroll horizontal solo en móviles */
+          overflow-x: auto;            
+          white-space: nowrap;         
+          -webkit-overflow-scrolling: touch; 
+          scrollbar-width: none;
+      }
+      .nav-centro::-webkit-scrollbar { display: none; }
+
+      .dropdown-mas {
+          /* 👇 En móviles lo centramos fijo para que el scroll no lo corte */
+          position: fixed; 
+          top: 60px;
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
       }
       
-      .nav-der { width: auto; } /* 👈 Le quitamos el ancho fijo al botón de salir */
+      .nav-der { width: auto; }
       .txt-salir { display: none; } 
       .btn-salir { padding: 8px; }
   }
