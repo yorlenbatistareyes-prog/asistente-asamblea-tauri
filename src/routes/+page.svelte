@@ -6,13 +6,12 @@
   import { appStore, vistaActual } from '$lib/stores/appStore';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
-  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search, User, Upload, Clock } from 'lucide-svelte';
+  import { MapPin, Plus, Calendar, Trash2, Lectern, X, Globe, Search, User, Upload, Clock } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
   import { invoke } from '@tauri-apps/api/core';
   
   // DATOS
   let listaAsambleas: any[] = [];
-  let listaLocales: any[] = [];
   let mostrarModal = false;
   let editandoFecha = false;
 
@@ -20,10 +19,14 @@
     tema: "", 
     fechaInicio: null as Date | null, 
     fechaFin: null as Date | null, 
-    local_id: null as number | null, 
     identificador: "", 
-    idioma: "Español" 
-};
+    idioma: "Español",
+    // 👇 NUEVOS CAMPOS DE UBICACIÓN
+    ciudad: "",
+    lugar_nombre: "",
+    pais: "",
+    direccion: ""
+  };
 
 // ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
@@ -91,7 +94,8 @@
   // Función única corregida (Elimina cualquier otra versión de abrirModal)
   async function abrirModal() {
       await cargarTodo();
-      form = { tema: "", fechaInicio: null, fechaFin: null, local_id: null, identificador: "", idioma: "Español" };
+      // 👇 Añadimos los campos vacíos de ciudad, lugar_nombre, pais y direccion
+      form = { tema: "", fechaInicio: null, fechaFin: null, identificador: "", idioma: "Español", ciudad: "", lugar_nombre: "", pais: "", direccion: "" };
       editandoFecha = false; 
       mostrarModal = true;
   }
@@ -119,14 +123,11 @@ function manejarSeleccionFinal() {
 
   async function cargarTodo() {
       try {
-          // 👈 Usamos DB en lugar de invoke
-          const [a, l] = await Promise.all([DB.obtenerAsambleas(), DB.obtenerLocales()]);
+          // 👈 Ahora solo pedimos las asambleas, sin los locales
+          const a = await DB.obtenerAsambleas();
           listaAsambleas = a as any[]; 
-          listaLocales = l as any[];
       } catch(e) { console.error(e); }
   }
-
-
 
   // --- TRADUCTOR DE FECHAS A PRUEBA DE RANGOS (TypeScript) ---
   function obtenerTiempoSeguro(fechaStr: string, usarFin: boolean = false): number {
@@ -253,27 +254,18 @@ function manejarSeleccionFinal() {
 
           const fechaUnida = `${fechaInicioStr} a ${fechaFinStr}`;
 
-          let nombreLugar = "Sin asignar";
-          let idFinal = null;
+          // Construimos el texto del lugar uniendo lo que el usuario escribió
+          let nombreLugar = form.lugar_nombre || "Sin asignar";
+          if (form.ciudad) nombreLugar += `, ${form.ciudad}`;
 
-          if(form.local_id) {
-              const idBuscado = Number(form.local_id);
-              const loc = listaLocales.find((x:any) => x.id === idBuscado);
-              if(loc) { 
-                  nombreLugar = loc.nombre; 
-                  if (loc.ciudad) nombreLugar += `, ${loc.ciudad}`;
-                  idFinal = idBuscado; 
-              }
-          }
-
-          // 👈 Usamos DB.crearAsamblea (Esto dispara la sincronización automáticamente por dentro)
+          // 👈 Usamos DB.crearAsamblea con los nuevos datos
           await DB.crearAsamblea({ 
               tema: form.tema,
               fecha: fechaUnida, 
               identificador: form.identificador,
               idioma: form.idioma,
               lugar: nombreLugar, 
-              localId: idFinal 
+              localId: null // Ya no usamos IDs
           });
           
           mostrarModal = false; 
@@ -314,22 +306,6 @@ function manejarSeleccionFinal() {
   }
 }
 
-  // ESTA FUNCIÓN ES LA CLAVE PARA QUE SALGA EL NOMBRE
-  function obtenerNombreLugar(idLocal: any) {
-      if (!idLocal) return "Sin asignar";
-      
-      // Buscamos en la lista de locales (convertimos a texto para asegurar coincidencia)
-      const local = listaLocales.find((l: any) => l.id == idLocal);
-      
-      if (local) {
-          // Si tiene ciudad, mostramos "Nombre, Ciudad"
-          if (local.ciudad && local.ciudad.trim() !== "") {
-              return `${local.nombre}, ${local.ciudad}`;
-          }
-          return local.nombre;
-      }
-      return "Salón no encontrado"; // Opcional: podrías poner "Sin asignar" también aquí
-  }
 </script>
 
 {#if $vistaActual === 'inicio'}
@@ -404,8 +380,6 @@ function manejarSeleccionFinal() {
             </div>
     </div>
 
-        <div class="list-header"><Lectern size={20}/> ASAMBLEAS REGISTRADAS</div>
-
 {#if asambleasFiltradas.length === 0}
     <div class="empty">
         {#if terminoBusqueda}
@@ -427,9 +401,9 @@ function manejarSeleccionFinal() {
                         <h3>"{item.tema}"</h3>
                         
                         <div class="info-line">
-                            <Building size={16} class="ico-dark"/> 
+                            <MapPin size={16} class="ico-dark"/> 
                             <div class="info-col">
-                                <b>{obtenerNombreLugar(item.local_id)}</b>
+                                <b>{item.lugar || 'Sin asignar'}</b>
                                 <span>Ubicación</span>
                             </div>
                         </div>
@@ -518,12 +492,34 @@ function manejarSeleccionFinal() {
         </div>
     {/if}
 </div>
-                    <label>Lugar</label>
-                    <select bind:value={form.local_id}>
-                        <option value={null}>-- Seleccionar --</option>
-                        {#each listaLocales as l}<option value={l.id}>{l.nombre}</option>{/each}
-                    </select>
+                    <div class="ubicacion-card">
+                        <h4 class="ubicacion-titulo">Detalles de la ubicación</h4>
+                        
+                        <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                                <label>Ciudad</label>
+                                <input bind:value={form.ciudad} placeholder="Ej: Holguín">
+                            </div>
+                            <div style="flex: 2; display: flex; flex-direction: column; gap: 5px;">
+                                <label>Nombre del lugar</label>
+                                <input bind:value={form.lugar_nombre} placeholder="Ej: Salón de Asambleas Holguín">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                                <label>País</label>
+                                <input bind:value={form.pais} placeholder="Ej: Cuba">
+                            </div>
+                            <div style="flex: 2; display: flex; flex-direction: column; gap: 5px;">
+                                <label>Dirección</label>
+                                <input bind:value={form.direccion} placeholder="Dirección exacta">
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+
                 <div class="modal-foot">
                     <button class="btn-sec" on:click={()=>mostrarModal=false}>Cancelar</button>
                     <button class="btn-pri" on:click={crear}>Crear</button>
@@ -672,20 +668,21 @@ function manejarSeleccionFinal() {
     .btn-manage-blue:hover { transform: scale(1.02); background: #1e3a8a; }
 
     /* MODAL */
-    /* MODAL AMPLIADO Y CENTRADO ARRIBA */
+    /* === MODAL CENTRADO PERFECTO === */
     .modal-bg { 
         position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
         background: rgba(0,0,0,0.6); z-index: 9999; 
         display: flex; justify-content: center; 
-        align-items: flex-start; /* Evita que el modal se corte por arriba */
-        padding: 40px 20px;
-        overflow-y: auto;
+        align-items: center; /* 👈 Esto lo baja y lo centra verticalmente */
+        padding: 20px;
         backdrop-filter: blur(2px); 
     }
     
     :global(.modal-ancho) { 
-        width: 720px !important; /* Más ancho para el calendario doble */
+        width: 720px !important; 
         max-width: 95vw; 
+        max-height: 90vh; /* 👈 Evita que sea más alto que tu pantalla */
+        overflow-y: auto; /* 👈 Agrega barra de scroll interna si la pantalla es bajita */
         display: flex; flex-direction: column; gap: 10px; 
     }
     
@@ -1043,13 +1040,16 @@ function manejarSeleccionFinal() {
 
     /* 7. MODAL DE NUEVA ASAMBLEA ADAPTADO AL TELÉFONO */
     :global(.modal-ancho) {
-        width: 95vw !important; /* Que no se salga de la pantalla */
+        width: 95vw !important; 
+        max-height: 85vh !important; /* 👈 Evita que se encaje, dejando aire arriba y abajo */
+        overflow-y: auto !important; /* 👈 Activa el scroll interno si la pantalla es muy pequeña */
         padding: 15px !important;
     }
 
-    /* Hacemos que "Identificador" e "Idioma" se pongan uno encima del otro */
-    .modal-form > div[style*="display: flex"] {
+    /* Hacemos que TODOS los campos (incluyendo los de ubicación) se apilen hacia abajo */
+    .modal-form div[style*="display: flex"] {
         flex-direction: column !important;
+        gap: 10px !important;
     }
 
     .modal-foot {
@@ -1136,4 +1136,28 @@ function manejarSeleccionFinal() {
     .menu-item:hover { background: rgba(0,0,0,0.05); }
     .menu-item.text-red { color: #ef4444; }
     .dropdown-separator { height: 1px; background: var(--border); margin: 0; }
+
+    /* === TARJETA DE UBICACIÓN EN EL MODAL === */
+    .ubicacion-card {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px 18px;
+        margin-top: 5px;
+    }
+    
+    .ubicacion-titulo {
+        margin: 0 0 15px 0;
+        font-size: 12px;
+        color: var(--text-sec);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Soporte para modo oscuro (opcional) */
+    :global(.dark-theme) .ubicacion-card {
+        background: rgba(255,255,255,0.02);
+    }
+
 </style>

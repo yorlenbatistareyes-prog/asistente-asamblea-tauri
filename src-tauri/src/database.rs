@@ -49,6 +49,10 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
 
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN identificador TEXT", []);
 
+    // --- NUEVAS COLUMNAS PARA LUGAR E IDIOMA ---
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN lugar TEXT", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN idioma TEXT", []);
+    
     // --- CORRECCIÓN: AGREGAR COLUMNAS FALTANTES DEL COMITÉ ---
     // Usamos 'let _ =' para ignorar el error si la columna ya existe
     let _ = conn.execute(

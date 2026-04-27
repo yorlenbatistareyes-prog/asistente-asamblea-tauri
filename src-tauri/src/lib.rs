@@ -16,7 +16,6 @@ pub mod commands {
     pub mod emails;
     pub mod importar;
     pub mod impresion;
-    pub mod locales;
     pub mod mensajeria;
     pub mod oficina; // <--- IMPORTANTE: Este archivo debe existir como oficina.rs
     pub mod personas;
@@ -140,10 +139,7 @@ if ruta_pendiente.exists() {
 
         // --- REGISTRO DE COMANDOS (INVOKE HANDLER) ---
         .invoke_handler(tauri::generate_handler![
-            // LOCALES
-            commands::locales::crear_local,
-            commands::locales::obtener_locales,
-            commands::locales::eliminar_local,
+           
             // CONGREGACIONES
             commands::congregaciones::crear_congregacion,
             commands::congregaciones::obtener_congregaciones,

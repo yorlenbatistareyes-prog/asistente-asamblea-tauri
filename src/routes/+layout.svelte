@@ -18,11 +18,6 @@
 
   let versionApp = "";
   let temaActual = 'sistema';
-  
-  // --- VARIABLES GESTIÓN SALONES ---
-  let mostrarModalLocales = false;
-  let listaLocales: any[] = [];
-  let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
 
   // ==========================================
   // INICIALIZACIÓN (ONMOUNT LIMPIO)
@@ -31,7 +26,6 @@
       const inicializarApp = async () => {
           await cargarDatosGlobales();
           cargarTemaGuardado();
-          cargarLocales();
           
           try {
               versionApp = await getVersion();
@@ -49,35 +43,6 @@
           // 👈 NUEVO: Apagamos el radar si el usuario cierra la app
       return () => detenerRadarNube();
   });
-
-  // --- GESTIÓN DE SALONES ---
-  function abrirModalSalones() {
-      mostrarModalLocales = true; 
-      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
-      cargarLocales(); 
-  }
-
-  async function cargarLocales() {
-      try { listaLocales = await invoke('obtener_locales') as any[]; } catch(e) { console.error(e); }
-  }
-
-  async function guardarLocal() {
-    if (!nuevoLocal.nombre) return alert("El nombre es obligatorio");
-    try {
-        await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
-        cargarLocales();
-        nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
-    } catch (e) { alert("Error al guardar: " + e); }
-  }
-
-  async function eliminarLocal(id: number) {
-     if(confirm("¿Seguro que deseas eliminar este salón?")) { 
-         try {
-            await invoke('eliminar_local', { id }); 
-            cargarLocales();
-         } catch (e) { alert("No se pudo eliminar: " + e); }
-     }
-  }
 
   // --- TEMA ---
   function cargarTemaGuardado() {
@@ -143,10 +108,6 @@
             {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
         </button>
         
-        <button class="btn-nav" on:click={abrirModalSalones}>
-            <Building size={16}/><span>Salones</span>
-        </button>
-        
         <button class="btn-icon" on:click={irConfig}>
             <Settings size={18}/>
         </button>
@@ -167,90 +128,6 @@
             v{#if versionApp}{versionApp}{:else}...{/if}
         </div>
         </footer>
-
-    {#if mostrarModalLocales}
-      <div class="modal-backdrop" on:click|self={()=>mostrarModalLocales=false}>
-        <Panel padding="25px" clasesExtra="modal-salones">
-            <div class="modal-top">
-                <h3><Building size={20} class="ico-blue"/> Gestión de Salones</h3>
-                <button class="btn-close" on:click={()=>mostrarModalLocales=false}><X size={20}/></button>
-            </div>
-            
-            <div class="form-grid">
-                <div class="input-group full-width">
-                    <label>Nombre del Salón</label>
-                    <input type="text" placeholder="Ej: Salón de Asambleas Holguín" bind:value={nuevoLocal.nombre}>
-                </div>
-
-                <div class="input-group full-width">
-                    <label>Dirección</label>
-                    <input type="text" placeholder="Calle, Número, Reparto..." bind:value={nuevoLocal.direccion}>
-                </div>
-
-                <div class="input-group">
-                    <label>Ciudad</label>
-                    <input type="text" placeholder="Ciudad" bind:value={nuevoLocal.ciudad}>
-                </div>
-
-                <div class="input-group">
-                    <label>Provincia / Estado</label>
-                    <input type="text" placeholder="Provincia" bind:value={nuevoLocal.estado}>
-                </div>
-
-                <div class="input-group">
-                    <label>Capacidad</label>
-                    <input type="number" placeholder="0" bind:value={nuevoLocal.capacidad}>
-                </div>
-
-                <button class="btn-blue" on:click={guardarLocal}>
-                    <Plus size={16}/> Guardar Salón
-                </button>
-            </div>
-
-            <div class="separator"></div>
-            <div class="list-label">Salones guardados:</div>
-            
-            <div class="list-scroll">
-                {#if listaLocales.length === 0}
-                    <div class="empty-msg">
-                        <Building size={30} strokeWidth={1} style="opacity:0.3; margin-bottom:5px;"/>
-                        <p>No hay salones registrados.</p>
-                    </div>
-                {:else}
-                    {#each listaLocales as l}
-                        <div class="list-item">
-                            <div class="item-info">
-                                <div class="item-title">
-                                    <strong>{l.nombre}</strong>
-                                    {#if l.capacidad}
-                                        <span class="badge-cap"><Users size={10}/> {l.capacidad}</span>
-                                    {/if}
-                                </div>
-                                
-                                <div class="item-details">
-                                    <MapPin size={10}/> 
-                                    <span>
-                                        {l.direccion || 'Sin dirección'}
-                                        {#if l.ciudad} 
-                                            <strong> • {l.ciudad}</strong> 
-                                        {/if}
-                                        {#if l.estado} 
-                                            <span style="opacity:0.7"> ({l.estado})</span> 
-                                        {/if}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <button class="btn-red" on:click={()=>eliminarLocal(l.id)} title="Borrar Salón">
-                                <Trash2 size={16}/>
-                            </button>
-                        </div>
-                    {/each}
-                {/if}
-            </div>
-        </Panel>
-      </div>
-    {/if}
 
     {#if $syncStatus.estado === 'conflicto'}
       <div class="modal-backdrop">

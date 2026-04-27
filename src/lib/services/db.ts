@@ -7,10 +7,6 @@ export const DB = {
         return await invoke('obtener_asambleas');
     },
 
-    async obtenerLocales() {
-        return await invoke('obtener_locales');
-    },
-
     // --- ESCRITURA (SÍ disparan sincronización) ---
     async crearAsamblea(datos: any) {
         const resultado = await invoke('crear_asamblea', datos);
