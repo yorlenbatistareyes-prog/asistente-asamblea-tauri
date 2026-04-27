@@ -208,8 +208,8 @@
             </div>
 
             <div class="user-data">
-                <h2>{saludo}, {$appStore.usuario}!</h2>
-                <span>{fechaActual}</span>
+               <h2>{saludo}, {nombreUsuario}!</h2>
+               <span>{fechaActual}</span>
             </div>
         </div>
 
