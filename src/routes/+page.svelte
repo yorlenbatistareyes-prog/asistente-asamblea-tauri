@@ -3,12 +3,13 @@
   import { DB } from '$lib/services/db';
   import { goto } from '$app/navigation';
   import { ask } from "@tauri-apps/plugin-dialog";
-  import { vistaActual } from '$lib/stores/appStore';
+  import { appStore, vistaActual } from '$lib/stores/appStore';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
-  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
+  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search, User, Upload, Clock } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
-
+  import { invoke } from '@tauri-apps/api/core';
+  
   // DATOS
   let listaAsambleas: any[] = [];
   let listaLocales: any[] = [];
@@ -29,6 +30,64 @@
   let filtroCategoria = "todas"; 
   let ordenamiento = "fecha_desc";
 
+  // --- VARIABLES DEL USUARIO Y RELOJ ---
+  let horaActual = "";
+  let saludo = "Hola"; 
+  let nombreUsuario = "Usuario";
+  let fotoUsuario = ""; 
+  let mostrarMenuAvatar = false; 
+  let fileInput: HTMLInputElement;
+
+  async function cargarNombreUsuario() {
+      try {
+          const res: any = await invoke('obtener_configuracion_general');
+          
+          if (!res) return;
+
+          // 1. Si Rust devuelve los datos como texto (String), los convertimos a Objeto
+          const config = typeof res === 'string' ? JSON.parse(res) : res;
+
+          // 2. Buscamos el nombre cubriendo todas las variables posibles
+          const nombre = config.nombre || config.Nombre || (config.config && config.config.nombre);
+          
+          if (nombre && nombre.trim() !== "") {
+              nombreUsuario = nombre;
+          } else if ($appStore && $appStore.usuario && $appStore.usuario !== "Usuario") {
+              // 3. Respaldo extra: Si Rust falla, intenta leer del Store global
+              nombreUsuario = $appStore.usuario;
+          }
+      } catch (e) { 
+          console.error("Error al pedir el usuario a Rust:", e); 
+      }
+  }
+
+  function iniciarReloj() { actualizarTiempo(); setInterval(actualizarTiempo, 1000); }
+    
+  function actualizarTiempo() {
+      const ahora = new Date();
+      horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const h = ahora.getHours(); 
+      saludo = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
+  }
+
+  function manejarCambioFoto(event: Event) {
+      const input = event.target as HTMLInputElement;
+      if (input.files && input.files.length > 0) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              fotoUsuario = e.target?.result as string; 
+              localStorage.setItem('fotoPerfil', fotoUsuario); 
+          };
+          reader.readAsDataURL(input.files[0]); 
+      }
+  }
+
+  function quitarFoto() {
+      fotoUsuario = ""; localStorage.removeItem('fotoPerfil'); 
+      if (fileInput) fileInput.value = ""; 
+      mostrarMenuAvatar = false; 
+  }
+
   // Función única corregida (Elimina cualquier otra versión de abrirModal)
   async function abrirModal() {
       await cargarTodo();
@@ -48,9 +107,15 @@ function manejarSeleccionFinal() {
   }
 
 // Carga inicial
-  onMount(() => { cargarTodo(); });
+  onMount(() => { 
+      cargarTodo(); 
+      cargarNombreUsuario();
+      fotoUsuario = localStorage.getItem('fotoPerfil') || "";
+      iniciarReloj(); 
+  });
   
   $: if ($vistaActual === 'inicio') { cargarTodo(); }
+  $: if ($appStore) { cargarNombreUsuario(); } // Recarga el nombre si hay cambios globales
 
   async function cargarTodo() {
       try {
@@ -269,13 +334,50 @@ function manejarSeleccionFinal() {
 
 {#if $vistaActual === 'inicio'}
     <div class="dashboard">
+
+        <div class="bienvenida-jw">
+            <input type="file" accept="image/*" style="display: none;" bind:this={fileInput} on:change={manejarCambioFoto} />
+
+            <div class="perfil-jw" on:click|stopPropagation={() => mostrarMenuAvatar = !mostrarMenuAvatar}>
+                <div class="avatar-jw">
+                    {#if fotoUsuario}
+                        <img src={fotoUsuario} alt="Perfil" class="foto-perfil-jw" />
+                    {:else}
+                        <User size={20} />
+                    {/if}
+                </div>
+                <div class="saludo-jw">
+                    {saludo}, <strong>{nombreUsuario}</strong>
+                </div>
+
+                {#if mostrarMenuAvatar}
+                    <div class="dropdown-avatar" on:click|stopPropagation>
+                        <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
+                            <Upload size={16} /> Cambiar foto
+                        </button>
+                        {#if fotoUsuario}
+                            <div class="dropdown-separator"></div>
+                            <button class="menu-item text-red" on:click={quitarFoto}>
+                                <Trash2 size={16} /> Quitar foto
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+            </div>
+
+            <div class="reloj-jw">
+                <span>{horaActual}</span>
+            </div>
+        </div>
+
+
         <div class="header-principal">
             <div class="textos-header">
                 <h2>Listas de asambleas</h2>
                 <p class="subtitulo-header">Administrar todas las asambleas en un solo lugar.</p>
             </div>
 
-            <button class="btn-new" on:click={abrirModal}><Plus size={18}/> Nueva Asamblea</button>
+            <button class="btn-new" on:click={abrirModal}><Plus size={18}/> Añadir Asamblea</button>
         </div>
 
         <div class="controles-busqueda">
@@ -436,7 +538,7 @@ function manejarSeleccionFinal() {
 
 <style>
     /* ESTILOS GENERALES PÁGINA */
-    .dashboard { padding: 30px 40px; }
+    .dashboard { padding: 10px 40px 30px 40px; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
     .action-bar h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--text-main); }
     /* BOTÓN NUEVA ASAMBLEA (Color Azul Unificado) */
@@ -863,9 +965,7 @@ function manejarSeleccionFinal() {
 
 @media (max-width: 768px) {
     /* 1. MÁRGENES GENERALES MÁS COMPACTOS */
-    .dashboard {
-        padding: 15px; /* Aprovechamos toda la pantalla del teléfono */
-    }
+    .dashboard { padding: 5px 15px 15px 15px; }
 
     /* 2. CABECERA: APILAR TÍTULO Y BOTÓN */
     .header-principal {
@@ -962,4 +1062,78 @@ function manejarSeleccionFinal() {
         height: 48px;
     }
 }
+
+/* === ESTILOS DEL PANEL DE BIENVENIDA === */
+    .bienvenida-jw {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 15px; /* 👈 Antes 35px o 40px, ahora 15px para acercar las listas */
+        margin-top: 0px;     /* 👈 Pegado arriba */
+        position: relative;
+    }
+
+    .perfil-jw {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        cursor: pointer;
+        padding: 6px 16px;
+        border-radius: 30px;
+        transition: background 0.2s;
+    }
+    .perfil-jw:hover { background: rgba(0,0,0,0.04); }
+
+    .avatar-jw {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .foto-perfil-jw { width: 100%; height: 100%; object-fit: cover; }
+
+    .saludo-jw {
+        font-size: 18px;
+        color: var(--text-main);
+    }
+    .saludo-jw strong { font-weight: 700; }
+
+    .reloj-jw {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-main);
+        font-size: 15px;
+        margin-top: -10px; /* 👈 El truco está aquí: un valor negativo lo pega al saludo */
+        font-weight: 900; 
+    }
+
+    /* Menú desplegable */
+    .dropdown-avatar {
+        position: absolute;
+        top: 45px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        min-width: 160px;
+        z-index: 100;
+        display: flex; flex-direction: column;
+    }
+    .menu-item {
+        padding: 12px 15px; background: none; border: none;
+        display: flex; align-items: center; gap: 10px;
+        font-size: 13px; font-weight: 500; color: var(--text-main);
+        cursor: pointer; transition: background 0.2s; text-align: left;
+    }
+    .menu-item:hover { background: rgba(0,0,0,0.05); }
+    .menu-item.text-red { color: #ef4444; }
+    .dropdown-separator { height: 1px; background: var(--border); margin: 0; }
 </style>

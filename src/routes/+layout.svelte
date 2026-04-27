@@ -17,24 +17,7 @@
   import { syncStatus, iniciarRadarNube, detenerRadarNube } from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
-
-  // --- VARIABLES DE ESTADO ---
-  let horaActual = "";
-  let fechaActual = "";
-  let saludo = "Hola"; 
   let temaActual = 'sistema';
-  let nombreUsuario = "Usuario";
-  let fotoUsuario = ""; 
-  let mostrarMenuAvatar = false; 
-  let fileInput: HTMLInputElement;
-
-  // --- QUITAR FOTO ---
-  function quitarFoto() {
-      fotoUsuario = ""; 
-      localStorage.removeItem('fotoPerfil'); 
-      if (fileInput) fileInput.value = ""; 
-      mostrarMenuAvatar = false; 
-  }
   
   // --- VARIABLES GESTIÓN SALONES ---
   let mostrarModalLocales = false;
@@ -47,9 +30,6 @@
   onMount(() => {
       const inicializarApp = async () => {
           await cargarDatosGlobales();
-          await cargarNombreUsuario();
-          fotoUsuario = localStorage.getItem('fotoPerfil') || "";
-          iniciarReloj(); 
           cargarTemaGuardado();
           cargarLocales();
           
@@ -69,38 +49,6 @@
           // 👈 NUEVO: Apagamos el radar si el usuario cierra la app
       return () => detenerRadarNube();
   });
-
-  // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
-  async function cargarNombreUsuario() {
-    try {
-        const config: any = await invoke('obtener_configuracion_general');
-        if (config && config.nombre) {
-            nombreUsuario = config.nombre;
-        }
-    } catch (e) {
-        console.error("No se pudo cargar el nombre del usuario:", e);
-    }
-  }
-
-  $: if ($appStore) {
-      cargarNombreUsuario();
-  }
-
-  // --- CARGAR NUEVA FOTO ---
-  function manejarCambioFoto(event: Event) {
-      const input = event.target as HTMLInputElement;
-      if (input.files && input.files.length > 0) {
-          const archivo = input.files[0];
-          const reader = new FileReader();
-          
-          reader.onload = (e) => {
-              const resultado = e.target?.result as string;
-              fotoUsuario = resultado; 
-              localStorage.setItem('fotoPerfil', resultado); 
-          };
-          reader.readAsDataURL(archivo); 
-      }
-  }
 
   // --- GESTIÓN DE SALONES ---
   function abrirModalSalones() {
@@ -129,20 +77,6 @@
             cargarLocales();
          } catch (e) { alert("No se pudo eliminar: " + e); }
      }
-  }
-
-  // --- RELOJ ---
-  function iniciarReloj() {
-    actualizarTiempo(); setInterval(actualizarTiempo, 1000); 
-  }
-  function actualizarTiempo() {
-    const ahora = new Date();
-    horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const opciones = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } as const;
-    let f = ahora.toLocaleDateString('es-ES', opciones);
-    fechaActual = f.charAt(0).toUpperCase() + f.slice(1);
-    const h = ahora.getHours(); 
-    saludo = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
   }
 
   // --- TEMA ---
@@ -175,86 +109,49 @@
 }
 </script>
 
-<svelte:window on:click={() => mostrarMenuAvatar = false} />
-
 <div class="app-layout">
    <header class="top-header">
-        <div class="header-left">
-            <input type="file" accept="image/*" style="display: none;" bind:this={fileInput} on:change={manejarCambioFoto} />
-            
-            <div class="avatar-container" on:click|stopPropagation={() => mostrarMenuAvatar = !mostrarMenuAvatar}>
-                <div class="avatar" title="Opciones de perfil">
-                    {#if fotoUsuario}
-                        <img src={fotoUsuario} alt="Perfil" class="foto-perfil" />
-                    {:else}
-                        <User size={24} />
-                    {/if}
-                </div>
+    <div class="header-left">
+        <span class="app-brand">RAssembly</span>
+    </div>
+
+    <div class="header-right">
+        {#if $sesionApp.isLoggedIn && $syncStatus.estado !== 'inactivo'}
+            <div class="sync-badge state-{$syncStatus.estado}" 
+                 title={$syncStatus.mensaje}
+                 on:click={() => { if ($syncStatus.estado === 'conflicto') goto('/sincronizacion'); }}>
                 
-                {#if mostrarMenuAvatar}
-                    <div class="dropdown-avatar" on:click|stopPropagation>
-                        <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
-                            <Upload size={16} /> Seleccionar foto
-                        </button>
-                        
-                        {#if fotoUsuario}
-                            <div class="dropdown-separator"></div>
-                            <button class="menu-item text-red" on:click={quitarFoto}>
-                                <Trash2 size={16} /> Quitar foto
-                            </button>
-                        {/if}
-                    </div>
+                {#if $syncStatus.estado === 'esperando'}
+                    <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
+                {:else if $syncStatus.estado === 'sincronizando'}
+                    <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
+                {:else if $syncStatus.estado === 'al_dia'}
+                    <CheckCircle size={16} /> <span class="badge-text">Al día</span>
+                {:else if $syncStatus.estado === 'conflicto'}
+                    <AlertTriangle size={16} /> <span class="badge-text">Datos Nuevos</span>
+                {:else if $syncStatus.estado === 'error'}
+                    <CloudOff size={16} /> <span class="badge-text">Error</span>
                 {/if}
             </div>
-
-            <div class="user-data">
-               <h2>{saludo}, {nombreUsuario}!</h2>
-               <span>{fechaActual}</span>
-            </div>
-        </div>
-
-        <div class="header-center">
-            <Clock size={16}/> <span>{horaActual}</span>
-        </div>
-
-        <div class="header-right">
-            
-            {#if $sesionApp.isLoggedIn && $syncStatus.estado !== 'inactivo'}
-                <div class="sync-badge state-{$syncStatus.estado}" 
-                     title={$syncStatus.mensaje}
-                     on:click={() => { if ($syncStatus.estado === 'conflicto') goto('/sincronizacion'); }}>
-                    
-                    {#if $syncStatus.estado === 'esperando'}
-                        <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
-                    {:else if $syncStatus.estado === 'sincronizando'}
-                        <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
-                    {:else if $syncStatus.estado === 'al_dia'}
-                        <CheckCircle size={16} /> <span class="badge-text">Al día</span>
-                    {:else if $syncStatus.estado === 'conflicto'}
-                        <AlertTriangle size={16} /> <span class="badge-text">Datos Nuevos</span>
-                    {:else if $syncStatus.estado === 'error'}
-                        <CloudOff size={16} /> <span class="badge-text">Error</span>
-                    {/if}
-                </div>
-            {/if}
-            
-            <button class="btn-nav" on:click={irInicio} title="Inicio">
-                <Home size={18}/><span>Inicio</span>
-            </button>
-            
-            <button class="btn-icon" on:click={cambiarTema}>
-                {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
-            </button>
-            
-            <button class="btn-nav" on:click={abrirModalSalones}>
-                <Building size={16}/><span>Salones</span>
-            </button>
-            
-            <button class="btn-icon" on:click={irConfig}>
-                <Settings size={18}/>
-            </button>
-        </div>
-    </header>
+        {/if}
+        
+        <button class="btn-nav" on:click={irInicio} title="Inicio">
+            <Home size={18}/><span>Inicio</span>
+        </button>
+        
+        <button class="btn-icon" on:click={cambiarTema}>
+            {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
+        </button>
+        
+        <button class="btn-nav" on:click={abrirModalSalones}>
+            <Building size={16}/><span>Salones</span>
+        </button>
+        
+        <button class="btn-icon" on:click={irConfig}>
+            <Settings size={18}/>
+        </button>
+    </div>
+</header>
 
     <main class="main-content">
         <slot />
@@ -420,7 +317,7 @@
   }
 
   .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
-  .header-center { background: var(--bg-body); padding: 5px 15px; border-radius: 20px; border: 1px solid var(--border); display: flex; gap: 8px; font-weight: 600; align-items: center; }
+  
   .header-right { display: flex; gap: 8px; }
   .btn-nav { background: var(--bg-body); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 6px; color: var(--text-main); font-weight: 600; align-items: center; }
   .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); display: flex; }
@@ -713,4 +610,13 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
   }
+
+  .app-brand {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+      user-select: none; /* Evita que el texto se seleccione al hacer clic por error */
+  }
+
 </style>

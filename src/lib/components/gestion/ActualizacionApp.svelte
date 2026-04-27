@@ -56,10 +56,22 @@
                 </span>
             </div>
             
-            <p style="color: var(--text-secondary); font-size: 14px; max-width: 550px; line-height: 1.6; margin: 10px 0;">
-                Este software ha sido diseñado para simplificar la gestión de asambleas regionales, 
-                automatizando la correspondencia y la organización del programa de manera eficiente.
-            </p>
+            <div class="info-descargo">
+                <p class="texto-intro">
+                    Este software ha sido diseñado para simplificar la gestión de asambleas regionales, 
+                    automatizando la correspondencia y la organización del programa de manera eficiente.
+                </p>
+
+                <div class="caja-legal">
+                    <p><strong>Aviso importante:</strong></p>
+                    <p>
+                        Esta aplicación fue creada de forma independiente, con el único propósito de ser una herramienta útil para facilitar la organización de asambleas.
+                    </p>
+                    <p>
+                        Esta <strong>NO</strong> es una aplicación oficial de los Testigos de Jehová y no está afiliada, respaldada, autorizada ni patrocinada por Watch Tower Bible and Tract Society of Pennsylvania ni por JW.ORG. Para acceder a la información, publicaciones y aplicaciones oficiales, visite siempre el sitio web oficial: <strong>jw.org</strong>.
+                    </p>
+                </div>
+            </div>
 
             <div style="height: 1px; background: var(--border); width: 100%; max-width: 400px; margin: 10px 0;"></div>
 
@@ -118,4 +130,51 @@
 
     .spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* === ESTILOS DEL DESCARGO DE RESPONSABILIDAD === */
+    .info-descargo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        width: 100%;
+        max-width: 600px;
+        margin: 10px 0;
+    }
+
+    .texto-intro {
+        color: var(--text-secondary); 
+        font-size: 14px; 
+        line-height: 1.6; 
+        margin: 0;
+        text-align: center;
+    }
+
+    .caja-legal {
+        background: rgba(0, 0, 0, 0.03); /* Fondo gris súper suave */
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        font-size: 13px;
+        text-align: left;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    /* Soporte para modo oscuro */
+    :global(.dark-theme) .caja-legal {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .caja-legal p {
+        margin: 0 0 12px 0;
+    }
+    
+    .caja-legal p:last-child {
+        margin-bottom: 0;
+    }
+    
+    .caja-legal strong {
+        color: var(--text-main); /* Hace que las palabras clave destaquen un poco más */
+    }
 </style>

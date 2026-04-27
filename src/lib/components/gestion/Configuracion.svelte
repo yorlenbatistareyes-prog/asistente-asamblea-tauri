@@ -149,32 +149,6 @@
         
         </nav>
 
-        <div class="config-footer">
-            <div class="sidebar-about-card">
-                <div class="about-header">
-                    <Info size={16} color="#0f172a" strokeWidth={2.5} /> 
-                    <span>Información del Software</span>
-                </div>
-                
-                <div class="about-row">
-                    <span class="about-label">Versión:</span>
-                    <span class="about-value">
-                        v{#if versionReal}{versionReal}{:else}...{/if}
-                    </span>
-                    </div>
-                
-                <div class="about-row">
-                    <span class="about-label">Tecnología:</span>
-                    <span class="about-value tech-tag">Rust + Tauri</span>
-                </div>
-
-                <div class="nav-divider-mini"></div>
-                
-                <p class="about-disclaimer">
-                    Construido y diseñado para Presidentes de Asambleas Regionales
-                </p>
-            </div>
-        </div>
     </aside>
 
     <main class="config-content">
@@ -307,22 +281,6 @@
 .config-nav button:hover { background: var(--hover-bg); color: var(--text-main); }
 .config-nav button.active { background: var(--primary); color: white; font-weight: 600; }
 .nav-divider { height: 1px; background: var(--border); margin: 5px 10px; }
-
-/* === FOOTER SIDEBAR (Información del Software) === */
-.config-footer { padding: 20px 15px; margin-top: auto; border-top: 1px solid var(--border); }
-.sidebar-about-card { background: var(--bg-body); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
-
-.about-header { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 800; }
-.about-header span { color: var(--text-main); }
-.about-header :global(svg) { color: var(--text-main); }
-
-.about-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
-.about-label { color: var(--text-secondary); }
-.about-value { color: var(--text-main); font-weight: 600; }
-.tech-tag { color: var(--primary); font-weight: 700; } 
-
-.nav-divider-mini { height: 1px; background: var(--border); margin: 10px 0; }
-.about-disclaimer { margin-top: 12px; font-size: 11px; line-height: 1.4; color: var(--text-secondary); text-align: center; border-top: 1px solid var(--border); padding-top: 10px; }
 
 /* === CONTENIDO PRINCIPAL === */
 .config-content { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-body); }
