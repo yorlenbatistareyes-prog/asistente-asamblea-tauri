@@ -216,7 +216,13 @@
   /* ========================================================
      TOP NAV (BARRA SUPERIOR)
      ======================================================== */
+  /* ========================================================
+     TOP NAV (BARRA SUPERIOR FIJA)
+     ======================================================== */
   .top-nav {
+      position: sticky; /* 👈 ESTO MANTIENE LA BARRA PEGADA ARRIBA */
+      top: 0;           /* 👈 EXACTAMENTE EN EL BORDE SUPERIOR */
+      z-index: 1000;    /* 👈 Z-INDEX ALTO PARA QUE NADA LE PASE POR ENCIMA */
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -225,15 +231,16 @@
       padding: 0 20px;
       height: 60px;
       flex-shrink: 0;
-      z-index: 50;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05); /* Le di una sombra un poquito más visible */
   }
 
   /* --- SECCIÓN IZQUIERDA (Logo) --- */
   .nav-izq { 
+      width: 220px;     /* 👈 Ancho fijo para hacer de contrapeso */
+      flex-shrink: 0;   /* 👈 Evita que se encoja y aplaste las pestañas */
       display: flex; 
       align-items: center; 
-      min-width: 200px; 
+      justify-content: flex-start;
   }
   
   .texto-logo { display: flex; flex-direction: column; }
@@ -242,13 +249,21 @@
 
   /* --- SECCIÓN CENTRAL (Pestañas) --- */
   .nav-centro {
+      flex: 1; /* 👈 Toma todo el espacio sobrante en el medio */
       display: flex;
       align-items: center;
       gap: 5px;
       height: 100%;
-      flex: 1;
-      justify-content: center;
-      /* SIN overflow-x aquí, para que el dropdown pueda salir hacia abajo */
+      justify-content: center; /* 👈 Centrado perfecto garantizado */
+      overflow-x: auto;            
+      white-space: nowrap;         
+      -webkit-overflow-scrolling: touch; 
+      scrollbar-width: none;       
+  }
+  
+  /* Oculta barra de scroll en Chrome/Safari/Edge */
+  .nav-centro::-webkit-scrollbar {
+      display: none; 
   }
 
   .tab-btn {
@@ -290,9 +305,9 @@
       padding-right: 10px; 
   }
 
-  .dropdown-mas {
-      position: absolute;
-      top: 60px; /* Se abre justo debajo de la barra */
+ .dropdown-mas {
+      position: fixed; /* 👈 CAMBIADO de absolute a fixed */
+      top: 60px;       /* 👈 Justo debajo de la barra */
       left: 50%;
       transform: translateX(-50%);
       background: #ffffff;
@@ -304,7 +319,7 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      z-index: 9999; /* Z-index altísimo para que pase sobre las tablas */
+      z-index: 9999; 
   }
 
   .dropdown-item {
@@ -334,10 +349,11 @@
 
   /* --- SECCIÓN DERECHA (Salir) --- */
   .nav-der { 
+      width: 220px;     /* 👈 Mismo ancho exacto que la izquierda */
+      flex-shrink: 0;
       display: flex; 
       align-items: center; 
       justify-content: flex-end; 
-      min-width: 100px; 
   }
 
   .btn-salir {
@@ -377,15 +393,19 @@
       overflow-y: auto; 
   }
 
-  /* =========================================================
+/* =========================================================
      DISEÑO RESPONSIVO (PANTALLAS PEQUEÑAS)
      ========================================================= */
   @media (max-width: 950px) {
       .top-nav { padding: 0 10px; }
-      .nav-izq { display: none; } /* Ocultamos el logo para dar espacio */
-      .txt-tab { display: none; } /* Ocultamos los textos, dejamos iconos */
-      .btn-mas .txt-tab { display: inline; } /* Mantenemos "Más" para saber qué es */
-      .txt-salir { display: none; } /* Ocultamos "Salir", dejamos la flecha */
+      .nav-izq { display: none; } 
+      
+      .nav-centro {
+          justify-content: flex-start; /* 👈 Solo en móviles se va a la izquierda */
+      }
+      
+      .nav-der { width: auto; } /* 👈 Le quitamos el ancho fijo al botón de salir */
+      .txt-salir { display: none; } 
       .btn-salir { padding: 8px; }
   }
 </style>
