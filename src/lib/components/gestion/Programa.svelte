@@ -136,12 +136,7 @@ function limpiarFiltrosTemporales() {
   window.addEventListener('click', handleClickOutside);
 });
 
-onDestroy(() => {
-  window.removeEventListener('click', handleClickOutside);
-  window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
-});
 
-// ELIMINA esta línea que está más abajo:
 
 
   async function cargarDatos() {
@@ -176,25 +171,6 @@ onDestroy(() => {
     } catch (e) { console.error(e); }
   }
 
-  // Escuchar solicitudes externas de confirmación (desde Resumen u otros)
-  function onSolicitudConfirmar(e: Event) {
-    const parteId = (e as CustomEvent)?.detail?.id;
-    if (!parteId) return;
-    const encontrado = partes.find(p => p.id === parteId);
-    if (encontrado) {
-      (async () => {
-        await toggleConfirmado(encontrado);
-        const pendientes = partes
-          .filter(p => p.nombre_orador && (!p.estado || p.estado !== 'Confirmado'))
-          .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: p.estado || 'Pendiente' }));
-        oradoresPendientes.set(pendientes);
-      })();
-    }
-  }
-
-  window.addEventListener('confirmar-parte', onSolicitudConfirmar as EventListener);
-  onDestroy(() => { window.removeEventListener('confirmar-parte', onSolicitudConfirmar as EventListener); });
-
   async function cargarHermanos() { 
     if (!asambleaId) return;
     listaHermanos = await invoke('obtener_personas', { asambleaId }) as any[]; 
@@ -214,87 +190,6 @@ onDestroy(() => {
   function toggleExpandirTodas() {
       const nuevoEstado = !todasExpandidas;
       partes = partes.map(p => ({ ...p, _expanded: nuevoEstado }));
-  }
-
-  // --- FUNCIONES DE ESTADO (sin oficina) ---
-  async function toggleStatus(objeto: any, campo: string) {
-    if (!objeto || !objeto.id) return;
-
-    const estadoAnterior = objeto[campo];
-    const nuevoEstado = !objeto[campo];
-
-    try {
-        objeto[campo] = nuevoEstado;
-        partes = partes;
-
-        await invoke('alternar_estado_parte', {
-            id: objeto.id,
-            tipoAccion: campo,
-            valorNuevo: nuevoEstado
-        });
-
-    } catch (e) {
-        console.error('Error en toggleStatus:', e);
-        alert('Error al guardar: ' + e);
-        objeto[campo] = estadoAnterior;
-        partes = partes;
-    }
-  }
-
-  async function toggleConfirmado(objeto: any) {
-    if (!objeto || !objeto.id) return;
-
-    const estadoAnterior = objeto.recibido_manual;
-    const nuevoEstado = !objeto.recibido_manual;
-
-    try {
-        objeto.recibido_manual = nuevoEstado;
-        objeto.estado = nuevoEstado ? 'Confirmado' : 'Pendiente';
-        partes = partes;
-
-        await invoke('alternar_estado_parte', {
-            id: objeto.id,
-            tipoAccion: 'confirmacion',
-            valorNuevo: nuevoEstado
-        });
-
-        if (typeof oradoresPendientes !== 'undefined') {
-            const pendientes = partes
-                .filter(p => p.nombre_orador && (!p.recibido_manual))
-                .map(p => ({ id: p.id, nombre: p.nombre_orador, tema: p.tema, estado: 'Pendiente' }));
-            oradoresPendientes.set(pendientes);
-        }
-    } catch (e) {
-        console.error('Error toggleConfirmado:', e);
-        alert('Error backend: ' + e);
-        objeto.recibido_manual = estadoAnterior;
-        objeto.estado = estadoAnterior ? 'Confirmado' : 'Pendiente';
-        partes = partes;
-    }
-  }
-
-  async function togglePresente(objeto: any) {
-    if (!objeto || !objeto.id) return;
-
-    const estadoAnterior = objeto.esta_presente;
-    const nuevoEstado = !objeto.esta_presente;
-
-    try {
-        objeto.esta_presente = nuevoEstado;
-        partes = partes;
-        
-        await invoke('alternar_estado_parte', {
-            id: objeto.id,
-            tipoAccion: 'presencia',
-            valorNuevo: nuevoEstado
-        });
-
-    } catch (e) {
-        console.error('Error togglePresente:', e);
-        alert('Error: ' + e);
-        objeto.esta_presente = estadoAnterior;
-        partes = partes;
-    }
   }
 
   // --- WHATSAPP ---
@@ -1084,6 +979,10 @@ async function cargarTodosDias() {
                   <span class="badge-fuente en-persona"><UserCheck size={10}/> En persona</span>
                 {/if}
 
+                {#if parte.requiere_ensayo}
+                  <span class="badge-fuente ensayo-req"><Mic size={10}/> Requiere ensayo</span>
+                {/if}
+
               </div>
             </div>
 
@@ -1115,21 +1014,6 @@ async function cargarTodosDias() {
                     <span class="trait-badge">Visitante</span>
                   {/if}
                 </div>
-              {/if}
-            </div>
-
-            <div class="col-estados-mini">
-              {#if parte.recibido_manual}
-                <div class="icon-indicator blue" title="Recibido"><FileCheck size={14} /></div>
-              {/if}
-              {#if parte.esta_presente}
-                <div class="icon-indicator green" title="Presente"><UserCheck size={14} /></div>
-              {/if}
-              {#if parte.ensayo_terminado}
-                <div class="icon-indicator orange" title="Ensayo terminado"><Mic size={14} /></div>
-              {/if}
-              {#if !parte.recibido_manual && !parte.esta_presente && !parte.ensayo_terminado}
-                <div class="icon-indicator gray" title="Pendiente"><Clock size={14} /></div>
               {/if}
             </div>
 
@@ -1166,43 +1050,9 @@ async function cargarTodosDias() {
                     </div>
                   </div>
                   
-                  <div class="checks-grandes">
-                    <button class="btn-status-toggle blue" 
-                            class:active={parte.recibido_manual} 
-                            on:click={() => toggleConfirmado(parte)}>
-                      <FileCheck size={18} /><span>RECIBIDO</span>
-                    </button>
-
-                    <button class="btn-status-toggle green" 
-                            class:active={parte.esta_presente} 
-                            on:click={() => togglePresente(parte)}>
-                      <UserCheck size={18} /><span>PRESENTE</span>
-                    </button>
-
-                    <button class="btn-status-toggle orange" 
-                            class:active={parte.ensayo_terminado} 
-                            on:click={() => toggleStatus(parte, 'ensayo_terminado')}>
-                      <Mic size={18} /><span>ENSAYO</span>
-                    </button>
-                  </div>
                 </div>
 
                 <div class="grid-acciones">
-                  <div class="grupo-accion">
-                    <button class="btn-outline-blue"><Mail size={16}/> ENVIAR CARTA POR EMAIL</button>
-                    <div class="checks-row">
-                      <label class="check-inline">
-                        <input type="checkbox" checked={parte.email_enviado} 
-                               on:change={() => toggleStatus(parte, 'email_enviado')}> 
-                        Email enviado
-                      </label>
-                      <label class="check-inline strong-check">
-                        <input type="checkbox" checked={parte.carta_recibida_check} 
-                               on:change={() => toggleStatus(parte, 'carta_recibida_check')}> 
-                        Carta Recibida
-                      </label>
-                    </div>
-                  </div>
                   
                   <div class="grupo-accion center">
                     <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
@@ -1214,26 +1064,14 @@ async function cargarTodosDias() {
                     <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
                       <FileJson size={16}/> JWPUB ENVIAR CARTA
                     </button>
-                    <label class="check-inline">
-                      <input type="checkbox" checked={parte.jwpub_enviado} 
-                             on:change={() => toggleStatus(parte, 'jwpub_enviado')}> 
-                      Email JWPUB enviado
-                    </label>
                   </div>
-                  
-                  <div class="grupo-accion">
-                    <button class="btn-outline-blue"><Clock size={16}/> RECORDATORIO DE ASIGNACIÓN / EMAIL</button>
-                    <label class="check-inline">
-                      <input type="checkbox" checked={parte.recordatorio_enviado} 
-                             on:change={() => toggleStatus(parte, 'recordatorio_enviado')}> 
-                      Recordatorio enviado
-                    </label>
-                  </div>
+
                   <div class="grupo-accion center">
                     <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
                        <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
                     </button>
                   </div>
+
                   <div class="grupo-accion right">
                     <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
                       <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
@@ -1241,6 +1079,7 @@ async function cargarTodosDias() {
                   </div>
                 </div>
               {/if}
+
               <div class="footer-tools">
                 <button class="btn-icon-square edit" title="Editar Datos / Asignar" on:click={() => abrirModalPrograma(parte)}>
                   <Edit size={20} strokeWidth={2}/>
@@ -1730,11 +1569,6 @@ async function cargarTodosDias() {
 
 .body-parte { border-top: 1px solid var(--border); background: var(--bg-body); padding: 15px 20px; color: var(--text-main); }
 
-/* --- ESTADOS DE LA TARJETA (Borde izquierdo más grueso) --- */
-.tarjeta-acordeon.estado-presente { border-left: 6px solid #10b981; background-color: rgba(16, 185, 129, 0.08); }
-.tarjeta-acordeon.estado-confirmado { border-left: 6px solid #3b82f6; background-color: rgba(59, 130, 246, 0.08); }
-.tarjeta-acordeon.estado-ensayo { border-left: 6px solid #f97316; background-color: rgba(249, 115, 22, 0.08); }
-
 .tarjeta-acordeon.estado-presente:hover { background-color: rgba(16, 185, 129, 0.12); }
 .tarjeta-acordeon.estado-confirmado:hover { background-color: rgba(59, 130, 246, 0.12); }
 .tarjeta-acordeon.estado-ensayo:hover { background-color: rgba(249, 115, 22, 0.12); }
@@ -1745,8 +1579,6 @@ async function cargarTodosDias() {
 .orador-nombre { font-weight: 600; color: var(--text-main); font-size: 13px; text-transform: uppercase; }
 
 /* --- ICONOS MINI --- */
-.col-estados-mini { display: flex !important; flex-direction: row !important; gap: 6px; min-width: 60px; justify-content: flex-end; align-items: center; }
-.icon-indicator { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; }
 .icon-indicator.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .icon-indicator.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
 .icon-indicator.orange { background: rgba(249, 115, 22, 0.2); color: #f97316; }
@@ -1767,7 +1599,7 @@ async function cargarTodosDias() {
 
 /* Botones Grandes Estado */
 .checks-grandes { display: flex; gap: 10px; align-items: center; }
-.btn-status-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: var(--bg-card); border: 1px solid var(--border); padding: 5px 2px; width: 70px; border-radius: 6px; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; }
+
 .btn-status-toggle span { font-size: 8.5px; font-weight: 800; text-transform: uppercase; }
 
 .btn-status-toggle.blue.active { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; color: #3b82f6; }
@@ -1793,18 +1625,55 @@ async function cargarTodosDias() {
 .contact-pill { display: flex; align-items: center; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); }
 
 /* Grid Acciones */
-.grid-acciones { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-.grupo-accion { display: flex; flex-direction: column; gap: 5px; }
-.grupo-accion.center { align-items: center; }
-.grupo-accion.right { align-items: flex-end; }
-.btn-outline-blue { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid #3b82f6; color: #3b82f6; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
-.btn-outline-blue:hover { background: rgba(59, 130, 246, 0.1); }
-.btn-outline-orange { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid #f97316; color: #f97316; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
-.btn-outline-orange:hover { background: rgba(249, 115, 22, 0.1); }
-.btn-outline-gray { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-main); padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+.grid-acciones { 
+  display: flex;             /* Cambiamos a flex para mejor control */
+  justify-content: flex-start; 
+  gap: 8px; 
+  margin-top: 15px;
+  margin-bottom: 15px; 
+  flex-wrap: nowrap;         /* Forzamos una sola línea */
+  width: 100%;
+}
+
+.btn-outline-blue, 
+.btn-outline-orange, 
+.btn-outline-gray, 
+.btn-outline-green {
+  flex: 1;                   /* Que todos crezcan por igual */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;              /* Altura bien compacta */
+  padding: 0 4px !important;
+  border-radius: 6px;
+  font-size: 10px !important; /* Fuente pequeña para que quepa el texto */
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+}
+
+/* Colores de fondo suaves para que no parezcan cajas de texto vacías */
+.btn-outline-gray { background: #f1f5f9; color: #475569; }
+.btn-outline-orange { background: #fff7ed; color: #c2410c; border-color: #ffedd5 !important; }
+.btn-outline-green { background: #f0fdf4; color: #15803d; border-color: #dcfce7 !important; }
+
+.btn-outline-blue:hover, .btn-outline-orange:hover, .btn-outline-green:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+/* Ajuste opcional para los iconos dentro de esos botones */
+.grid-acciones :global(svg) {
+  flex-shrink: 0;
+  width: 14px !important;
+  height: 14px !important;
+}
+
 .btn-outline-gray:hover { background: var(--hover-bg); }
-.btn-outline-green { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: 1px solid #10b981; color: #10b981; padding: 8px 4px; border-radius: 4px; font-weight: 600; font-size: 11px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
-.btn-outline-green:hover { background: rgba(16, 185, 129, 0.1); }
+
 
 /* Modales */
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
@@ -1953,6 +1822,11 @@ async function cargarTodosDias() {
 .badge-fuente.remota { background: rgba(147, 51, 234, 0.15); color: #9333ea; border-color: rgba(147, 51, 234, 0.3); }
 .badge-fuente.en-persona { background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
 
+.badge-fuente.ensayo-req { 
+  background: rgba(249, 115, 22, 0.15); 
+  color: #ea580c; /* Naranja oscuro */
+  border-color: rgba(249, 115, 22, 0.3); 
+}
 .orador-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .cong-mini { font-size: 11px; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 

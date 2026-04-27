@@ -14,6 +14,7 @@
   import Comite from '$lib/components/gestion/Comite.svelte';
   import InfoEvento from '$lib/components/gestion/InfoEvento.svelte';
   import Programa from '$lib/components/gestion/Programa.svelte';
+  import Ensayos from '$lib/components/gestion/Ensayos.svelte'
   import { setResumen } from '$lib/stores/gestion';
   import { vistaActual } from '$lib/stores/appStore';
 
@@ -124,23 +125,27 @@
 
       <div class="nav-centro">
           <button class="tab-btn" class:activo={seccionActiva === 'inicio'} on:click={() => cambiarSeccion('inicio')}>
-              <LayoutDashboard size={16} /> <span class="txt-tab">Panel de control</span>
+              <span class="txt-tab">Panel de control</span>
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'info_evento'} on:click={() => cambiarSeccion('info_evento')}>
-              <Bookmark size={16} /> <span class="txt-tab">Información de la asamblea</span>
+              <span class="txt-tab">Información de la asamblea</span>
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'comite'} on:click={() => cambiarSeccion('comite')}>
-              <Icon path={IconosMDI.Responsabilidades} size={0.8} /> <span class="txt-tab">Responsabilidades</span>
+              <span class="txt-tab">Responsabilidades</span>
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')}>
-              <Mic2 size={16} /> <span class="txt-tab">Programa</span>
+              <span class="txt-tab">Programa</span>
+          </button>
+
+          <button class="tab-btn" class:activo={seccionActiva === 'ensayos'} on:click={() => cambiarSeccion('ensayos')}>
+              <span class="txt-tab">Ensayos</span>
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')}>
-              <Briefcase size={16} /> <span class="txt-tab">Oficina</span>
+              <span class="txt-tab">Oficina</span>
           </button>
 
           <div class="tab-mas-container">
@@ -153,10 +158,10 @@
               {#if mostrarMenuMas}
                   <div class="dropdown-mas" on:click|stopPropagation>
                       <button class="dropdown-item" class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')}>
-                          <Building2 size={16} /> Congregaciones
+                          Congregaciones
                       </button>
                       <button class="dropdown-item" class:activo={seccionActiva === 'personas'} on:click={() => cambiarSeccion('personas')}>
-                          <Users size={16} /> Personas
+                          Personas
                       </button>
                   </div>
               {/if}
@@ -180,6 +185,8 @@
       {#if seccionActiva === 'programa'} <Programa /> {/if}
       {#if seccionActiva === 'oficina'} <Oficina /> {/if}
       {#if seccionActiva === 'vista_programa'} <VistaPrograma /> {/if}
+      {#if seccionActiva === 'ensayos'} <Ensayos /> {/if} 
+      {#if seccionActiva === 'oficina'} <Oficina /> {/if}
       {#if seccionActiva === 'registro_oradores'} <RegistroOradores /> {/if}
       {#if seccionActiva === 'lista_oradores'} <ListaOradores /> {/if}
     </div>

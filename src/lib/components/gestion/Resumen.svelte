@@ -17,6 +17,9 @@
   let asambleaIdActual = 0; 
   let nombreAsamblea = '';
 
+  // ✅ Estado de la pestaña actual
+  let tabActual: 'estadisticas' | 'oradores' | 'monitor' = 'estadisticas';
+
   // ✅ Estado de la asamblea
   let estadoAsamblea: 'en_curso' | 'futura' | 'finalizada' = 'en_curso';
   let fechaInicioAsamblea: Date | null = null;
@@ -320,194 +323,211 @@
 
 <div class="dashboard-container">
 
-  <div class="main-grid">
-      
-    <div class="col-left">
-        
-        <div class="stats-row">
-            <button class="card stat-card btn-card-asistencia" on:click={() => mostrarModalAsistencia = true}>
-              <div class="icon-wrapper blue"><Users size={22} /></div>
+  <div class="tabs-container">
+    <button class="tab-btn" class:active={tabActual === 'estadisticas'} on:click={() => tabActual = 'estadisticas'}>
+      <Activity size={18} /> Estadísticas
+    </button>
+    
+    <button class="tab-btn" class:active={tabActual === 'oradores'} on:click={() => tabActual = 'oradores'}>
+      <Users size={18} /> Oradores Pendientes
+      {#if estadisticasPrograma.pendientes > 0}
+        <span class="tab-badge">{estadisticasPrograma.pendientes}</span>
+      {/if}
+    </button>
+    
+    <button class="tab-btn" class:active={tabActual === 'monitor'} on:click={() => tabActual = 'monitor'}>
+      <Clock size={18} /> Monitor en Vivo
+    </button>
+  </div>
+
+  <div class="tab-content">
+    
+    {#if tabActual === 'estadisticas'}
+      <div class="stats-row">
+          <button class="card stat-card btn-card-asistencia" on:click={() => mostrarModalAsistencia = true}>
+            <div class="icon-wrapper blue"><Users size={22} /></div>
+            <div class="stat-info">
+               <span class="label">Asistencia Máxima</span>
+               <span class="numero-grande">{maxAsistencia}</span>
+              <span class="subtext">Clic para desglosar</span>
+            </div>
+          </button>
+
+          <Panel padding="15px" clasesExtra="stat-card">
+              <div class="icon-wrapper cyan"><Droplets size={22} /></div>
               <div class="stat-info">
-                 <span class="label">Asistencia Máxima</span>
-                 <span class="numero-grande">{maxAsistencia}</span>
-                <span class="subtext">Clic para desglosar</span>
+                  <span class="label">Bautismos</span>
+                  <input type="number" class="editable-num" 
+                         bind:value={bautismosTotal} 
+                         on:input={() => guardarDato('bautismos', bautismosTotal)}>
               </div>
-            </button>
+          </Panel>
+          
+          <Panel padding="15px" clasesExtra="stat-card">
+              <div class="icon-wrapper purple">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+              </div>
+              <div class="stat-info">
+                  <span class="label">Congregaciones</span>
+                  <span class="numero-grande">{totalCongregacionesReales}</span>
+                  <span class="subtext">Registradas</span>
+              </div>
+          </Panel>
+      </div>
 
-            <Panel padding="15px" clasesExtra="stat-card">
-                <div class="icon-wrapper cyan"><Droplets size={22} /></div>
-                <div class="stat-info">
-                    <span class="label">Bautismos</span>
-                    <input type="number" class="editable-num" 
-                           bind:value={bautismosTotal} 
-                           on:input={() => guardarDato('bautismos', bautismosTotal)}>
-                </div>
-            </Panel>
-            
-            <Panel padding="15px" clasesExtra="stat-card">
-                <div class="icon-wrapper purple">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
-                </div>
-                <div class="stat-info">
-                    <span class="label">Congregaciones</span>
-                    <span class="numero-grande">{totalCongregacionesReales}</span>
-                    <span class="subtext">Registradas</span>
-                </div>
-            </Panel>
-        </div>
+    {:else if tabActual === 'oradores'}
+      <Panel padding="0" clasesExtra="alertas-section">
+          <div class="card-header-red">
+              <h4><AlertCircle size={18} /> Oradores Pendientes ({estadisticasPrograma.pendientes})</h4>
+          </div>
+          <div class="lista-pendientes">
+              {#if oradoresPendientesLista.length > 0}
+                  <div class="table-container">
+                      <table>
+                          <thead>
+                              <tr><th>Orador</th><th>Asignación</th><th>Acción</th></tr>
+                          </thead>
+                          <tbody>
+                              {#each oradoresPendientesLista.slice(0, 5) as p}
+                                  <tr>
+                                      <td class="fw-bold">{p.nombre_orador}</td>
+                                      <td>
+                                          <div class="tema-mini">{p.tema.substring(0, 25)}...</div>
+                                          <span class="badge-dia">{p.dia}</span>
+                                      </td>
+                                      <td>
+                                          <button class="btn-sm-confirmar" on:click={() => confirmarOradorDesdeResumen(p)}>
+                                              Confirmar
+                                          </button>
+                                      </td>
+                                  </tr>
+                              {/each}
+                          </tbody>
+                      </table>
+                      {#if oradoresPendientesLista.length > 5}
+                          <div class="ver-mas">...y {oradoresPendientesLista.length - 5} más</div>
+                      {/if}
+                  </div>
+              {:else}
+                  <div class="empty-state">
+                      <CheckCircle size={40} color="#10b981"/>
+                      <p>¡Todo al día! No hay pendientes.</p>
+                  </div>
+              {/if}
+          </div>
+      </Panel>
 
-        <Panel padding="0" clasesExtra="alertas-section">
-            <div class="card-header-red">
-                <h4><AlertCircle size={18} /> Oradores Pendientes ({estadisticasPrograma.pendientes})</h4>
-            </div>
-            <div class="lista-pendientes">
-                {#if oradoresPendientesLista.length > 0}
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr><th>Orador</th><th>Asignación</th><th>Acción</th></tr>
-                            </thead>
-                            <tbody>
-                                {#each oradoresPendientesLista.slice(0, 5) as p}
-                                    <tr>
-                                        <td class="fw-bold">{p.nombre_orador}</td>
-                                        <td>
-                                            <div class="tema-mini">{p.tema.substring(0, 25)}...</div>
-                                            <span class="badge-dia">{p.dia}</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn-sm-confirmar" on:click={() => confirmarOradorDesdeResumen(p)}>
-                                                Confirmar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                        {#if oradoresPendientesLista.length > 5}
-                            <div class="ver-mas">...y {oradoresPendientesLista.length - 5} más</div>
-                        {/if}
-                    </div>
-                {:else}
-                    <div class="empty-state">
-                        <CheckCircle size={40} color="#10b981"/>
-                        <p>¡Todo al día! No hay pendientes.</p>
-                    </div>
-                {/if}
-            </div>
-        </Panel>
-    </div>
+    {:else if tabActual === 'monitor'}
+      <div class="monitor-tab-layout">
+          <Panel padding="0" clasesExtra="live-monitor-container">
+              <div class="monitor-header">
+                  <div class="header-left">
+                      {#if estadoAsamblea === 'futura'}
+                          <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;">
+                              <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
+                          </div>
+                      {:else if estadoAsamblea === 'finalizada'}
+                          <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;">
+                              <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
+                          </div>
+                      {:else if parteActual}
+                          <div class="live-badge">
+                              <span class="blink-dot"></span> EN CURSO
+                          </div>
+                          <span class="monitor-dia">{parteActual.dia}</span>
+                      {:else}
+                          <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;">
+                              <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
+                          </div>
+                      {/if}
+                  </div>
+                  
+                  <div class="ajuste-tiempo">
+                      <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
+                      
+                      <button class="valor-ajuste" 
+                              class:activo={offsetMinutos !== 0} 
+                              on:click={resetearDesfase}
+                              title="Clic para volver a la Hora Real (0m)">
+                          {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+                      </button>
+                      
+                      <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+                  </div>
+              </div>
 
-    <div class="col-right">
-        <Panel padding="0" clasesExtra="live-monitor-container">
-            <div class="monitor-header">
-                <div class="header-left">
-                    {#if estadoAsamblea === 'futura'}
-                        <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;">
-                            <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
-                        </div>
-                    {:else if estadoAsamblea === 'finalizada'}
-                        <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;">
-                            <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
-                        </div>
-                    {:else if parteActual}
-                        <div class="live-badge">
-                            <span class="blink-dot"></span> EN CURSO
-                        </div>
-                        <span class="monitor-dia">{parteActual.dia}</span>
-                    {:else}
-                        <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;">
-                            <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
-                        </div>
-                    {/if}
-                </div>
-                
-                <div class="ajuste-tiempo">
-                    <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
-                    
-                    <button class="valor-ajuste" 
-                            class:activo={offsetMinutos !== 0} 
-                            on:click={resetearDesfase}
-                            title="Clic para volver a la Hora Real (0m)">
-                        {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
-                    </button>
-                    
-                    <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
-                </div>
-            </div>
+              <div class="monitor-body">
+                  {#if estadoAsamblea === 'futura'}
+                      <div class="descanso-mode">
+                          <Clock size={40} color="var(--primary)"/>
+                          <h3>Asamblea Futura</h3>
+                          <p>Programada para iniciar próximamente.</p>
+                      </div>
+                  {:else if estadoAsamblea === 'finalizada'}
+                      <div class="descanso-mode">
+                          <CheckCircle size={40} color="var(--text-sec)"/>
+                          <h3>Asamblea Concluida</h3>
+                          <p>El programa de esta asamblea ha finalizado.</p>
+                      </div>
+                  {:else if parteActual}
+                      <span class="hora-big">{parteActual.hora_inicio}</span>
+                      <h3 class="tema-big">{parteActual.tema}</h3>
+                      
+                      {#if parteActual.es_video}
+                          <div class="orador-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: var(--primary);">
+                              <Film size={18}/>
+                              <span>Reproducción Multimedia</span>
+                          </div>
+                      {:else}
+                          <div class="orador-box">
+                              <Mic size={18}/>
+                              <span>{parteActual.nombre_orador || "---"}</span>
+                          </div>
+                      {/if}
+                  {:else}
+                      <div class="descanso-mode">
+                          <Activity size={40} color="var(--text-sec)"/>
+                          <h3>En pausa</h3>
+                          <p>Esperando la siguiente sesión del día...</p>
+                      </div>
+                  {/if}
+              </div>
 
-            <div class="monitor-body">
-                {#if estadoAsamblea === 'futura'}
-                    <div class="descanso-mode">
-                        <Clock size={40} color="var(--primary)"/>
-                        <h3>Asamblea Futura</h3>
-                        <p>Programada para iniciar próximamente.</p>
-                    </div>
-                {:else if estadoAsamblea === 'finalizada'}
-                    <div class="descanso-mode">
-                        <CheckCircle size={40} color="var(--text-sec)"/>
-                        <h3>Asamblea Concluida</h3>
-                        <p>El programa de esta asamblea ha finalizado.</p>
-                    </div>
-                {:else if parteActual}
-                    <span class="hora-big">{parteActual.hora_inicio}</span>
-                    <h3 class="tema-big">{parteActual.tema}</h3>
-                    
-                    {#if parteActual.es_video}
-                        <div class="orador-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: var(--primary);">
-                            <Film size={18}/>
-                            <span>Reproducción Multimedia</span>
-                        </div>
-                    {:else}
-                        <div class="orador-box">
-                            <Mic size={18}/>
-                            <span>{parteActual.nombre_orador || "---"}</span>
-                        </div>
-                    {/if}
-                {:else}
-                    <div class="descanso-mode">
-                        <Activity size={40} color="var(--text-sec)"/>
-                        <h3>En pausa</h3>
-                        <p>Esperando la siguiente sesión del día...</p>
-                    </div>
-                {/if}
-            </div>
+              <div class="monitor-footer">
+                  {#if siguienteParte && estadoAsamblea === 'en_curso'}
+                      <span class="label-next">A CONTINUACIÓN:</span>
+                      <div class="next-row">
+                          <span class="next-hora">{siguienteParte.hora_inicio}</span>
+                          <div class="next-info">
+                              <span class="next-tema">{siguienteParte.tema}</span>
+                              
+                              {#if siguienteParte.es_video}
+                                  <span class="next-orador" style="color: var(--primary); font-weight: 600;">▶ Video / Canción</span>
+                              {:else}
+                                  <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
+                              {/if}
+                          </div>
+                          <ArrowRight size={16} color="var(--text-sec)"/>
+                      </div>
+                  {:else}
+                      <span class="text-muted" style="display: block; text-align: center;">
+                          {#if estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada'}
+                              Programa inactivo
+                          {:else}
+                              Fin del programa del día.
+                          {/if}
+                      </span>
+                  {/if}
+              </div>
+         </Panel>
 
-            <div class="monitor-footer">
-                {#if siguienteParte && estadoAsamblea === 'en_curso'}
-                    <span class="label-next">A CONTINUACIÓN:</span>
-                    <div class="next-row">
-                        <span class="next-hora">{siguienteParte.hora_inicio}</span>
-                        <div class="next-info">
-                            <span class="next-tema">{siguienteParte.tema}</span>
-                            
-                            {#if siguienteParte.es_video}
-                                <span class="next-orador" style="color: var(--primary); font-weight: 600;">▶ Video / Canción</span>
-                            {:else}
-                                <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
-                            {/if}
-                        </div>
-                        <ArrowRight size={16} color="var(--text-sec)"/>
-                    </div>
-                {:else}
-                    <span class="text-muted" style="display: block; text-align: center;">
-                        {#if estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada'}
-                            Programa inactivo
-                        {:else}
-                            Fin del programa del día.
-                        {/if}
-                    </span>
-                {/if}
-            </div>
-       </Panel>
-
-        <div class="accesos-grid">
-            <button class="btn-acceso" on:click={cargarDatosDB}>
-                <Activity size={20}/> <span>Actualizar Datos</span>
-            </button>
-        </div>
-
-    </div>
+          <div class="accesos-grid">
+              <button class="btn-acceso" on:click={cargarDatosDB}>
+                  <Activity size={20}/> <span>Actualizar Datos</span>
+              </button>
+          </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -941,4 +961,58 @@
         font-size: 16px;
     }
 }
+
+/* --- SISTEMA DE PESTAÑAS --- */
+  .tabs-container {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 15px;
+    overflow-x: auto; /* Permite deslizar en móviles */
+    scrollbar-width: none; /* Oculta barra de scroll en Firefox */
+  }
+  .tabs-container::-webkit-scrollbar { display: none; /* Oculta barra en Chrome/Edge */ }
+
+  .tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-sec);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .tab-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-main);
+  }
+  .tab-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  }
+  .tab-badge {
+    background: #ef4444;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  /* Centrar el monitor para que no ocupe 100% del ancho en pantallas grandes */
+  .monitor-tab-layout {
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 </style>
