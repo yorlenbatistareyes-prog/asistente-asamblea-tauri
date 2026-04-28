@@ -1234,13 +1234,12 @@ async function cargarTodosDias() {
   </div>
 {/if}
 
-{#if mostrarModalAsignar && parteEditando}
-  <div class="modal-backdrop" role="button" tabindex="0" 
+{#if mostrarModalAsignar && parteEditando}  <div class="modal-backdrop" role="button" tabindex="0" 
        on:click|self={cerrarModales} 
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
     <div class="modal">
       <div class="modal-header">
-        <h3>Asignar Orador / Editar Datos</h3>
+        <h3>Editar Parte</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       
@@ -1284,7 +1283,7 @@ async function cargarTodosDias() {
             </div>
 
             {#if !parteEditando.es_video}
-              <div class="campo" style="margin-bottom: 15px;">
+              <div class="campo" style="margin-bottom: 0;">
                 <label>Características del Orador</label>
                 <div style="display: flex; gap: 15px; margin-top: 8px;">
                   <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_betelita}> Betelita</label>
@@ -1293,20 +1292,7 @@ async function cargarTodosDias() {
                 </div>
               </div>
             {/if}
-
-            <div style="display: flex; flex-direction: column; gap: 5px;">
-              <button 
-                class="btn-guardar" 
-                style="margin-top: 0;"
-                on:click={() => actualizarDetallesParte(parteEditando.id)}
-              >
-                Guardar Cambios de la Parte
-              </button>
-              <small style="font-size: 10.5px; color: var(--text-secondary); font-style: italic; text-align: center; margin-top: 4px;">
-                * Estos datos se guardan independientemente de quién sea el orador asignado abajo.
-              </small>
             </div>
-          </div>
         {/if}
 
         <div class="separator-line" style="margin: 15px 0;"></div>
@@ -1318,7 +1304,11 @@ async function cargarTodosDias() {
           </label>
           
           {#if parteEditando.requiere_ensayo}
-            <div class="fila" style="margin-top: 10px;">
+            <small style="display: block; margin-bottom: 15px; color: var(--text-secondary); font-style: italic; line-height: 1.3;">
+              * Deja estos campos siguientes en blanco para usar la información general de los ensayos de la asamblea
+            </small>
+
+            <div class="fila" style="margin-top: 5px; margin-bottom: 15px;">
               <div class="campo">
                 <label>Fecha de ensayos</label>
                 <input type="date" bind:value={parteEditando.fecha_ensayo} />
@@ -1331,18 +1321,20 @@ async function cargarTodosDias() {
                 </div>
               </div>
             </div>
-            <div class="campo">
+            
+            <div class="campo" style="margin-bottom: 15px;">
               <label>Lugar de ensayos</label>
               <input type="text" bind:value={parteEditando.lugar_ensayo} />
             </div>
-            <div class="campo">
+            
+            <div class="campo" style="margin-bottom: 0;">
               <label>Notas de los ensayos</label>
               <textarea bind:value={parteEditando.notas_ensayo} style="min-height: 80px;"></textarea>
             </div>
           {/if}
         </div>
 
-        <div class="campo autocomplete-container" style="margin-bottom: 30px;">
+        <div class="campo autocomplete-container" style="margin-bottom: 20px;">
           <label>Buscar y Asignar Nuevo Orador</label>
           <div class="input-icon">
             <Search size={16} />
@@ -1353,7 +1345,7 @@ async function cargarTodosDias() {
           </div>
           
           {#if mostrarSugerenciasEdit}
-            <div class="sugerencias-lista" style="position: relative; max-height: 220px; margin-top: 8px; margin-bottom: 25px; border-radius: 8px; box-shadow: none;">
+            <div class="sugerencias-lista" style="position: absolute; max-height: 220px; margin-top: 8px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
               <button class="sugerencia-item video-option" style="color: #3b82f6; border-bottom: 1px solid var(--border);" on:click={() => asignarOrador(null, true)}>
                 <Video size={14} style="margin-right: 8px;"/> <span style="font-weight: 600;">Asignar como Video</span>
               </button>
@@ -1365,6 +1357,19 @@ async function cargarTodosDias() {
               {/each}
             </div>
           {/if}
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 15px;">
+          <button 
+            class="btn-guardar" 
+            style="margin-top: 0;"
+            on:click={() => actualizarDetallesParte(parteEditando.id)}
+          >
+            Guardar Cambios
+          </button>
+          <small style="font-size: 10.5px; color: var(--text-secondary); font-style: italic; text-align: center; margin-top: 4px;">
+            * Estos datos se guardan independientemente de quién sea el orador asignado arriba.
+          </small>
         </div>
 
       </div>
@@ -1678,8 +1683,31 @@ async function cargarTodosDias() {
 /* Modales */
 .btn-guardar { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
 
-.modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
-.modal, .modal-emails { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-premium); display: flex; flex-direction: column; overflow: hidden; max-height: calc(100vh - 80px); }
+.modal-backdrop { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    bottom: 0; 
+    background: rgba(0,0,0,0.6); 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 9999; 
+    padding: 60px 20px; /* 👈 AUMENTAMOS DE 20px a 60px PARA EMPUJARLO HACIA ABAJO */
+}
+
+.modal, .modal-emails { 
+    background: var(--bg-card); 
+    border-radius: 12px; 
+    border: 1px solid var(--border); 
+    box-shadow: var(--shadow-premium); 
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+    max-height: 75vh; /* 👈 REDUCIMOS AL 75% DE LA PANTALLA PARA QUE NO LLEGUE AL TECHO */
+}
+
 .modal { width: 480px; max-width: 100%; }
 .modal-emails { width: 90%; max-width: 650px; }
 

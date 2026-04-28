@@ -2,15 +2,28 @@
 import type { ContextoDocumento } from './contexto_impresion';
 
 // ------------------------------------------------------------
-// FUNCIONES AUXILIARES (COPIADAS DE IMPRESION.TS)
+// FUNCIONES AUXILIARES 
 // ------------------------------------------------------------
 function generarInfoEnsayos(datos: ContextoDocumento): string {
-    if (!datos.ensayo_fecha || !datos.ensayo_hora) return 'No hay información de ensayos.';
-    return `Fecha: ${datos.ensayo_fecha} a las ${datos.ensayo_hora}. Lugar: ${datos.ensayo_lugar || 'Por definir'}. Dirección: ${datos.ensayo_direccion || 'Por definir'}. Notas: ${datos.ensayo_notas || 'Ninguna.'}`;
+    // 👇 Validamos si no hay ensayo para devolver un texto limpio
+    if (!datos.ensayo_fecha || datos.ensayo_fecha === 'No requiere ensayo previo' || datos.ensayo_fecha === '---') {
+        return 'No requiere ensayo previo para esta asignación.';
+    }
+    
+    let info = `Fecha: ${datos.ensayo_fecha} a las ${datos.ensayo_hora}. Lugar: ${datos.ensayo_lugar || 'Por definir'}.`;
+    if (datos.ensayo_direccion) info += ` Dirección: ${datos.ensayo_direccion}.`;
+    if (datos.ensayo_notas) info += ` Notas: ${datos.ensayo_notas}`;
+    
+    return info;
 }
 
 function construirLugarEnsayo(datos: ContextoDocumento): string {
+    // 👇 Si no hay ensayo, no mostramos un lugar vacío
+    if (!datos.ensayo_fecha || datos.ensayo_fecha === 'No requiere ensayo previo' || datos.ensayo_fecha === '---') {
+        return 'No aplica';
+    }
     if (!datos.ensayo_lugar) return 'Por definir';
+    
     let lugar = datos.ensayo_lugar;
     if (datos.ensayo_direccion) lugar += ` - ${datos.ensayo_direccion}`;
     return lugar;
@@ -50,7 +63,7 @@ const MAPA_REEMPLAZO: Record<string, (ctx: ContextoDocumento) => string> = {
     '[[Nombre del lugar]]': (ctx) => ctx.lugar_nombre,
     '[[Dirección]]': (ctx) => ctx.lugar_direccion,
     '[[Ciudad]]': (ctx) => ctx.ciudad,
-    '[[Estado o Provincia]]': () => 'Holguín',
+    '[[Estado o Provincia]]': (ctx) => ctx.estado || 'Holguín', // 👇 Ya es dinámico, Holguín es solo por si está vacío
 
     // --- EVENTO ---
     '[[Fecha]]': (ctx) => ctx.fecha_evento_texto,
@@ -60,7 +73,7 @@ const MAPA_REEMPLAZO: Record<string, (ctx: ContextoDocumento) => string> = {
     // --- ENSAYOS ---
     '[[Información completa de los ensayos]]': (ctx) => generarInfoEnsayos(ctx),
     '[[Lugar de los ensayos]]': (ctx) => construirLugarEnsayo(ctx),
-    '[[Fecha y hora del ensayo]]': (ctx) => `${ctx.ensayo_fecha} a las ${ctx.ensayo_hora}`,
+    '[[Fecha y hora del ensayo]]': (ctx) => (ctx.ensayo_fecha && ctx.ensayo_fecha !== 'No requiere ensayo previo' && ctx.ensayo_fecha !== '---') ? `${ctx.ensayo_fecha} a las ${ctx.ensayo_hora}` : 'No aplica',
     '[[Fecha de ensayos]]': (ctx) => ctx.ensayo_fecha,
     '[[Hora de ensayos]]': (ctx) => ctx.ensayo_hora,
     '[[Notas para los ensayos]]': (ctx) => ctx.ensayo_notas,

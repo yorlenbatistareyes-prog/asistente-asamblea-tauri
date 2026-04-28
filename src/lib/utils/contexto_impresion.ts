@@ -116,6 +116,28 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         tipoEventoMejorado = 'Asamblea Regional';
     }
 
+    // 6. LÓGICA DE PRIORIDAD PARA ENSAYOS
+    let valFechaEnsayo = '---';
+    let valHoraEnsayo = '---';
+    let valLugarEnsayo = '';
+    let valNotasEnsayo = '';
+
+    // Si tiene la propiedad 'requiere_ensayo' pero está en false, es porque explícitamente no necesita ensayo
+    const tieneCasillaEnsayo = 'requiere_ensayo' in objeto;
+    const requiereEnsayo = objeto.requiere_ensayo === true || objeto.requiere_ensayo === 1;
+
+    if (!tieneCasillaEnsayo || requiereEnsayo) {
+        // Prioridad: 1° Datos específicos de la tarjeta -> 2° Datos globales de la Asamblea -> 3° Vacío
+        valFechaEnsayo = (objeto.fecha_ensayo && objeto.fecha_ensayo.trim() !== '') ? objeto.fecha_ensayo : (infoAsamblea.ensayo_fecha || infoExtra.fecha_ensayo || '---');
+        valHoraEnsayo = (objeto.hora_ensayo && objeto.hora_ensayo.trim() !== '') ? objeto.hora_ensayo : (infoAsamblea.ensayo_hora || infoExtra.hora_ensayo || '---');
+        valLugarEnsayo = (objeto.lugar_ensayo && objeto.lugar_ensayo.trim() !== '') ? objeto.lugar_ensayo : (infoAsamblea.ensayo_lugar || infoExtra.lugar || '');
+        valNotasEnsayo = (objeto.notas_ensayo && objeto.notas_ensayo.trim() !== '') ? objeto.notas_ensayo : (infoAsamblea.ensayo_notas || '');
+    } else {
+        // Si es una parte del programa y NO se marcó la casilla, limpiamos los campos para no confundir al hermano
+        valFechaEnsayo = 'No requiere ensayo previo';
+        valHoraEnsayo = '--:--';
+    }
+
     return {
         // --- PERSONAL ---
         saludo: (objeto.sexo === 'F' || objeto.genero === 'F') ? 'hermana' : 'hermano',
@@ -146,17 +168,14 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         ciudad: infoAsamblea.ciudad || '', 
         estado: infoAsamblea.estado || infoAsamblea.provincia || '', 
 
-        // --- ENSAYOS ---
-        ensayo_fecha: infoAsamblea.ensayo_fecha || infoExtra.fecha_ensayo || '---',
-        ensayo_hora: infoAsamblea.ensayo_hora || infoExtra.hora_ensayo || '---',
-        ensayo_lugar: infoAsamblea.ensayo_lugar || infoExtra.lugar || '',
+        // --- ENSAYOS (Integrando la nueva lógica) ---
+        ensayo_fecha: valFechaEnsayo,
+        ensayo_hora: valHoraEnsayo,
+        ensayo_lugar: valLugarEnsayo,
         ensayo_direccion: infoExtra.direccion_ensayo || infoExtra.direccion || '',
-        
-        // 👇 AHORA SÍ: Conectado a los nombres reales de tu base de datos
-        ensayo_notas: infoAsamblea.ensayo_notas || '',
+        ensayo_notas: valNotasEnsayo,
 
         // --- INSTRUCCIONES ---
-        // 👇 AHORA SÍ: Conectado a 'recorridos_info' y 'instrucciones_esp' de Rust
         orientaciones: infoAsamblea.recorridos_info || '',
         instrucciones: infoAsamblea.instrucciones_esp || '',
 
