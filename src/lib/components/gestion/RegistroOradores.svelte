@@ -5,6 +5,25 @@
   import { Phone, MessageCircle } from 'lucide-svelte';
   import { open as openUrl } from '@tauri-apps/plugin-shell';
 
+  // --- IMPORTACIONES PARA PDF ---
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeFile } from '@tauri-apps/plugin-fs';
+
+  // 1. PDFMAKE (Plano)
+  import pdfMake from 'pdfmake/build/pdfmake';
+  import pdfFonts from 'pdfmake/build/vfs_fonts';
+  import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
+
+  // 2. PDF-LIB (Rellenable)
+  import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+
+  // --- CONFIGURACIÓN ESTRICTA DE FUENTES PARA PDFMAKE ---
+  interface CustomPdfFonts { pdfMake?: { vfs: Record<string, string> }; vfs?: Record<string, string>; }
+  interface CustomPdfMake { vfs: Record<string, string>; createPdf: typeof pdfMake.createPdf; }
+  const fonts = pdfFonts as unknown as CustomPdfFonts;
+  const pdf = pdfMake as unknown as CustomPdfMake;
+  pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
+
   let asambleaActiva: any = null;
   let partes: any[] = [];
   let programaAgrupado: Record<string, any[]> = {};
@@ -188,6 +207,192 @@
     }
   }
 
+async function generarPDFPlano() {
+    try {
+      const docDefinition: TDocumentDefinitions = {
+        pageOrientation: 'landscape',
+        pageSize: 'A4',
+        pageMargins: [30, 40, 30, 40],
+        content: [
+          { text: 'Registro de Oradores', style: 'header' },
+          { text: `${asambleaActiva?.tema || 'Sin tema'} • Número: ${asambleaActiva?.identificador || '000'}`, style: 'subheader' }
+        ],
+        styles: {
+          header: { fontSize: 20, bold: true, color: '#1e293b', margin: [0, 0, 0, 4] },
+          subheader: { fontSize: 11, color: '#64748b', margin: [0, 0, 0, 15] },
+          diaTitulo: { fontSize: 14, bold: true, color: '#286eb4', margin: [0, 15, 0, 5], textTransform: 'uppercase' },
+          tablaHeader: { bold: true, fontSize: 9, color: 'white', fillColor: '#286eb4', alignment: 'center', margin: [0, 4, 0, 4] },
+          celdaNormal: { fontSize: 8, margin: [0, 4, 0, 4], color: '#334155' },
+          celdaCentro: { fontSize: 8, margin: [0, 4, 0, 4], alignment: 'center', bold: true },
+          textoBold: { bold: true, color: '#0f172a' },
+          textoGris: { fontSize: 7, color: '#94a3b8' }
+        }
+      };
+
+      const dias = ['viernes', 'sábado', 'domingo'];
+      
+      dias.forEach(dia => {
+        if (programaAgrupado[dia] && programaAgrupado[dia].length > 0) {
+          (docDefinition.content as Content[]).push({ text: dia, style: 'diaTitulo' });
+
+          const body: any[] = [];
+          
+          body.push([
+            { text: 'TIEMPO', style: 'tablaHeader' },
+            { text: 'DISCURSO', style: 'tablaHeader', alignment: 'left' },
+            { text: 'ORADOR', style: 'tablaHeader', alignment: 'left' },
+            { text: 'MÓVIL', style: 'tablaHeader', alignment: 'left' },
+            { text: 'VIE', style: 'tablaHeader' },
+            { text: 'DÍA', style: 'tablaHeader' },
+            { text: '30 MINUTOS', style: 'tablaHeader' }
+          ]);
+
+          programaAgrupado[dia].forEach((p: any) => {
+            const numBosquejo = p.numero_bosquejo ? `${p.numero_bosquejo} ` : '';
+            const telefonos = obtenerListaTelefonos(p.telefono_orador).join('\n');
+
+            body.push([
+              { text: p.hora_inicio || '--:--', style: 'celdaNormal', bold: true, alignment: 'center' },
+              { text: [{ text: numBosquejo, style: 'textoBold' }, { text: p.tema || '' }], style: 'celdaNormal' },
+              { text: [{ text: `${p.nombre_orador || '---'}\n`, style: 'textoBold' }, { text: p.congregacion_orador || '', style: 'textoGris' }], style: 'celdaNormal' },
+              { text: telefonos, style: 'celdaNormal' },
+              { text: p.check_viernes ? '[ X ]' : '[   ]', style: 'celdaCentro', color: p.check_viernes ? '#16a34a' : '#cbd5e1' },
+              { text: p.check_dia ? '[ X ]' : '[   ]', style: 'celdaCentro', color: p.check_dia ? '#16a34a' : '#cbd5e1' },
+              { text: `${p.check_30m ? '[ X ]' : '[   ]'}  ${calcular30MinutosAntes(p.hora_inicio)}`, style: 'celdaNormal' }
+            ]);
+          });
+
+          (docDefinition.content as Content[]).push({
+            table: {
+              headerRows: 1,
+              widths: ['auto', '*', '*', 'auto', 'auto', 'auto', 'auto'],
+              body: body
+            },
+            layout: 'lightHorizontalLines'
+          });
+        }
+      });
+
+      // Generación y guardado usando Tauri Dialog
+      const pdfDocGenerator = pdf.createPdf(docDefinition);
+      const blob = await pdfDocGenerator.getBlob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const binary = new Uint8Array(arrayBuffer);
+
+      const path = await save({
+        defaultPath: `Registro_Oradores_${asambleaActiva?.identificador || '000'}.pdf`,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      });
+
+      if (path) {
+        await writeFile(path, binary);
+        alert("✅ PDF Plano generado y guardado correctamente.");
+      }
+
+    } catch (e) {
+      console.error("Error al generar PDF plano:", e);
+      alert("Error al generar el PDF: " + e);
+    }
+  }
+
+  async function generarPDFRellenable() {
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const form = pdfDoc.getForm();
+
+      let page = pdfDoc.addPage([841.89, 595.28]); // A4 Apaisado
+      let { width, height } = page.getSize();
+      let yPos = height - 40;
+
+      // Cabecera principal
+      page.drawText('Registro de Oradores (Formulario Interactivo)', { x: 30, y: yPos, size: 18, font: fontBold });
+      yPos -= 15;
+      page.drawText(`${asambleaActiva?.tema || 'Sin tema'} • Número: ${asambleaActiva?.identificador || '000'}`, { x: 30, y: yPos, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+      yPos -= 30;
+
+      const dias = ['viernes', 'sábado', 'domingo'];
+
+      for (const dia of dias) {
+        if (programaAgrupado[dia] && programaAgrupado[dia].length > 0) {
+          
+          if (yPos < 100) {
+            page = pdfDoc.addPage([841.89, 595.28]);
+            yPos = height - 50;
+          }
+
+          page.drawText(dia.toUpperCase(), { x: 30, y: yPos, size: 12, font: fontBold, color: rgb(0.15, 0.43, 0.7) });
+          yPos -= 20;
+
+          // Cabeceras de tabla
+          page.drawText('HORA', { x: 30, y: yPos, size: 8, font: fontBold });
+          page.drawText('DISCURSO', { x: 80, y: yPos, size: 8, font: fontBold });
+          page.drawText('ORADOR', { x: 350, y: yPos, size: 8, font: fontBold });
+          page.drawText('VIE', { x: 620, y: yPos, size: 8, font: fontBold });
+          page.drawText('DÍA', { x: 680, y: yPos, size: 8, font: fontBold });
+          page.drawText('30 MIN', { x: 740, y: yPos, size: 8, font: fontBold });
+          
+          yPos -= 8;
+          page.drawLine({ start: { x: 30, y: yPos }, end: { x: width - 30, y: yPos }, thickness: 1, color: rgb(0.8, 0.8, 0.8) });
+          yPos -= 15;
+
+          for (const p of programaAgrupado[dia]) {
+            if (yPos < 40) {
+              page = pdfDoc.addPage([841.89, 595.28]);
+              yPos = height - 50;
+            }
+
+            page.drawText(p.hora_inicio || '--:--', { x: 30, y: yPos, size: 9, font: fontBold });
+            
+            // Truncar textos largos para que quepan
+            const temaTxt = `${p.numero_bosquejo ? p.numero_bosquejo + ' ' : ''}${p.tema || ''}`;
+            page.drawText(temaTxt.substring(0, 60), { x: 80, y: yPos, size: 9, font });
+            
+            const oradorTxt = p.nombre_orador ? p.nombre_orador.substring(0, 45) : '---';
+            page.drawText(oradorTxt, { x: 350, y: yPos, size: 9, font: fontBold });
+
+            // Creación de Checkboxes Interactivos
+            const cbViernes = form.createCheckBox(`v_${p.id}`);
+            cbViernes.addToPage(page, { x: 620, y: yPos - 2, width: 12, height: 12 });
+            if (p.check_viernes) cbViernes.check();
+
+            const cbDia = form.createCheckBox(`d_${p.id}`);
+            cbDia.addToPage(page, { x: 680, y: yPos - 2, width: 12, height: 12 });
+            if (p.check_dia) cbDia.check();
+
+            const cb30m = form.createCheckBox(`m_${p.id}`);
+            cb30m.addToPage(page, { x: 740, y: yPos - 2, width: 12, height: 12 });
+            if (p.check_30m) cb30m.check();
+
+            page.drawText(calcular30MinutosAntes(p.hora_inicio), { x: 760, y: yPos, size: 8, font });
+
+            yPos -= 20; // Siguiente fila
+          }
+          yPos -= 10; // Espacio entre días
+        }
+      }
+
+      // Generación y guardado usando Tauri Dialog
+      const pdfBytes = await pdfDoc.save(); // pdf-lib ya devuelve un Uint8Array nativo
+
+      const path = await save({
+        defaultPath: `Formulario_Registro_${asambleaActiva?.identificador || '000'}.pdf`,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      });
+
+      if (path) {
+        await writeFile(path, pdfBytes);
+        alert("✅ PDF Rellenable generado y guardado correctamente.");
+      }
+
+    } catch (e) {
+      console.error("Error al generar PDF rellenable:", e);
+      alert("Error al generar el PDF rellenable: " + e);
+    }
+  }
+
+
 </script>
 
 <div class="vista-programa-container">
@@ -201,8 +406,8 @@
     </header>
 
     <div class="controles-vista">
-      <button class="btn-pdf">Generar PDF</button>
-      <button class="btn-pdf-outline">Generar PDF rellenable</button>
+      <button class="btn-pdf" on:click={generarPDFPlano}>Generar PDF</button>
+      <button class="btn-pdf-outline" on:click={generarPDFRellenable}>Generar PDF rellenable</button>
     </div>
   </div>
 
@@ -586,5 +791,5 @@
     flex-direction: column;
     gap: 12px; /* Separación vertical entre diferentes números de teléfono */
   }
-  
+
 </style>
