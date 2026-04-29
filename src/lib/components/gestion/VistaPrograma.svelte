@@ -3,6 +3,21 @@
   import { invoke } from '@tauri-apps/api/core';
   import { FileUp } from 'lucide-svelte';
 
+  // --- IMPORTACIONES PARA PDF ---
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeFile } from '@tauri-apps/plugin-fs';
+  import pdfMake from 'pdfmake/build/pdfmake';
+  import pdfFonts from 'pdfmake/build/vfs_fonts';
+  import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
+
+  // Configuración estricta de fuentes
+  interface CustomPdfFonts { pdfMake?: { vfs: Record<string, string> }; vfs?: Record<string, string>; }
+  interface CustomPdfMake { vfs: Record<string, string>; createPdf: typeof pdfMake.createPdf; }
+  const fonts = pdfFonts as unknown as CustomPdfFonts;
+  const pdf = pdfMake as unknown as CustomPdfMake;
+  pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
+
+
   // --- ESTADO ---
   let asambleaActiva: any = null;
   let partes: any[] = [];
@@ -71,6 +86,105 @@
     if (f.includes('remota')) return 'Remote';
     return 'InPerson';
   }
+
+  async function generarPDFPrograma() {
+    try {
+      const docDefinition: TDocumentDefinitions = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        content: [
+          { text: 'Programa de Asamblea', style: 'header' },
+          { text: `${asambleaActiva?.tema || 'Sin tema'} • Número: ${asambleaActiva?.identificador || '000'}`, style: 'subheader' }
+        ],
+        styles: {
+          header: { fontSize: 22, bold: true, color: '#1e293b', margin: [0, 0, 0, 4] },
+          subheader: { fontSize: 12, color: '#64748b', margin: [0, 0, 0, 20] },
+          diaTitulo: { fontSize: 16, bold: true, color: '#2563eb', margin: [0, 15, 0, 5] },
+          sesionTitulo: { fontSize: 11, bold: true, color: '#475569', margin: [0, 10, 0, 5], characterSpacing: 1 },
+          tablaHeader: { bold: true, fontSize: 10, color: '#64748b', margin: [0, 4, 0, 4] },
+          celdaHora: { fontSize: 10, bold: true, color: '#475569', margin: [0, 4, 0, 4] },
+          celdaNormal: { fontSize: 10, margin: [0, 4, 0, 4], color: '#0f172a' },
+          textoGris: { fontSize: 8, color: '#94a3b8' }
+        }
+      };
+
+      // Si hay un día específico seleccionado, imprimimos solo ese. Si no, todos.
+      const diasAImprimir = filtroDia === 'Todos los dias' 
+        ? ['viernes', 'sábado', 'domingo'] 
+        : [filtroDia.toLowerCase()];
+
+      diasAImprimir.forEach(dia => {
+        if (programaAgrupado[dia]) {
+         (docDefinition.content as Content[]).push({ text: dia.toUpperCase(), style: 'diaTitulo' });
+
+          ['MAÑANA', 'TARDE'].forEach(sesion => {
+            if (programaAgrupado[dia][sesion] && programaAgrupado[dia][sesion].length > 0) {
+              
+              (docDefinition.content as Content[]).push({ text: sesion, style: 'sesionTitulo' });
+
+              const body: any[] = [];
+              
+              // No le ponemos fondo a la cabecera para que se vea más como un programa clásico
+              body.push([
+                { text: 'HORA', style: 'tablaHeader' },
+                { text: 'DISCURSO', style: 'tablaHeader' },
+                { text: 'ORADOR', style: 'tablaHeader' }
+              ]);
+
+              programaAgrupado[dia][sesion].forEach((p: any) => {
+                const numBosquejo = p.numero_bosquejo ? `${p.numero_bosquejo} ` : '';
+                const fuenteTag = formatearFuente(p.fuente);
+
+                body.push([
+                  { text: p.hora_inicio || '--:--', style: 'celdaHora' },
+                  { text: [{ text: numBosquejo, bold: true }, { text: p.tema || '' }], style: 'celdaNormal' },
+                  { text: [{ text: `${p.nombre_orador || '---'}\n`, bold: true }, { text: fuenteTag, style: 'textoGris' }], style: 'celdaNormal' }
+                ]);
+              });
+
+              (docDefinition.content as Content[]).push({
+                table: {
+                  headerRows: 1,
+                  widths: ['auto', '*', '*'],
+                  body: body
+                },
+                layout: 'lightHorizontalLines',
+                margin: [0, 0, 0, 15]
+              });
+            }
+          });
+        }
+      });
+
+      // Si no hay datos (ej. si filtró un día vacío)
+      if (partesFiltradas.length === 0) {
+          (docDefinition.content as Content[]).push({ text: 'No hay datos del programa para mostrar en este filtro.', margin: [0, 20, 0, 0], italics: true, color: 'gray' });
+      }
+
+      // Generar y Guardar
+      const pdfDocGenerator = pdf.createPdf(docDefinition);
+      const blob = await pdfDocGenerator.getBlob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const binary = new Uint8Array(arrayBuffer);
+
+      let sufijoDia = filtroDia === 'Todos los dias' ? 'Completo' : filtroDia;
+      
+      const path = await save({
+        defaultPath: `Programa_${sufijoDia}_${asambleaActiva?.identificador || '000'}.pdf`,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      });
+
+      if (path) {
+        await writeFile(path, binary);
+        alert("✅ Programa guardado correctamente.");
+      }
+
+    } catch (e) {
+      console.error("Error al generar PDF del programa:", e);
+      alert("Error al generar el PDF: " + e);
+    }
+  }
+  
 </script>
 
 <div class="vista-programa-container">
@@ -91,7 +205,7 @@
         <option value="domingo">Domingo</option>
       </select>
 
-      <button class="btn-pdf">Generar PDF</button>
+      <button class="btn-pdf" on:click={generarPDFPrograma}>Generar PDF</button>
     </div>
   </div>
   <div class="contenido-programa">

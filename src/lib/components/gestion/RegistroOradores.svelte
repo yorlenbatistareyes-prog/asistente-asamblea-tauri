@@ -220,7 +220,7 @@ async function generarPDFPlano() {
         styles: {
           header: { fontSize: 20, bold: true, color: '#1e293b', margin: [0, 0, 0, 4] },
           subheader: { fontSize: 11, color: '#64748b', margin: [0, 0, 0, 15] },
-          diaTitulo: { fontSize: 14, bold: true, color: '#286eb4', margin: [0, 15, 0, 5], textTransform: 'uppercase' },
+          diaTitulo: { fontSize: 14, bold: true, color: '#286eb4', margin: [0, 15, 0, 5] },
           tablaHeader: { bold: true, fontSize: 9, color: 'white', fillColor: '#286eb4', alignment: 'center', margin: [0, 4, 0, 4] },
           celdaNormal: { fontSize: 8, margin: [0, 4, 0, 4], color: '#334155' },
           celdaCentro: { fontSize: 8, margin: [0, 4, 0, 4], alignment: 'center', bold: true },
@@ -233,7 +233,7 @@ async function generarPDFPlano() {
       
       dias.forEach(dia => {
         if (programaAgrupado[dia] && programaAgrupado[dia].length > 0) {
-          (docDefinition.content as Content[]).push({ text: dia, style: 'diaTitulo' });
+          (docDefinition.content as Content[]).push({ text: dia.toUpperCase(), style: 'diaTitulo' });
 
           const body: any[] = [];
           
