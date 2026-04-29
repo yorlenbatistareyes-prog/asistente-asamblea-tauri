@@ -98,6 +98,43 @@
     return tel.replace(/[\s\-\(\)]/g, ''); // Quita espacios y guiones
   }
 
+  // --- SEPARADOR INTELIGENTE DE MÚLTIPLES TELÉFONOS ---
+  function obtenerListaTelefonos(telefonosStr: string): string[] {
+    if (!telefonosStr) return [];
+    
+    // Si usaste comas o slashes para separar, es fácil:
+    if (telefonosStr.includes(',') || telefonosStr.includes('/')) {
+      return telefonosStr.split(/[,/]/).map(t => t.trim()).filter(t => t.length > 4);
+    }
+
+    // Si están separados por espacios, usamos lógica para no romper números como "05 3389329"
+    let partes = telefonosStr.trim().split(/\s+/);
+    let numerosReales: string[] = [];
+    let temporal = "";
+
+    for (let parte of partes) {
+      // Reconstruimos el string respetando los espacios que el usuario puso
+      temporal += (temporal.length > 0 ? " " : "") + parte;
+      
+      // Contamos cuántos números reales hay en este fragmento
+      let digitos = temporal.replace(/\D/g, '');
+      
+      // En Cuba, un móvil o fijo completo tiene al menos 8 dígitos
+      if (digitos.length >= 8) {
+          numerosReales.push(temporal);
+          temporal = ""; // Reseteamos para buscar el siguiente número
+      }
+    }
+
+    // Si quedó un número suelto al final (ej. un teléfono fijo de 6 dígitos)
+    if (temporal.replace(/\D/g, '').length > 4) {
+        numerosReales.push(temporal);
+    }
+
+    return numerosReales.length > 0 ? numerosReales : [telefonosStr];
+  } 
+
+
   async function llamarCelular(telefono: string) {
     let telLimpio = limpiarTelefono(telefono);
     // Si es un número de Cuba sin código (ej. 53359097), le añade el +53
@@ -210,13 +247,17 @@
 
               <div class="td-movil">
                 {#if parte.telefono_orador}
-                  <div class="acciones-tel">
-                    <button class="btn-celular" on:click={() => llamarCelular(parte.telefono_orador)} title="Llamar">
-                      <Phone size={13}/> {parte.telefono_orador}
-                    </button>
-                    <button class="btn-whatsapp" on:click={() => abrirWhatsApp(parte.telefono_orador)} title="Mensaje por WhatsApp">
-                      <MessageCircle size={13}/> WhatsApp
-                    </button>
+                  <div class="lista-telefonos">
+                    {#each obtenerListaTelefonos(parte.telefono_orador) as tel}
+                      <div class="acciones-tel">
+                        <button class="btn-celular" on:click={() => llamarCelular(tel)} title="Llamar">
+                          <Phone size={13}/> {tel}
+                        </button>
+                        <button class="btn-whatsapp" on:click={() => abrirWhatsApp(tel)} title="Mensaje por WhatsApp">
+                          <MessageCircle size={13}/> WhatsApp
+                        </button>
+                      </div>
+                    {/each}
                   </div>
                 {:else}
                   <span class="sin-datos">---</span>
@@ -539,4 +580,11 @@
       width: 90px;
     }
   }
+
+  .lista-telefonos {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Separación vertical entre diferentes números de teléfono */
+  }
+  
 </style>
