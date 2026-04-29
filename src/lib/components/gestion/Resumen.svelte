@@ -285,8 +285,11 @@
     }
 
     const dias = ['Viernes', 'Sábado', 'Domingo'];
-    let pendientes: any[] = []; 
-    let confirmadosCount = 0;
+    
+    // 👇 NUEVO: Usamos Map y Set para contar personas únicas, no discursos
+    let pendientesMap = new Map();
+    let confirmadosNombres = new Set(); 
+    
     programaCompletoCache = [];
 
     for (const dia of dias) {
@@ -295,9 +298,32 @@
             if (Array.isArray(partes)) {
                 partes.forEach(p => {
                     programaCompletoCache.push({ ...p, dia });
-                    if (!p.es_video && p.nombre_orador) {
-                        if (p.estado === 'Confirmado' || p.recibido_manual) confirmadosCount++;
-                        else pendientes.push({ ...p, dia });
+                    
+                    // Verificamos que sea una persona real (no video ni espacio vacío)
+                    if (!p.es_video && p.nombre_orador && p.nombre_orador.trim() !== '') {
+                        const nombre = p.nombre_orador.trim();
+
+                        if (p.estado === 'Confirmado' || p.recibido_manual) {
+                            // Añade a la lista de confirmados (ignora repetidos automáticamente)
+                            confirmadosNombres.add(nombre);
+                            
+                            // Si lo teníamos en pendientes por otro discurso, lo borramos
+                            if (pendientesMap.has(nombre)) {
+                                pendientesMap.delete(nombre);
+                            }
+                        } else {
+                            // Si NO ha confirmado nada aún
+                            if (!confirmadosNombres.has(nombre)) {
+                                // Lo agregamos a pendientes solo si no estaba ya
+                                if (!pendientesMap.has(nombre)) {
+                                    pendientesMap.set(nombre, { ...p, dia });
+                                } else {
+                                    // Marca interna por si luego quieres poner un texto tipo "2 partes"
+                                    let datosOrador = pendientesMap.get(nombre);
+                                    datosOrador.multiples_partes = true; 
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -305,7 +331,12 @@
     }
     
     programaCompletoCache.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
-    estadisticasPrograma.confirmados = confirmadosCount;
+    
+    // 👇 Convertimos el Map en una lista normal para mostrar en pantalla
+    let pendientes = Array.from(pendientesMap.values());
+
+    // Ahora guardamos la cantidad real de personas únicas
+    estadisticasPrograma.confirmados = confirmadosNombres.size;
     estadisticasPrograma.pendientes = pendientes.length;
     oradoresPendientesLista = pendientes;
     
