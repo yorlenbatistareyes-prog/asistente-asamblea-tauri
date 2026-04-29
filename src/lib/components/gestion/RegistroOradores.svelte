@@ -123,6 +123,34 @@
         console.error("Error al abrir WhatsApp:", e);
     }
   }
+
+  async function toggleCheck(id: number, campo: string, valorActual: boolean) {
+    try {
+      // Invertimos el valor al hacer clic
+      const nuevoValor = !valorActual;
+      
+      // Llamamos a Rust para que lo guarde permanentemente
+      await invoke('actualizar_check_registro', { 
+        id, 
+        campo, 
+        valor: nuevoValor 
+      });
+
+      // Actualizamos la interfaz visualmente sin recargar todo
+      partes = partes.map(p => {
+        if (p.id === id) {
+          return { ...p, [campo]: nuevoValor };
+        }
+        return p;
+      });
+      agruparPorDia(partes);
+      
+    } catch (e) {
+      console.error("Error al guardar en BD:", e);
+      alert("No se pudo guardar el cambio.");
+    }
+  }
+
 </script>
 
 <div class="vista-programa-container">
@@ -195,11 +223,31 @@
                 {/if}
               </div>
 
-              <div class="td-check"><input type="checkbox" class="caja-check"/></div>
-              <div class="td-check"><input type="checkbox" class="caja-check"/></div>
+              <div class="td-check">
+                <input 
+                  type="checkbox" 
+                  class="caja-check" 
+                  checked={parte.check_viernes === 1 || parte.check_viernes === true} 
+                  on:change={() => toggleCheck(parte.id, 'check_viernes', parte.check_viernes)} 
+                />
+              </div>
+
+              <div class="td-check">
+                <input 
+                  type="checkbox" 
+                  class="caja-check" 
+                  checked={parte.check_dia === 1 || parte.check_dia === true} 
+                  on:change={() => toggleCheck(parte.id, 'check_dia', parte.check_dia)} 
+                />
+              </div>
               
               <div class="td-check30">
-                <input type="checkbox" class="caja-check"/>
+                <input 
+                  type="checkbox" 
+                  class="caja-check" 
+                  checked={parte.check_30m === 1 || parte.check_30m === true} 
+                  on:change={() => toggleCheck(parte.id, 'check_30m', parte.check_30m)} 
+                />
                 <span class="tiempo-30m">{calcular30MinutosAntes(parte.hora_inicio)}</span>
               </div>
             </div>

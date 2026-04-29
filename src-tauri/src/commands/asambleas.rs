@@ -382,3 +382,32 @@ pub fn eliminar_asamblea(app: AppHandle, id: i64) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// 7. ACTUALIZAR CAJITAS DE REGISTRO
+#[command]
+pub fn actualizar_check_registro(
+    app: AppHandle,
+    id: i32, 
+    campo: String, 
+    valor: bool,
+) -> Result<(), String> {
+    
+    // Usamos tu función conectar_db() que ya existe en este archivo
+    let conn = conectar_db(&app);
+
+    let valor_int = if valor { 1 } else { 0 };
+
+    let campo_valido = match campo.as_str() {
+        "check_viernes" => "check_viernes",
+        "check_dia" => "check_dia",
+        "check_30m" => "check_30m",
+        _ => return Err("Campo de check no válido".to_string()),
+    };
+
+    let query = format!("UPDATE programa SET {} = ? WHERE id = ?", campo_valido);
+
+    match conn.execute(&query, params![valor_int, id]) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Error al actualizar cajita: {}", e)),
+    }
+}

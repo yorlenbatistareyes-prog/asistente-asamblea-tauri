@@ -15,7 +15,7 @@ pub fn obtener_programa_dia(
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
     
-    // ✅ Añadido 'per.circuito' al final del SELECT
+    // ✅ Añadidos los 3 checks al final del SELECT
     let sql = "
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
@@ -25,7 +25,8 @@ pub fn obtener_programa_dia(
         p.numero_bosquejo, p.ensayo_terminado,
         p.fuente, p.es_betelita, p.es_interprete, p.es_visitante,
         per.circuito,
-        p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo
+        p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo,
+        p.check_viernes, p.check_dia, p.check_30m
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -57,12 +58,16 @@ pub fn obtener_programa_dia(
                 es_betelita: row.get(18).unwrap_or(false),
                 es_interprete: row.get(19).unwrap_or(false),
                 es_visitante: row.get(20).unwrap_or(false),
-                circuito_orador: row.get(21).ok(), // ✅ CAPTURAMOS EL CIRCUITO AQUÍ
+                circuito_orador: row.get(21).ok(), 
                 requiere_ensayo: row.get(22).unwrap_or(false),
                 fecha_ensayo: row.get(23).ok(),
                 hora_ensayo: row.get(24).ok(),
                 lugar_ensayo: row.get(25).ok(),
                 notas_ensayo: row.get(26).ok(),
+                // ✅ LEEMOS LOS DATOS AQUÍ (Índices 27, 28 y 29)
+                check_viernes: row.get(27).unwrap_or(false),
+                check_dia: row.get(28).unwrap_or(false),
+                check_30m: row.get(29).unwrap_or(false),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -327,3 +332,4 @@ pub fn obtener_oficina_dia(
 ) -> Result<Vec<AsignacionEspecial>, String> {
     Ok(vec![])
 }
+

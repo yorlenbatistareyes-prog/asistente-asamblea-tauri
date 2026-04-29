@@ -163,6 +163,8 @@ if ruta_pendiente.exists() {
             commands::asambleas::obtener_asambleas,
             commands::asambleas::eliminar_asamblea,
             commands::asambleas::obtener_info_extra_evento,
+            commands::asambleas::actualizar_check_registro,
+
             // IMPORTAR
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,

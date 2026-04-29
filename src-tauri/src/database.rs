@@ -231,6 +231,12 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN lugar_ensayo TEXT", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN notas_ensayo TEXT", []);
     
+    // MIGRACIONES PARA CAJITAS DE REGISTRO
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_viernes BOOLEAN DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_dia BOOLEAN DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_30m BOOLEAN DEFAULT 0", []);
+
+    
     // --- 9. CONFIGURACIÓN GENERAL ---
 
     conn.execute(

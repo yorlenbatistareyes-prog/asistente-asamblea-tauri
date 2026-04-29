@@ -99,6 +99,10 @@ pub struct PartePrograma {
     pub hora_ensayo: Option<String>,
     pub lugar_ensayo: Option<String>,
     pub notas_ensayo: Option<String>,
+
+    pub check_viernes: bool,
+    pub check_dia: bool,
+    pub check_30m: bool,
 }
 
 // ==========================================
