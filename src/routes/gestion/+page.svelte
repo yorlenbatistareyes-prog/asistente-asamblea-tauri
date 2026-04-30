@@ -186,7 +186,6 @@
       {#if seccionActiva === 'oficina'} <Oficina /> {/if}
       {#if seccionActiva === 'vista_programa'} <VistaPrograma /> {/if}
       {#if seccionActiva === 'ensayos'} <Ensayos /> {/if} 
-      {#if seccionActiva === 'oficina'} <Oficina /> {/if}
       {#if seccionActiva === 'registro_oradores'} <RegistroOradores /> {/if}
       {#if seccionActiva === 'lista_oradores'} <ListaOradores /> {/if}
     </div>
