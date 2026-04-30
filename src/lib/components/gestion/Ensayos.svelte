@@ -6,18 +6,36 @@
   let asambleaId = 0;
   let asambleaTema = '';
   let asambleaIdentificador = '';
+
+  // 👇 NUEVAS VARIABLES PARA EL ENSAYO GENERAL
+  let generalFechaEnsayo = '';
+  let generalHoraEnsayo = '';
+  let generalLugarEnsayo = '';
   
   let ensayosProgramados: any[] = [];
   let cargando = true;
 
   onMount(async () => {
-      // 1. Extraemos los datos completos de la asamblea para el subtítulo
       const datosGuardados = localStorage.getItem('asambleaActiva');
       if (datosGuardados) {
-          const asamblea = JSON.parse(datosGuardados);
-          asambleaId = asamblea.id;
-          asambleaTema = asamblea.tema || 'Sin tema';
-          asambleaIdentificador = asamblea.identificador || '0000';
+          const asambleaLocal = JSON.parse(datosGuardados);
+          asambleaId = asambleaLocal.id;
+
+          // 👇 VAMOS A LA BD A BUSCAR LOS DATOS GENERALES
+          try {
+              const asambleaDb: any = await invoke('obtener_asamblea_por_id', { id: asambleaId });
+              if (asambleaDb) {
+                  asambleaTema = asambleaDb.tema || 'Sin tema';
+                  asambleaIdentificador = asambleaDb.identificador || '0000';
+                  
+                  generalFechaEnsayo = asambleaDb.ensayo_fecha || '';
+                  generalHoraEnsayo = asambleaDb.ensayo_hora || '';
+                  generalLugarEnsayo = asambleaDb.ensayo_lugar || '';
+              }
+          } catch (e) {
+              console.error("Error al obtener la asamblea:", e);
+          }
+
           await cargarEnsayos();
       }
       cargando = false;
@@ -48,11 +66,15 @@
           }
       }
 
+      // 👇 ORDENAMOS USANDO LA FECHA ESPECÍFICA O LA GENERAL SI ESTÁ VACÍA
       ensayosTemp.sort((a, b) => {
-          const fechaA = a.fecha_ensayo || '9999-99-99';
-          const fechaB = b.fecha_ensayo || '9999-99-99';
+          const fechaA = a.fecha_ensayo || generalFechaEnsayo || '9999-99-99';
+          const fechaB = b.fecha_ensayo || generalFechaEnsayo || '9999-99-99';
           if (fechaA !== fechaB) return fechaA.localeCompare(fechaB);
-          return (a.hora_ensayo || '23:59').localeCompare(b.hora_ensayo || '23:59');
+          
+          const horaA = a.hora_ensayo || generalHoraEnsayo || '23:59';
+          const horaB = b.hora_ensayo || generalHoraEnsayo || '23:59';
+          return horaA.localeCompare(horaB);
       });
 
       ensayosProgramados = ensayosTemp;
@@ -144,16 +166,16 @@
                       <div class="zona-fechas">
                           <div class="bloque-dato">
                               <span class="lbl-dato">Fecha de ensayo</span>
-                              <span class="val-dato"><CalendarDays size={15}/> {e.fecha_ensayo || 'Sin fecha'}</span>
+                              <span class="val-dato"><CalendarDays size={15}/> {e.fecha_ensayo || generalFechaEnsayo || 'Sin fecha'}</span>
                           </div>
                           <div class="bloque-dato">
                               <span class="lbl-dato">Hora</span>
-                              <span class="val-dato"><Clock size={15}/> {e.hora_ensayo || '--:--'}</span>
+                              <span class="val-dato"><Clock size={15}/> {e.hora_ensayo || generalHoraEnsayo || '--:--'}</span>
                           </div>
                       </div>
 
                       <div class="zona-lugar">
-                          <div class="lugar-texto"><MapPin size={16} style="flex-shrink:0;"/> {e.lugar_ensayo || 'Lugar no especificado'}</div>
+                          <div class="lugar-texto"><MapPin size={16} style="flex-shrink:0;"/> {e.lugar_ensayo || generalLugarEnsayo || 'Lugar no especificado'}</div>
                           {#if e.notas_ensayo}
                               <div class="notas-texto">"{e.notas_ensayo}"</div>
                           {/if}

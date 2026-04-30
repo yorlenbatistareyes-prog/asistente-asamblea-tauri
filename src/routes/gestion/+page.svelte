@@ -2,9 +2,9 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
-  import VistaPrograma from '$lib/components/gestion/VistaPrograma.svelte';
-  import RegistroOradores from '$lib/components/gestion/RegistroOradores.svelte';
-  import ListaOradores from '$lib/components/gestion/ListaOradores.svelte';
+  import VistaPrograma from '$lib/components/gestion/info_asamblea_paneles/VistaPrograma.svelte';
+  import RegistroOradores from '$lib/components/gestion/info_asamblea_paneles/RegistroOradores.svelte';
+  import ListaOradores from '$lib/components/gestion/info_asamblea_paneles/ListaOradores.svelte';
   
   // --- COMPONENTES ---
   import Oficina from '$lib/components/gestion/Oficina.svelte';
