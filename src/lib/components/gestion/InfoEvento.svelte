@@ -341,6 +341,20 @@
         
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
+
+        tempEnsayos = { 
+            ensayoLugar, 
+            ensayoFecha, 
+            ensayoHora, 
+            htmlNotas 
+        };
+
+        tempOrientaciones = { 
+            htmlOrientaciones, 
+            instruccionesEsp, 
+            jwStreamStudio 
+        };
+        
         await contarOradoresPendientes(asamblea.id);
       }
 
@@ -466,7 +480,7 @@
   </Panel>
 
   <div class="grupo-acordeones">
-  
+
   <Panel padding="0" clasesExtra="tarjeta-acordeon">
     <div class="header-acordeon" on:click={() => verEnsayosPanel = !verEnsayosPanel} role="button" tabindex="0">
       <div class="titulo-acordeon">
