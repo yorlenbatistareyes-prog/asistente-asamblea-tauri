@@ -236,6 +236,21 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_dia BOOLEAN DEFAULT 0", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_30m BOOLEAN DEFAULT 0", []);
 
+    // --- NUEVAS COLUMNAS PARA PERSONAS (Persistencia de Checkboxes) ---
+    // Estas líneas aseguran que la tabla 'personas' tenga los campos necesarios
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN responsabilidades TEXT DEFAULT '{\"registro\":false,\"ensayos\":false,\"orientaciones\":false,\"presidentes\":false,\"acompañar_plataforma\":false}'", []);
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN disponibilidad TEXT DEFAULT '{\"viernes\":false,\"sabado\":false,\"domingo\":false}'", []);
+    
+    // --- NUEVA TABLA: DETALLES DE OFICINA ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS detalles_oficina (
+            persona_id INTEGER PRIMARY KEY,
+            responsabilidades TEXT DEFAULT '{\"registro\":false,\"ensayos\":false,\"orientaciones\":false,\"presidentes\":false,\"acompañar_plataforma\":false}',
+            disponibilidad TEXT DEFAULT '{\"viernes\":false,\"sabado\":false,\"domingo\":false}',
+            FOREIGN KEY(persona_id) REFERENCES personas(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
     
     // --- 9. CONFIGURACIÓN GENERAL ---
 

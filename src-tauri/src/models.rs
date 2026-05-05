@@ -121,6 +121,8 @@ pub struct AsignacionEspecialDTO {
     pub estado: Option<String>,
     pub esta_presente: bool,
     pub ensayo_terminado: bool,
+    pub responsabilidades: Option<String>,
+    pub disponibilidad: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

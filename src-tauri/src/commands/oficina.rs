@@ -29,12 +29,16 @@ pub fn obtener_asignaciones_especiales(
             p.email,
             ae.estado,
             ae.esta_presente,
-            ae.ensayo_terminado
+            ae.ensayo_terminado,
+            d.responsabilidades,
+            d.disponibilidad
         FROM asignaciones_especiales ae
         JOIN personas p ON ae.persona_id = p.id
         LEFT JOIN congregaciones c ON p.id_congregacion = c.id
-        WHERE ae.asamblea_id = ?1 AND ae.dia = ?2
+        LEFT JOIN detalles_oficina d ON p.id = d.persona_id 
+        WHERE ae.asamblea_id = ?1 AND (ae.dia = ?2 OR ae.tipo_asignacion = 'personal_oficina')
     ";
+    // 👆 Fíjate en las dos líneas de arriba: El LEFT JOIN que faltaba y el nuevo WHERE.
 
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
 
@@ -51,6 +55,8 @@ pub fn obtener_asignaciones_especiales(
                 estado: row.get(7).ok(),
                 esta_presente: row.get(8)?,
                 ensayo_terminado: row.get(9)?,
+                responsabilidades: row.get(10).ok(), 
+                disponibilidad: row.get(11).ok(),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -61,7 +67,6 @@ pub fn obtener_asignaciones_especiales(
     }
     Ok(resultado)
 }
-
 // --- ESCRITURA: Guardar una asignación EN ESTA ASAMBLEA ---
 #[command]
 pub fn guardar_asignacion_especial(
@@ -143,4 +148,21 @@ pub fn alternar_estado_oficina(
         .map_err(|e| e.to_string())?;
 
     Ok("Actualizado".to_string())
+}
+
+#[command]
+pub fn guardar_detalles_oficina(
+    app: AppHandle,
+    persona_id: i32, 
+    responsabilidades: String, 
+    disponibilidad: String,
+) -> Result<String, String> {
+    let conn = conectar_db(&app);
+
+    conn.execute(
+        "INSERT OR REPLACE INTO detalles_oficina (persona_id, responsabilidades, disponibilidad) VALUES (?1, ?2, ?3)",
+        params![persona_id, responsabilidades, disponibilidad],
+    ).map_err(|e| e.to_string())?;
+
+    Ok("Detalles guardados exitosamente".to_string())
 }

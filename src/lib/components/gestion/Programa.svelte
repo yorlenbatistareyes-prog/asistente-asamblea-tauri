@@ -1419,7 +1419,7 @@ async function cargarTodosDias() {
 {/if}
 
 {#if mostrarPanelFiltros}
-  <div class="modal-backdrop" on:click|self={() => mostrarPanelFiltros = false}>
+  <div class="modal-backdrop" role="dialog" aria-modal="true" on:click|self={() => mostrarPanelFiltros = false} on:keydown={(e) => { if (e.key === 'Escape') mostrarPanelFiltros = false; }}>
     <div class="modal-filtros">
       <div class="modal-header">
         <h3><Settings size={20}/> Filtros</h3>
@@ -1577,17 +1577,8 @@ async function cargarTodosDias() {
 .tarjeta-acordeon.estado-presente:hover { background-color: rgba(16, 185, 129, 0.12); }
 .tarjeta-acordeon.estado-confirmado:hover { background-color: rgba(59, 130, 246, 0.12); }
 .tarjeta-acordeon.estado-ensayo:hover { background-color: rgba(249, 115, 22, 0.12); }
-/* Textos */
-.hora { font-weight: 800; color: var(--primary); font-size: 16px; line-height: 1.2; }
-.duracion { font-size: 11px; color: var(--text-secondary); }
 .tema-txt { font-weight: 600; color: var(--text-main); font-size: 15px; line-height: 1.3; }
 .orador-nombre { font-weight: 600; color: var(--text-main); font-size: 13px; text-transform: uppercase; }
-
-/* --- ICONOS MINI --- */
-.icon-indicator.green { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-.icon-indicator.blue { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.icon-indicator.orange { background: rgba(249, 115, 22, 0.2); color: #f97316; }
-.icon-indicator.gray { background: rgba(107, 114, 128, 0.2); color: var(--text-secondary); }
 
 /* Botones Cabecera */
 .acciones-header { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 100%; margin-top: 5px; }
@@ -1603,13 +1594,6 @@ async function cargarTodosDias() {
 .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 
 /* Botones Grandes Estado */
-.checks-grandes { display: flex; gap: 10px; align-items: center; }
-
-.btn-status-toggle span { font-size: 8.5px; font-weight: 800; text-transform: uppercase; }
-
-.btn-status-toggle.blue.active { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; color: #3b82f6; }
-.btn-status-toggle.green.active { background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981; }
-.btn-status-toggle.orange.active { background: rgba(249, 115, 22, 0.15); border-color: #f97316; color: #f97316; }
 
 /* NUEVOS ESTILOS DE LA TARJETA */
 .col-main-info { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
@@ -1640,44 +1624,12 @@ async function cargarTodosDias() {
   width: 100%;
 }
 
-.btn-outline-blue, 
-.btn-outline-orange, 
-.btn-outline-gray, 
-.btn-outline-green {
-  flex: 1;                   /* Que todos crezcan por igual */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 34px;              /* Altura bien compacta */
-  padding: 0 4px !important;
-  border-radius: 6px;
-  font-size: 10px !important; /* Fuente pequeña para que quepa el texto */
-  font-weight: 700;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid rgba(0,0,0,0.1) !important;
-}
-
-/* Colores de fondo suaves para que no parezcan cajas de texto vacías */
-.btn-outline-gray { background: #f1f5f9; color: #475569; }
-.btn-outline-orange { background: #fff7ed; color: #c2410c; border-color: #ffedd5 !important; }
-.btn-outline-green { background: #f0fdf4; color: #15803d; border-color: #dcfce7 !important; }
-
-.btn-outline-blue:hover, .btn-outline-orange:hover, .btn-outline-green:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-}
-
 /* Ajuste opcional para los iconos dentro de esos botones */
 .grid-acciones :global(svg) {
   flex-shrink: 0;
   width: 14px !important;
   height: 14px !important;
 }
-
-.btn-outline-gray:hover { background: var(--hover-bg); }
 
 
 /* Modales */
@@ -1697,35 +1649,25 @@ async function cargarTodosDias() {
     padding: 60px 20px; /* 👈 AUMENTAMOS DE 20px a 60px PARA EMPUJARLO HACIA ABAJO */
 }
 
-.modal, .modal-emails { 
-    background: var(--bg-card); 
-    border-radius: 12px; 
-    border: 1px solid var(--border); 
-    box-shadow: var(--shadow-premium); 
-    display: flex; 
-    flex-direction: column; 
-    overflow: hidden; 
+.modal {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-premium);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     max-height: 75vh; /* 👈 REDUCIMOS AL 75% DE LA PANTALLA PARA QUE NO LLEGUE AL TECHO */
 }
 
 .modal { width: 480px; max-width: 100%; }
-.modal-emails { width: 90%; max-width: 650px; }
 
-.modal-header, .modal-emails .modal-header { padding: 16px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-.modal-body, .modal-emails .modal-contenido { padding: 24px; overflow-y: auto; flex: 1; background: var(--bg-body); }
-.modal-header h3, .modal-emails .modal-header h3 { color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 10px; }
+.modal-header { padding: 16px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; background: var(--bg-body); }
+.modal-header h3 { color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 10px; }
 
 .btn-close { color: var(--text-secondary); opacity: 0.7; background: none; border: none; cursor: pointer; }
 .btn-close:hover { opacity: 1; color: #ef4444; }
-
-.buscador { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-.buscador input { border: none; outline: none; flex: 1; background: transparent; color: var(--text-main); }
-.lista-opciones { margin-top: 10px; }
-.item-opcion { display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-card); border: none; border-bottom: 1px solid var(--border); cursor: pointer; width: 100%; text-align: left; color: var(--text-main); }
-.item-opcion:hover { background: var(--hover-bg); }
-.avatar { width: 32px; height: 32px; background: rgba(59, 130, 246, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
-.nombre { font-weight: 600; font-size: 14px; color: var(--text-main); }
-.detalle { font-size: 12px; color: var(--text-secondary); }
 
 /* Formularios Unificados */
 .form-title { margin: 0 0 16px 0; font-size: 13px; font-weight: 800; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 8px; }
@@ -1733,11 +1675,10 @@ async function cargarTodosDias() {
 .campo { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; width: 100%; }
 .campo label { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
 
-.campo input, .campo select, .input-icon input, .form-group input[type="text"], .form-group select, .form-group textarea { 
-  padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; outline: none; background: var(--bg-body); color: var(--text-main); font-size: 14px; font-family: inherit; transition: all 0.2s ease; width: 100%; box-sizing: border-box; 
+.campo input, .campo select, .input-icon input {
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; outline: none; background: var(--bg-body); color: var(--text-main); font-size: 14px; font-family: inherit; transition: all 0.2s ease; width: 100%; box-sizing: border-box;
 }
-.form-group textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
-.campo input:focus, .campo select:focus, .input-icon input:focus, .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+.campo input:focus, .campo select:focus, .input-icon input:focus { border-color: var(--primary); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
 
 .input-icon { position: relative; display: flex; align-items: center; width: 100%; }
 .input-icon :global(svg) { position: absolute; left: 12px; color: var(--text-secondary); pointer-events: none; }
@@ -1751,9 +1692,6 @@ async function cargarTodosDias() {
 .sugerencia-item { display: flex; justify-content: space-between; width: 100%; padding: 10px; border: none; background: var(--bg-card); text-align: left; cursor: pointer; border-bottom: 1px solid var(--border); color: var(--text-main); }
 .sugerencia-item:hover { background: var(--hover-bg); }
 
-.check-inline { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
-.checks-row { display: flex; flex-direction: column; gap: 2px; }
-.strong-check { color: var(--text-main); font-weight: 600; font-size: 11px; }
 /* =====================================
    BOTONES DE EDICIÓN Y ELIMINAR (ESTILO CUADRADO)
    ===================================== */
@@ -1793,10 +1731,6 @@ async function cargarTodosDias() {
 .btn-icon-square.delete {
   background-color: #ff2b3d; 
 }
-
-.btn-tool { background: none; border: none; font-size: 12px; display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-secondary); }
-.btn-tool:hover { color: var(--primary); text-decoration: underline; }
-.btn-tool.delete:hover { color: #ef4444; }
 
 .btn-header-pdf { background: #dc2626; color: white; padding: 8px 12px; border-radius: 6px; border: none; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .btn-header-pdf:hover { background: #b91c1c; transform: translateY(-1px); }
@@ -1993,12 +1927,6 @@ async function cargarTodosDias() {
     }
 
     /* Los 3 checks principales en línea pero ajustados */
-    .checks-grandes {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-    }
 
     .btn-status-toggle {
         width: 100%;
@@ -2032,7 +1960,7 @@ async function cargarTodosDias() {
     }
 
     /* 4. MODALES (AÑADIR/EDITAR PARTE) */
-    .modal, .modal-emails, .modal-filtros, .modal-confirm {
+    .modal, .modal-filtros, .modal-confirm {
         width: 95vw !important;
         padding: 0;
     }
@@ -2092,11 +2020,13 @@ async function cargarTodosDias() {
 
 /* Asegurar que los de estado sean perfectamente circulares */
 .radio-label-filtro input[type="radio"] {
-    -webkit-appearance: radio !important; 
+    -webkit-appearance: radio !important;
+    appearance: radio !important;
 }
 
 /* Asegurar que los de características/fuente sean cuadrados */
 .checkbox-label input[type="checkbox"] {
     -webkit-appearance: checkbox !important;
+    appearance: checkbox !important;
 }
 </style>

@@ -563,28 +563,46 @@
 </div>
 
 {#if mostrarModalAsistencia}
-<div class="modal-backdrop" on:click|self={() => mostrarModalAsistencia = false}>
+<div class="modal-backdrop" role="dialog" aria-modal="true" on:click|self={() => mostrarModalAsistencia = false} on:keydown={(e) => { if (e.key === 'Escape') mostrarModalAsistencia = false; }}>
     <div class="modal-content-asistencia">
         <div class="modal-header">
             <h3>Registro de Asistencia</h3>
-            <button class="btn-close" on:click={() => mostrarModalAsistencia = false}>✕</button>
+            <button class="btn-close" on:click={() => mostrarModalAsistencia = false} aria-label="Cerrar modal">✕</button>
         </div>
-        
+
         <div class="grid-dias">
             <div class="col-dia">
                 <h4>Viernes</h4>
-                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}></div>
-                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal">
+                    <label for="viernes-am">Mañana</label>
+                    <input id="viernes-am" type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label for="viernes-pm">Tarde</label>
+                    <input id="viernes-pm" type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}>
+                </div>
             </div>
             <div class="col-dia">
                 <h4>Sábado</h4>
-                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}></div>
-                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal">
+                    <label for="sabado-am">Mañana</label>
+                    <input id="sabado-am" type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label for="sabado-pm">Tarde</label>
+                    <input id="sabado-pm" type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}>
+                </div>
             </div>
             <div class="col-dia">
                 <h4>Domingo</h4>
-                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}></div>
-                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal">
+                    <label for="domingo-am">Mañana</label>
+                    <input id="domingo-am" type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label for="domingo-pm">Tarde</label>
+                    <input id="domingo-pm" type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}>
+                </div>
             </div>
         </div>
         
@@ -607,26 +625,6 @@
     max-width: 1600px; /* 👈 Evita que se estire demasiado en monitores gigantes */
     margin: 0 auto; /* 👈 Lo centra si el monitor es ultra-ancho */
   }
-  
-  .header-torre {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    padding-bottom: 10px; border-bottom: 1px solid var(--border);
-  }
-  h2 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
-  .subtitulo-header { font-size: 0.9rem; color: var(--text-sec); }
-  .reloj-badge {
-    font-size: 1.5rem; font-weight: 800; color: var(--primary);
-    display: flex; align-items: center; gap: 10px;
-    background: var(--bg-card); padding: 5px 15px; border-radius: 12px;
-    border: 1px solid var(--border);
-  }
-
-  .main-grid {
-    display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px;
-  }
-  @media (max-width: 950px) { .main-grid { grid-template-columns: 1fr; } }
-
-  .col-left, .col-right { display: flex; flex-direction: column; gap: 20px; }
 
   /* --- TARJETAS STATS --- */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -867,14 +865,6 @@
     border-color: var(--text-sec) !important; /* Usa el texto secundario que en oscuro es #cbd5e1 */
 }
 
-.live-monitor {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow-premium);
-    overflow: hidden;
-}
-
 /* Ajuste para que el header mantenga sus bordes redondeados arriba */
 .monitor-header {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
@@ -898,10 +888,6 @@
 
 @media (max-width: 768px) {
     /* 1. LAYOUT DE COLUMNAS (TODO HACIA ABAJO) */
-    .main-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
 
     /* 1.5 AJUSTE DEL CONTENEDOR PRINCIPAL PARA MÓVIL */
     .dashboard-container {

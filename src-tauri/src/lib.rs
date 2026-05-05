@@ -184,8 +184,10 @@ if ruta_pendiente.exists() {
             // --- OFICINA (Aquí estaba el problema antes) ---
             commands::oficina::obtener_asignaciones_especiales,
             commands::oficina::guardar_asignacion_especial, // <--- ¡ESTE ES EL QUE FALTABA!
+            commands::oficina::guardar_detalles_oficina,
             commands::oficina::eliminar_asignacion_especial,
             commands::oficina::alternar_estado_oficina,
+            
 
             // CORRESPONDENCIA
             commands::correspondencia::obtener_plantilla,
