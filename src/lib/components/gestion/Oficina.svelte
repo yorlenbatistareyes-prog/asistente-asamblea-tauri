@@ -7,7 +7,7 @@
   import { 
     Users, Search, X, Trash2, Phone, Mail, UserPlus, UserCheck, 
     Settings, ChevronRight, MessageCircle, ClipboardList, Printer,
-    Briefcase, Calendar, Clock, Edit2, Download
+    Briefcase, Calendar, Clock, Edit2, Download, FileUp
   } from 'lucide-svelte';
 
   import { exportarOficinaPDF } from '$lib/utils/exportar';
@@ -283,7 +283,7 @@
     
     <div class="tabs-navegacion">
         <button class:active={tabPrincipal === 'auxiliares'} on:click={() => tabPrincipal = 'auxiliares'}>
-            <Users size={18}/> Personal de oficina
+            <Users size={18}/> Auxiliares de oficina
         </button>
         <button class:active={tabPrincipal === 'asignaciones'} on:click={() => tabPrincipal = 'asignaciones'}>
             <Calendar size={18}/> Horario de oficina
@@ -294,7 +294,7 @@
         <div class="area-fade-in">
             <div class="header-seccion">
                 <div class="textos">
-                    <h2>Personal de oficina</h2>
+                    <h2>Auxiliares de oficina</h2>
                     <p>Hermanos que apoyan en las diversas tareas de la oficina.</p>
                 </div>
                 <button class="btn-primary" on:click={() => abrirModalAsignar('personal_oficina')}>
@@ -359,13 +359,13 @@
                     </div>
 
                     <button class="btn-outline" on:click={manejarExportacionTotal}>
-                        <Download size={16}/> Exportar PDF
+                        <FileUp size={16}/> Exportar PDF
                     </button>
 
                     <button class="btn-primary" on:click={abrirModalBloqueAsignacion}>
                         <Edit2 size={16}/> Agregar horario
                     </button>
-                    
+
                 </div>
             </div>
 

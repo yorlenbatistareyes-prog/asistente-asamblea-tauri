@@ -163,7 +163,7 @@ export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo
 
     // Píldora Auxiliares
     contenidoDoc.push({
-        table: { widths: ['auto'], body: [[{ text: 'PERSONAL REGISTRADO', bold: true, color: 'white', fillColor: '#475569', margin: [10, 4, 10, 4] }]] },
+        table: { widths: ['auto'], body: [[{ text: 'AUXILIARES', bold: true, color: 'white', fillColor: '#475569', margin: [10, 4, 10, 4] }]] },
         layout: 'noBorders', margin: [0, 0, 0, 5]
     });
 
