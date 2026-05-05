@@ -15,7 +15,6 @@
   let tabPrincipal = 'auxiliares'; 
   let diaSeleccionado = 'Viernes';
   
-  // Datos procesados
   let oficina: { [key: string]: any } = {
       personal: [] as any[],
       asignaciones: {} 
@@ -25,14 +24,12 @@
   let terminoBusqueda = "";
   let mostrarSugerencias = false; 
   
-  // Modales
   let mostrarModalAsignar = false;      
   let mostrarModalBloqueAsignacion = false; 
   
   let rolOficinaEditando: string | null = null; 
-  let modoEdicion = false; // NUEVO: Controla si estamos agregando o editando
+  let modoEdicion = false; 
 
-  // Formulario para el nuevo modal de Asignaciones
   let formAsignacion = {
       dia: 'Viernes',
       seccion: 'manana',
@@ -43,7 +40,6 @@
       plataforma: null as number | null
   };
   
-  // Estados para checkboxes del modal de "Añadir/Editar Auxiliar"
   let personaSeleccionadaId: number | null = null;
   let responsabilidades = {
     registro: false, ensayos: false, orientaciones: false,
@@ -95,8 +91,24 @@
       oficina = nuevaOficina;
   }
 
+  // --- LÓGICA ASIGNACIONES (BLOQUE) ---
   function abrirModalBloqueAsignacion() {
       formAsignacion = { dia: diaSeleccionado, seccion: 'manana', presidente: null, registro: null, ensayos: null, orientaciones: null, plataforma: null };
+      mostrarModalBloqueAsignacion = true;
+  }
+
+  // 👇 NUEVA FUNCIÓN: CARGAR DATOS EXISTENTES EN EL MODAL 👇
+  function abrirModalEditarBloque(seccion: string) {
+      formAsignacion.dia = diaSeleccionado;
+      formAsignacion.seccion = seccion;
+      
+      const roles = ['presidente', 'registro', 'ensayos', 'orientaciones', 'plataforma'];
+      roles.forEach(rol => {
+          const asignacion = oficina.asignaciones[`${rol}_${seccion}`];
+          // @ts-ignore
+          formAsignacion[rol] = asignacion ? asignacion.persona_id : null;
+      });
+
       mostrarModalBloqueAsignacion = true;
   }
 
@@ -122,7 +134,6 @@
               }
           }
           mostrarModalBloqueAsignacion = false;
-          diaSeleccionado = formAsignacion.dia;
           await cargarDatos();
       } catch (e) { alert("Error: " + e); }
   }
@@ -151,15 +162,12 @@
     mostrarModalAsignar = true; 
   }
 
-  // NUEVO: Función para abrir el modal en modo edición cargando los datos previos
   function abrirModalEditar(p: any) {
     modoEdicion = true;
     rolOficinaEditando = 'personal_oficina';
     terminoBusqueda = p.nombre_completo;
-    personaSeleccionadaId = p.persona_id;
+    personaSeleccionadaId = p.persona_id; 
     mostrarSugerencias = false;
-
-    // Cargar las casillas marcadas desde la base de datos
     responsabilidades = {
       registro: p.resp_obj?.registro || false,
       ensayos: p.resp_obj?.ensayos || false,
@@ -172,7 +180,6 @@
       sabado: p.disp_obj?.sabado || false,
       domingo: p.disp_obj?.domingo || false
     };
-
     mostrarModalAsignar = true;
   }
 
@@ -192,14 +199,11 @@
   async function asignarHermano(oradorId: number) {
       if (!oradorId || !rolOficinaEditando) return;
       try {
-          // Si estamos agregando uno nuevo, creamos el registro base
           if (!modoEdicion) {
               await invoke('guardar_asignacion_especial', { 
                   asambleaId, dia: diaSeleccionado, tipoAsignacion: rolOficinaEditando, personaId: oradorId 
               });
           }
-
-          // Guardamos las casillas (tanto si es nuevo como si lo estamos editando)
           if (rolOficinaEditando === 'personal_oficina') {
               await invoke('guardar_detalles_oficina', {
                   personaId: oradorId,
@@ -245,7 +249,7 @@
             <div class="header-seccion">
                 <div class="textos">
                     <h2>Personal de oficina</h2>
-                    <p>Presidentes de sesión, personal de oficina, orientadores y otras funciones de apoyo.</p>
+                    <p>Hermanos que apoyan en las diversas tareas de la oficina.</p>
                 </div>
                 <button class="btn-primary" on:click={() => abrirModalAsignar('personal_oficina')}>
                     <UserPlus size={16}/> Agregar persona
@@ -287,7 +291,7 @@
                 {#if oficina.personal.length === 0}
                     <div class="vacio-absoluto">
                         <Users size={48} color="#cbd5e1"/>
-                        <p>No hay personal registrado en la oficina.</p>
+                        <p>No hay personal registrado.</p>
                     </div>
                 {/if}
             </div>
@@ -311,7 +315,7 @@
                         <Download size={16}/> Exportar PDF
                     </button>
                     <button class="btn-primary" on:click={abrirModalBloqueAsignacion}>
-                        <Calendar size={16}/> Agregar horario
+                        <Edit2 size={16}/> Agregar horario
                     </button>
                 </div>
             </div>
@@ -324,7 +328,12 @@
                             <h3>{diaSeleccionado} por la Mañana</h3>
                         </div>
                         <div class="ch-actions">
-                            <button class="btn-icon delete" title="Vaciar sesión" on:click={() => vaciarBloque('manana')}><Trash2 size={16}/></button>
+                            <button class="btn-icon" title="Editar este horario" on:click={() => abrirModalEditarBloque('manana')}>
+                                <Edit2 size={16}/>
+                            </button>
+                            <button class="btn-icon delete" title="Vaciar sesión" on:click={() => vaciarBloque('manana')}>
+                                <Trash2 size={16}/>
+                            </button>
                         </div>
                     </div>
                     <div class="ch-grid">
@@ -355,7 +364,12 @@
                             <h3>{diaSeleccionado} por la Tarde</h3>
                         </div>
                         <div class="ch-actions">
-                            <button class="btn-icon delete" title="Vaciar sesión" on:click={() => vaciarBloque('tarde')}><Trash2 size={16}/></button>
+                            <button class="btn-icon" title="Editar este horario" on:click={() => abrirModalEditarBloque('tarde')}>
+                                <Edit2 size={16}/>
+                            </button>
+                            <button class="btn-icon delete" title="Vaciar sesión" on:click={() => vaciarBloque('tarde')}>
+                                <Trash2 size={16}/>
+                            </button>
                         </div>
                     </div>
                     <div class="ch-grid">
@@ -388,19 +402,13 @@
     <div class="modal modal-auxiliares">
       <div class="modal-header">
         <h3>
-            {#if modoEdicion}
-                <Edit2 size={20}/> Editar datos del auxiliar
-            {:else}
-                <UserPlus size={20}/> Añadir persona a la oficina
-            {/if}
+            {#if modoEdicion} <Edit2 size={20}/> Editar datos del auxiliar {:else} <UserPlus size={20}/> Añadir persona {/if}
         </h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body">
-        
         <div class="seccion-selector">
           <label class="label-seccion">Hermano Seleccionado</label>
-          
           {#if modoEdicion}
               <div class="buscador solo-lectura">
                   <UserCheck size={16} color="var(--c-blue)"/>
@@ -409,28 +417,16 @@
           {:else}
               <div class="buscador">
                   <Search size={16}/>
-                  <input 
-                      type="text" 
-                      bind:value={terminoBusqueda} 
-                      on:input={() => { mostrarSugerencias = true; personaSeleccionadaId = null; }}
-                      placeholder="Escriba el nombre..."
-                  />
+                  <input type="text" bind:value={terminoBusqueda} on:input={() => { mostrarSugerencias = true; personaSeleccionadaId = null; }} placeholder="Escriba el nombre..."/>
               </div>
-              
               {#if mostrarSugerencias && terminoBusqueda.length > 0}
                   <div class="lista-opciones">
                     {#each hermanosFiltrados as h}
                       <button class="item-opcion" on:click={() => seleccionarHermano(h)}>
                         <div class="avatar-mini">{h.nombre_completo.charAt(0)}</div>
-                        <div class="datos-opcion">
-                            <span class="n">{h.nombre_completo}</span>
-                            <span class="c">{h.nombre_congregacion}</span>
-                        </div>
+                        <div class="datos-opcion"><span class="n">{h.nombre_completo}</span><span class="c">{h.nombre_congregacion}</span></div>
                       </button>
                     {/each}
-                    {#if hermanosFiltrados.length === 0}
-                      <div class="item-opcion" style="justify-content:center; color:gray; cursor:default;">No se encontraron resultados</div>
-                    {/if}
                   </div>
               {/if}
           {/if}
@@ -589,7 +585,7 @@
 
     .vacio-absoluto { grid-column: 1/-1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; color: var(--c-text-mut); text-align: center; background: white; border: 1px dashed var(--c-border); border-radius: 10px; }
 
-    /* --- PESTAÑA: HORARIOS (BLOQUES) --- */
+    /* --- PESTAÑA: HORARIOS --- */
     .grid-horarios { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
     .card-horario-bloque { background: var(--c-card); border: 1px solid var(--c-border); border-radius: 10px; box-shadow: var(--shadow); }
     .ch-header { padding: 15px 20px; border-bottom: 1px solid var(--c-border); display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 10px 10px 0 0; }
@@ -621,12 +617,10 @@
     .btn-cancelar { background: white; border: 1px solid var(--c-border); padding: 10px 16px; border-radius: 6px; font-weight: 600; color: var(--c-text); cursor: pointer; }
     .btn-cancelar:hover { background: #f1f5f9; }
 
-    /* Modal Horarios: Formulario */
     .form-row-doble { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
     .form-grupo { display: flex; flex-direction: column; gap: 6px; }
     .form-grupo label { font-size: 12px; font-weight: 700; color: var(--c-text-mut); text-transform: uppercase; }
     .form-grupo select { padding: 10px; border: 1px solid var(--c-border); border-radius: 6px; background: white; font-family: inherit; font-size: 14px; outline: none; }
-    .form-grupo select:focus { border-color: var(--c-blue); }
 
     .separador-txt { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid var(--c-border); }
     
@@ -635,7 +629,6 @@
     .rol-box label { font-size: 12px; font-weight: 700; color: var(--c-text-mut); width: 35%; text-transform: uppercase; }
     .rol-box select { width: 65%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; outline: none; }
 
-    /* Modal Auxiliares: Buscador Inteligente */
     .seccion-selector { position: relative; margin-bottom: 25px; }
     .label-seccion { display: block; font-size: 12px; font-weight: 700; color: var(--c-text-mut); text-transform: uppercase; margin-bottom: 10px; }
     
@@ -644,33 +637,18 @@
     .buscador.solo-lectura { background: var(--c-bg); opacity: 0.8; }
     
     .lista-opciones { position: absolute; z-index: 100; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid var(--c-border); border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); margin-top: 5px; }
-    .item-opcion { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: white; border: none; border-bottom: 1px solid var(--c-border); cursor: pointer; text-align: left; transition: 0.1s; }
+    .item-opcion { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: white; border: none; border-bottom: 1px solid var(--c-border); cursor: pointer; text-align: left; }
     .item-opcion:hover { background: var(--c-bg); }
-    .item-opcion.seleccionado { background: var(--c-blue-light); }
     .avatar-mini { width: 32px; height: 32px; background: var(--c-blue); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; flex-shrink: 0; }
     .datos-opcion { display: flex; flex-direction: column; flex: 1; }
     .datos-opcion .n { font-weight: 600; font-size: 14px; color: var(--c-text); }
     .datos-opcion .c { font-size: 12px; color: var(--c-text-mut); }
 
-    /* Modal Auxiliares: Checkboxes Blindados */
     .grid-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 15px; border-top: 1px solid var(--c-border); }
     .lista-checks { display: flex; flex-direction: column; gap: 8px; }
-    
     .checkbox-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: white; border: 1px solid var(--c-border); border-radius: 8px; cursor: pointer; transition: 0.2s; }
     .checkbox-item:hover { border-color: var(--c-blue); background: var(--c-blue-light); }
-    
-    .checkbox-item input[type="checkbox"] { 
-        -webkit-appearance: checkbox !important;
-        appearance: checkbox !important;
-        display: inline-block !important;
-        width: 16px !important; 
-        height: 16px !important; 
-        opacity: 1 !important;
-        visibility: visible !important;
-        cursor: pointer; 
-        margin: 0; 
-        position: static !important;
-    }
+    .checkbox-item input[type="checkbox"] { -webkit-appearance: checkbox !important; appearance: checkbox !important; width: 16px !important; height: 16px !important; cursor: pointer; }
     .checkbox-item span { font-size: 14px; color: var(--c-text); user-select: none; }
 
 </style>
