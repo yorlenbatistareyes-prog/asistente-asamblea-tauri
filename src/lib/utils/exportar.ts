@@ -148,10 +148,6 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
  * EXPORTAR OFICINA
  * Personal en página 1, y cada día de asignación en una página nueva.
  */
-/**
- * EXPORTAR OFICINA
- * Personal en página 1, y cada día de asignación en una página nueva.
- */
 export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo: string) {
     let asamblea = { tema: 'Asamblea', fecha: '', nombre: 'Asamblea Regional' };
     const guardadoAsamblea = localStorage.getItem('asambleaActiva');
@@ -167,30 +163,29 @@ export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo
 
     // Píldora Auxiliares
     contenidoDoc.push({
-        table: { widths: ['auto'], body: [[{ text: 'AUXILIARES', bold: true, color: 'white', fillColor: '#475569', margin: [10, 4, 10, 4] }]] },
+        table: { widths: ['auto'], body: [[{ text: 'PERSONAL REGISTRADO', bold: true, color: 'white', fillColor: '#475569', margin: [10, 4, 10, 4] }]] },
         layout: 'noBorders', margin: [0, 0, 0, 5]
     });
 
     const bodyPersonal: TableCell[][] = [
-        [ { text: 'Nombre Completo', style: 'th' }, { text: 'Congregación', style: 'th' }, { text: 'Recibido', style: 'th', alignment: 'center' }, { text: 'Presente', style: 'th', alignment: 'center' } ]
+        [ { text: 'Nombre Completo', style: 'th' }, { text: 'Congregación', style: 'th' }, { text: 'Teléfono', style: 'th' } ]
     ];
 
     // Mostrar filas de auxiliares o un mensaje si está vacío
     if (personal.length === 0) {
-        bodyPersonal.push([{ text: 'No hay personal asignado', style: 'td', colSpan: 4, alignment: 'center' }, {}, {}, {}]);
+        bodyPersonal.push([{ text: 'No hay personal asignado a la oficina', style: 'td', colSpan: 3, alignment: 'center' }, {}, {}]);
     } else {
         personal.forEach(p => {
             bodyPersonal.push([
                 { text: p.nombre_completo || '-', style: 'td' },
                 { text: p.nombre_congregacion || '-', style: 'td' },
-                { text: estado(p.estado), style: 'td', alignment: 'center' },
-                { text: check(p.esta_presente), style: 'td', alignment: 'center' }
+                { text: p.telefono || 'Sin registrar', style: 'td' }
             ]);
         });
     }
 
     contenidoDoc.push({
-        table: { headerRows: 1, widths: ['*', '*', 'auto', 'auto'], body: bodyPersonal },
+        table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: bodyPersonal },
         layout: { fillColor: (i) => i === 0 ? '#475569' : (i % 2 === 0 ? '#f8fafc' : null), hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => '#e2e8f0' }
     });
 
@@ -198,33 +193,55 @@ export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo
     const dias = ['Viernes', 'Sábado', 'Domingo'];
     
     for (const dia of dias) {
-        // Aseguramos que 'd' siempre sea un objeto, incluso si viene vacío, para que no falle.
-        // Ya no verificamos si "hayDatos", siempre dibujamos la tabla.
         const d = datosDias[dia] || {}; 
 
         // Píldora Día (CON SALTO DE PÁGINA ANTES)
         contenidoDoc.push({
             pageBreak: 'before',
-            table: { widths: ['auto'], body: [[{ text: dia.toUpperCase(), bold: true, color: 'white', fillColor: '#3b82f6', margin: [10, 4, 10, 4] }]] },
+            table: { widths: ['auto'], body: [[{ text: `HORARIO: ${dia.toUpperCase()}`, bold: true, color: 'white', fillColor: '#3b82f6', margin: [10, 4, 10, 4] }]] },
             layout: 'noBorders', margin: [0, 0, 0, 10]
         });
 
-        // Si la casilla está vacía (sin asignar), pondrá '---'
+        // Diseño en 3 columnas: Rol | Mañana | Tarde
         const rowsAsignaciones: TableCell[][] = [
-            [ { text: 'Asignación / Responsabilidad', style: 'thOficina' }, { text: 'Hermano Asignado', style: 'thOficina' } ],
-            [ { text: 'Presidente (Mañana)', style: 'tdLabel' }, { text: d.presidente_manana?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Oración de Apertura', style: 'tdLabel' }, { text: d.oracion_apertura?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Seguimiento de Bosquejos (M)', style: 'tdLabel' }, { text: d.bosquejos_manana?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Acompañante de Plataforma (M)', style: 'tdLabel' }, { text: d.plataforma_manana?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Presidente (Tarde)', style: 'tdLabel' }, { text: d.presidente_tarde?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Oración de Conclusión', style: 'tdLabel' }, { text: d.oracion_conclusion?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Seguimiento de Bosquejos (T)', style: 'tdLabel' }, { text: d.bosquejos_tarde?.nombre_completo || '---', style: 'tdValue' } ],
-            [ { text: 'Acompañante de Plataforma (T)', style: 'tdLabel' }, { text: d.plataforma_tarde?.nombre_completo || '---', style: 'tdValue' } ]
+            [ 
+                { text: 'Responsabilidad', style: 'thOficina' }, 
+                { text: 'Sesión de Mañana', style: 'thOficina', alignment: 'center' }, 
+                { text: 'Sesión de Tarde', style: 'thOficina', alignment: 'center' } 
+            ],
+            [ 
+                { text: 'Presidente de sesión', style: 'tdLabel' }, 
+                { text: d.presidente_manana?.nombre_completo || '---', style: 'tdValue' }, 
+                { text: d.presidente_tarde?.nombre_completo || '---', style: 'tdValue' } 
+            ],
+            [ 
+                { text: 'Mesa de Registro', style: 'tdLabel' }, 
+                { text: d.registro_manana?.nombre_completo || '---', style: 'tdValue' }, 
+                { text: d.registro_tarde?.nombre_completo || '---', style: 'tdValue' } 
+            ],
+            [ 
+                { text: 'Ensayos y Sonido', style: 'tdLabel' }, 
+                { text: d.ensayos_manana?.nombre_completo || '---', style: 'tdValue' }, 
+                { text: d.ensayos_tarde?.nombre_completo || '---', style: 'tdValue' } 
+            ],
+            [ 
+                { text: 'Orientaciones', style: 'tdLabel' }, 
+                { text: d.orientaciones_manana?.nombre_completo || '---', style: 'tdValue' }, 
+                { text: d.orientaciones_tarde?.nombre_completo || '---', style: 'tdValue' } 
+            ],
+            [ 
+                { text: 'Acompañante Plataforma', style: 'tdLabel' }, 
+                { text: d.plataforma_manana?.nombre_completo || '---', style: 'tdValue' }, 
+                { text: d.plataforma_tarde?.nombre_completo || '---', style: 'tdValue' } 
+            ]
         ];
 
         contenidoDoc.push({
-            table: { headerRows: 1, widths: ['50%', '*'], body: rowsAsignaciones },
-            layout: { fillColor: (i) => i === 0 ? '#3b82f6' : null, hLineWidth: () => 0.5, vLineWidth: () => 0.5, vLineColor: () => '#e2e8f0', hLineColor: () => '#e2e8f0' }
+            table: { headerRows: 1, widths: ['34%', '33%', '33%'], body: rowsAsignaciones },
+            layout: { 
+                fillColor: (i) => i === 0 ? '#3b82f6' : (i % 2 === 0 ? '#f8fafc' : null), 
+                hLineWidth: () => 0.5, vLineWidth: () => 0.5, vLineColor: () => '#e2e8f0', hLineColor: () => '#e2e8f0' 
+            }
         });
     }
 
@@ -234,16 +251,16 @@ export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo
         pageMargins: [40, 40, 40, 40],
         content: contenidoDoc,
         styles: {
-            th: { bold: true, fontSize: 9, color: 'white', margin: [0, 4, 0, 4] },
-            td: { fontSize: 9, color: '#1f2937', margin: [0, 4, 0, 4] },
-            thOficina: { bold: true, fontSize: 10, color: 'white', margin: [0, 5, 0, 5] },
-            tdLabel: { bold: true, fontSize: 9, color: '#4b5563', margin: [0, 5, 0, 5] },
-            tdValue: { fontSize: 9, color: '#1f2937', margin: [0, 5, 0, 5] }
+            th: { bold: true, fontSize: 10, color: 'white', margin: [0, 4, 0, 4] },
+            td: { fontSize: 10, color: '#1f2937', margin: [0, 4, 0, 4] },
+            thOficina: { bold: true, fontSize: 11, color: 'white', margin: [0, 6, 0, 6] },
+            tdLabel: { bold: true, fontSize: 10, color: '#4b5563', margin: [0, 8, 0, 8] },
+            tdValue: { fontSize: 10, color: '#1f2937', margin: [0, 8, 0, 8], alignment: 'center' }
         },
         defaultStyle: { font: 'Roboto' }
     };
 
-    generarYGuardarPDF(docDefinition, `Resumen_Oficina`);
+    generarYGuardarPDF(docDefinition, `Horario_Oficina`);
 }
 
 // --- FUNCIÓN REUTILIZABLE PARA GUARDAR EL PDF ---

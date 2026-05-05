@@ -10,6 +10,8 @@
     Briefcase, Calendar, Clock, Edit2, Download
   } from 'lucide-svelte';
 
+  import { exportarOficinaPDF } from '$lib/utils/exportar';
+
   // --- ESTADO ---
   let asambleaId = 0; 
   let tabPrincipal = 'auxiliares'; 
@@ -231,6 +233,50 @@
       ? listaHermanos 
       : listaHermanos.filter(h => h?.nombre_completo?.toLowerCase().includes(terminoBusqueda.toLowerCase().trim()));
 
+// --- EXPORTACIÓN A PDF ---
+  async function manejarExportacionTotal() {
+      if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
+      
+      try {
+          const dias = ['Viernes', 'Sábado', 'Domingo'];
+          const asignacionesPorDia: { [key: string]: any } = {};
+          let todosLosAuxiliares: any[] = []; 
+
+          // Buscar datos de los 3 días
+          for (const dia of dias) {
+              const datos = await invoke('obtener_asignaciones_especiales', { asambleaId, dia }) as any[];
+              
+              // Guardar auxiliares generales para la lista del final
+              const auxiliaresDelDia = datos.filter(d => d.tipo_asignacion === 'personal_oficina');
+              todosLosAuxiliares = [...todosLosAuxiliares, ...auxiliaresDelDia];
+              
+              // Mapear los roles específicos
+              asignacionesPorDia[dia] = {
+                  presidente_manana: datos.find(d => d.tipo_asignacion === 'presidente_manana'),
+                  registro_manana: datos.find(d => d.tipo_asignacion === 'registro_manana'),
+                  ensayos_manana: datos.find(d => d.tipo_asignacion === 'ensayos_manana'),
+                  orientaciones_manana: datos.find(d => d.tipo_asignacion === 'orientaciones_manana'),
+                  plataforma_manana: datos.find(d => d.tipo_asignacion === 'plataforma_manana'),
+                  
+                  presidente_tarde: datos.find(d => d.tipo_asignacion === 'presidente_tarde'),
+                  registro_tarde: datos.find(d => d.tipo_asignacion === 'registro_tarde'),
+                  ensayos_tarde: datos.find(d => d.tipo_asignacion === 'ensayos_tarde'),
+                  orientaciones_tarde: datos.find(d => d.tipo_asignacion === 'orientaciones_tarde'),
+                  plataforma_tarde: datos.find(d => d.tipo_asignacion === 'plataforma_tarde')
+              };
+          }
+
+          // Eliminar auxiliares duplicados (porque aparecen en todos los días)
+          const auxiliaresUnicos = Array.from(new Map(todosLosAuxiliares.map(p => [p.persona_id, p])).values());
+
+          // Llamar a la librería pdfmake
+          await exportarOficinaPDF(asignacionesPorDia, auxiliaresUnicos, "Resumen General de Oficina");
+
+      } catch (e) {
+          console.error("Error al generar PDF:", e);
+          alert("Error al generar PDF: " + e);
+      }
+  }
 </script>
 
 <div class="contenedor-oficina">
@@ -311,12 +357,15 @@
                             <button class:active={diaSeleccionado === dia} on:click={() => diaSeleccionado = dia}>{dia}</button>
                         {/each}
                     </div>
-                    <button class="btn-outline">
+
+                    <button class="btn-outline" on:click={manejarExportacionTotal}>
                         <Download size={16}/> Exportar PDF
                     </button>
+
                     <button class="btn-primary" on:click={abrirModalBloqueAsignacion}>
                         <Edit2 size={16}/> Agregar horario
                     </button>
+                    
                 </div>
             </div>
 
