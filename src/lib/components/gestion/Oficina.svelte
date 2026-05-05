@@ -503,7 +503,7 @@
                     <select bind:value={formAsignacion[rol as keyof typeof formAsignacion]}>
                         <option value={null}>-- Dejar vacío --</option>
                         {#each getCandidatosPorRol(rol) as c}
-                            <option value={c.id}>{c.nombre_completo}</option>
+                            <option value={c.persona_id}>{c.nombre_completo}</option>
                         {/each}
                     </select>
                 </div>
