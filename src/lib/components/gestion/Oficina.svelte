@@ -23,13 +23,14 @@
 
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
-  let mostrarSugerencias = false; // Controla la lista de autocompletado
+  let mostrarSugerencias = false; 
   
   // Modales
   let mostrarModalAsignar = false;      
   let mostrarModalBloqueAsignacion = false; 
   
   let rolOficinaEditando: string | null = null; 
+  let modoEdicion = false; // NUEVO: Controla si estamos agregando o editando
 
   // Formulario para el nuevo modal de Asignaciones
   let formAsignacion = {
@@ -42,7 +43,7 @@
       plataforma: null as number | null
   };
   
-  // Estados para checkboxes del modal de "Añadir Auxiliar"
+  // Estados para checkboxes del modal de "Añadir/Editar Auxiliar"
   let personaSeleccionadaId: number | null = null;
   let responsabilidades = {
     registro: false, ensayos: false, orientaciones: false,
@@ -94,13 +95,11 @@
       oficina = nuevaOficina;
   }
 
-  // --- LÓGICA ASIGNACIONES (BLOQUE) ---
   function abrirModalBloqueAsignacion() {
       formAsignacion = { dia: diaSeleccionado, seccion: 'manana', presidente: null, registro: null, ensayos: null, orientaciones: null, plataforma: null };
       mostrarModalBloqueAsignacion = true;
   }
 
-  // 👇 ERROR DE TYPESCRIPT CORREGIDO AQUÍ (p: any)
   function getCandidatosPorRol(rolClave: string) {
       let clave = rolClave === 'plataforma' ? 'acompañar_plataforma' : rolClave;
       if (clave === 'presidente') clave = 'presidentes';
@@ -142,35 +141,65 @@
 
   // --- LÓGICA AUXILIARES ---
   function abrirModalAsignar(rol: string) { 
+    modoEdicion = false;
     rolOficinaEditando = rol; 
     terminoBusqueda = "";
     personaSeleccionadaId = null;
-    mostrarSugerencias = false; // Resetear sugerencias
+    mostrarSugerencias = false; 
     responsabilidades = { registro: false, ensayos: false, orientaciones: false, presidentes: false, acompañar_plataforma: false };
     disponibilidad = { viernes: false, sabado: false, domingo: false };
     mostrarModalAsignar = true; 
+  }
+
+  // NUEVO: Función para abrir el modal en modo edición cargando los datos previos
+  function abrirModalEditar(p: any) {
+    modoEdicion = true;
+    rolOficinaEditando = 'personal_oficina';
+    terminoBusqueda = p.nombre_completo;
+    personaSeleccionadaId = p.persona_id;
+    mostrarSugerencias = false;
+
+    // Cargar las casillas marcadas desde la base de datos
+    responsabilidades = {
+      registro: p.resp_obj?.registro || false,
+      ensayos: p.resp_obj?.ensayos || false,
+      orientaciones: p.resp_obj?.orientaciones || false,
+      presidentes: p.resp_obj?.presidentes || false,
+      acompañar_plataforma: p.resp_obj?.acompañar_plataforma || false
+    };
+    disponibilidad = {
+      viernes: p.disp_obj?.viernes || false,
+      sabado: p.disp_obj?.sabado || false,
+      domingo: p.disp_obj?.domingo || false
+    };
+
+    mostrarModalAsignar = true;
   }
 
   function cerrarModales() { 
       mostrarModalAsignar = false; 
       mostrarModalBloqueAsignacion = false;
       rolOficinaEditando = null; 
+      modoEdicion = false;
   }
 
-  // 👇 LÓGICA AUTOCOMPLETADO
   function seleccionarHermano(h: any) {
       terminoBusqueda = h.nombre_completo;
       personaSeleccionadaId = h.id;
-      mostrarSugerencias = false; // Oculta la lista al hacer clic
+      mostrarSugerencias = false; 
   }
 
   async function asignarHermano(oradorId: number) {
       if (!oradorId || !rolOficinaEditando) return;
       try {
-          await invoke('guardar_asignacion_especial', { 
-              asambleaId, dia: diaSeleccionado, tipoAsignacion: rolOficinaEditando, personaId: oradorId 
-          });
+          // Si estamos agregando uno nuevo, creamos el registro base
+          if (!modoEdicion) {
+              await invoke('guardar_asignacion_especial', { 
+                  asambleaId, dia: diaSeleccionado, tipoAsignacion: rolOficinaEditando, personaId: oradorId 
+              });
+          }
 
+          // Guardamos las casillas (tanto si es nuevo como si lo estamos editando)
           if (rolOficinaEditando === 'personal_oficina') {
               await invoke('guardar_detalles_oficina', {
                   personaId: oradorId,
@@ -194,7 +223,9 @@
   const nombreTxt = (obj: any) => obj && obj.nombre_completo ? obj.nombre_completo : "Sin asignar";
   const iniciales = (obj: any) => obj && obj.nombre_completo ? obj.nombre_completo.substring(0, 2).toUpperCase() : "-";
   
-  const getHermanosFiltrados = () => !terminoBusqueda ? listaHermanos : listaHermanos.filter(h => h && h.nombre_completo && h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));
+  $: hermanosFiltrados = terminoBusqueda.trim() === "" 
+      ? listaHermanos 
+      : listaHermanos.filter(h => h?.nombre_completo?.toLowerCase().includes(terminoBusqueda.toLowerCase().trim()));
 
 </script>
 
@@ -217,7 +248,7 @@
                     <p>Presidentes de sesión, personal de oficina, orientadores y otras funciones de apoyo.</p>
                 </div>
                 <button class="btn-primary" on:click={() => abrirModalAsignar('personal_oficina')}>
-                    <Edit2 size={16}/> Agregar persona
+                    <UserPlus size={16}/> Agregar persona
                 </button>
             </div>
 
@@ -227,8 +258,8 @@
                         <div class="tp-top">
                             <div class="tp-avatar">{p?.nombre_completo ? p.nombre_completo.charAt(0) : '?'}</div>
                             <div class="tp-acciones">
-                                <button class="btn-icon" title="Editar"><Edit2 size={14}/></button>
-                                <button class="btn-icon delete" title="Quitar" on:click={() => eliminarAsignacion(p.id)}><Trash2 size={14}/></button>
+                                <button class="btn-icon" title="Editar configuraciones" on:click={() => abrirModalEditar(p)}><Edit2 size={14}/></button>
+                                <button class="btn-icon delete" title="Quitar de la oficina" on:click={() => eliminarAsignacion(p.id)}><Trash2 size={14}/></button>
                             </div>
                         </div>
                         <div class="tp-info">
@@ -280,7 +311,7 @@
                         <Download size={16}/> Exportar PDF
                     </button>
                     <button class="btn-primary" on:click={abrirModalBloqueAsignacion}>
-                        <Edit2 size={16}/> Agregar horario
+                        <Calendar size={16}/> Agregar horario
                     </button>
                 </div>
             </div>
@@ -356,38 +387,52 @@
   <div class="modal-backdrop" on:click|self={cerrarModales}>
     <div class="modal modal-auxiliares">
       <div class="modal-header">
-        <h3><UserPlus size={20}/> Añadir persona a la oficina</h3>
+        <h3>
+            {#if modoEdicion}
+                <Edit2 size={20}/> Editar datos del auxiliar
+            {:else}
+                <UserPlus size={20}/> Añadir persona a la oficina
+            {/if}
+        </h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       <div class="modal-body">
         
         <div class="seccion-selector">
-          <label class="label-seccion">Buscar Hermano</label>
-          <div class="buscador">
-              <Search size={16}/>
-              <input 
-                  type="text" 
-                  bind:value={terminoBusqueda} 
-                  on:input={() => { mostrarSugerencias = true; personaSeleccionadaId = null; }}
-                  placeholder="Escriba el nombre..."
-              />
-          </div>
+          <label class="label-seccion">Hermano Seleccionado</label>
           
-          {#if mostrarSugerencias && terminoBusqueda.length > 0}
-              <div class="lista-opciones">
-                {#each getHermanosFiltrados() as h}
-                  <button class="item-opcion" on:click={() => seleccionarHermano(h)}>
-                    <div class="avatar-mini">{h.nombre_completo.charAt(0)}</div>
-                    <div class="datos-opcion">
-                        <span class="n">{h.nombre_completo}</span>
-                        <span class="c">{h.nombre_congregacion}</span>
-                    </div>
-                  </button>
-                {/each}
-                {#if getHermanosFiltrados().length === 0}
-                  <div class="item-opcion" style="justify-content:center; color:gray; cursor:default;">No se encontraron resultados</div>
-                {/if}
+          {#if modoEdicion}
+              <div class="buscador solo-lectura">
+                  <UserCheck size={16} color="var(--c-blue)"/>
+                  <span style="font-weight: 600; color: var(--c-text); font-size: 14px;">{terminoBusqueda}</span>
               </div>
+          {:else}
+              <div class="buscador">
+                  <Search size={16}/>
+                  <input 
+                      type="text" 
+                      bind:value={terminoBusqueda} 
+                      on:input={() => { mostrarSugerencias = true; personaSeleccionadaId = null; }}
+                      placeholder="Escriba el nombre..."
+                  />
+              </div>
+              
+              {#if mostrarSugerencias && terminoBusqueda.length > 0}
+                  <div class="lista-opciones">
+                    {#each hermanosFiltrados as h}
+                      <button class="item-opcion" on:click={() => seleccionarHermano(h)}>
+                        <div class="avatar-mini">{h.nombre_completo.charAt(0)}</div>
+                        <div class="datos-opcion">
+                            <span class="n">{h.nombre_completo}</span>
+                            <span class="c">{h.nombre_congregacion}</span>
+                        </div>
+                      </button>
+                    {/each}
+                    {#if hermanosFiltrados.length === 0}
+                      <div class="item-opcion" style="justify-content:center; color:gray; cursor:default;">No se encontraron resultados</div>
+                    {/if}
+                  </div>
+              {/if}
           {/if}
         </div>
 
@@ -414,7 +459,9 @@
       </div>
       <div class="modal-footer">
         <button class="btn-cancelar" on:click={cerrarModales}>Cancelar</button>
-        <button class="btn-primary" disabled={!personaSeleccionadaId} on:click={() => asignarHermano(personaSeleccionadaId!)}>Agregar persona</button>
+        <button class="btn-primary" disabled={!personaSeleccionadaId} on:click={() => asignarHermano(personaSeleccionadaId!)}>
+            {modoEdicion ? 'Actualizar' : 'Agregar persona'}
+        </button>
       </div>
     </div>
   </div>
@@ -591,12 +638,15 @@
     /* Modal Auxiliares: Buscador Inteligente */
     .seccion-selector { position: relative; margin-bottom: 25px; }
     .label-seccion { display: block; font-size: 12px; font-weight: 700; color: var(--c-text-mut); text-transform: uppercase; margin-bottom: 10px; }
+    
     .buscador { display: flex; align-items: center; gap: 10px; border: 1px solid var(--c-border); padding: 10px; border-radius: 8px; background: white; }
     .buscador input { border: none; outline: none; flex: 1; font-size: 14px; color: var(--c-text); }
+    .buscador.solo-lectura { background: var(--c-bg); opacity: 0.8; }
     
     .lista-opciones { position: absolute; z-index: 100; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid var(--c-border); border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); margin-top: 5px; }
     .item-opcion { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: white; border: none; border-bottom: 1px solid var(--c-border); cursor: pointer; text-align: left; transition: 0.1s; }
     .item-opcion:hover { background: var(--c-bg); }
+    .item-opcion.seleccionado { background: var(--c-blue-light); }
     .avatar-mini { width: 32px; height: 32px; background: var(--c-blue); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; flex-shrink: 0; }
     .datos-opcion { display: flex; flex-direction: column; flex: 1; }
     .datos-opcion .n { font-weight: 600; font-size: 14px; color: var(--c-text); }
@@ -609,7 +659,6 @@
     .checkbox-item { display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: white; border: 1px solid var(--c-border); border-radius: 8px; cursor: pointer; transition: 0.2s; }
     .checkbox-item:hover { border-color: var(--c-blue); background: var(--c-blue-light); }
     
-    /* 🔴 FUERZA AL NAVEGADOR A MOSTRAR LA CAJITA SÍ O SÍ 🔴 */
     .checkbox-item input[type="checkbox"] { 
         -webkit-appearance: checkbox !important;
         appearance: checkbox !important;
