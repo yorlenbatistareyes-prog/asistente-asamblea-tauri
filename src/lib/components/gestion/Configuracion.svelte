@@ -7,6 +7,8 @@
   import ActualizacionApp from './ActualizacionApp.svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { cargarDatosGlobales } from '$lib/stores/appStore';
+
+  import SincronizacionCarpeta from '$lib/components/gestion/SincronizacionCarpeta.svelte';
   
   // --- COMPONENTES HIJOS ---
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
@@ -212,9 +214,9 @@
             
             {:else if configSeccion === 'datos'}
                 <div style="display: flex; flex-direction: column; gap: 30px; padding-bottom: 20px;">
+                    <SincronizacionCarpeta />
                     <Datos />
-
-            </div>
+                </div>
 
             {:else if configSeccion === 'ayuda'} 
               <SeccionAyuda />

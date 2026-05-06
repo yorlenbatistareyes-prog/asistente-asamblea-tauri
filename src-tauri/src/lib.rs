@@ -211,6 +211,11 @@ if ruta_pendiente.exists() {
             commands::datos::importar_base_datos,
             commands::datos::limpiar_datos,
 
+            commands::datos::guardar_ruta_sync,
+            commands::datos::obtener_ruta_sync,
+            commands::datos::exportar_asamblea_encriptada,
+            commands::datos::importar_asamblea_encriptada,
+
             llamar_telefono,
 
             // NUBE: COMANDOS DE SINCRONIZACIÓN 

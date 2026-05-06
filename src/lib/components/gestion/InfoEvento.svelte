@@ -20,6 +20,8 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
 
+  
+  import CompartirAsamblea from '$lib/components/gestion/CompartirAsamblea.svelte';
   // --- ICONOS ---
   import { 
     Save, Calendar, MapPin, Bookmark, Clock, Info, 
@@ -699,6 +701,15 @@
       </div>
     {/if}
   </Panel>
+  </div>
+
+ <div class="columna-lateral-informacion">
+    {#if asambleaId}
+        <CompartirAsamblea 
+            asambleaId={asambleaId} 
+            asambleaNombre={tema} 
+        />
+    {/if}
   </div>
 
 </div> {#if mostrarModalDetalles}

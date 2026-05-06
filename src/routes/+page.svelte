@@ -10,6 +10,8 @@
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
   import { invoke } from '@tauri-apps/api/core';
   
+  import ImportarAsamblea from '$lib/components/gestion/ImportarAsamblea.svelte'; // <- Revisa que la ruta sea correcta
+
   // DATOS
   let listaAsambleas: any[] = [];
   let mostrarModal = false;
@@ -21,14 +23,13 @@
     fechaFin: null as Date | null, 
     identificador: "", 
     idioma: "Español",
-    // 👇 NUEVOS CAMPOS DE UBICACIÓN
     ciudad: "",
     lugar_nombre: "",
     pais: "",
     direccion: ""
   };
 
-// ESTADOS DE BÚSQUEDA Y FILTRO
+  // ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
   let filtroCategoria = "todas"; 
   let ordenamiento = "fecha_desc";
@@ -47,16 +48,12 @@
           
           if (!res) return;
 
-          // 1. Si Rust devuelve los datos como texto (String), los convertimos a Objeto
           const config = typeof res === 'string' ? JSON.parse(res) : res;
-
-          // 2. Buscamos el nombre cubriendo todas las variables posibles
           const nombre = config.nombre || config.Nombre || (config.config && config.config.nombre);
           
           if (nombre && nombre.trim() !== "") {
               nombreUsuario = nombre;
           } else if ($appStore && $appStore.usuario && $appStore.usuario !== "Usuario") {
-              // 3. Respaldo extra: Si Rust falla, intenta leer del Store global
               nombreUsuario = $appStore.usuario;
           }
       } catch (e) { 
@@ -91,16 +88,14 @@
       mostrarMenuAvatar = false; 
   }
 
-  // Función única corregida (Elimina cualquier otra versión de abrirModal)
   async function abrirModal() {
       await cargarTodo();
-      // 👇 Añadimos los campos vacíos de ciudad, lugar_nombre, pais y direccion
       form = { tema: "", fechaInicio: null, fechaFin: null, identificador: "", idioma: "Español", ciudad: "", lugar_nombre: "", pais: "", direccion: "" };
       editandoFecha = false; 
       mostrarModal = true;
   }
 
-function manejarSeleccionFinal() {
+  function manejarSeleccionFinal() {
       editandoFecha = false;
   }
 
@@ -110,7 +105,6 @@ function manejarSeleccionFinal() {
     return `${inicio.toLocaleDateString('es-ES', opciones)} - ${fin.toLocaleDateString('es-ES', opciones)}, ${inicio.getFullYear()}`;
   }
 
-// Carga inicial
   onMount(() => { 
       cargarTodo(); 
       cargarNombreUsuario();
@@ -119,32 +113,25 @@ function manejarSeleccionFinal() {
   });
   
   $: if ($vistaActual === 'inicio') { cargarTodo(); }
-  $: if ($appStore) { cargarNombreUsuario(); } // Recarga el nombre si hay cambios globales
+  $: if ($appStore) { cargarNombreUsuario(); }
 
   async function cargarTodo() {
       try {
-          // 👈 Ahora solo pedimos las asambleas, sin los locales
           const a = await DB.obtenerAsambleas();
           listaAsambleas = a as any[]; 
       } catch(e) { console.error(e); }
   }
 
-  // --- TRADUCTOR DE FECHAS A PRUEBA DE RANGOS (TypeScript) ---
   function obtenerTiempoSeguro(fechaStr: string, usarFin: boolean = false): number {
       if (!fechaStr) return 0;
       
-      // 1. Separamos el rango si tiene el formato "YYYY-MM-DD a YYYY-MM-DD"
       const partesFecha = fechaStr.split(' a ');
-      
-      // 2. Elegimos qué parte usar (Inicio por defecto, Fin si lo pedimos y existe)
       let fechaObjetivo = partesFecha[0];
       if (usarFin && partesFecha.length > 1) {
           fechaObjetivo = partesFecha[1];
       }
-      
       fechaObjetivo = fechaObjetivo.trim();
 
-      // 3. Descomponemos para forzar hora LOCAL y evitar desfases
       const partes = fechaObjetivo.split(/[\/\-]/);
       if (partes.length === 3) {
           let y: number, m: number, d: number;
@@ -165,29 +152,21 @@ function manejarSeleccionFinal() {
       return isNaN(t) ? 0 : t;
   }
 
-  // LÓGICA REACTIVA: Filtra y ordena las asambleas
   $: asambleasFiltradas = listaAsambleas
       .filter((a: any) => {
-          // 1. FILTRO DE CATEGORÍA ("activas")
           if (filtroCategoria === 'activas') {
               if (!a.fecha) return false;
-
-              // Para saber si está activa, comprobamos su fecha de FIN
               const timeFinAsamblea = obtenerTiempoSeguro(a.fecha, true); 
-              
               if (timeFinAsamblea > 0) {
                   const hoy = new Date();
                   hoy.setHours(0, 0, 0, 0); 
                   const tiempoHoy = hoy.getTime();
-
-                  // Si la fecha de fin ya pasó, la ocultamos
                   if (timeFinAsamblea < tiempoHoy) return false;
               } else {
                   return false;
               }
           }
 
-          // 2. FILTRO DE TEXTO (Buscador)
           if (!terminoBusqueda) return true;
           const tb = terminoBusqueda.toLowerCase();
           return (
@@ -197,7 +176,6 @@ function manejarSeleccionFinal() {
           );
       })
       .sort((a: any, b: any) => {
-          // Para ORDENAR, usamos siempre la fecha de INICIO
           const timeA = obtenerTiempoSeguro(a.fecha, false);
           const timeB = obtenerTiempoSeguro(b.fecha, false);
 
@@ -213,27 +191,23 @@ function manejarSeleccionFinal() {
               hoy.setHours(0, 0, 0, 0);
               const tiempoHoy = hoy.getTime();
 
-              // Usamos el fin para saber de qué lado de "hoy" están
               const finA = obtenerTiempoSeguro(a.fecha, true);
               const finB = obtenerTiempoSeguro(b.fecha, true);
 
               const aEsActiva = finA >= tiempoHoy;
               const bEsActiva = finB >= tiempoHoy;
 
-              if (aEsActiva && !bEsActiva) return -1; // Futuras/Activas van primero
+              if (aEsActiva && !bEsActiva) return -1; 
               if (!aEsActiva && bEsActiva) return 1;
 
               if (aEsActiva && bEsActiva) {
-                  // Ambas son futuras: la más cercana a hoy va primero
                   return timeA - timeB; 
               } else {
-                  // Ambas son pasadas: la que pasó más recientemente va primero
                   return timeB - timeA; 
               }
           }
           return 0;
       });
-
 
   async function crear() {
       try {
@@ -254,24 +228,20 @@ function manejarSeleccionFinal() {
 
           const fechaUnida = `${fechaInicioStr} a ${fechaFinStr}`;
 
-          // Construimos el texto del lugar uniendo lo que el usuario escribió
           let nombreLugar = form.lugar_nombre || "Sin asignar";
           if (form.ciudad) nombreLugar += `, ${form.ciudad}`;
 
-          // 👈 Usamos DB.crearAsamblea con los nuevos datos
           await DB.crearAsamblea({ 
               tema: form.tema,
               fecha: fechaUnida, 
               identificador: form.identificador,
               idioma: form.idioma,
               lugar: nombreLugar, 
-              localId: null // Ya no usamos IDs
+              localId: null 
           });
           
           mostrarModal = false; 
           cargarTodo();
-          
-          // ¡Ya no necesitamos llamar a dispararSincronizacionLocal() aquí!
 
       } catch (error) {
           console.error("Error desde Rust:", error);
@@ -285,7 +255,6 @@ function manejarSeleccionFinal() {
           title: 'Confirmar eliminación', kind: 'warning', okLabel: 'Eliminar', cancelLabel: 'Cancelar'
       });
       if(respuesta) { 
-          // 👈 Usamos DB.eliminarAsamblea
           await DB.eliminarAsamblea(id); 
           cargarTodo(); 
       }
@@ -346,14 +315,18 @@ function manejarSeleccionFinal() {
             </div>
         </div>
 
-
         <div class="header-principal">
             <div class="textos-header">
                 <h2>Listas de asambleas</h2>
                 <p class="subtitulo-header">Administrar todas las asambleas en un solo lugar.</p>
             </div>
 
-            <button class="btn-new" on:click={abrirModal}><Plus size={18}/> Añadir Asamblea</button>
+            <div class="botonera-acciones">
+                <ImportarAsamblea />
+                <button class="btn-new" on:click={abrirModal}>
+                    <Plus size={18}/> Añadir Asamblea
+                </button>
+            </div>
         </div>
 
         <div class="controles-busqueda">
@@ -537,6 +510,14 @@ function manejarSeleccionFinal() {
     .dashboard { padding: 10px 40px 30px 40px; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
     .action-bar h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--text-main); }
+    
+    /* 👇 ESTILO NUEVO PARA LA BOTONERA DE LA CABECERA 👇 */
+    .botonera-acciones {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
     /* BOTÓN NUEVA ASAMBLEA (Color Azul Unificado) */
     .btn-new { 
         background: var(--primary); 
@@ -550,6 +531,8 @@ function manejarSeleccionFinal() {
         cursor: pointer; 
         transition: filter 0.2s; 
         box-shadow: var(--shadow-sm);
+        height: 42px; /* Alineación perfecta con el botón de importar */
+        align-items: center;
     }
     .btn-new:hover { filter: brightness(0.9); }
 
@@ -964,16 +947,21 @@ function manejarSeleccionFinal() {
     /* 1. MÁRGENES GENERALES MÁS COMPACTOS */
     .dashboard { padding: 5px 15px 15px 15px; }
 
-    /* 2. CABECERA: APILAR TÍTULO Y BOTÓN */
+    /* 2. CABECERA: APILAR TÍTULO Y BOTONES */
     .header-principal {
         flex-direction: column;
         gap: 15px;
     }
+
+    .botonera-acciones {
+        width: 100%;
+        flex-direction: column-reverse; /* El botón de añadir arriba en móvil */
+    }
     
-    .btn-new {
-        width: 100%; /* Botón gigante fácil de tocar */
+    .btn-new, :global(.btn-importar) {
+        width: 100% !important; /* Botones gigantes fáciles de tocar */
         justify-content: center;
-        height: 48px;
+        height: 48px !important;
     }
 
     /* 3. BUSCADOR Y FILTROS: APILADO TOTAL ANTIDESBORDES (¡AQUÍ ESTÁ LA MAGIA!) */
