@@ -60,36 +60,40 @@
         </div>
     </Panel>
 
-    <div class="manual-container">
-    <div class="manual-header">
+    <div class="sync-help-container">
+    <div class="section-title">
         <CloudSync size={24} />
-        <h3>Guía de Sincronización entre Hermanos</h3>
+        <h3>Sincronización de Asambleas</h3>
     </div>
-    
-    <p class="intro-text">
-        Esta función permite que el Presidente y los Auxiliares trabajen sobre la misma asamblea 
-        sin necesidad de enviar archivos pesados. Todo se sincroniza mediante una carpeta en la nube.
-    </p>
 
-    <div class="roles-grid">
-        <div class="role-card president">
-            <h4>1. Presidente (Generador)</h4>
-            <ol>
-                <li><strong>Configurar:</strong> En <em>Configuración > Datos</em>, elige una carpeta de tu nube (Google Drive/OneDrive).</li>
-                <li><strong>Exportar:</strong> Al finalizar cambios, presiona "Exportar a la nube".</li>
-                <li><strong>Compartir:</strong> Envía la clave generada al Auxiliar por un medio seguro.</li>
-            </ol>
-        </div>
+    <Panel padding="20px" clasesExtra="sync-panel">
+        <h4>¿Cómo funciona la sincronización?</h4>
+        <p>RAssembly almacena todos tus datos localmente en tu dispositivo. Para compartir asambleas, utilizamos una carpeta sincronizada en la nube (como Google Drive o OneDrive). <strong>RAssembly nunca envía datos a un servidor externo.</strong></p>
+        <ul class="sync-list">
+            <li>Tus datos siempre están en tus dispositivos y en la carpeta elegida.</li>
+            <li>Si realizas cambios, el archivo de la asamblea se actualiza automáticamente en la nube.</li>
+            <li>La encriptación AES-256 asegura que nadie pueda leer tus archivos sin la clave.</li>
+        </ul>
+    </Panel>
 
-        <div class="role-card helper">
-            <h4>2. Auxiliar (Receptor)</h4>
-            <ol>
-                <li><strong>Sincronizar:</strong> Asegúrate de que la carpeta compartida por el Presidente aparezca en tu equipo.</li>
-                <li><strong>Vincular:</strong> En <em>Configuración > Datos</em>, selecciona esa misma carpeta.</li>
-                <li><strong>Importar:</strong> Presiona "Importar" en Inicio, selecciona el archivo y escribe la clave.</li>
-            </ol>
-        </div>
-    </div>
+    <Panel padding="20px" clasesExtra="sync-panel">
+        <h4>Configurar la sincronización (Windows / Android)</h4>
+        <ol class="steps-list">
+            <li><strong>Preparar Nube:</strong> Instala la app de Google Drive o OneDrive en tu equipo y asegúrate de haber iniciado sesión.</li>
+            <li><strong>Seleccionar Carpeta:</strong> En RAssembly, ve a <em>Configuración > Datos</em> y haz clic en "Elegir carpeta sincronizada".</li>
+            <li><strong>Vincular:</strong> Selecciona la carpeta de la nube que desees usar. Todos los dispositivos deben apuntar a la misma carpeta.</li>
+        </ol>
+    </Panel>
+
+    <Panel padding="20px" clasesExtra="sync-panel">
+        <h4>Compartir con el equipo de oficina</h4>
+        <p>Para trabajar en equipo, todos los auxiliares deben tener acceso a la misma carpeta:</p>
+        <ul class="sync-list">
+            <li>Comparte la carpeta desde tu aplicación de nube (Drive/OneDrive) con los correos de tus colaboradores.</li>
+            <li>Cada auxiliar debe realizar la configuración de "Elegir carpeta sincronizada" en su propio dispositivo.</li>
+            <li>Al "Exportar a la nube", el archivo aparecerá en los dispositivos de los demás en cuestión de segundos.</li>
+        </ul>
+    </Panel>
 </div>
 
     <div class="divider"></div>
@@ -262,54 +266,40 @@
 }
 .step-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4; }
 
-.manual-container {
-        background: #fffdf2; /* Fondo amarillento claro elegante */
-        border: 1px solid #fde68a;
-        padding: 30px;
-        border-radius: 16px;
-        margin-bottom: 30px;
+.sync-help-container { 
+        display: flex; flex-direction: column; gap: 20px; 
+        max-width: 800px; margin: 0 auto;
     }
 
-    .manual-header { 
+    .section-title { 
         display: flex; align-items: center; gap: 12px; 
-        color: #92400e; /* Tono ámbar oscuro para texto */
-        margin-bottom: 15px; 
+        color: #92400e; margin-bottom: 10px;
     }
 
-    .roles-grid { 
-        display: grid; 
-        grid-template-columns: 1fr 1fr; 
-        gap: 20px; 
-        margin-top: 20px;
+    /* Estilo del Panel Amarillento */
+    :global(.sync-panel) {
+        background: #fffdf2 !important;
+        border: 1px solid #fde68a !important;
     }
 
-    .role-card {
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px solid #fef3c7;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    }
-
-    .role-card h4 {
+    h4 {
         margin: 0 0 12px 0;
-        font-size: 0.95rem;
+        font-size: 1rem;
         color: #78350f;
         border-bottom: 2px solid #fde68a;
         padding-bottom: 8px;
     }
 
-    .role-card ol {
+    p { font-size: 0.9rem; color: #451a03; line-height: 1.5; margin: 0 0 10px 0; }
+
+    .sync-list, .steps-list {
         margin: 0; padding-left: 20px;
         font-size: 0.85rem;
         color: #451a03;
         line-height: 1.6;
     }
 
-    /* Ajuste para móviles */
-    @media (max-width: 768px) {
-        .roles-grid { grid-template-columns: 1fr; }
-        .manual-container { padding: 20px; }
-    }
+    .sync-list li { margin-bottom: 6px; }
+    .steps-list li { margin-bottom: 8px; font-weight: 500; }
 
 </style>
