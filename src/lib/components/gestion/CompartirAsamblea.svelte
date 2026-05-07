@@ -1,12 +1,13 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
-  import { ShieldCheck, Lock, Globe } from 'lucide-svelte';
+  import { ShieldCheck, Lock, Globe, Mail } from 'lucide-svelte';
 
   // Recibe los datos de la asamblea actual desde la vista Información
   export let asambleaId: number;
   export let asambleaNombre: string;
 
   let claveAcceso = "";
+  let emailAuxiliar = "";
   let procesando = false;
 
   function generarClave() {
@@ -23,7 +24,8 @@
       await invoke('exportar_asamblea_encriptada', {
         idAsamblea: asambleaId,
         password: claveAcceso,
-        nombreAsamblea: asambleaNombre
+        nombreAsamblea: asambleaNombre,
+        emailDestino: emailAuxiliar
       });
       alert("¡Archivo .rassembly creado y guardado en tu carpeta compartida!");
     } catch (e) {
@@ -49,6 +51,18 @@
         <button on:click={generarClave} class="btn-generar">Generar Clave</button>
     </div>
 
+    <div class="export-box">
+        <label class="label-email">
+            <Mail size={14} /> Correo del Auxiliar:
+        </label>
+        <input 
+            type="email" 
+            bind:value={emailAuxiliar} 
+            placeholder="ejemplo@correo.com" 
+            class="input-email"
+        />
+    </div>
+
     <button class="btn-accion" on:click={exportar} disabled={procesando}>
         <Globe size={16}/>
         {procesando ? 'Creando archivo...' : 'Exportar a la nube'}
@@ -71,4 +85,13 @@
     .btn-accion { background: #0f172a; color: white; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; margin-top: 5px; }
     .btn-accion:hover:not(:disabled) { background: #000000; transform: translateY(-1px); }
     .btn-accion:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .export-box { display: flex; flex-direction: column; gap: 5px; margin-top: 5px; }
+    .label-email { font-size: 12px; color: #475569; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .input-email { 
+        width: 100%; padding: 8px 12px; border-radius: 6px; 
+        border: 1px solid #cbd5e1; background: #f8fafc;
+        font-size: 14px; outline: none; transition: border 0.2s;
+    }
+    .input-email:focus { border-color: #2563eb; }
 </style>

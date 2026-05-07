@@ -131,6 +131,7 @@ pub fn exportar_asamblea_encriptada(
     id_asamblea: i32,
     password: String,
     nombre_asamblea: String,
+    emailDestino: String,
 ) -> Result<(), String> {
     let db_path = obtener_ruta_db(&app);
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
@@ -212,7 +213,16 @@ pub fn exportar_asamblea_encriptada(
         Ok(json!({"old_persona_id": row.get::<_, i32>(0)?, "texto": row.get::<_, Option<String>>(1)?, "fecha_recordatorio": row.get::<_, Option<String>>(2)?}))
     }).map_err(|e| e.to_string())?.filter_map(Result::ok).collect();
 
-    let datos_json = json!({ "asamblea": asamblea, "congregaciones": congregaciones, "personas": personas, "detalles_oficina": detalles_oficina, "programa": programa, "asignaciones": asignaciones, "recordatorios": recordatorios }).to_string();
+    let datos_json = json!({ 
+        "autorizado": emailDestino, // 👈 EL SELLO
+        "asamblea": asamblea, 
+        "congregaciones": congregaciones, 
+        "personas": personas, 
+        "detalles_oficina": detalles_oficina, 
+        "programa": programa, 
+        "asignaciones": asignaciones, 
+        "recordatorios": recordatorios 
+    }).to_string();
 
     let mut key = [0u8; 32];
     pbkdf2_hmac::<Sha256>(password.as_bytes(), b"rassembly_salt_2026", 1000, &mut key);
@@ -234,6 +244,7 @@ pub fn exportar_asamblea_encriptada(
 
 #[command]
 pub fn importar_asamblea_encriptada(app: AppHandle, password: String, ruta_archivo: String) -> Result<(), String> {
+    // 1. DESENCRIPTAR
     let ciphertext = fs::read(&ruta_archivo).map_err(|e| format!("Error de archivo: {}", e))?;
     
     let mut key = [0u8; 32];
@@ -244,15 +255,34 @@ pub fn importar_asamblea_encriptada(app: AppHandle, password: String, ruta_archi
         .map_err(|_| "Clave incorrecta o archivo corrupto")?;
 
     let json_string = String::from_utf8(decrypted).map_err(|_| "Codificación inválida")?;
-    let parsed: Value = serde_json::from_str(&json_string).map_err(|_| "JSON inválido")?;
+    let parsed: Value = serde_json::from_str(&json_string).map_err(|_| "Error de formato")?;
 
+    // 2. VERIFICACIÓN DE IDENTIDAD (AUTORIZACIÓN)
     let db_path = obtener_ruta_db(&app);
+    let conn_val = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    
+    let correo_autorizado = parsed["autorizado"].as_str().unwrap_or("");
+    let email_usuario: String = conn_val.query_row(
+        "SELECT email FROM configuracion WHERE id = 1", [], |r| r.get(0)
+    ).unwrap_or_else(|_| "no_configurado".to_string());
+
+    if !correo_autorizado.is_empty() && correo_autorizado != email_usuario {
+        return Err(format!(
+            "❌ ACCESO DENEGADO. Archivo sellado para: {}. Tu correo configurado es: {}", 
+            correo_autorizado, email_usuario
+        ));
+    }
+    drop(conn_val); // Liberamos la conexión de validación
+
+    // 3. INICIAR TRANSACCIÓN Y PROCESAR DATOS
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
+    
+    let asm = &parsed["asamblea"]; // asm disponible aquí
 
     // 1. LOCAL
     let mut local_id: Option<i64> = None;
-    if let Some(l) = parsed["asamblea"]["local"].as_object() {
+    if let Some(l) = asm["local"].as_object() {
         tx.execute("INSERT INTO locales (nombre, direccion, ciudad, estado, capacidad) VALUES (?1, ?2, ?3, ?4, ?5)", 
             params![l["nombre"].as_str(), l["direccion"].as_str(), l["ciudad"].as_str(), l["estado"].as_str(), l["capacidad"].as_i64()])
             .map_err(|e| format!("Error en local: {}", e))?;
@@ -260,7 +290,6 @@ pub fn importar_asamblea_encriptada(app: AppHandle, password: String, ruta_archi
     }
 
     // 2. ASAMBLEA
-    let asm = &parsed["asamblea"];
     tx.execute("INSERT INTO asambleas (tema, fecha, identificador, local_id, ensayo_lugar, ensayo_fecha, ensayo_hora, recorridos_info, instrucciones_esp, ensayo_notas, jw_stream_studio, lugar, idioma, notas_programa) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
         params![asm["tema"].as_str(), asm["fecha"].as_str(), asm["identificador"].as_str(), local_id, asm["ensayo_lugar"].as_str(), asm["ensayo_fecha"].as_str(), asm["ensayo_hora"].as_str(), asm["recorridos_info"].as_str(), asm["instrucciones_esp"].as_str(), asm["ensayo_notas"].as_str(), asm["jw_stream_studio"].as_bool(), asm["lugar"].as_str(), asm["idioma"].as_str(), asm["notas_programa"].as_str()])
         .map_err(|e| format!("Error en asamblea: {}", e))?;
@@ -301,9 +330,8 @@ pub fn importar_asamblea_encriptada(app: AppHandle, password: String, ruta_archi
         }
     }
 
-    // 6. ACTUALIZAR COMITÉ DE ASAMBLEA CON NUEVOS IDs
+    // 6. ACTUALIZAR COMITÉ
     let map_id = |key: &str| -> Option<i64> { asm[key].as_i64().and_then(|oid| map_pers.get(&oid)).copied() };
-    
     tx.execute("UPDATE asambleas SET coordinador_id=?1, coordinador_aux_id=?2, prog_super_id=?3, prog_aux_id=?4, aloj_super_id=?5, aloj_aux_id=?6, audio_video_super_id=?7, video_super_id=?8, audio_super_id=?9, plataforma_super_id=?10, bautismo_super_id=?11, bautismo_aux_id=?12 WHERE id=?13",
         params![map_id("coordinador_id"), map_id("coordinador_aux_id"), map_id("prog_super_id"), map_id("prog_aux_id"), map_id("aloj_super_id"), map_id("aloj_aux_id"), map_id("audio_video_super_id"), map_id("video_super_id"), map_id("audio_super_id"), map_id("plataforma_super_id"), map_id("bautismo_super_id"), map_id("bautismo_aux_id"), nueva_asamblea_id])
         .map_err(|e| format!("Error actualizando comité: {}", e))?;
@@ -318,7 +346,7 @@ pub fn importar_asamblea_encriptada(app: AppHandle, password: String, ruta_archi
         }
     }
 
-    // 8. ASIGNACIONES ESPECIALES
+    // 8. ASIGNACIONES
     if let Some(asig) = parsed["asignaciones"].as_array() {
         for a in asig {
             if let Some(new_pers_id) = a["old_persona_id"].as_i64().and_then(|oid| map_pers.get(&oid)).copied() {

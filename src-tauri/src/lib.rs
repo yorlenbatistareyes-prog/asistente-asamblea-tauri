@@ -130,6 +130,18 @@ if ruta_pendiente.exists() {
             match database::initialize_database(app.handle()) {
                Ok(conn) => {
                    println!("✅ Base de datos conectada y lista");
+                   // --- ASEGURAR TABLA CONFIGURACIÓN ---
+                  // Esto evita errores cuando la app busque el correo del usuario
+                  let _ = conn.execute(
+                        "CREATE TABLE IF NOT EXISTS configuracion (
+                             id INTEGER PRIMARY KEY CHECK (id = 1),
+                             email TEXT NOT NULL DEFAULT '',
+                            nombre_usuario TEXT
+                       )", 
+                        []
+                );
+                // Aseguramos que exista el registro 1
+                let _ = conn.execute("INSERT OR IGNORE INTO configuracion (id, email) VALUES (1, '')", []);
                    app.manage(DbState { conn: Mutex::new(conn) });
                }
                Err(e) => println!("❌ Error inicializando DB: {}", e),
