@@ -3,7 +3,7 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import { 
     CircleHelp, ChevronUp, ChevronDown, 
-    Monitor, FastForward, Rewind, RotateCcw, Clock 
+    Monitor, FastForward, Rewind, RotateCcw, Clock, CloudSync 
   } from 'lucide-svelte';
   
   // Estado para los acordeones
@@ -59,6 +59,38 @@
             <span><strong>Tip:</strong> Resetea el tiempo al volver del almuerzo para sincronizar todo.</span>
         </div>
     </Panel>
+
+    <div class="manual-container">
+    <div class="manual-header">
+        <CloudSync size={24} />
+        <h3>Guía de Sincronización entre Hermanos</h3>
+    </div>
+    
+    <p class="intro-text">
+        Esta función permite que el Presidente y los Auxiliares trabajen sobre la misma asamblea 
+        sin necesidad de enviar archivos pesados. Todo se sincroniza mediante una carpeta en la nube.
+    </p>
+
+    <div class="roles-grid">
+        <div class="role-card president">
+            <h4>1. Presidente (Generador)</h4>
+            <ol>
+                <li><strong>Configurar:</strong> En <em>Configuración > Datos</em>, elige una carpeta de tu nube (Google Drive/OneDrive).</li>
+                <li><strong>Exportar:</strong> Al finalizar cambios, presiona "Exportar a la nube".</li>
+                <li><strong>Compartir:</strong> Envía la clave generada al Auxiliar por un medio seguro.</li>
+            </ol>
+        </div>
+
+        <div class="role-card helper">
+            <h4>2. Auxiliar (Receptor)</h4>
+            <ol>
+                <li><strong>Sincronizar:</strong> Asegúrate de que la carpeta compartida por el Presidente aparezca en tu equipo.</li>
+                <li><strong>Vincular:</strong> En <em>Configuración > Datos</em>, selecciona esa misma carpeta.</li>
+                <li><strong>Importar:</strong> Presiona "Importar" en Inicio, selecciona el archivo y escribe la clave.</li>
+            </ol>
+        </div>
+    </div>
+</div>
 
     <div class="divider"></div>
 
@@ -220,4 +252,64 @@
         font-size: 14px; /* Un pelín más grande para leer sin cansar la vista */
     }
 }
+
+.sync-logic-container { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+.sync-step { display: flex; align-items: flex-start; gap: 15px; }
+.step-num { 
+    background: var(--primary); color: white; width: 26px; height: 26px; 
+    border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+    font-weight: 800; font-size: 0.8rem; flex-shrink: 0; 
+}
+.step-text { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4; }
+
+.manual-container {
+        background: #fffdf2; /* Fondo amarillento claro elegante */
+        border: 1px solid #fde68a;
+        padding: 30px;
+        border-radius: 16px;
+        margin-bottom: 30px;
+    }
+
+    .manual-header { 
+        display: flex; align-items: center; gap: 12px; 
+        color: #92400e; /* Tono ámbar oscuro para texto */
+        margin-bottom: 15px; 
+    }
+
+    .roles-grid { 
+        display: grid; 
+        grid-template-columns: 1fr 1fr; 
+        gap: 20px; 
+        margin-top: 20px;
+    }
+
+    .role-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #fef3c7;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+
+    .role-card h4 {
+        margin: 0 0 12px 0;
+        font-size: 0.95rem;
+        color: #78350f;
+        border-bottom: 2px solid #fde68a;
+        padding-bottom: 8px;
+    }
+
+    .role-card ol {
+        margin: 0; padding-left: 20px;
+        font-size: 0.85rem;
+        color: #451a03;
+        line-height: 1.6;
+    }
+
+    /* Ajuste para móviles */
+    @media (max-width: 768px) {
+        .roles-grid { grid-template-columns: 1fr; }
+        .manual-container { padding: 20px; }
+    }
+
 </style>
