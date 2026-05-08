@@ -171,23 +171,8 @@
         <div class="config-scroll-area">
             
             {#if configSeccion === 'general'}
-                <div class="config-grid" class:full-width={editorAbierto}>
-                    <div class="col-main">
-                        <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
-                        
-                        {#if !editorAbierto}
-                            <Panel padding="20px" clasesExtra="config-group">
-                                <label class="group-label">Configuraciones de PDF</label>
-                                <label class="radio-item" class:active-radio={config.accionPdf === 'nada'}><input type="radio" name="pdf" value="nada" bind:group={config.accionPdf}> <span>Sin acción</span></label>
-                                <label class="radio-item" class:active-radio={config.accionPdf === 'carpeta'}><input type="radio" name="pdf" value="carpeta" bind:group={config.accionPdf}> <span>Mostrar en Explorer</span></label>
-                                <label class="radio-item active-radio" class:active-radio={config.accionPdf === 'abrir'}><input type="radio" name="pdf" value="abrir" bind:group={config.accionPdf}> <span>Abrir predeterminado</span></label>
-                            </Panel>
-                            <div class="config-group"><label>Idioma</label><select bind:value={config.idioma} class="input-light"><option value="es">Español</option><option value="en">English</option></select></div>
-                        {/if}
-                    </div>                   
-                </div>
 
-                {#if !editorAbierto}
+              {#if !editorAbierto}
                     <Panel padding="25px" clasesExtra="user-info-section-override">
                         <div class="user-info-header">
                             <h3>Información del usuario</h3>
@@ -203,6 +188,13 @@
                         </div>
                     </Panel>
                 {/if}
+                
+                <div class="config-grid" class:full-width={editorAbierto}>
+                    <div class="col-main">
+                        <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
+                        
+                    </div>                   
+                </div>
 
                 <MembreteConfig />
 

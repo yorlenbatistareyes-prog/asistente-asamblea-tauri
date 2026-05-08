@@ -131,7 +131,7 @@ pub fn exportar_asamblea_encriptada(
     id_asamblea: i32,
     password: String,
     nombre_asamblea: String,
-    emailDestino: String,
+    emailDestino: Vec<String>,
 ) -> Result<(), String> {
     let db_path = obtener_ruta_db(&app);
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
