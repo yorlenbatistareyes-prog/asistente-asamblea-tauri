@@ -131,43 +131,24 @@
 </script>
 
 <div class="config-layout">
-    <aside class="config-sidebar">
-        <div class="config-header">
-            <button class="btn-back-config" on:click={cerrar}><ArrowLeft size={20}/> Volver</button>
+    <header class="config-top-header">
+        <div class="config-top-title-area">
+            <button class="btn-back-config" on:click={cerrar}><ArrowLeft size={18}/> Volver</button>
             <h2>Configuración</h2>
         </div>
-        <nav class="config-nav">
-            <button class:active={configSeccion === 'general'} on:click={() => configSeccion = 'general'}><Sliders size={18}/> General</button>
-            <button class:active={configSeccion === 'cartas'} on:click={() => configSeccion = 'cartas'}><FileText size={18}/> Plantillas de cartas</button>
-            <button class:active={configSeccion === 'correos'} on:click={() => configSeccion = 'correos'}><Mail size={18}/> Plantillas de correo</button>
-            <button class:active={configSeccion === 'cuenta'} on:click={() => configSeccion = 'cuenta'}><Shield size={18}/> Cuenta y Seguridad</button>
-            <div class="nav-divider"></div>
-            <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}><Database size={18}/> Datos</button>
-            <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}><CircleHelp size={18}/> Ayuda</button>
         
-            <button class:active={configSeccion === 'actualizaciones'} on:click={() => configSeccion = 'actualizaciones'}>
-               <Info size={18}/> Acerca de 
-            </button>
-        
+        <nav class="config-tabs">
+            <button class:active={configSeccion === 'general'} on:click={() => configSeccion = 'general'}>General</button>
+            <button class:active={configSeccion === 'cartas'} on:click={() => configSeccion = 'cartas'}>Plantillas de cartas</button>
+            <button class:active={configSeccion === 'correos'} on:click={() => configSeccion = 'correos'}>Plantillas de correo</button>
+            <button class:active={configSeccion === 'whatsapp'} on:click={() => configSeccion = 'whatsapp'}>Plantillas de WhatsApp</button>
+            <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}>Datos</button>
+            <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}>Ayuda</button>
+            <button class:active={configSeccion === 'actualizaciones'} on:click={() => configSeccion = 'actualizaciones'}>Acerca de</button>
         </nav>
-
-    </aside>
+    </header>
 
     <main class="config-content">
-        <div class="config-title-bar">
-            <h1>
-                {#if configSeccion === 'general'} Configuraciones generales 
-                {:else if configSeccion === 'correos'} Plantillas de correo electrónico 
-                {:else if configSeccion === 'cuenta'} Cuenta y Seguridad 
-                {:else if configSeccion === 'datos'} Gestión de Datos 
-                {:else if configSeccion === 'ayuda'} Centro de Ayuda
-                {:else if configSeccion === 'actualizaciones'} Acerca de RAssembly {/if}
-            </h1>
-            {#if configSeccion === 'general' && !editorAbierto}
-                <div class="config-actions"><button class="btn-save-config" on:click={guardarCambiosConfig}>Guardar Cambios</button></div>
-            {/if}
-        </div>
-
         <div class="config-scroll-area">
             
             {#if configSeccion === 'general'}
@@ -189,14 +170,14 @@
                     </Panel>
                 {/if}
                 
+                <MembreteConfig />
+
+            {:else if configSeccion === 'whatsapp'}
                 <div class="config-grid" class:full-width={editorAbierto}>
                     <div class="col-main">
                         <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
-                        
-                    </div>                   
+                    </div>                  
                 </div>
-
-                <MembreteConfig />
 
             {:else if configSeccion === 'cartas'}
                 <PlantillasCartas on:cambioModo={manejarCambioModo} />
@@ -248,45 +229,95 @@
 
 <style>
 /* ==========================================================================
-   LAYOUT PRINCIPAL
+   LAYOUT PRINCIPAL (AHORA VERTICAL)
    ========================================================================== */
-.config-layout { display: grid; grid-template-columns: 260px 1fr; height: 100vh; background: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', sans-serif; }
+.config-layout { 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh; 
+    background: var(--bg-body); 
+    color: var(--text-main); 
+    font-family: 'Segoe UI', sans-serif; 
+}
 
-/* === SIDEBAR === */
-.config-sidebar { background: var(--bg-card); border-right: 1px solid var(--border); padding: 20px 0; display: flex; flex-direction: column; height: 100vh;}
-.config-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border); }
-.config-header h2 { margin: 15px 0 0; font-size: 1.2rem; color: var(--text-main); }
+/* === NUEVA CABECERA SUPERIOR (PESTAÑAS) === */
+.config-top-header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding-top: 20px;
+    flex-shrink: 0;
+}
+
+.config-top-title-area {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 0 40px 15px 40px;
+}
+
+.config-top-title-area h2 {
+    margin: 0;
+    font-size: 22px;
+    color: var(--text-main);
+    font-weight: 700;
+}
 
 /* BOTÓN VOLVER */
 .btn-back-config { 
-    display: inline-flex; align-items: center; gap: 10px; padding: 8px 18px; border-radius: 50px; 
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; 
     background: transparent; border: 1px solid var(--border); color: var(--text-secondary); 
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.25s ease; margin-bottom: 15px; 
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; 
 }
 .btn-back-config:hover { 
-    background: var(--hover-bg); border-color: var(--primary); color: var(--primary); 
-    transform: translateX(-4px); 
+    background: var(--hover-bg); color: var(--text-main); border-color: var(--text-secondary);
 }
-.btn-back-config:hover :global(svg) { stroke: var(--primary); }
 
-/* NAVEGACIÓN LATERAL */
-.config-nav { padding: 20px 10px; display: flex; flex-direction: column; gap: 5px; }
-.config-nav button { background: none; border: none; width: 100%; text-align: left; padding: 12px 16px; color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 12px; transition: all 0.2s; }
-.config-nav button:hover { background: var(--hover-bg); color: var(--text-main); }
-.config-nav button.active { background: var(--primary); color: white; font-weight: 600; }
-.nav-divider { height: 1px; background: var(--border); margin: 5px 10px; }
+/* === PESTAÑAS HORIZONTALES ESTILO IMAGEN === */
+.config-tabs { 
+    display: flex; 
+    gap: 32px; 
+    padding: 0 40px; 
+    overflow-x: auto; 
+    scrollbar-width: none; /* Oculta scrollbar en Firefox */
+}
+.config-tabs::-webkit-scrollbar { display: none; } /* Oculta scrollbar Chrome/Safari */
+
+.config-tabs button { 
+    background: transparent; 
+    border: none; 
+    padding: 12px 0; 
+    color: var(--text-secondary); 
+    font-size: 14.5px; 
+    font-weight: 500; 
+    cursor: pointer; 
+    border-bottom: 2.5px solid transparent; /* La línea invisible abajo */
+    transition: all 0.2s; 
+    white-space: nowrap; 
+}
+.config-tabs button:hover { 
+    color: var(--text-main); 
+}
+.config-tabs button.active { 
+    /* El color de la línea activa. Usa el rosa de tu imagen (#c2185b) o tu azul (var(--primary)) */
+    color: #c2185b; 
+    border-bottom-color: #c2185b; 
+    font-weight: 600; 
+}
 
 /* === CONTENIDO PRINCIPAL === */
-.config-content { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-body); }
-.config-title-bar { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg-card); }
+.config-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; background: var(--bg-body); }
+.config-title-bar { padding: 25px 40px; display: flex; justify-content: space-between; align-items: center; }
 .config-title-bar h1 { margin: 0; font-size: 24px; color: var(--text-main); font-weight: 700; }
 
 .btn-save-config { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
 .btn-save-config:hover { opacity: 0.9; transform: translateY(-1px); }
 
-.config-scroll-area { flex: 1; overflow-y: auto; padding: 40px; }
+.config-scroll-area { flex: 1; overflow-y: auto; padding: 0 40px 40px 40px; }
 .config-grid { display: grid; grid-template-columns: minmax(0, 60%) minmax(0, 40%); gap: 60px; max-width: 1200px; transition: all 0.3s ease; }
 .config-grid.full-width { grid-template-columns: 1fr; gap: 0; max-width: 100%; }
+
 
 /* INPUTS Y RADIO BUTTONS (General) */
 :global(.config-group) { margin-bottom: 30px; }
@@ -340,82 +371,21 @@
    ========================================================= */
 
 @media (max-width: 768px) {
-    /* 1. LAYOUT PRINCIPAL (De 2 columnas a 1 columna vertical) */
-    .config-layout {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-    }
-
-    /* 2. LA BARRA LATERAL SE CONVIERTE EN PESTAÑAS DESLIZABLES */
-    .config-sidebar {
-        height: auto;
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-        padding: 15px 0 0 0;
-    }
-
-    .config-header {
-        padding: 0 15px 10px 15px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .config-header h2 { margin: 0; }
-    .btn-back-config { margin: 0; }
-
-    .config-nav {
-        flex-direction: row;
-        overflow-x: auto; /* Permite deslizar con el dedo */
-        -webkit-overflow-scrolling: touch;
-        padding: 10px 15px;
-        gap: 10px;
-    }
-
-    /* Ocultar la fea barra de scroll debajo de las pestañas */
-    .config-nav::-webkit-scrollbar { 
-        display: none; 
-    }
+    /* 1 y 2. CABECERA SUPERIOR Y PESTAÑAS EN MÓVIL */
+    .config-top-title-area { padding: 0 20px 10px 20px; }
+    .config-tabs { padding: 0 20px; gap: 24px; }
     
-    .config-nav button {
-        width: auto;
-        white-space: nowrap; /* Evita que el texto del botón se rompa en dos líneas */
-        padding: 10px 18px;
-        border-radius: 20px; /* Estilo de "píldoras" modernas */
-        background: var(--bg-body);
-        border: 1px solid var(--border);
-    }
-    
-    .config-nav button.active {
-        background: var(--primary);
-        border-color: var(--primary);
-    }
-
-    .nav-divider { display: none; } /* Ocultamos las líneas divisorias */
-    .config-footer { display: none; } /* Ocultamos la info del software para ahorrar pantalla */
-
     /* 3. ÁREA DE CONTENIDO PRINCIPAL */
-    .config-content {
-        height: auto;
-        flex: 1;
-    }
-
     .config-title-bar {
-        padding: 15px;
+        padding: 20px;
         flex-direction: column;
         align-items: flex-start;
         gap: 15px;
     }
-    
     .config-title-bar h1 { font-size: 20px; }
     .config-actions { width: 100%; }
     .btn-save-config { width: 100%; min-height: 48px; }
-
-    .config-scroll-area {
-        padding: 15px;
-    }
+    .config-scroll-area { padding: 0 20px 20px 20px; }
 
     /* 4. FORMULARIOS A 1 SOLA COLUMNA */
     .config-grid {
@@ -460,6 +430,6 @@
         width: 100%;
         min-height: 48px;
     }
-}
+} /* <--- Esta es la llave que faltaba poner hasta acá abajo */
 
 </style>
