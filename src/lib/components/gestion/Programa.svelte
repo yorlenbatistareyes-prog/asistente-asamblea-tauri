@@ -1054,29 +1054,27 @@ async function cargarTodosDias() {
 
                 <div class="grid-acciones">
                   
-                  <div class="grupo-accion center">
-                    <button class="btn-outline-gray" on:click={() => procesarImpresion(parte, true)}>
-                      <Printer size={16}/> IMPRIMIR CARTA
-                    </button>
-                  </div>
+                  <button class="btn-pildora btn-print" on:click={() => procesarImpresion(parte, true)}>
+                    <div class="icono-pildora"><Printer size={20}/></div>
+                    <span>Imprimir Carta</span>
+                  </button>
 
-                  <div class="grupo-accion right">
-                    <button class="btn-outline-orange" on:click={() => abrirJWPUBCarta(parte)}>
-                      <FileJson size={16}/> JWPUB ENVIAR CARTA
-                    </button>
-                  </div>
+                  <button class="btn-pildora btn-jwpub" on:click={() => abrirJWPUBCarta(parte)}>
+                    <div class="icono-pildora"><Mail size={20}/></div>
+                    <span>Enviar Carta (JWPub)</span>
+                    <span class="jw-badge">JW</span>
+                  </button>
 
-                  <div class="grupo-accion center">
-                    <button class="btn-outline-green" on:click={() => abrirWhatsAppRecordatorio(parte)}>
-                       <MessageCircle size={16}/> RECORDATORIO ENSAYO POR WHATSAPP
-                    </button>
-                  </div>
+                  <button class="btn-pildora btn-whatsapp" on:click={() => abrirWhatsAppRecordatorio(parte)}>
+                    <div class="icono-pildora"><MessageCircle size={20}/></div>
+                    <span>WhatsApp</span>
+                  </button>
 
-                  <div class="grupo-accion right">
-                    <button class="btn-outline-orange" on:click={() => abrirJWPUBRecordatorio(parte)}>
-                      <FileJson size={16}/> JWPUB RECORDATORIO DE ASIGNACIÓN
-                    </button>
-                  </div>
+                  <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
+                    <div class="icono-pildora"><FileCheck size={20}/></div>
+                    <span>Asignación (JWPub)</span>
+                    <span class="jw-badge">JW</span>
+                  </button>
                 </div>
               {/if}
 
@@ -1614,14 +1612,94 @@ async function cargarTodosDias() {
 .contact-pill { display: flex; align-items: center; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); }
 
 /* Grid Acciones */
+/* Modificación a la grid para que sea horizontal */
 .grid-acciones { 
-  display: flex;             /* Cambiamos a flex para mejor control */
+  display: flex;             
   justify-content: flex-start; 
-  gap: 8px; 
+  gap: 12px; 
   margin-top: 15px;
   margin-bottom: 15px; 
-  flex-wrap: nowrap;         /* Forzamos una sola línea */
+  flex-wrap: nowrap;         
   width: 100%;
+}
+
+/* =====================================
+   BOTONES ESTILO PÍLDORA (REFINADOS)
+   ===================================== */
+.btn-pildora {
+  display: flex;
+  align-items: center;
+  border-radius: 50px; 
+  border: none;
+  /* Padding: 5px arriba/abajo, 18px derecha, 5px izquierda (para rodear el ícono) */
+  padding: 5px 18px 5px 5px; 
+  color: white;
+  font-weight: 600;
+  font-size: 12.5px; /* Letra un poco más fina */
+  letter-spacing: 0.2px; /* Un respiro entre letras */
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  transition: all 0.2s ease;
+  position: relative; 
+  height: 40px; /* Altura más recatada y profesional */
+}
+
+.btn-pildora:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* El círculo oscuro detrás del ícono (Ahora va por DENTRO del botón) */
+.icono-pildora {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; /* Más pequeño que la altura del botón */
+  height: 30px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.2); /* Fondo semitransparente oscuro */
+  margin-right: 10px; /* Separación con el texto */
+}
+
+/* Forzar tamaño del ícono para que no se infle */
+.icono-pildora :global(svg) {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+/* Colores un poco más limpios */
+.btn-print { background: linear-gradient(135deg, #2563eb, #3b82f6); } 
+.btn-jwpub { background: linear-gradient(135deg, #0f766e, #0e7490); } 
+.btn-whatsapp { background: linear-gradient(135deg, #16a34a, #22c55e); } 
+.btn-teal { background: linear-gradient(135deg, #0891b2, #06b6d4); } 
+
+/* Etiqueta flotante "JW" - Más delicada */
+.jw-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #0f172a; 
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 10px;
+  border: 1.5px solid var(--bg-card); 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  letter-spacing: 0.5px;
+}
+
+/* Ajuste Responsivo para los botones píldora en móviles */
+@media (max-width: 768px) {
+  .grid-acciones {
+    flex-wrap: wrap; /* Permitimos que se apilen en pantallas pequeñas */
+  }
+  
+  .btn-pildora {
+    width: 100%; /* Que ocupen todo el ancho en el móvil */
+    justify-content: flex-start;
+  }
 }
 
 /* Ajuste opcional para los iconos dentro de esos botones */
