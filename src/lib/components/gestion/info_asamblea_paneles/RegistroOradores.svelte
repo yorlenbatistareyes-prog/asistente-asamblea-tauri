@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { MessageSquare } from 'lucide-svelte';
-  import { Phone, MessageCircle } from 'lucide-svelte';
+  import { Phone, MessageCircle, Mail } from 'lucide-svelte';
   import { open as openUrl } from '@tauri-apps/plugin-shell';
 
   // --- IMPORTACIONES PARA PDF ---
@@ -112,47 +112,57 @@
     return 'InPerson';
   }
 
-  // --- LLAMADAS Y WHATSAPP ---
+// --- LLAMADAS Y WHATSAPP ---
   function limpiarTelefono(tel: string): string {
     return tel.replace(/[\s\-\(\)]/g, ''); // Quita espacios y guiones
   }
 
-  // --- SEPARADOR INTELIGENTE DE MÚLTIPLES TELÉFONOS ---
+  // --- SEPARADOR INTELIGENTE DE MÚLTIPLES TELÉFONOS (CON FILTRO DE DUPLICADOS) ---
   function obtenerListaTelefonos(telefonosStr: string): string[] {
     if (!telefonosStr) return [];
     
+    let listaCruda: string[] = [];
+    
     // Si usaste comas o slashes para separar, es fácil:
     if (telefonosStr.includes(',') || telefonosStr.includes('/')) {
-      return telefonosStr.split(/[,/]/).map(t => t.trim()).filter(t => t.length > 4);
-    }
-
-    // Si están separados por espacios, usamos lógica para no romper números como "05 3389329"
-    let partes = telefonosStr.trim().split(/\s+/);
-    let numerosReales: string[] = [];
-    let temporal = "";
-
-    for (let parte of partes) {
-      // Reconstruimos el string respetando los espacios que el usuario puso
-      temporal += (temporal.length > 0 ? " " : "") + parte;
+      listaCruda = telefonosStr.split(/[,/]/).map(t => t.trim()).filter(t => t.length > 4);
+    } else {
+      // Si están separados por espacios, procesamos con cuidado
+      let partes = telefonosStr.trim().split(/\s+/);
+      let temporal = "";
       
-      // Contamos cuántos números reales hay en este fragmento
-      let digitos = temporal.replace(/\D/g, '');
-      
-      // En Cuba, un móvil o fijo completo tiene al menos 8 dígitos
-      if (digitos.length >= 8) {
-          numerosReales.push(temporal);
-          temporal = ""; // Reseteamos para buscar el siguiente número
+      for (let parte of partes) {
+        temporal += (temporal.length > 0 ? " " : "") + parte;
+        let digitos = temporal.replace(/\D/g, '');
+        if (digitos.length >= 8) {
+            listaCruda.push(temporal);
+            temporal = ""; 
+        }
+      }
+      if (temporal.replace(/\D/g, '').length > 4) {
+          listaCruda.push(temporal);
       }
     }
 
-    // Si quedó un número suelto al final (ej. un teléfono fijo de 6 dígitos)
-    if (temporal.replace(/\D/g, '').length > 4) {
-        numerosReales.push(temporal);
+    if (listaCruda.length === 0) listaCruda = [telefonosStr];
+
+    // DEDUPLICAR: Elimina números repetidos (ej: "05 8606589" y "58606589")
+    let unicos: string[] = [];
+    let firmas = new Set();
+    
+    for (let tel of listaCruda) {
+      let digitos = tel.replace(/\D/g, '');
+      // Tomamos los últimos 8 dígitos reales para comparar
+      let firma = digitos.length >= 8 ? digitos.slice(-8) : digitos;
+      
+      if (!firmas.has(firma)) {
+          firmas.add(firma);
+          unicos.push(tel);
+      }
     }
 
-    return numerosReales.length > 0 ? numerosReales : [telefonosStr];
+    return unicos;
   } 
-
 
   async function llamarCelular(telefono: string) {
     let telLimpio = limpiarTelefono(telefono);
@@ -220,6 +230,31 @@
     } catch (e) {
       console.error("Error al abrir JWPUB:", e);
       alert("Error al intentar abrir el cliente de correo.");
+    }
+  }
+
+  // --- EMAIL INDIVIDUAL ---
+  async function abrirEmailIndividual(parte: any) {
+    const correo = parte.email_orador || parte.email;
+    
+    if (!correo || correo.trim() === '') {
+      return alert("Este orador no tiene correo electrónico registrado.");
+    }
+    
+    // Asunto y cuerpo predeterminados
+    const asunto = `Asignación de Asamblea: ${parte.tema || ''}`;
+    const cuerpo = `Estimado hermano ${parte.nombre_orador || ''},\n\nLe escribimos en relación a su parte en la asamblea.\n\nSaludos cordiales.`;
+    
+    try {
+      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose` +
+                  `&to=${encodeURIComponent(correo.trim())}` +
+                  `&subject=${encodeURIComponent(asunto)}` +
+                  `&body=${encodeURIComponent(cuerpo)}`;
+                  
+      await openUrl(url);
+    } catch(e) {
+      console.error(e);
+      alert("Error al abrir JWPUB");
     }
   }
 
@@ -451,7 +486,7 @@ async function generarPDFPlano() {
     <div class="controles-vista">
 
       <button class="btn-email-masivo" on:click={enviarEmailMasivo} title="Enviar correo a todos los oradores">
-        <MessageSquare size={16} style="margin-right: 6px;"/> Email a todos los oradores
+        <Mail size={16} style="margin-right: 6px;"/> Email a todos los oradores
       </button>
 
       <button class="btn-pdf" on:click={generarPDFPlano}>Generar PDF</button>
@@ -500,22 +535,35 @@ async function generarPDFPlano() {
               </div>
 
               <div class="td-movil">
-                {#if parte.telefono_orador}
-                  <div class="lista-telefonos">
-                    {#each obtenerListaTelefonos(parte.telefono_orador) as tel}
-                      <div class="acciones-tel">
-                        <button class="btn-celular" on:click={() => llamarCelular(tel)} title="Llamar">
-                          <Phone size={13}/> {tel}
-                        </button>
-                        <button class="btn-whatsapp" on:click={() => abrirWhatsApp(tel)} title="Mensaje por WhatsApp">
-                          <MessageCircle size={13}/> WhatsApp
-                        </button>
-                      </div>
-                    {/each}
-                  </div>
-                {:else}
-                  <span class="sin-datos">---</span>
-                {/if}
+                <div class="lista-contactos">
+                  
+                  {#if parte.telefono_orador && parte.telefono_orador.trim() !== ''}
+                    <div class="lista-telefonos">
+                      {#each obtenerListaTelefonos(parte.telefono_orador) as tel}
+                        <div class="acciones-tel">
+                          <button class="btn-celular" on:click={() => llamarCelular(tel)} title="Llamar">
+                            <Phone size={13}/> {tel}
+                          </button>
+                          <button class="btn-whatsapp" on:click={() => abrirWhatsApp(tel)} title="Mensaje por WhatsApp">
+                            <MessageCircle size={13}/> WhatsApp
+                          </button>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+
+                  {#if (parte.email_orador && parte.email_orador.trim() !== '') || (parte.email && parte.email.trim() !== '')}
+                    <div class="acciones-email-indiv" style="margin-top: 4px;">
+                      <button class="btn-email-indiv-icon" on:click={() => abrirEmailIndividual(parte)} title="Enviar Email JWPUB a ${parte.nombre_orador || 'orador'} (${parte.email_orador || parte.email})">
+                        <Mail size={16}/> </button>
+                    </div>
+                  {/if}
+
+                  {#if (!parte.telefono_orador || parte.telefono_orador.trim() === '') && (!parte.email_orador || parte.email_orador.trim() === '') && (!parte.email || parte.email.trim() === '')}
+                    <span class="sin-datos">---</span>
+                  {/if}
+
+                </div>
               </div>
 
               <div class="td-check">
@@ -718,6 +766,63 @@ async function generarPDFPlano() {
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
+  }
+
+  .lista-contactos {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Estilo Email Individual (Rojo Oscuro/Magenta) */
+  .btn-email-indiv {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #9f0d46; /* El mismo color de tu botón masivo */
+    text-align: left;
+    word-break: break-all; /* Por si el correo es muy largo */
+  }
+  
+  .btn-email-indiv:hover {
+    background-color: rgba(159, 13, 70, 0.08);
+    border-color: rgba(159, 13, 70, 0.2);
+  }
+
+  /* NUEVO CSS para el botón de Email SÓLO ICONO */
+  .btn-email-indiv-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;  /* Botón pequeño y cuadrado */
+    height: 28px;
+    border-radius: 6px; /* Bordes redondeados sutiles */
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #9f0d46; /* Tu color rojo oscuro corporativo */
+    padding: 0; /* Sin relleno para centrar el icono */
+  }
+
+  .btn-email-indiv-icon:hover {
+    background-color: rgba(159, 13, 70, 0.08);
+    border-color: rgba(159, 13, 70, 0.2);
+  }
+  
+  /* Contenedor opcional para alinear el icono a la izquierda */
+  .acciones-email-indiv {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
   }
 
   /* Estilo Llamada Normal (Azul) */
