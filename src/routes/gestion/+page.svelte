@@ -140,6 +140,10 @@
               <span class="txt-tab">Programa</span>
           </button>
 
+          <button class="tab-btn" class:activo={seccionActiva === 'registro_oradores'} on:click={() => cambiarSeccion('registro_oradores')}>
+              <span class="txt-tab">Registro</span>
+          </button>
+
           <button class="tab-btn" class:activo={seccionActiva === 'ensayos'} on:click={() => cambiarSeccion('ensayos')}>
               <span class="txt-tab">Ensayos</span>
           </button>

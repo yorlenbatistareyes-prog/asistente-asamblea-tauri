@@ -180,6 +180,49 @@
     }
   }
 
+  // --- EMAIL MASIVO A TODOS LOS ORADORES ---
+  async function enviarEmailMasivo() {
+    const emailsUnicos = new Set<string>();
+    
+    // 1. Recorremos todas las partes cargadas
+    partes.forEach(p => {
+      // Buscamos el correo en todas las posibles propiedades (por si acaso)
+      // En Tauri/Rust a veces el campo viene como email_orador o simplemente email
+      const correo = p.email_orador || p.email;
+      
+      if (correo && correo.trim() !== '' && p.fuente !== 'Video' && p.fuente !== 'video') {
+        emailsUnicos.add(correo.trim());
+      }
+    });
+
+    // Convertimos a lista separada por punto y coma (formato estándar de Outlook/OWA)
+    const listaCorreos = Array.from(emailsUnicos).join(';');
+    
+    if (listaCorreos.length === 0) {
+      return alert("⚠️ No se encontraron correos. Verifica que los oradores tengan un email asignado en la base de datos.");
+    }
+
+    // 2. Preparamos los textos
+    const asunto = `Asamblea Regional: ${asambleaActiva?.tema || ''}`;
+    const cuerpo = `Estimados hermanos,\n\nComparto información importante sobre el registro de oradores.\n\nSaludos.`;
+
+    try {
+      // 3. Formato de URL ajustado para OWA (Outlook Web App)
+      // Cambiamos el '#' por '?' antes de path para que OWA procese mejor los argumentos en algunas versiones
+      const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose` +
+                  `&to=${encodeURIComponent(listaCorreos)}` +
+                  `&subject=${encodeURIComponent(asunto)}` +
+                  `&body=${encodeURIComponent(cuerpo)}`;
+                  
+      await openUrl(url);
+      
+      console.log("Correos enviados a:", listaCorreos); // Esto te servirá para ver en la consola si los está capturando
+    } catch (e) {
+      console.error("Error al abrir JWPUB:", e);
+      alert("Error al intentar abrir el cliente de correo.");
+    }
+  }
+
   async function toggleCheck(id: number, campo: string, valorActual: boolean) {
     try {
       // Invertimos el valor al hacer clic
@@ -406,7 +449,13 @@ async function generarPDFPlano() {
     </header>
 
     <div class="controles-vista">
+
+      <button class="btn-email-masivo" on:click={enviarEmailMasivo} title="Enviar correo a todos los oradores">
+        <MessageSquare size={16} style="margin-right: 6px;"/> Email a todos los oradores
+      </button>
+
       <button class="btn-pdf" on:click={generarPDFPlano}>Generar PDF</button>
+      
       <button class="btn-pdf-outline" on:click={generarPDFRellenable}>Generar PDF rellenable</button>
     </div>
   </div>
@@ -526,6 +575,24 @@ async function generarPDFPlano() {
   .controles-vista {
     display: flex; gap: 10px; margin-top: 20px; align-items: center;
   }
+
+  /* ESTILO PARA EL BOTÓN DE EMAIL MASIVO */
+  .btn-email-masivo {
+    background-color: #9f0d46; /* Color rojo oscuro / magenta similar a la captura */
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .btn-email-masivo:hover { background-color: #7a0935; }
+
   .btn-pdf { background-color: #286eb4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
   .btn-pdf:hover { background-color: #1d4ed8; }
   

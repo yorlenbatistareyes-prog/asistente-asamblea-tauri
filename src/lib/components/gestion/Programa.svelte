@@ -1067,12 +1067,12 @@ async function cargarTodosDias() {
 
                   <button class="btn-pildora btn-whatsapp" on:click={() => abrirWhatsAppRecordatorio(parte)}>
                     <div class="icono-pildora"><MessageCircle size={20}/></div>
-                    <span>WhatsApp</span>
+                    <span>WhatsApp, recordatorio</span>
                   </button>
 
                   <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
                     <div class="icono-pildora"><FileCheck size={20}/></div>
-                    <span>Asignación (JWPub)</span>
+                    <span>Asignación, recordatorio (JWPub)</span>
                     <span class="jw-badge">JW</span>
                   </button>
                 </div>
