@@ -378,135 +378,107 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
 </div>
 
 <style>
-  /* ESTRUCTURA PRINCIPAL */
-  .vista-programa-container {
-    background-color: #f8fafc; height: 100%; display: flex; flex-direction: column;
-    padding: 30px 40px 0 40px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden;
-  }
-  .top-fijo { flex-shrink: 0; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; }
-  .header-vista h1 { font-size: 26px; font-weight: 800; color: #1e293b; margin: 0 0 5px 0; }
-  .subtitle { font-size: 14px; color: #64748b; margin: 0; }
-  .controles-vista { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
-  .conteo-oradores { font-size: 14px; color: #64748b; font-weight: 500; }
-  
-  .btn-pdf { background-color: #286eb4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-  .btn-pdf:hover { background-color: #1d4ed8; }
+ /* =======================================
+   ESTRUCTURA PRINCIPAL
+   ======================================= */
+.vista-programa-container {
+  background-color: var(--bg-body);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 40px 0 40px;
+  overflow: hidden;
+}
 
-  .contenido-programa { flex: 1; overflow-y: auto; padding-right: 15px; padding-bottom: 40px; }
-  .contenido-programa::-webkit-scrollbar { width: 8px; }
-  .contenido-programa::-webkit-scrollbar-track { background: transparent; }
-  .contenido-programa::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.top-fijo { flex-shrink: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+.header-vista h1 { font-size: 26px; font-weight: 800; color: var(--text-main); margin: 0 0 5px 0; }
+.subtitle { font-size: 14px; color: var(--text-sec); margin: 0; }
+.controles-vista { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+.conteo-oradores { font-size: 14px; color: var(--text-sec); font-weight: 500; }
 
-  .lista-tarjetas { display: flex; flex-direction: column; gap: 20px; margin-top: 10px; }
+.btn-pdf { 
+  background-color: var(--primary); color: #ffffff; border: none; 
+  padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; 
+  cursor: pointer; transition: background 0.2s; 
+}
+.btn-pdf:hover { background-color: var(--primary-hover); }
 
-  /* =======================================
-     TARJETA DE ORADOR Y SUS ESTADOS DE COLOR
-     ======================================= */
-  .tarjeta-orador {
-    border-radius: 8px;
-    padding: 24px;
-    transition: all 0.3s ease;
-  }
+.contenido-programa { flex: 1; overflow-y: auto; padding-right: 15px; padding-bottom: 40px; }
+.contenido-programa::-webkit-scrollbar { width: 8px; }
+.contenido-programa::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
-  /* ESTADO: PENDIENTE (Azulita clara) */
-  .estado-pendiente {
-    background-color: #f0f9ff; /* Azul muy claro */
-    border: 1px solid #bae6fd; /* Borde azul claro */
-  }
+.lista-tarjetas { display: flex; flex-direction: column; gap: 20px; margin-top: 10px; }
 
-  /* ESTADO: RECIBIDO (Blanca) */
-  .estado-recibido {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  }
+/* =======================================
+   TARJETA DE ORADOR
+   ======================================= */
+.tarjeta-orador {
+  border-radius: 8px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border);
+  background-color: var(--bg-card);
+}
 
-  /* CABECERA DE LA TARJETA */
-  .tarjeta-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-  .header-izq { display: flex; align-items: center; gap: 12px; }
-  .header-izq h2 { margin: 0; font-size: 18px; font-weight: 700; color: #0f172a; }
-  
-  .badge-alerta { background-color: #fef3c7; color: #b45309; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
-  
-  .header-der { display: flex; align-items: center; gap: 15px; }
-  .check-co11 { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #475569; font-weight: 500; }
-  .check-co11 input { 
-    width: 16px; 
-    height: 16px; 
-    cursor: pointer; 
-    accent-color: #286eb4; 
-    /* Forzar visibilidad por encima del CSS global */
-    appearance: auto !important;
-    -webkit-appearance: checkbox !important;
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
+.tarjeta-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.header-izq { display: flex; align-items: center; gap: 12px; }
+.header-izq h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); }
 
-  .btn-icon-simple { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px; }
-  .btn-icon-simple:hover { color: #475569; }
+.badge-alerta { 
+  background-color: var(--accent-danger); color: white; 
+  padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; 
+}
 
-  .partes-count { font-size: 13px; color: #64748b; margin: 0 0 15px 0; }
+/* REPARACIÓN DEL CHECKBOX CO-11 */
+.check-co11 { 
+  display: flex; align-items: center; gap: 8px; cursor: pointer; 
+  font-size: 13px; color: var(--text-main); font-weight: 500; 
+}
+.check-co11 input { 
+  width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);
+  display: inline-block !important; appearance: auto !important;
+}
 
-  /* BOTONES CIRCULARES DE CONTACTO */
-  .acciones-circulares { display: flex; gap: 10px; margin-bottom: 25px; }
-  .btn-circle {
-    width: 36px; height: 36px; border-radius: 50%;
-    background-color: #ffffff; border: 1px solid #e2e8f0;
-    display: flex; align-items: center; justify-content: center;
-    color: #64748b; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: all 0.2s;
-  }
-  .btn-circle:hover { color: #286eb4; border-color: #286eb4; transform: translateY(-2px); }
+.btn-icon-simple { background: transparent; border: none; color: var(--text-sec); cursor: pointer; padding: 4px; }
+.btn-icon-simple:hover { color: var(--text-main); }
 
-  /* CUADRÍCULA DE DATOS */
-  .grid-datos { display: grid; grid-template-columns: 1fr 1fr; row-gap: 15px; column-gap: 20px; margin-bottom: 25px; }
-  .dato-bloque { display: flex; flex-direction: column; gap: 4px; }
-  .dato-lbl { font-size: 12px; font-weight: 700; color: #0f172a; }
-  .dato-val { font-size: 13px; color: #475569; }
-  .dato-val.highlight { color: #286eb4; font-weight: 500; }
+/* BOTONES CIRCULARES */
+.acciones-circulares { display: flex; gap: 10px; margin-bottom: 25px; }
+.btn-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  background-color: var(--bg-body); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-sec); cursor: pointer; transition: all 0.2s;
+}
+.btn-circle:hover { color: var(--primary); border-color: var(--primary); transform: translateY(-2px); }
 
-  /* ZONA DE RECORDATORIO */
-  .recordatorio-zona { display: flex; flex-direction: column; gap: 8px; }
-  .recordatorio-inputs { display: flex; gap: 10px; align-items: stretch; }
-  
-  .recordatorio-inputs textarea {
-    flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px;
-    font-size: 13px; font-family: inherit; resize: vertical; outline: none; min-height: 76px; background: #ffffff;
-  }
-  .recordatorio-inputs textarea:focus { border-color: #286eb4; }
+/* DATOS */
+.grid-datos { display: grid; grid-template-columns: 1fr 1fr; row-gap: 15px; column-gap: 20px; margin-bottom: 25px; }
+.dato-lbl { font-size: 12px; font-weight: 700; color: var(--text-main); display: block; }
+.dato-val { font-size: 13px; color: var(--text-sec); }
+.dato-val.highlight { color: var(--primary); font-weight: 500; }
 
-  .controles-rec { display: flex; flex-direction: column; justify-content: space-between; width: 170px; }
-  
-  .input-fecha-rec { 
-    width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; 
-    font-size: 13px; outline: none; background: #ffffff; box-sizing: border-box; height: 38px; color: #475569;
-  }
-  
-  .btn-guardar-rec { 
-    background-color: #cbd5e1; color: #ffffff; border: none; border-radius: 6px; 
-    font-weight: 600; font-size: 12.5px; height: 38px; cursor: not-allowed; transition: all 0.2s;
-  }
-  
-  /* Magia: Si tiene fecha (no está deshabilitado), se pone Azul Oscuro */
-  .btn-guardar-rec:not(:disabled) {
-    background-color: #1e3a8a; /* Azul oscuro elegante */
-    color: white;
-    cursor: pointer;
-  }
-  
-  .btn-guardar-rec:not(:disabled):hover { 
-    background-color: #1e40af; /* Un tono más brillante al pasar el ratón */
-  }
+/* RECORDATORIOS */
+.recordatorio-zona { display: flex; flex-direction: column; gap: 8px; }
+.recordatorio-inputs { display: flex; gap: 10px; align-items: stretch; }
+.recordatorio-inputs textarea {
+  flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: inherit; resize: vertical; background: var(--input-bg); color: var(--text-main);
+}
+.input-fecha-rec { 
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; 
+  background: var(--input-bg); color: var(--text-main); height: 38px;
+}
+.btn-guardar-rec { 
+  background-color: var(--border); color: var(--text-sec); border: none; border-radius: 6px; 
+  font-weight: 600; font-size: 12.5px; height: 38px; cursor: not-allowed;
+}
+.btn-guardar-rec:not(:disabled) { background-color: var(--primary); color: white; cursor: pointer; }
 
-  /* RESPONSIVO MÓVIL */
-  @media (max-width: 768px) {
-    .vista-programa-container { padding: 20px; }
-    .controles-vista { flex-direction: column; align-items: stretch; gap: 15px; }
-    .header-izq { flex-direction: column; align-items: flex-start; gap: 5px; }
-    .grid-datos { grid-template-columns: 1fr; }
-    .recordatorio-inputs { flex-direction: column; align-items: stretch; }
-    .controles-rec { width: 100%; }
-  }
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .vista-programa-container { padding: 15px; }
+  .grid-datos { grid-template-columns: 1fr; }
+  .recordatorio-inputs { flex-direction: column; }
+}
 </style>

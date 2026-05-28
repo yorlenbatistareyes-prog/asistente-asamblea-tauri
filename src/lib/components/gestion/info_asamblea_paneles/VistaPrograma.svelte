@@ -257,23 +257,22 @@
      ESTRUCTURA PRINCIPAL (PANTALLA FIJA)
      ======================================= */
   .vista-programa-container {
-    background-color: #f8fafc;
-    height: 100%; /* Toma toda la altura disponible */
+    background-color: var(--bg-body);
+    height: 100%;
     display: flex;
-    flex-direction: column; /* Apila la cabecera y la lista */
-    padding: 30px 40px 0 40px; /* Sin padding abajo para que la lista llegue al borde */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden; /* Evita que la página entera haga scroll */
+    flex-direction: column;
+    padding: 30px 40px 0 40px;
+    overflow: hidden;
   }
 
   .top-fijo {
-    flex-shrink: 0; /* Impide que la cabecera se encoja */
+    flex-shrink: 0;
     margin-bottom: 10px;
   }
 
   /* ENCABEZADO */
-  .header-vista h1 { font-size: 26px; font-weight: 800; color: #1e293b; margin: 0 0 5px 0; }
-  .subtitle { font-size: 14px; color: #64748b; margin: 0; }
+  .header-vista h1 { font-size: 26px; font-weight: 800; color: var(--text-main); margin: 0 0 5px 0; }
+  .subtitle { font-size: 14px; color: var(--text-sec); margin: 0; }
 
   /* CONTROLES */
   .controles-vista {
@@ -282,70 +281,56 @@
     margin-top: 25px;
     align-items: center;
   }
-  .select-dias { padding: 8px 16px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #ffffff; color: #334155; font-size: 14px; outline: none; min-width: 200px; }
-  .select-dias:focus { border-color: #2563eb; }
-  .btn-pdf { background-color: #2563eb; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-  .btn-pdf:hover { background-color: #1d4ed8; }
+  .select-dias { 
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px; 
+    background-color: var(--input-bg); color: var(--text-main); font-size: 14px; 
+    outline: none; min-width: 200px; 
+  }
+  .select-dias:focus { border-color: var(--primary); }
+  .btn-pdf { 
+    background-color: var(--primary); color: #ffffff; border: none; 
+    padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; 
+    cursor: pointer; transition: background 0.2s; 
+  }
+  .btn-pdf:hover { background-color: var(--primary-hover); }
 
   /* =======================================
      LA LISTA CON SCROLL INDEPENDIENTE
      ======================================= */
   .contenido-programa {
-    flex: 1; /* Ocupa todo el espacio restante debajo de la cabecera */
-    overflow-y: auto; /* AQUÍ NACE LA BARRA DE DESPLAZAMIENTO PROPIA */
-    padding-right: 15px; /* Espacio para que la barra no muerda las tarjetas */
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 15px;
     padding-bottom: 40px;
   }
 
-  /* PERSONALIZAR LA BARRA DE SCROLL (ESTILO MAC/WINDOWS MODERNO) */
-  .contenido-programa::-webkit-scrollbar { width: 8px; }
-  .contenido-programa::-webkit-scrollbar-track { background: transparent; }
-  .contenido-programa::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  .contenido-programa::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
   /* =======================================
-     DÍAS PEGAJOSOS (ESTILO TARJETA DE LA FOTO)
+     DÍAS PEGAJOSOS
      ======================================= */
   .dia-header {
     position: sticky;
-    top: 0; /* Se pega exactamente arriba */
-    background-color: #ffffff; /* Fondo blanco tipo tarjeta */
+    top: 0;
+    background-color: var(--bg-card);
     z-index: 10;
     padding: 16px 24px;
     margin: 0 0 20px 0;
-    border: 1px solid #e2e8f0; /* Borde gris clarito */
-    border-radius: 8px; /* Bordes redondeados */
-    /* Sombra suave para que parezca que flota sobre los discursos al hacer scroll */
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03); 
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
   }
 
   .dia-titulo { 
-    font-size: 24px; 
-    font-weight: 800; 
-    color: #0f172a; 
-    margin: 0; 
-    line-height: 1.2;
-    text-transform: lowercase; /* Como en tu foto ("viernes", "sábado") */
+    font-size: 24px; font-weight: 800; color: var(--text-main); 
+    margin: 0; line-height: 1.2; text-transform: lowercase;
   }
 
-  .dia-fecha { 
-    font-size: 13px; 
-    color: #64748b; 
-    margin: 2px 0 0 0; 
-  }
+  .dia-fecha { font-size: 13px; color: var(--text-sec); margin: 2px 0 0 0; }
+  .sesion-header { font-size: 13px; font-weight: 600; color: var(--text-sec); margin: 5px 0 10px 5px; letter-spacing: 0.5px; }
 
-  .sesion-header { 
-    font-size: 13px; 
-    font-weight: 600; 
-    color: #475569; 
-    margin: 5px 0 10px 5px; /* Pequeño margen para alinear con las tarjetas */
-    letter-spacing: 0.5px; 
-  }
-
-  /* TARJETA DE CADA PARTE (El diseño limpio blanco) */
+  /* TARJETA DE CADA PARTE */
   .parte-card {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 16px 20px;
     margin-bottom: 10px;
@@ -354,59 +339,18 @@
     align-items: flex-start;
   }
 
-  .parte-info-izq {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .parte-hora {
-    font-size: 13px;
-    font-weight: 700;
-    color: #475569;
-    margin-bottom: 2px;
-  }
-
-  .parte-tema {
-    font-size: 15px;
-    font-weight: 500;
-    color: #0f172a;
-  }
-
-  .parte-orador {
-    font-size: 13px;
-    color: #64748b;
-    margin-top: 2px;
-  }
-
-  .parte-info-der {
-    display: flex;
-    align-items: flex-start;
-  }
-
-  .parte-meta {
-    font-size: 12px;
-    color: #94a3b8;
-    font-weight: 500;
-  }
-
-  .empty-state {
-    color: #64748b;
-    font-style: italic;
-    margin-top: 20px;
-  }
+  .parte-info-izq { display: flex; flex-direction: column; gap: 4px; }
+  .parte-hora { font-size: 13px; font-weight: 700; color: var(--text-sec); margin-bottom: 2px; }
+  .parte-tema { font-size: 15px; font-weight: 500; color: var(--text-main); }
+  .parte-orador { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .parte-info-der { display: flex; align-items: flex-start; }
+  .parte-meta { font-size: 12px; color: var(--text-sec); font-weight: 500; }
+  .empty-state { color: var(--text-sec); font-style: italic; margin-top: 20px; }
 
   /* RESPONSIVO */
   @media (max-width: 768px) {
-    .vista-programa-container {
-      padding: 20px;
-    }
-    .controles-vista {
-      flex-direction: column;
-      align-items: stretch;
-    }
-    .select-dias {
-      width: 100%;
-    }
+    .vista-programa-container { padding: 20px; }
+    .controles-vista { flex-direction: column; align-items: stretch; }
+    .select-dias { width: 100%; }
   }
 </style>

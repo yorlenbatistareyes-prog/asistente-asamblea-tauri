@@ -6,21 +6,19 @@
 }
 
 /* Candado estricto para Android/iOS */
-/* Candado estricto para Android/iOS */
 html, body {
   width: 100vw;
   max-width: 100%;
   overflow-x: hidden; /* Prohibido terminantemente el scroll horizontal fantasma */
   -webkit-text-size-adjust: 100%; /* Para navegadores móviles antiguos */
-  text-size-adjust: 100%;         /* Para navegadores modernos (Quita la advertencia 1) */
+  text-size-adjust: 100%;         /* Para navegadores modernos */
   -webkit-tap-highlight-color: transparent; 
 }
 
 /* Evita que el usuario pueda seleccionar texto por accidente */
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  -webkit-user-select: none; /* Primero la de webkit (Quita la advertencia 2) */
-  user-select: none;         /* Luego la estándar */
+  -webkit-user-select: none; 
+  user-select: none;         
   overflow: hidden; 
 }
 
@@ -29,8 +27,11 @@ input, textarea {
   -webkit-user-select: auto;
 }
 
-/* --- 2. VARIABLES DE DISEÑO (Dashboard Premium + Tus Colores) --- */
+/* --- 2. VARIABLES DE DISEÑO (Dashboard Premium + Colores) --- */
 :root {
+  /* Tipografía Global */
+  --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+
   /* Modo Claro */
   --bg-body: #f8fafc;
   --bg-card: #ffffff;
@@ -42,12 +43,19 @@ input, textarea {
   --status-bg: #EBEBEB;
   --status-text: #000000;
   
+  /* Colores de Acento (Botones, iconos) */
+  --primary-hover: #005a9e; 
+  --accent-danger: #9f0d46;  /* El magenta oscuro de tus botones */
+  --accent-danger-hover: #7a0935;
+  --accent-success: #16a34a; /* Verde WhatsApp */
+  --accent-success-hover: #15803d;
+  
   /* Sombras */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-premium: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-/* Modo Oscuro (¡Corregido para coincidir con tu +layout.svelte!) */
+/* Modo Oscuro */
 :root.dark-theme {
   --bg-body: #0f172a;
   --bg-card: #1e293b;
@@ -59,67 +67,85 @@ input, textarea {
   --status-bg: #1e293b;
   --status-text: #f1f5f9;
   
-  /* Sombras Modo Oscuro: Usamos un borde sutil y una sombra más profunda */
+  /* Colores de Acento Oscuros */
+  --primary-hover: #60a5fa;
+  --accent-danger: #be1254;
+  --accent-danger-hover: #fb7185;
+  --accent-success: #22c55e;
+  --accent-success-hover: #4ade80;
+  
+  /* Sombras Modo Oscuro */
   --shadow-premium: 0 0 0 1px var(--border), 0 10px 15px -3px rgb(0 0 0 / 0.4); 
 }
 
 /* --- 3. APLICAR VARIABLES AL BODY --- */
 body {
+  font-family: var(--font-main);
   background-color: var(--bg-body);
   color: var(--text-main);
-  transition: background-color 0.3s ease, color 0.3s ease; /* Transición suave al cambiar de tema */
+  transition: background-color 0.3s ease, color 0.3s ease; 
 }
 
-/* --- 4. SCROLLBAR PERSONALIZADO (Estilo Nativo/Premium) --- */
+/* Forzar a que botones, inputs y títulos usen siempre la misma fuente */
+input, button, textarea, select, h1, h2, h3, h4, h5, h6, p, span {
+  font-family: inherit;
+}
 
-/* Ancho y alto de la barra */
+/* --- 4. SCROLLBAR PERSONALIZADO --- */
 ::-webkit-scrollbar {
-  width: 8px;  /* Para el scroll vertical */
-  height: 8px; /* Para el scroll horizontal */
+  width: 8px;  
+  height: 8px; 
 }
 
-/* El "carril" por donde se mueve la barra */
 ::-webkit-scrollbar-track {
   background: transparent; 
 }
 
-/* La barra deslizable en sí */
 ::-webkit-scrollbar-thumb {
-  background: var(--border); /* Usamos tu color de borde para que se integre al tema */
-  border-radius: 10px;       /* Bordes redondeados elegantes */
+  background: var(--border); 
+  border-radius: 10px;       
 }
 
-/* Cuando el usuario pasa el mouse sobre la barra */
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-sec); /* Resalta sutilmente usando tu color de texto secundario */
+  background: var(--text-sec); 
 }
 
 /* --- 5. OPTIMIZACIONES ESPECÍFICAS PARA MÓVILES --- */
-
-/* Elimina el cuadro azul/gris feo que sale en Android al tocar botones rápidamente */
 * {
     -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none; /* Evita que al dejar presionado salga el menú de copiar imagen */
+    -webkit-touch-callout: none; 
 }
 
-/* Suavizado de fuentes para pantallas móviles de alta densidad (Retina/OLED) */
 body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
 }
 
-/* Ajuste para que los inputs no se vean "hundidos" en algunos navegadores Android antiguos */
 input, textarea, select {
     appearance: none;
     -webkit-appearance: none;
 }
 
-/* Asegurar que las imágenes no causen desbordes accidentales */
 img {
     max-width: 100%;
     height: auto;
     -webkit-user-select: none;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+/* --- 6. CLASES RESPONSIVAS GLOBALES --- */
+.hide-on-mobile { display: block; }
+.show-on-mobile { display: none; }
+
+/* Breakpoint para Tablets y Móviles (Menos de 768px) */
+@media (max-width: 768px) {
+  .hide-on-mobile { display: none !important; }
+  .show-on-mobile { display: block !important; }
+  
+  body { font-size: 14px; }
+  
+  /* Hacemos la barra de scroll más fina en pantallas táctiles */
+  ::-webkit-scrollbar { width: 4px; height: 4px; } 
 }

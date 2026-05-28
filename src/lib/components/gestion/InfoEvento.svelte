@@ -794,9 +794,9 @@
 /* ========================================
    CONTENEDOR Y TARJETAS GENERALES
    ======================================== */
-.contenedor { display: flex; flex-direction: column; gap: 20px; padding: 20px; padding-bottom: 40px; background: #f8fafc; }
+.contenedor { display: flex; flex-direction: column; gap: 20px; padding: 20px; padding-bottom: 40px; background: var(--bg-body); }
 :global(.tarjeta-evento) { margin-bottom: 25px !important; display: block; }
-.header-card { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 15px; }
+.header-card { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 15px; }
 .header-card h3 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; color: var(--text-main); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .grid-3 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 15px; }
@@ -805,27 +805,24 @@
 /* ========================================
    VISTA LECTURA (TARJETA 1)
    ======================================== */
-.header-card-lectura { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
-.header-card-lectura h3 { margin: 0; color: #1e293b; font-size: 1.3rem; font-weight: 700; }
-.btn-edit-burgundy { background: #5c182d; width: 40px; height: 40px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-.btn-edit-burgundy:hover { background: #4a1324; transform: translateY(-2px); }
+.header-card-lectura { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+.header-card-lectura h3 { margin: 0; color: var(--text-main); font-size: 1.3rem; font-weight: 700; }
+.btn-edit-burgundy { background: var(--accent-danger); width: 40px; height: 40px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: var(--shadow-sm); }
+.btn-edit-burgundy:hover { background: var(--accent-danger-hover); transform: translateY(-2px); }
 .grid-lectura { display: grid; grid-template-columns: 1fr 1.2fr; gap: 40px; }
 .col-lectura { display: flex; flex-direction: column; gap: 12px; }
-.col-lectura h4 { font-size: 14px; color: #0f172a; margin: 0 0 10px 0; font-weight: 700; }
-.col-border { border-left: 1px solid #e2e8f0; padding-left: 40px; }
+.col-lectura h4 { font-size: 14px; color: var(--text-main); margin: 0 0 10px 0; font-weight: 700; }
+.col-border { border-left: 1px solid var(--border); padding-left: 40px; }
 .fila-info { margin-bottom: 5px; }
 .fila-info-split { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.lbl { color: #475569; font-size: 13px; font-weight: 600; margin-right: 5px; }
-.val { color: #64748b; font-size: 13px; }
-.val.destacado { color: #475569; font-weight: 500; font-size: 14px; }
-.dir-block { display: flex; flex-direction: column; }
-.dir-block .lbl { margin-bottom: 2px; }
+.lbl { color: var(--text-sec); font-size: 13px; font-weight: 600; margin-right: 5px; }
+.val { color: var(--text-sec); font-size: 13px; }
+.val.destacado { color: var(--text-main); font-weight: 500; font-size: 14px; }
 .text-multi-line { line-height: 1.5; }
 
 /* ========================================
    MODAL DE DETALLES
    ======================================== */
-/* 1. RESTAURAMOS EL MODAL AL CENTRO PERFECTO */
 .modal-backdrop { 
   position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
   background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; 
@@ -833,27 +830,23 @@
 }
 
 .modal-detalles-asamblea { 
-  background: #f8fafc; width: 480px; max-width: 90vw; border-radius: 12px; 
-  box-shadow: 0 15px 30px rgba(0,0,0,0.2); overflow: hidden; border: 1px solid #e2e8f0; 
-  display: flex; flex-direction: column; max-height: 90vh; /* Permite que no exceda la pantalla */
+  background: var(--bg-body); width: 480px; max-width: 90vw; border-radius: 12px; 
+  box-shadow: var(--shadow-premium); overflow: hidden; border: 1px solid var(--border); 
+  display: flex; flex-direction: column; max-height: 90vh;
 }
 
 .modal-body { 
   padding: 20px; display: flex; flex-direction: column; gap: 15px; 
-  overflow-y: auto; /* Devolvemos el scroll interno por si lo abres en un móvil */
+  overflow-y: auto; 
 }
 
-/* 2. EL TRUCO DE MAGIA: EL CALENDARIO FLOTANTE Y CENTRADO */
 .contenedor-calendario-desplegado { 
-  position: fixed; /* Saca al calendario de su caja */
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%); /* Lo centra matemáticamente en la pantalla */
-  z-index: 100000; /* Asegura que flote sobre ABSOLUTAMENTE TODO */
-  background: white; 
-  border: 1px solid #e2e8f0; 
+  position: fixed; 
+  top: 50%; left: 50%; transform: translate(-50%, -50%); 
+  z-index: 100000; 
+  background: var(--bg-card); 
+  border: 1px solid var(--border); 
   border-radius: 12px; 
-  /* Una sombra inmensa para que parezca que está muy por encima del modal */
   box-shadow: 0 0 0 100vw rgba(0,0,0,0.3), 0 25px 50px -12px rgba(0,0,0,0.5); 
   animation: popInCalendar 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -863,252 +856,141 @@
     100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
-/* 3. Como quitamos el overflow, devolvemos los bordes redondos al header y footer */
 .modal-header { 
   display: flex; justify-content: space-between; align-items: center; 
-  padding: 15px 20px; background: #4F1C28; border-bottom: 1px solid #e2e8f0; 
-  border-radius: 11px 11px 0 0; /* Bordes redondos arriba */
+  padding: 15px 20px; background: var(--accent-danger); border-bottom: 1px solid var(--border); 
+  border-radius: 11px 11px 0 0; 
 }
 
 .modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px;}
 .btn-close-modal { border: none; background: none; cursor: pointer; color: white; opacity: 0.7;}
 .btn-close-modal:hover { opacity: 1;}
 
-.modal-sub { margin: 0 0 10px 0; font-size: 13px; color: #64748b; }
-.modal-body-group { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: white; margin-bottom: 10px;}
+.modal-sub { margin: 0 0 10px 0; font-size: 13px; color: var(--text-sec); }
+.modal-body-group { border: 1px solid var(--border); border-radius: 8px; padding: 15px; background: var(--bg-card); margin-bottom: 10px;}
 .modal-body-group legend { font-size: 13px; font-weight: 700; color: var(--primary); padding: 0 5px; }
 .form-grid { display: grid; gap: 10px; }
 .grid-1 { grid-template-columns: 1fr; }
 .mt-10 { margin-top: 10px; }
-label { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block; }
-input, select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; color: #1e293b; box-sizing: border-box; outline: none; transition: 0.2s; background: #fdfdfd;}
+label { font-size: 12px; font-weight: 600; color: var(--text-sec); margin-bottom: 4px; display: block; }
+input, select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text-main); box-sizing: border-box; outline: none; transition: 0.2s; background: var(--input-bg);}
 input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
-input:disabled { background: #f5f5f5; color: #888; border-color: #ddd; cursor: not-allowed; }
-.input-big { font-weight: 500; color: #444; }
+input:disabled { background: var(--bg-body); color: var(--text-sec); cursor: not-allowed; opacity: 0.7; }
+.input-big { font-weight: 500; color: var(--text-main); }
 
 .modal-footer { 
-  padding: 15px 20px; border-top: 1px solid #e2e8f0; background: white; display: flex; justify-content: flex-end; 
-  border-radius: 0 0 11px 11px; /* Bordes redondos abajo */
+  padding: 15px 20px; border-top: 1px solid var(--border); background: var(--bg-card); display: flex; justify-content: flex-end; 
+  border-radius: 0 0 11px 11px; 
 }
 
-.btn-modal-save { background: #4F1C28; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; }
-.btn-modal-save:hover { background: #3a151d; }
+.btn-modal-save { background: var(--accent-danger); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; }
+.btn-modal-save:hover { background: var(--accent-danger-hover); }
 .animacion-entrada-modal { animation: modalEnter 0.3s ease-out; }
 @keyframes modalEnter { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
 
 /* CALENDARIO RANGO EN MODAL */
 .contenedor-calendario-relative { position: relative; width: 100%; }
-.campo-falso-input { background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 35px; box-sizing: border-box; transition: 0.2s;}
+.campo-falso-input { background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 35px; box-sizing: border-box; transition: 0.2s;}
 .campo-falso-input:hover { border-color: var(--primary); }
-.campo-falso-input span { flex: 1; font-size: 13px; color: #475569; }
+.campo-falso-input span { flex: 1; font-size: 13px; color: var(--text-sec); }
 .campo-falso-input.con-fecha span { color: var(--text-main); font-weight: 500; }
 .ico-azul { color: var(--primary); }
-
-
-
-@keyframes fadeInCalendar { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-/* ========================================
-   MODAL CREAR SALON
-   ======================================== */
-.modal-header-salon { display: flex; justify-content: space-between; margin-bottom: 20px; }
-.modal-header-salon h3 { margin: 0; font-size: 18px; color: var(--text-main); }
-.modal-header-salon button { border: none; background: none; cursor: pointer; color: var(--text-secondary); }
-.modal-body { 
-  padding: 20px; display: flex; flex-direction: column; gap: 15px; 
-  overflow: visible; /* CRUCIAL: Permite que el calendario pase de largo sin cortarse */
-}
 
 /* ========================================
    BOTONES Y CHECKBOX
    ======================================== */
-.selector-salon { display: flex; gap: 5px; }
-.btn-plus { background: white; border: 1px solid #cbd5e1; border-radius: 6px; width: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: 0.2s;}
-.btn-plus:hover { background: #f1f5f9; color: var(--primary); }
-.btn-edit, .btn-cancel { background: transparent; border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 6px; align-items: center; font-weight: 600; font-size: 12px; transition: all 0.2s; }
+.btn-edit, .btn-cancel { background: transparent; border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 6px; align-items: center; font-weight: 600; font-size: 12px; transition: all 0.2s; }
 .btn-edit { color: var(--primary); border-color: var(--primary); }
 .btn-edit:hover { background: var(--primary); color: white; }
-.btn-cancel { color: #ef4444; border-color: #ef4444;}
-.btn-cancel:hover { background: #ef4444; color: white;}
+.btn-cancel { color: var(--accent-danger); border-color: var(--accent-danger);}
+.btn-cancel:hover { background: var(--accent-danger); color: white;}
 .btn-save { background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; display: flex; gap: 8px; font-weight: 600; font-size: 13px; }
-.btn-create { background: var(--primary); color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; font-weight: 600; }
-.stream-check-compact { display: inline-flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 20px; }
-.stream-check-compact input { width: 16px; height: 16px; appearance: auto !important; -webkit-appearance: checkbox !important; }
+.stream-check-compact { display: inline-flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; }
 
 /* ========================================
-   EDITOR TIPTAP (RESTAURADO COMPLETO)
+   EDITOR TIPTAP
    ======================================== */
 .editor-block { margin-top: 15px; }
-.tiptap-frame { border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; min-height: 180px; display: flex; flex-direction: column; }
-.toolbar { background: var(--bg-body); padding: 10px 12px; border-bottom: 1px solid var(--border-color); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; border-radius: 8px 8px 0 0;}
-.group { display: flex; align-items: center; gap: 2px; background: var(--bg-card); padding: 3px; border-radius: 6px; border: 1px solid var(--border-color); }
+.tiptap-frame { border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); min-height: 180px; display: flex; flex-direction: column; }
+.toolbar { background: var(--bg-card); padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; border-radius: 8px 8px 0 0;}
+.group { display: flex; align-items: center; gap: 2px; background: var(--bg-body); padding: 3px; border-radius: 6px; border: 1px solid var(--border); }
 .group.inputs { background: transparent; border: none; padding: 0; gap: 4px; }
-.sep { width: 2px; height: 28px; background: var(--border-color); margin: 0 10px; border-radius: 1px; }
+.sep { width: 2px; height: 28px; background: var(--border); margin: 0 10px; border-radius: 1px; }
 .ml-auto { margin-left: auto; }
-.toolbar button { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; color: var(--text-secondary); transition: 0.15s ease; }
-.toolbar button:hover { background: var(--hover-bg); color: var(--text-main); border-color: var(--border-color); }
+.toolbar button { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; color: var(--text-sec); transition: 0.15s ease; }
+.toolbar button:hover { background: var(--border); color: var(--text-main); }
 .toolbar button.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-.native-select { height: 32px; border: 1px solid var(--border-color); border-radius: 4px; padding: 0 8px; font-size: 13px; color: var(--text-main); outline: none; cursor: pointer; background: var(--bg-card); transition: 0.15s; }
+.native-select { height: 32px; border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font-size: 13px; color: var(--text-main); outline: none; cursor: pointer; background: var(--bg-card); transition: 0.15s; }
 .native-select:hover, .native-select:focus { border-color: var(--primary); }
 .font-family { width: 95px; } .font-size { width: 55px; } .line-height { width: 48px; }
 
-.color-wrapper { position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border: 1px solid transparent; transition: 0.15s ease; }
-.color-wrapper:hover { background-color: var(--hover-bg); border-color: var(--border-color); }
+.color-wrapper { position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border: 1px solid transparent; transition: 0.15s ease; color: var(--text-sec); }
+.color-wrapper:hover { background-color: var(--border); color: var(--text-main); }
 .color-wrapper input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
-.editor-content { padding: 20px; outline: none; flex: 1; font-size: 14px; line-height: 1.6; color: var(--text-main); background: var(--bg-card); border-radius: 0 0 8px 8px;}
+.editor-content { padding: 20px; outline: none; flex: 1; font-size: 14px; line-height: 1.6; color: var(--text-main); background: var(--input-bg); border-radius: 0 0 8px 8px;}
 :global(.ProseMirror p) { margin-top: 0; margin-bottom: 0.5em; }
 :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5rem; margin: 0.5rem 0; }
 :global(.ProseMirror a) { color: var(--primary); text-decoration: underline; cursor: pointer; }
-:global(.ProseMirror hr) { border: none; border-top: 2px solid var(--border-color); margin: 1rem 0; }
-:global(.ProseMirror:not(.ProseMirror-focused)) { background: var(--bg-secondary); cursor: not-allowed; opacity: 0.7; }
-:global(.ProseMirror.ProseMirror-focused) { background: var(--bg-card); cursor: text; opacity: 1; }
+:global(.ProseMirror hr) { border: none; border-top: 2px solid var(--border); margin: 1rem 0; }
+:global(.ProseMirror:not(.ProseMirror-focused)) { background: var(--bg-body); cursor: not-allowed; opacity: 0.7; }
+:global(.ProseMirror.ProseMirror-focused) { background: var(--input-bg); cursor: text; opacity: 1; }
 
 /* Tareas Tiptap */
 :global(ul[data-type="taskList"]) { list-style: none; padding: 0; }
 :global(ul[data-type="taskList"] li) { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
 :global(ul[data-type="taskList"] li > label) { display: flex; align-items: center; user-select: none; margin-right: 4px; }
-:global(ul[data-type="taskList"] input[type="checkbox"]) { width: 16px; height: 16px; cursor: pointer; margin: 0; }
-
-/* Tooltips */
-.toolbar button[data-tooltip], .color-wrapper[data-tooltip] { position: relative; }
-.toolbar button[data-tooltip]:hover::after, .color-wrapper[data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background-color: #1a1a1a; color: white; padding: 6px 10px; border-radius: 6px; font-size: 11px; white-space: nowrap; z-index: 99999; pointer-events: none; }
-.toolbar button[data-tooltip]:hover::before, .color-wrapper[data-tooltip]:hover::before { content: ''; position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: #1a1a1a transparent transparent transparent; pointer-events: none; z-index: 99999; }
 
 /* ========================================
-   PANEL DE ORADORES Y UTILIDADES (ESTILO FILAS)
+   PANEL DE ORADORES Y UTILIDADES
    ======================================== */
-.fila-accion {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 0;
-  gap: 20px;
-}
-
-.titulo-fila {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0;
-}
-
-.grupo-botones {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.btn-azul {
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.2s, transform 0.1s;
-}
-
-.btn-azul:hover {
-  background: #1d4ed8;
-}
-
-.btn-azul:active {
-  transform: scale(0.98);
-}
-
-.badge-amarillo {
-  background: #fef08a;
-  color: #854d0e;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: 4px;
-}
-
-.divisor-fino {
-  height: 1px;
-  background: #f1f5f9;
-  width: 100%;
-}
-
-.badge-amarillo {
-    background: #fef08a;
-    color: #854d0e;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 700;
-    margin-left: 6px;
-  }
-
-/* Responsivo para pantallas pequeñas */
-@media (max-width: 768px) {
-  .fila-accion {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  .grupo-botones {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .btn-azul {
-    flex-grow: 1;
-    justify-content: center;
-  }
-}
+.fila-accion { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; gap: 20px; }
+.titulo-fila { font-size: 16px; font-weight: 600; color: var(--text-main); margin: 0; }
+.grupo-botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.btn-azul { background: var(--primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.2s, transform 0.1s; }
+.btn-azul:hover { background: var(--primary-hover); }
+.badge-amarillo { background: #fef08a; color: #854d0e; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; margin-left: 6px; }
+.divisor-fino { height: 1px; background: var(--border); width: 100%; }
 
 /* ========================================
    ACORDEONES PARA PANELES
    ======================================== */
-:global(.tarjeta-acordeon) { 
-  margin-bottom: 10px !important; /* 👈 Separación mucho más pequeña */
-  display: block; 
-  border-radius: 8px;
-  overflow: hidden; /* Para que el color no se salga de las esquinas redondas */
-  box-shadow: 0 2px 4px rgba(0,0,0,0.03); /* Sombra más suave */
-}
-
-.header-acordeon {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 24px; cursor: pointer; 
-  background: #f4f8fb; /* 👈 Color azul muy sutil de fondo */
-  transition: all 0.2s ease;
-  border-left: 4px solid transparent;
-}
-
-.header-acordeon:hover { 
-  background: #eef4f9; /* Se oscurece un pelín al pasar el ratón */
-  border-left: 4px solid var(--primary); /* 👈 Línea indicadora elegante */
-}
-
+:global(.tarjeta-acordeon) { margin-bottom: 10px !important; display: block; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.header-acordeon { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; cursor: pointer; background: var(--bg-body); transition: all 0.2s ease; border-left: 4px solid transparent; }
+.header-acordeon:hover { background: var(--border); border-left: 4px solid var(--primary); }
 .titulo-acordeon { display: flex; align-items: center; gap: 10px; }
 .titulo-acordeon h3 { margin: 0; font-size: 16px; color: var(--text-main); font-weight: 600; }
-
-.contenido-acordeon { 
-  padding: 0 24px 24px 24px; 
-  background: #ffffff; /* El contenido interior vuelve a ser blanco limpio */
-  border-top: 1px solid #e2e8f0; 
-  padding-top: 20px;
-}
-
+.contenido-acordeon { padding: 0 24px 24px 24px; background: var(--bg-card); border-top: 1px solid var(--border); padding-top: 20px; }
 .acciones-header-panel { display: flex; justify-content: flex-end; margin-bottom: 15px; }
+.animacion-despliegue { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1); transform-origin: top; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-.animacion-despliegue {
-  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: top;
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ========================================
+   DISEÑO RESPONSIVO (MÓVILES)
+   ======================================== */
+@media (max-width: 768px) {
+  .contenedor { padding: 15px 10px; }
+  
+  /* Tarjeta principal en 1 sola columna */
+  .grid-lectura { grid-template-columns: 1fr; gap: 20px; }
+  .col-border { border-left: none; padding-left: 0; border-top: 1px solid var(--border); padding-top: 20px; }
+  
+  /* Inputs de Ensayos en 1 sola columna */
+  .grid-3 { grid-template-columns: 1fr; gap: 10px; }
+  
+  /* Fila de acción vertical */
+  .fila-accion { flex-direction: column; align-items: flex-start; gap: 15px; }
+  .grupo-botones { width: 100%; justify-content: flex-start; }
+  .btn-azul { flex-grow: 1; justify-content: center; }
+  
+  /* Modal de detalles ajustado */
+  .modal-detalles-asamblea { width: 95vw; }
+  .grid-2 { grid-template-columns: 1fr; gap: 10px; }
+  
+  /* Ajuste de Toolbar en Editor (Evita que se rompa en pantallas muy chicas) */
+  .toolbar { gap: 4px; padding: 8px; }
+  .group { flex-wrap: wrap; justify-content: center; }
+  .sep { display: none; } /* Ocultar separadores en móvil para ganar espacio */
 }
 </style>

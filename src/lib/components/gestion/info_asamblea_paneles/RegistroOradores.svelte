@@ -662,365 +662,137 @@ async function generarPDFPlano() {
 </div>
 
 <style>
-  /* =======================================
-     ESTRUCTURA PRINCIPAL (IGUAL A VISTA PROGRAMA)
-     ======================================= */
-  .vista-programa-container {
-    background-color: #f8fafc;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    padding: 30px 40px 0 40px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden;
-  }
+/* =======================================
+   ESTRUCTURA PRINCIPAL
+   ======================================= */
+.vista-programa-container {
+  background-color: var(--bg-body);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 40px 0 40px;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
 
-  .top-fijo { flex-shrink: 0; margin-bottom: 20px; }
-  .header-vista h1 { font-size: 26px; font-weight: 800; color: #1e293b; margin: 0 0 5px 0; }
-  .subtitle { font-size: 14px; color: #64748b; margin: 0; }
+.top-fijo { flex-shrink: 0; margin-bottom: 20px; }
+.header-vista h1 { font-size: 26px; font-weight: 800; color: var(--text-main); margin: 0 0 5px 0; }
+.subtitle { font-size: 14px; color: var(--text-sec); margin: 0; }
 
-  .controles-vista {
-    display: flex; gap: 10px; margin-top: 20px; align-items: center;
-  }
+.controles-vista { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
 
-  /* ESTILO PARA EL BOTÓN DE EMAIL MASIVO */
-  .btn-email-masivo {
-    background-color: #9f0d46; /* Color rojo oscuro / magenta similar a la captura */
-    color: #ffffff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-  }
-  .btn-email-masivo:hover { background-color: #7a0935; }
+/* BOTONES */
+.btn-email-masivo {
+  background-color: var(--accent-danger);
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s;
+}
+.btn-email-masivo:hover { background-color: var(--accent-danger-hover); }
 
-  .btn-pdf { background-color: #286eb4; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-  .btn-pdf:hover { background-color: #1d4ed8; }
-  
-  .btn-pdf-outline { background-color: transparent; color: #286eb4; border: 2px solid #286eb4; padding: 6px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-  .btn-pdf-outline:hover { background-color: rgba(40, 110, 180, 0.1); }
+.btn-pdf { background-color: var(--primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-pdf:hover { background-color: var(--primary-hover); }
 
-  .contenido-programa {
-    flex: 1; overflow-y: auto; padding-right: 15px; padding-bottom: 40px;
-  }
-  .contenido-programa::-webkit-scrollbar { width: 8px; }
-  .contenido-programa::-webkit-scrollbar-track { background: transparent; }
-  .contenido-programa::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.btn-pdf-outline { 
+  background-color: transparent; color: var(--primary); 
+  border: 2px solid var(--primary); padding: 6px 16px; border-radius: 6px; 
+  font-size: 14px; font-weight: 600; cursor: pointer; 
+}
+.btn-pdf-outline:hover { background-color: rgba(0, 120, 212, 0.1); }
 
-  /* =======================================
-     CABECERA DEL DÍA (STICKY + ENCABEZADOS DE TABLA)
-     ======================================= */
-  .dia-header {
-    position: sticky;
-    top: 0;
-    background-color: #ffffff;
-    z-index: 10;
-    margin: 0 0 10px 0;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03); 
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+/* TABLA Y GRID */
+.contenido-programa { flex: 1; overflow-y: auto; padding-right: 15px; padding-bottom: 40px; }
+.dia-header {
+  position: sticky; top: 0;
+  background-color: var(--bg-card);
+  z-index: 10;
+  margin: 0 0 10px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column;
+}
 
-  .dia-titulo-wrapper { padding: 16px 24px; }
-  .dia-titulo { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.2; text-transform: lowercase; }
-  .dia-fecha { font-size: 13px; color: #64748b; margin: 2px 0 0 0; }
+.dia-titulo-wrapper { padding: 16px 24px; }
+.dia-titulo { font-size: 24px; font-weight: 800; color: var(--text-main); margin: 0; }
+.dia-fecha { font-size: 13px; color: var(--text-sec); }
 
-  /* GRID PARA TABLAS */
-  .tabla-encabezado, .fila-registro {
-    display: grid;
-    /* Ajustamos levemente los anchos para que todo respire mejor */
-    grid-template-columns: 75px 3.5fr 2.5fr 140px 70px 70px 110px;
-    gap: 15px;
-    align-items: center;
-  }
+.tabla-encabezado, .fila-registro {
+  display: grid;
+  grid-template-columns: 75px 3.5fr 2.5fr 140px 70px 70px 110px;
+  gap: 15px; align-items: center;
+}
 
-  .tabla-encabezado {
-    background-color: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    padding: 8px 24px; /* <-- Redujimos de 12px a 8px para que sea más compacta */
-    font-size: 11px;
-    font-weight: 700;
-    color: #64748b;
-    letter-spacing: 0.5px;
-  }
+.tabla-encabezado {
+  background-color: var(--bg-body);
+  border-top: 1px solid var(--border);
+  padding: 8px 24px;
+  font-size: 11px; font-weight: 700; color: var(--text-sec);
+}
 
-  /* Centramos los textos de "VIERNES" y "DIA DE" para que coincidan con las cajas */
-  .th-check {
-    text-align: center;
-  }
-  
-  /* Mantenemos "30 MINUTOS" alineado a la izquierda para que empate con su cajita y la hora */
-  .th-check30 {
-    text-align: left;
-  }
+.fila-registro {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 24px;
+  min-height: 56px;
+}
 
-  /* --- CELDAS DE LAS CAJITAS (Sincronizadas con la cabecera) --- */
-  .td-check { 
-    display: flex; 
-    justify-content: center; /* Centrado exacto bajo el texto */
-  }
-  
-  .td-check30 { 
-    display: flex; 
-    align-items: center; 
-    justify-content: flex-start; /* Alineado a la izquierda exacto bajo su texto */
-    gap: 8px; 
-  }
+/* CHECKBOXES - RESTAURADOS */
+.td-check { display: flex; justify-content: center; }
+.td-check30 { display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
 
-  /* =======================================
-     FILAS DE REGISTRO (LAS TARJETAS)
-     ======================================= */
-  .filas-contenedor {
-    display: flex;
-    flex-direction: column;
-    gap: 4px; /* <-- Antes era 8px, las pegamos más */
-    margin-bottom: 30px;
-  }
+.caja-check {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  display: inline-block !important;
+  appearance: auto !important;
+  -webkit-appearance: checkbox !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
 
-  .fila-registro {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 8px 24px; /* <-- Antes era 16px arriba/abajo. Ahora es 8px */
-    min-height: 56px; /* Asegura un alto mínimo pero compacto */
-  }
+.tiempo-30m { font-size: 12px; color: var(--text-sec); }
 
- .td-tiempo { font-size: 13px; font-weight: 600; color: #475569; }
-  
-  .td-discurso { display: flex; flex-direction: column; gap: 1px; } /* <-- Menos gap */
-  .discurso-meta strong { font-size: 13px; color: #0f172a; margin-right: 5px; } /* Fuente un poquito más pequeña */
-  .fuente-tag { font-size: 11px; color: #64748b; }
-  .discurso-tema { font-size: 13px; color: #334155; line-height: 1.2; } /* Interlineado más apretado */
+/* TEXTOS Y ACCIONES */
+.td-tiempo { font-size: 13px; font-weight: 600; color: var(--text-sec); }
+.discurso-tema { font-size: 13px; color: var(--text-main); }
+.orador-nombre { font-size: 13px; font-weight: 600; color: var(--text-main); }
+.orador-cong { font-size: 11px; color: var(--text-sec); }
 
-  .td-orador { display: flex; flex-direction: column; gap: 0px; } /* <-- Quitamos el gap */
-  .orador-nombre { font-size: 13px; font-weight: 600; color: #1e293b; }
-  .orador-cong { font-size: 11px; color: #94a3b8; text-transform: uppercase; }
+.btn-celular, .btn-whatsapp {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+  background: transparent; border: 1px solid transparent; padding: 2px 4px; border-radius: 4px; cursor: pointer;
+}
+.btn-celular { color: var(--primary); }
+.btn-whatsapp { color: var(--accent-success); }
+.btn-celular:hover, .btn-whatsapp:hover { background-color: var(--border); }
 
-  /* BOTONES DE TELÉFONO Y WHATSAPP */
-  .acciones-tel {
-    display: flex;
-    flex-direction: column;
-    gap: 0px; /* <-- Pegamos los dos botones */
-    align-items: flex-start;
-  }
+.btn-email-indiv-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  background: transparent; border: 1px solid transparent; cursor: pointer;
+  color: var(--accent-danger);
+}
+.btn-email-indiv-icon:hover { background-color: var(--border); }
 
-  .btn-celular, .btn-whatsapp {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px; /* <-- Letra más pequeña */
-    font-weight: 600;
-    background: transparent;
-    border: 1px solid transparent;
-    padding: 2px 4px; /* <-- Menos relleno interior */
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .lista-contactos {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  /* Estilo Email Individual (Rojo Oscuro/Magenta) */
-  .btn-email-indiv {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    background: transparent;
-    border: 1px solid transparent;
-    padding: 2px 4px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #9f0d46; /* El mismo color de tu botón masivo */
-    text-align: left;
-    word-break: break-all; /* Por si el correo es muy largo */
-  }
-  
-  .btn-email-indiv:hover {
-    background-color: rgba(159, 13, 70, 0.08);
-    border-color: rgba(159, 13, 70, 0.2);
-  }
-
-  /* NUEVO CSS para el botón de Email SÓLO ICONO */
-  .btn-email-indiv-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;  /* Botón pequeño y cuadrado */
-    height: 28px;
-    border-radius: 6px; /* Bordes redondeados sutiles */
-    background: transparent;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #9f0d46; /* Tu color rojo oscuro corporativo */
-    padding: 0; /* Sin relleno para centrar el icono */
-  }
-
-  .btn-email-indiv-icon:hover {
-    background-color: rgba(159, 13, 70, 0.08);
-    border-color: rgba(159, 13, 70, 0.2);
-  }
-  
-  /* Contenedor opcional para alinear el icono a la izquierda */
-  .acciones-email-indiv {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-  }
-
-  /* Estilo Llamada Normal (Azul) */
-  .btn-celular {
-    color: #286eb4;
-  }
-  .btn-celular:hover {
-    background-color: rgba(40, 110, 180, 0.08);
-    border-color: rgba(40, 110, 180, 0.2);
-  }
-
-  /* Estilo WhatsApp (Verde) */
-  .btn-whatsapp {
-    color: #16a34a;
-  }
-  .btn-whatsapp:hover {
-    background-color: rgba(22, 163, 74, 0.08);
-    border-color: rgba(22, 163, 74, 0.2);
-  }
-
-  .sin-datos {
-    font-size: 13px;
-    color: #cbd5e1;
-  }
-
-  .td-check { display: flex; justify-content: center; }
-  .td-check30 { display: flex; align-items: center; gap: 8px; }
-  .tiempo-30m { font-size: 12px; color: #64748b; }
-
-  .caja-check {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    accent-color: #286eb4;
-    margin: 0;
-    /* Forzar visibilidad por encima del CSS global */
-    appearance: auto !important;
-    -webkit-appearance: checkbox !important;
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
-  /* =======================================
-     DISEÑO RESPONSIVO (MÓVILES)
-     ======================================= */
-  @media (max-width: 768px) {
-    /* 1. Ajustar el contenedor para ganar espacio en pantalla */
-    .vista-programa-container {
-      padding: 15px;
-    }
-
-    .controles-vista {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .btn-pdf, .btn-pdf-outline {
-      width: 100%;
-      justify-content: center;
-      text-align: center;
-    }
-
-    /* 2. Ocultar la barra de títulos de la tabla (no cabe en móvil) */
-    .tabla-encabezado {
-      display: none;
-    }
-
-    /* 3. Convertir la cuadrícula horizontal en una "Tarjeta" vertical */
-    .fila-registro {
-      grid-template-columns: 1fr; /* Todo en 1 sola columna */
-      gap: 12px;
-      padding: 15px;
-    }
-
-    /* 4. Separadores visuales y ajustes de tarjeta */
-    .td-tiempo {
-      font-size: 16px;
-      color: #286eb4;
-      border-bottom: 1px solid #f1f5f9;
-      padding-bottom: 8px;
-    }
-
-    .td-movil {
-      padding-bottom: 12px;
-      border-bottom: 1px solid #f1f5f9;
-    }
-
-    /* Poner los botones de llamadas uno al lado del otro */
-    .acciones-tel {
-      flex-direction: row;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    
-    .btn-celular, .btn-whatsapp {
-      padding: 8px 12px;
-      font-size: 13px;
-      border: 1px solid #e2e8f0; /* Borde visible para que parezcan botones táctiles */
-    }
-
-    /* 5. EL TRUCO MÁGICO: Crear etiquetas falsas para las cajitas */
-    .td-check, .td-check30 {
-      justify-content: flex-start; /* Alineamos a la izquierda */
-      align-items: center;
-    }
-
-    /* Le inyectamos el texto "VIERNES:" al quinto elemento (la 1ra cajita) */
-    .fila-registro > div:nth-child(5)::before {
-      content: "VIERNES:";
-      font-size: 12px;
-      font-weight: 700;
-      color: #64748b;
-      width: 90px; /* Ancho fijo para que las cajitas queden alineadas */
-    }
-
-    /* Le inyectamos el texto "DÍA DE:" al sexto elemento (la 2da cajita) */
-    .fila-registro > div:nth-child(6)::before {
-      content: "DÍA DE:";
-      font-size: 12px;
-      font-weight: 700;
-      color: #64748b;
-      width: 90px;
-    }
-
-    /* Le inyectamos el texto "30 MINUTOS:" al séptimo elemento */
-    .fila-registro > div:nth-child(7)::before {
-      content: "30 MINUTOS:";
-      font-size: 12px;
-      font-weight: 700;
-      color: #64748b;
-      width: 90px;
-    }
-  }
-
-  .lista-telefonos {
-    display: flex;
-    flex-direction: column;
-    gap: 12px; /* Separación vertical entre diferentes números de teléfono */
-  }
-
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .vista-programa-container { padding: 15px; }
+  .controles-vista { flex-direction: column; align-items: stretch; }
+  .tabla-encabezado { display: none; }
+  .fila-registro { grid-template-columns: 1fr; gap: 12px; padding: 15px; }
+  .fila-registro > div:nth-child(5)::before { content: "VIERNES: "; font-weight: 700; color: var(--text-sec); }
+  .fila-registro > div:nth-child(6)::before { content: "DÍA DE: "; font-weight: 700; color: var(--text-sec); }
+  .fila-registro > div:nth-child(7)::before { content: "30 MIN: "; font-weight: 700; color: var(--text-sec); }
+}
 </style>

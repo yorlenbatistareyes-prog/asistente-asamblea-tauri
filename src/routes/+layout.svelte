@@ -37,10 +37,10 @@
 
       inicializarApp();
 
-      // 👈 NUEVO: Encendemos el radar de la nube
+      // Encendemos el radar de la nube
       iniciarRadarNube();
 
-          // 👈 NUEVO: Apagamos el radar si el usuario cierra la app
+      // Apagamos el radar si el usuario cierra la app
       return () => detenerRadarNube();
   });
 
@@ -50,11 +50,13 @@
     if (t) temaActual = t;
     aplicarTema(temaActual);
   }
+  
   function cambiarTema() {
       temaActual = temaActual === 'sistema' ? 'claro' : temaActual === 'claro' ? 'oscuro' : 'sistema';
       localStorage.setItem('temaApp', temaActual);
       aplicarTema(temaActual);
   }
+  
   function aplicarTema(modo: string) {
       const root = document.documentElement;
       const oscuro = modo === 'oscuro' || (modo === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -65,13 +67,13 @@
   function irInicio() { vistaActual.set('inicio'); goto('/'); }
 
   function irConfig() {
-  const currentPath = window.location.pathname;
-  if (currentPath !== '/') {
-    localStorage.setItem('rutaAnterior', currentPath);
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/') {
+      localStorage.setItem('rutaAnterior', currentPath);
+    }
+    vistaActual.set('configuracion');
+    goto('/');
   }
-  vistaActual.set('configuracion');
-  goto('/');
-}
 </script>
 
 <div class="app-layout">
@@ -104,11 +106,17 @@
             <Home size={18}/><span>Inicio</span>
         </button>
         
-        <button class="btn-icon" on:click={cambiarTema}>
-            {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
+        <button class="btn-icon" on:click={cambiarTema} title="Cambiar Tema">
+            {#if temaActual==='claro'}
+              <Sun size={18}/>
+            {:else if temaActual==='oscuro'}
+              <Moon size={18}/>
+            {:else}
+              <Monitor size={18}/>
+            {/if}
         </button>
         
-        <button class="btn-icon" on:click={irConfig}>
+        <button class="btn-icon" on:click={irConfig} title="Configuración">
             <Settings size={18}/>
         </button>
     </div>
@@ -127,13 +135,13 @@
         <div class="status-right">
             v{#if versionApp}{versionApp}{:else}...{/if}
         </div>
-        </footer>
+    </footer>
 
     {#if $syncStatus.estado === 'conflicto'}
       <div class="modal-backdrop">
         <Panel padding="25px" clasesExtra="modal-salones">
             <div class="modal-top">
-                <h3 style="color: #ef4444;"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
+                <h3 style="color: var(--accent-danger);"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
             </div>
             
             <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
@@ -163,7 +171,7 @@
       display: flex; justify-content: space-between; align-items: center; 
       padding: 15px 30px; 
       background-color: var(--bg-card); 
-      background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)); /* El mismo "tinte" gris de las tarjetas */
+      background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)); 
       border-bottom: 1px solid var(--border); 
       box-shadow: var(--shadow-sm); 
       z-index: 50; 
@@ -180,30 +188,30 @@
       align-items: center; 
       justify-content: center; 
       color: white; 
-      cursor: pointer; /* 👈 NUEVO: Ratón de manito */
-      overflow: hidden; /* 👈 NUEVO: Evita que la foto se salga del círculo */
+      cursor: pointer; 
+      overflow: hidden; 
       transition: opacity 0.2s; 
   }
-  .avatar:hover { opacity: 0.8; } /* 👈 NUEVO: Efecto al pasar el ratón */
+  .avatar:hover { opacity: 0.8; } 
   
-  /* 👈 NUEVA CLASE PARA LA IMAGEN */
   .foto-perfil { 
       width: 100%; 
       height: 100%; 
-      object-fit: cover; /* Asegura que la foto no se deforme */
+      object-fit: cover; 
   }
 
   .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
   
   .header-right { display: flex; gap: 8px; }
   .btn-nav { background: var(--bg-body); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 6px; color: var(--text-main); font-weight: 600; align-items: center; }
-  .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); display: flex; }
+  .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); display: flex; align-items: center; }
   .btn-nav:hover, .btn-icon:hover { background: var(--border); }
 
   /* FOOTER */
   .status-bar { position: fixed; bottom: 0; width: 100%; height: 32px; background: var(--status-bg); color: var(--status-text); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 12px; font-weight: 600; border-top: 1px solid var(--border); z-index: 100; transition: background 0.3s; box-sizing: border-box; }
-  .status-center, .tech { color: inherit; } .tech { color: #059669; }
-  .dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .status-center, .tech { color: inherit; } 
+  .tech { color: var(--accent-success); }
+  .dot { width: 6px; height: 6px; background: var(--accent-success); border-radius: 50%; display: inline-block; margin-right: 5px; }
 
   /* MODAL ESTILIZADO */
   .modal-backdrop { 
@@ -213,9 +221,9 @@
       z-index: 9999; backdrop-filter: blur(2px); 
   }
   :global(.modal-salones) { 
-      width: 95%;          /* 1. Ocupa casi todo el espacio disponible */
-      max-width: 700px;    /* 2. EL FRENO: En Windows se detiene en 700px */
-      margin: 0 auto;      /* 3. Lo mantiene perfectamente centrado */
+      width: 95%;          
+      max-width: 700px;    
+      margin: 0 auto;      
       display: flex; 
       flex-direction: column; 
       gap: 15px;
@@ -248,11 +256,9 @@
       background: var(--primary); color: white; border: none; 
       padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 700; 
       display: flex; justify-content: center; gap: 8px; align-items: center;
-      
-      /* EL FRENO PARA EL BOTÓN */
       width: 100%; 
       max-width: 350px; 
-      margin: 15px auto 0 auto; /* Centrado en Windows */
+      margin: 15px auto 0 auto; 
   }
 
   .separator { height: 1px; background: var(--border); margin: 5px 0; }
@@ -273,8 +279,8 @@
   .badge-cap { background: var(--primary); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; display: flex; align-items: center; gap: 3px; }
   .item-details { display: flex; gap: 5px; align-items: center; font-size: 11px; color: var(--text-sec); }
 
-  .btn-red { color: #ef4444; background: none; border: none; cursor: pointer; padding: 5px; }
-  .btn-red:hover { background: #fee2e2; border-radius: 6px; }
+  .btn-red { color: var(--accent-danger); background: none; border: none; cursor: pointer; padding: 5px; }
+  .btn-red:hover { background: var(--accent-danger-hover); border-radius: 6px; color: white; }
   
   .empty-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: var(--text-sec); font-size: 13px; }
 
@@ -291,7 +297,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-premium);
       min-width: 160px;
       display: flex;
       flex-direction: column;
@@ -317,15 +323,16 @@
   }
 
   .menu-item:hover {
-      background: var(--hover-bg);
+      background: var(--border);
   }
 
   .menu-item.text-red {
-      color: #ef4444;
+      color: var(--accent-danger);
   }
 
   .menu-item.text-red:hover {
-      background: #fee2e2;
+      background: var(--accent-danger-hover);
+      color: white;
   }
 
   .dropdown-separator {
@@ -377,17 +384,17 @@
 @media (max-width: 768px) {
     /* 1. HEADER MÁS COMPACTO Y LIMPIO */
     .top-header {
-        padding: 10px 15px; /* Reducimos márgenes laterales */
+        padding: 10px 15px; 
         gap: 10px;
     }
 
     /* 2. OCULTAR ELEMENTOS NO ESENCIALES */
     .header-center {
-        display: none; /* Ocultamos el reloj en el teléfono para liberar espacio */
+        display: none; 
     }
     
     .user-data h2 {
-        font-size: 13px; /* Saludo un poco más pequeño */
+        font-size: 13px; 
     }
 
     /* 3. BOTONES DE NAVEGACIÓN (Solo Iconos, sin texto) */
@@ -396,11 +403,11 @@
     }
     
     .btn-nav span {
-        display: none; /* Ocultamos las palabras "Inicio" y "Salones" */
+        display: none; 
     }
     
     .btn-nav, .btn-icon {
-        padding: 10px; /* Áreas táctiles seguras de 40x40px aprox */
+        padding: 10px; 
         min-width: 42px;
         min-height: 42px;
         justify-content: center;
@@ -408,40 +415,38 @@
 
     /* 4. BARRA DE ESTADO (Antidesbordes) */
     .status-center {
-        display: none; /* Ocultamos la frase larga para que no se amontone */
+        display: none; 
     }
     
     .status-bar {
         padding: 0 10px;
-        font-size: 10px; /* Letra un poco más pequeña */
+        font-size: 10px; 
     }
 
     /* 5. MODAL DE SALONES (Apilado y fluido) */
     :global(.modal-salones) {
-        width: 95vw !important; /* Ancho fluido */
-        max-height: 90vh; /* Que no se pase del alto de la pantalla */
-        overflow-y: auto; /* Permite hacer scroll si el teclado tapa algo */
+        width: 95vw !important; 
+        max-height: 90vh; 
+        overflow-y: auto; 
         padding: 15px !important;
     }
     
     .form-grid {
-        grid-template-columns: 1fr; /* 1 sola columna hacia abajo */
+        grid-template-columns: 1fr; 
         gap: 12px;
     }
     
-    /* Reseteamos los elementos que abarcaban 2 columnas en Windows */
     .input-group.full-width, .btn-blue {
         grid-column: 1 / -1; 
     }
     
     .btn-blue {
-        min-height: 48px; /* Botón grande para el dedo */
+        min-height: 48px; 
     }
 }
 
-/* ANIMACIÓN DE GIRO PARA EL BOTÓN SYNC */
   .anim-spin {
-      pointer-events: none; /* Evita doble clic */
+      pointer-events: none; 
   }
   .anim-spin :global(svg) {
       animation: spin 1s linear infinite;
@@ -451,16 +456,12 @@
       to { transform: rotate(360deg); }
   }
   
-  /* =========================================================
-     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
-     ========================================================= */
   .btn-icon.anim-spin {
-      color: #3b82f6 !important; /* El azul brillante */
+      color: var(--primary) !important; 
       background-color: transparent;
-      pointer-events: none; /* Bloquea clics dobles */
+      pointer-events: none; 
   }
 
-  /* Hace que solo el icono SVG gire, no todo el botón */
   .btn-icon.anim-spin :global(svg) {
       animation: rotar-radar 1s linear infinite;
   }
@@ -470,22 +471,13 @@
       to { transform: rotate(360deg); }
   }
 
-  /* =========================================================
-     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
-     ========================================================= */
   button.anim-spin {
-      color: #3b82f6 !important; /* El azul brillante */
+      color: var(--primary) !important; 
       background-color: transparent !important;
   }
 
-  /* Hace que solo el icono SVG gire */
   button.anim-spin :global(svg) {
       animation: rotar-radar 1s linear infinite !important;
-  }
-
-  @keyframes rotar-radar {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
   }
 
   .app-brand {
@@ -493,7 +485,7 @@
       font-weight: 800;
       color: var(--text-main);
       letter-spacing: -0.5px;
-      user-select: none; /* Evita que el texto se seleccione al hacer clic por error */
+      user-select: none; 
   }
 
 </style>
