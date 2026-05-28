@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { 
     Mail, AtSign, Globe, Phone, MessageSquare, MessageCircle, 
     Edit2, Calendar, CheckSquare, Square
@@ -129,8 +129,8 @@
        `&body=${encodeURIComponent(cuerpoFinal)}`;
   }
 
-  // --- GENERACIÓN DE URL PARA WHATSAPP (CON PLANTILLA "contacto_orador") ---
- async function obtenerUrlWhatsAppLista(orador: any): Promise<string | null> {
+ // --- GENERACIÓN DE URL PARA WHATSAPP (CON PLANTILLA "contacto_orador") ---
+  async function obtenerUrlWhatsAppLista(orador: any): Promise<{ nativeUrl: string, webUrl: string } | null> {
     const telefono = (orador.telefono || "").trim();
     if (!telefono) {
         alert("⚠️ No hay teléfono registrado para este orador.");
@@ -151,7 +151,6 @@
 
     if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla de contacto general.";
 
-    // 👇 IGUAL AQUÍ: Agregamos la fecha y datos de asamblea
     const objetoSimulado = {
         nombre_orador: orador.nombre,
         telefono_orador: orador.telefono,
@@ -173,42 +172,55 @@
     let telWa = limpiarTelefono(telefono).replace(/^\+/, '');
     if (!telWa.startsWith('53') && telWa.length === 8) telWa = '53' + telWa;
 
-    return `https://wa.me/${telWa}?text=${encodeURIComponent(mensaje)}`;
+    return {
+        nativeUrl: `whatsapp://send?phone=${telWa}&text=${encodeURIComponent(mensaje)}`,
+        webUrl: `https://wa.me/${telWa}?text=${encodeURIComponent(mensaje)}`
+    };
   }
 
   async function accionContacto(tipo: string, orador: any) {
     const email = orador.email?.trim();
     const tel = orador.telefono?.trim();
-    let url = '';
 
     try {
       switch (tipo) {
         case 'email':
           if (!email) return alert("No hay correo registrado");
-          url = `mailto:${email}`;
+          await openUrl(`mailto:${email}`);
           break;
         case 'jwpub':
-          // 👇 Usa la nueva función de plantilla
           const urlJwpub = await obtenerUrlCorreoLista(orador);
-          if (urlJwpub) url = urlJwpub;
+          if (urlJwpub) await openUrl(urlJwpub);
           break;
         case 'llamada':
           if (!tel) return alert("No hay teléfono registrado");
-          url = `tel:${formatearTelCuba(tel)}`;
+          await openUrl(`tel:${formatearTelCuba(tel)}`);
           break;
         case 'sms':
           if (!tel) return alert("No hay teléfono registrado");
-          url = `sms:${formatearTelCuba(tel)}`;
+          await openUrl(`sms:${formatearTelCuba(tel)}`);
           break;
         case 'whatsapp':
-          // 👇 Usa la nueva función de plantilla
-          const urlWa = await obtenerUrlWhatsAppLista(orador);
-          if (urlWa) url = urlWa;
+          const urlsWa = await obtenerUrlWhatsAppLista(orador);
+          if (urlsWa) {
+              try {
+                  // Intento 1: Nativo
+                  await openUrl(urlsWa.nativeUrl);
+              } catch (e) {
+                  console.warn("App nativa no encontrada, fallback web:", e);
+                  try {
+                      // Intento 2: Web
+                      await openUrl(urlsWa.webUrl);
+                  } catch (err) {
+                      console.error("No se pudo abrir WhatsApp:", err);
+                      alert("Error al abrir WhatsApp.");
+                  }
+              }
+          }
           break;
       }
-      if (url) await openUrl(url);
     } catch (e) {
-      console.error(`Error al abrir ${tipo}:`, e);
+      console.error(`Error al procesar ${tipo}:`, e);
     }
   }
 

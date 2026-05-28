@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   
   // Iconos
   import { 
@@ -312,9 +312,23 @@
       let telWa = telefono.replace(/\D/g, '').replace(/^\+/, '');
       if (!telWa.startsWith('53') && telWa.length === 8) telWa = '53' + telWa;
 
-      openUrl(`https://wa.me/${telWa}?text=${encodeURIComponent(mensaje)}`).catch(e => console.error(e));
-  }
+      // --- LÓGICA OPENER: Nativo con fallback a Web ---
+      const nativeUrl = `whatsapp://send?phone=${telWa}&text=${encodeURIComponent(mensaje)}`;
+      const webUrl = `https://wa.me/${telWa}?text=${encodeURIComponent(mensaje)}`;
 
+      try {
+          await openUrl(nativeUrl);
+      } catch (error) {
+          console.warn("App nativa no encontrada, usando fallback web:", error);
+          try {
+              await openUrl(webUrl);
+          } catch (fallbackError) {
+              console.error("Error al abrir WhatsApp:", fallbackError);
+              alert("No se pudo abrir WhatsApp. Verifica tu navegador predeterminado.");
+          }
+      }
+  }
+  
 
       // --- EXPORTACIÓN A PDF ---
   async function manejarExportacionTotal() {

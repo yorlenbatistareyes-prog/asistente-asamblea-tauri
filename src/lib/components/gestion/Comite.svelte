@@ -12,7 +12,7 @@
 
   import Panel from '$lib/components/ui/Panel.svelte';
 
-  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { generarContexto } from '$lib/utils/contexto_impresion';
   // 👇 Asegúrate de que cargarPlantillasEmail esté aquí adentro:
   import { obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
@@ -424,13 +424,30 @@ async function abrirWhatsApp(hermano: any) {
         telefono_orador: hermano.telefono,
         congregacion_orador: hermano.nombre_congregacion,
         tema: 'Responsabilidades de Asamblea',
-        tipo_asignacion: 'Comité / Departamento'
+        tipo_asignacion: 'Comité / Departamento',
+        // Inyectamos datos de la asamblea global para mayor completitud
+        fecha: asambleaIdentificador, // O la variable de fecha si la tienes
+        nombre_del_lugar: "Lugar por definir" 
     };
 
     const contexto = await generarContexto(objetoSimulado, asambleaId, false);
     let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
     
-    openUrl(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`);
+    // 3. Lógica Opener (Nativo -> Web)
+    const nativeUrl = `whatsapp://send?phone=${telefonoLimpio}&text=${encodeURIComponent(mensaje)}`;
+    const webUrl = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`;
+
+    try {
+        await openUrl(nativeUrl);
+    } catch (error) {
+        console.warn("App nativa no encontrada, usando fallback web:", error);
+        try {
+            await openUrl(webUrl);
+        } catch (fallbackError) {
+            console.error("Error al abrir WhatsApp:", fallbackError);
+            alert("No se pudo abrir WhatsApp. Verifica tu navegador predeterminado.");
+        }
+    }
 }
 
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));

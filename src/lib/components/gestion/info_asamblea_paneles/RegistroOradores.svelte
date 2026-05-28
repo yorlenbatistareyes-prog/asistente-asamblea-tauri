@@ -9,7 +9,7 @@
   import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
   
-  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { openUrl } from '@tauri-apps/plugin-opener';
 
   // --- IMPORTACIONES PARA PDF ---
   import { save } from '@tauri-apps/plugin-dialog';
@@ -188,38 +188,50 @@
     }
   }
 
-  async function abrirWhatsApp(telefono: string, parte: any) {
+async function abrirWhatsApp(telefono: string, parte: any) {
     let telLimpio = limpiarTelefono(telefono);
-    telLimpio = telLimpio.replace(/^\+/, ''); // WhatsApp usa el número sin el '+'
+    telLimpio = telLimpio.replace(/^\+/, ''); 
     if (!telLimpio.startsWith('53') && telLimpio.length === 8) {
         telLimpio = '53' + telLimpio;
     }
 
-    // 1. Buscar la plantilla de contacto general en el almacén de WhatsApp
+    // 1. Buscar la plantilla específica de registro
     let plantilla = obtenerPlantillaWhatsAppPorId('registro_orador');
     let cuerpoBase = plantilla?.body || "";
 
     if (!cuerpoBase) {
         try {
-            const res: any = await invoke('obtener_plantilla_mensaje', { id: 'contacto_orador' });
+            // Nota: Aquí pedimos 'registro_orador' a Rust también
+            const res: any = await invoke('obtener_plantilla_mensaje', { id: 'registro_orador' });
             if (res && res.cuerpo) cuerpoBase = res.cuerpo;
         } catch (e) {
-            console.error("Error cargando plantilla WhatsApp contacto_orador:", e);
+            console.error("Error cargando plantilla WhatsApp registro_orador:", e);
         }
     }
 
-    if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla de contacto general.";
+    if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla de asignación.";
 
-    // 2. Generar el contexto con los datos del orador actual
+    // 2. Generar el contexto
     const asId = asambleaActiva?.id || 0;
-    const contexto = await generarContexto(parte, asId, false);
+    const contexto = await generarContexto(parte, asId, true);
     let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
 
+    // 3. LÓGICA DE OPENER: Construimos ambas URLs
+    const nativeUrl = `whatsapp://send?phone=${telLimpio}&text=${encodeURIComponent(mensaje)}`;
+    const webUrl = `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`;
+
     try {
-        // 3. Abrimos la URL incluyendo el mensaje procesado
-        await openUrl(`https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`);
-    } catch(e) {
-        console.error("Error al abrir WhatsApp:", e);
+        // Intento 1: App Nativa
+        await openUrl(nativeUrl);
+    } catch (error) {
+        console.warn("App nativa no encontrada, usando fallback web:", error);
+        try {
+            // Intento 2: Fallback Web
+            await openUrl(webUrl);
+        } catch (fallbackError) {
+            console.error("Error al abrir WhatsApp:", fallbackError);
+            alert("No se pudo abrir WhatsApp. Verifica tu navegador predeterminado.");
+        }
     }
   }
 
