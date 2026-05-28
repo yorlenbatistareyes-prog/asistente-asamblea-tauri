@@ -113,12 +113,25 @@ export const marcadoresWhatsApp: GrupoMarcadores[] = [
 // STORE REACTIVO - USA LOS COMANDOS DE mensajería.rs
 // ------------------------------------------------------------
 export const whatsAppTemplates = writable<PlantillaWhatsApp[]>([
-    { id: 'programa_individual', title: 'Asignación de Programa (Individual)', body: '', isOpen: false },
-    { id: 'programa_recordatorio', title: 'Recordatorio de Asignación (Fecha/Hora)', body: '', isOpen: false },
-    { id: 'contacto_orador', title: 'Contacto General con Orador', body: '', isOpen: false },
+    { id: 'programa_individual', title: 'Programa, orador específico', body: '', isOpen: false },
+    
+    { id: 'programa_recordatorio', title: 'Programa, recordatorio de asignación', body: '', isOpen: false },
+    
+    { id: 'contacto_orador', title: 'Lista de oradores, contacto general', body: '', isOpen: false },
+    
+     { 
+        id: 'registro_orador', 
+        title: 'Registro de Oradores', 
+        body: '', 
+        isOpen: false 
+    },
+
     { id: 'ensayo', title: 'Recordatorio de Ensayo', body: '', isOpen: false },
+    
     { id: 'oficina', title: 'Auxiliares de Oficina', body: '', isOpen: false },
+   
     { id: 'comite', title: 'Comité de Asamblea', body: '', isOpen: false },
+    
     { id: 'departamentos', title: 'Departamentos (Audio/Video, Soporte, etc.)', body: '', isOpen: false }
 ]);
 

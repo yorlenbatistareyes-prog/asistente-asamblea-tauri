@@ -120,48 +120,60 @@ export const marcadoresEmail: GrupoMarcadores[] = [
 // STORE REACTIVO (LISTA SIMPLIFICADA Y SEPARADA)
 // ------------------------------------------------------------
 export const emailTemplates = writable<PlantillaEmail[]>([
+    
     // --- 1. INDIVIDUALES (Para los botones de cada fila en Programa) ---
     { 
         id: 'programa_individual', 
-        title: 'Asignación de Programa (Individual)', 
+        title: 'Programa, a orador específico', 
         subject: 'Asignación en el Programa de la Asamblea', 
         body: '', 
         isOpen: false 
     },
     { 
         id: 'programa_recordatorio', 
-        title: 'Recordatorio de Asignación (Fecha/Hora)', 
+        title: 'Programa, recordatorio de asignación', 
         subject: 'Recordatorio de su participación en la Asamblea', 
         body: '', 
         isOpen: false 
     },
 
-    // --- 2. SEGUIMIENTO Y CONTACTO (Para la Lista de Oradores) ---
-    { 
-        id: 'contacto_orador', 
-        title: 'Contacto General con Orador', 
-        subject: 'Información sobre su asignación en la Asamblea', 
-        body: '', 
-        isOpen: false 
-    },
-
-    // --- 3. MASIVOS (Para los botones globales "Email a todos") ---
+     // --- 2. MASIVOS (Para los botones globales "Email a todos") ---
     { 
         id: 'masivo_general', 
-        title: 'Email a todos (Información General)', 
+        title: 'Programa, Email a todos (General)', 
         subject: 'Información importante de la Asamblea', 
         body: '', 
         isOpen: false 
     },
     { 
         id: 'masivo_recordatorio', 
-        title: 'Email a todos (Recordatorio General)', 
+        title: 'Programa, Email a todos (Recordatorio)', 
         subject: 'Recordatorio General de Asignaciones', 
         body: '', 
         isOpen: false 
     },
 
-    // --- 4. OFICINA, COMITÉ Y DEPARTAMENTOS ---
+    // --- 3. SEGUIMIENTO Y CONTACTO (Para la Lista de Oradores) ---
+    { 
+        id: 'contacto_orador', 
+        title: 'Lista de oradores, contacto general', 
+        subject: 'Información sobre su asignación en la Asamblea', 
+        body: '', 
+        isOpen: false 
+    },
+
+    // --- 4. SEGUIMIENTO Y CONTACTO (Para el registro de Oradores) ---
+    { 
+        id: 'registro_orador', // <--- ID NUEVO Y ESPECÍFICO
+        title: 'Registro de Oradores', 
+        subject: 'Información sobre su asignación en la asamblea', 
+        body: '', 
+        isOpen: false 
+    },
+
+   
+
+    // --- 5. OFICINA, COMITÉ Y DEPARTAMENTOS ---
     { 
         id: 'oficina', 
         title: 'Auxiliares de la Oficina', 

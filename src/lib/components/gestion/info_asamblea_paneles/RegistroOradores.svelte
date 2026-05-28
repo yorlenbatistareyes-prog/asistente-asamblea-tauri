@@ -196,7 +196,7 @@
     }
 
     // 1. Buscar la plantilla de contacto general en el almacén de WhatsApp
-    let plantilla = obtenerPlantillaWhatsAppPorId('contacto_orador');
+    let plantilla = obtenerPlantillaWhatsAppPorId('registro_orador');
     let cuerpoBase = plantilla?.body || "";
 
     if (!cuerpoBase) {
@@ -242,7 +242,7 @@
     }
 
     // 2. Extraer la plantilla masiva
-    const plantilla = obtenerPlantillaPorId('masivo_general');
+    const plantilla = obtenerPlantillaPorId('registro_orador');
     const asuntoBase = plantilla?.subject || "Información de la Asamblea";
     const cuerpoBase = plantilla?.body || "Estimados hermanos, información importante sobre el registro.";
 
@@ -281,7 +281,7 @@
     }
     
     // 1. Extraer la plantilla de contacto general
-    const plantilla = obtenerPlantillaPorId('contacto_orador');
+    const plantilla = obtenerPlantillaPorId('registro_orador');
     const asuntoBase = plantilla?.subject || "Asignación de Asamblea";
     const cuerpoBase = plantilla?.body || "Le escribimos en relación a su asignación.";
 
