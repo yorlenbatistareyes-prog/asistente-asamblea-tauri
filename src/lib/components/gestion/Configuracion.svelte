@@ -229,207 +229,456 @@
 
 <style>
 /* ==========================================================================
-   LAYOUT PRINCIPAL (AHORA VERTICAL)
+   CONFIGURACION.SVELTE - ESTILOS UNIFICADOS CON VARIABLES GLOBALES
    ========================================================================== */
+
 .config-layout { 
-    display: flex; 
-    flex-direction: column; 
-    height: 100vh; 
-    background: var(--bg-body); 
-    color: var(--text-main); 
-    font-family: 'Segoe UI', sans-serif; 
+  display: flex; 
+  flex-direction: column; 
+  height: 100vh; 
+  background: var(--bg-body); 
+  color: var(--text-main); 
+  font-family: var(--font-main); 
 }
 
-/* === NUEVA CABECERA SUPERIOR (PESTAÑAS) === */
+/* === CABECERA SUPERIOR === */
 .config-top-header {
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding-top: 20px;
-    flex-shrink: 0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding-top: 20px;
+  flex-shrink: 0;
 }
 
 .config-top-title-area {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 0 40px 15px 40px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 40px 15px 40px;
 }
 
 .config-top-title-area h2 {
-    margin: 0;
-    font-size: 22px;
-    color: var(--text-main);
-    font-weight: 700;
+  margin: 0;
+  font-size: 22px;
+  color: var(--text-main);
+  font-weight: 700;
 }
 
 /* BOTÓN VOLVER */
 .btn-back-config { 
-    display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; 
-    background: transparent; border: 1px solid var(--border); color: var(--text-secondary); 
-    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 8px; 
+  padding: 8px 16px; 
+  border-radius: 6px; 
+  background: transparent; 
+  border: 1px solid var(--border); 
+  color: var(--text-sec); 
+  font-size: 13px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  transition: all 0.2s ease; 
 }
 .btn-back-config:hover { 
-    background: var(--hover-bg); color: var(--text-main); border-color: var(--text-secondary);
+  background: var(--hover-bg); 
+  color: var(--text-main); 
+  border-color: var(--primary); 
 }
 
-/* === PESTAÑAS HORIZONTALES ESTILO IMAGEN === */
+/* === PESTAÑAS HORIZONTALES === */
 .config-tabs { 
-    display: flex; 
-    gap: 32px; 
-    padding: 0 40px; 
-    overflow-x: auto; 
-    scrollbar-width: none; /* Oculta scrollbar en Firefox */
+  display: flex; 
+  gap: 32px; 
+  padding: 0 40px; 
+  overflow-x: auto; 
+  scrollbar-width: none;
 }
-.config-tabs::-webkit-scrollbar { display: none; } /* Oculta scrollbar Chrome/Safari */
+.config-tabs::-webkit-scrollbar { display: none; }
 
 .config-tabs button { 
-    background: transparent; 
-    border: none; 
-    padding: 12px 0; 
-    color: var(--text-secondary); 
-    font-size: 14.5px; 
-    font-weight: 500; 
-    cursor: pointer; 
-    border-bottom: 2.5px solid transparent; /* La línea invisible abajo */
-    transition: all 0.2s; 
-    white-space: nowrap; 
+  background: transparent; 
+  border: none; 
+  padding: 12px 0; 
+  color: var(--text-sec); 
+  font-size: 14.5px; 
+  font-weight: 500; 
+  cursor: pointer; 
+  border-bottom: 2.5px solid transparent;
+  transition: all 0.2s; 
+  white-space: nowrap; 
 }
 .config-tabs button:hover { 
-    color: var(--text-main); 
+  color: var(--text-main); 
 }
 .config-tabs button.active { 
-    /* El color de la línea activa. Usa el rosa de tu imagen (#c2185b) o tu azul (var(--primary)) */
-    color: #c2185b; 
-    border-bottom-color: #c2185b; 
-    font-weight: 600; 
+  color: #c2185b; 
+  border-bottom-color: #c2185b; 
+  font-weight: 600; 
 }
 
 /* === CONTENIDO PRINCIPAL === */
-.config-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; background: var(--bg-body); }
-.config-title-bar { padding: 25px 40px; display: flex; justify-content: space-between; align-items: center; }
-.config-title-bar h1 { margin: 0; font-size: 24px; color: var(--text-main); font-weight: 700; }
+.config-content { 
+  display: flex; 
+  flex-direction: column; 
+  flex: 1; 
+  overflow: hidden; 
+  background: var(--bg-body); 
+}
 
-.btn-save-config { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
-.btn-save-config:hover { opacity: 0.9; transform: translateY(-1px); }
+.config-title-bar { 
+  padding: 25px 40px; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+}
+.config-title-bar h1 { 
+  margin: 0; 
+  font-size: 24px; 
+  color: var(--text-main); 
+  font-weight: 700; 
+}
 
-.config-scroll-area { flex: 1; overflow-y: auto; padding: 0 40px 40px 40px; }
-.config-grid { display: grid; grid-template-columns: minmax(0, 60%) minmax(0, 40%); gap: 60px; max-width: 1200px; transition: all 0.3s ease; }
-.config-grid.full-width { grid-template-columns: 1fr; gap: 0; max-width: 100%; }
+.btn-save-config { 
+  background: var(--primary); 
+  color: white; 
+  border: none; 
+  padding: 10px 24px; 
+  border-radius: 6px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  transition: transform 0.2s; 
+}
+.btn-save-config:hover { 
+  opacity: 0.9; 
+  transform: translateY(-1px); 
+}
 
+.config-scroll-area { 
+  flex: 1; 
+  overflow-y: auto; 
+  padding: 0 40px 40px 40px; 
+}
 
-/* INPUTS Y RADIO BUTTONS (General) */
-:global(.config-group) { margin-bottom: 30px; }
-.group-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.config-grid { 
+  display: grid; 
+  grid-template-columns: minmax(0, 60%) minmax(0, 40%); 
+  gap: 60px; 
+  max-width: 1200px; 
+  transition: all 0.3s ease; 
+}
+.config-grid.full-width { 
+  grid-template-columns: 1fr; 
+  gap: 0; 
+  max-width: 100%; 
+}
 
-.input-light { width: 100%; background: var(--input-bg); border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 8px; outline: none; transition: all 0.2s; }
-.input-light:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+/* === SECCIÓN DE INFORMACIÓN DEL USUARIO === */
+:global(.user-info-section-override) { 
+  margin-top: 40px; 
+  margin-bottom: 40px; 
+}
 
-.radio-item { display: flex; align-items: center; gap: 10px; padding: 12px 15px; border-radius: 8px; cursor: pointer; color: var(--text-main); border: 1px solid transparent; transition: all 0.2s; }
-.radio-item:hover { background: var(--hover-bg); border-color: var(--border); }
-.radio-item input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; }
+.user-info-header { 
+  display: flex; 
+  justify-content: space-between; 
+  margin-bottom: 20px; 
+  align-items: center; 
+}
+.user-info-header h3 { 
+  margin: 0; 
+  font-size: 18px; 
+  color: var(--text-main); 
+  font-weight: 700; 
+}
 
-.active-radio { background: rgba(59, 130, 246, 0.08); border: 1px solid var(--primary); color: var(--primary); font-weight: 600; }
-.active-radio:hover { background: rgba(59, 130, 246, 0.12); border-color: var(--primary); }
+.btn-edit-user { 
+  background: transparent; 
+  border: 1px solid var(--border); 
+  color: var(--text-main); 
+  padding: 8px 24px; 
+  border-radius: 6px; 
+  font-weight: 600; 
+  cursor: pointer; 
+  font-size: 13px; 
+  transition: all 0.2s; 
+}
+.btn-edit-user:hover { 
+  background: var(--hover-bg); 
+  border-color: var(--primary); 
+  color: var(--primary); 
+}
 
-/* === USER INFO SECTION === */
-:global(.user-info-section-override) { margin-top: 40px; margin-bottom: 40px; }
-.user-info-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
-.user-info-header h3 { margin: 0; font-size: 18px; color: var(--text-main); font-weight: 700; }
-.btn-edit-user { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; transition: all 0.2s; }
-.btn-edit-user:hover { background: var(--hover-bg); border-color: var(--primary); color: var(--primary); }
-
-.user-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
-.ui-item { display: flex; flex-direction: column; gap: 4px; }
-.ui-item label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-.ui-item span { font-size: 14px; color: var(--text-main); font-weight: 500; }
+.user-info-grid { 
+  display: grid; 
+  grid-template-columns: repeat(3, 1fr); 
+  gap: 30px; 
+}
+.ui-item { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+}
+.ui-item label { 
+  font-size: 11px; 
+  font-weight: 600; 
+  color: var(--text-sec); 
+  text-transform: uppercase; 
+  letter-spacing: 0.5px; 
+}
+.ui-item span { 
+  font-size: 14px; 
+  color: var(--text-main); 
+  font-weight: 500; 
+}
 
 /* === MODAL DE EDICIÓN DE USUARIO === */
-.modal-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box; }
-.modal-content-user { background: var(--bg-card); border-radius: 12px; width: 800px; max-width: 100%; box-shadow: var(--shadow-premium); overflow: hidden; border: 1px solid var(--border); display: flex; flex-direction: column; max-height: 90vh; }
-.modal-header-user { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
-.modal-header-user h3 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); }
-.btn-close { background: none; border: none; cursor: pointer; color: var(--text-secondary); transition: color 0.2s; }
-.btn-close:hover { color: #ef4444; }
+.modal-backdrop { 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh; 
+  background: rgba(0, 0, 0, 0.6); 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 2000; 
+  padding: 20px; 
+  box-sizing: border-box; 
+}
+.modal-content-user { 
+  background: var(--bg-card); 
+  border-radius: 12px; 
+  width: 800px; 
+  max-width: 100%; 
+  box-shadow: var(--shadow-premium); 
+  overflow: hidden; 
+  border: 1px solid var(--border); 
+  display: flex; 
+  flex-direction: column; 
+  max-height: 90vh; 
+}
+.modal-header-user { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 20px 30px; 
+  border-bottom: 1px solid var(--border); 
+  background: var(--bg-secondary); 
+}
+.modal-header-user h3 { 
+  margin: 0; 
+  font-size: 18px; 
+  font-weight: 700; 
+  color: var(--text-main); 
+}
+.btn-close { 
+  background: none; 
+  border: none; 
+  cursor: pointer; 
+  color: var(--text-sec); 
+  transition: color 0.2s; 
+}
+.btn-close:hover { 
+  color: var(--accent-danger); 
+}
+.modal-body-user { 
+  padding: 30px; 
+  overflow-y: auto; 
+  background: var(--bg-body); 
+}
+.form-user-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 20px 30px; 
+}
+.input-group { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 6px; 
+}
+.input-group label { 
+  font-size: 12px; 
+  color: var(--text-sec); 
+  font-weight: 600; 
+  text-transform: uppercase; 
+}
+.input-group input { 
+  padding: 10px 14px; 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  width: 100%; 
+  box-sizing: border-box; 
+  background: var(--input-bg); 
+  font-size: 14px; 
+  color: var(--text-main); 
+  transition: all 0.2s; 
+}
+.input-group input:focus { 
+  border-color: var(--primary); 
+  outline: none; 
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1); 
+}
+.modal-footer-user { 
+  padding: 20px 30px; 
+  display: flex; 
+  justify-content: flex-end; 
+  gap: 15px; 
+  background: var(--bg-card); 
+  border-top: 1px solid var(--border); 
+}
+.btn-cancel-user { 
+  background: transparent; 
+  border: 1px solid var(--border); 
+  padding: 10px 20px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  color: var(--text-main); 
+  font-weight: 600; 
+  transition: all 0.2s; 
+}
+.btn-cancel-user:hover { 
+  background: var(--hover-bg); 
+}
+.btn-save-user { 
+  background: var(--primary); 
+  border: none; 
+  padding: 10px 24px; 
+  border-radius: 6px; 
+  color: white; 
+  cursor: pointer; 
+  font-weight: 600; 
+  transition: transform 0.2s; 
+}
+.btn-save-user:hover { 
+  opacity: 0.9; 
+  transform: translateY(-1px); 
+}
 
-.modal-body-user { padding: 30px; overflow-y: auto; background: var(--bg-body); }
-.form-user-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 30px; }
-.input-group { display: flex; flex-direction: column; gap: 6px; }
-.input-group label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
-.input-group input { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; width: 100%; box-sizing: border-box; background: var(--input-bg); font-size: 14px; color: var(--text-main); transition: all 0.2s; }
-.input-group input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-
-.modal-footer-user { padding: 20px 30px; display: flex; justify-content: flex-end; gap: 15px; background: var(--bg-card); border-top: 1px solid var(--border); }
-.btn-cancel-user { background: transparent; border: 1px solid var(--border); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-main); font-weight: 600; transition: all 0.2s; }
-.btn-cancel-user:hover { background: var(--hover-bg); }
-.btn-save-user { background: var(--primary); border: none; padding: 10px 24px; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; transition: transform 0.2s; }
-.btn-save-user:hover { opacity: 0.9; transform: translateY(-1px); }
+/* === ESTILOS AUXILIARES PARA COMPONENTES GLOBALES === */
+:global(.config-group) { 
+  margin-bottom: 30px; 
+}
+:global(.group-label) { 
+  display: block; 
+  font-size: 13px; 
+  font-weight: 700; 
+  color: var(--text-sec); 
+  margin-bottom: 12px; 
+  text-transform: uppercase; 
+  letter-spacing: 0.5px; 
+}
+:global(.input-light) { 
+  width: 100%; 
+  background: var(--input-bg); 
+  border: 1px solid var(--border); 
+  color: var(--text-main); 
+  padding: 10px; 
+  border-radius: 8px; 
+  outline: none; 
+  transition: all 0.2s; 
+}
+:global(.input-light:focus) { 
+  border-color: var(--primary); 
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1); 
+}
+:global(.radio-item) { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  padding: 12px 15px; 
+  border-radius: 8px; 
+  cursor: pointer; 
+  color: var(--text-main); 
+  border: 1px solid transparent; 
+  transition: all 0.2s; 
+}
+:global(.radio-item:hover) { 
+  background: var(--hover-bg); 
+  border-color: var(--border); 
+}
+:global(.radio-item input[type="radio"]) { 
+  accent-color: var(--primary); 
+  width: 16px; 
+  height: 16px; 
+}
+:global(.active-radio) { 
+  background: rgba(var(--primary-rgb), 0.08); 
+  border: 1px solid var(--primary); 
+  color: var(--primary); 
+  font-weight: 600; 
+}
+:global(.active-radio:hover) { 
+  background: rgba(var(--primary-rgb), 0.12); 
+  border-color: var(--primary); 
+}
 
 /* =========================================================
-   DISEÑO RESPONSIVO (CONFIGURACIÓN: WINDOWS + ANDROID)
+   DISEÑO RESPONSIVO
    ========================================================= */
-
 @media (max-width: 768px) {
-    /* 1 y 2. CABECERA SUPERIOR Y PESTAÑAS EN MÓVIL */
-    .config-top-title-area { padding: 0 20px 10px 20px; }
-    .config-tabs { padding: 0 20px; gap: 24px; }
-    
-    /* 3. ÁREA DE CONTENIDO PRINCIPAL */
-    .config-title-bar {
-        padding: 20px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-    .config-title-bar h1 { font-size: 20px; }
-    .config-actions { width: 100%; }
-    .btn-save-config { width: 100%; min-height: 48px; }
-    .config-scroll-area { padding: 0 20px 20px 20px; }
-
-    /* 4. FORMULARIOS A 1 SOLA COLUMNA */
-    .config-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-
-    .user-info-grid {
-        grid-template-columns: 1fr; /* Todo hacia abajo */
-        gap: 15px;
-    }
-
-    .user-info-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-    
-    .btn-edit-user { width: 100%; min-height: 48px; }
-
-    /* 5. MODAL DE EDITAR USUARIO (Antidesbordes) */
-    .modal-content-user {
-        width: 95vw !important;
-        max-height: 90vh;
-    }
-
-    .modal-header-user, .modal-body-user, .modal-footer-user {
-        padding: 15px;
-    }
-
-    .form-user-grid {
-        grid-template-columns: 1fr; /* Los inputs uno debajo del otro */
-        gap: 15px;
-    }
-
-    .modal-footer-user {
-        flex-direction: column-reverse; /* Botón de guardar arriba, cancelar abajo */
-        gap: 10px;
-    }
-
-    .btn-save-user, .btn-cancel-user {
-        width: 100%;
-        min-height: 48px;
-    }
-} /* <--- Esta es la llave que faltaba poner hasta acá abajo */
-
+  .config-top-title-area { 
+    padding: 0 20px 10px 20px; 
+  }
+  .config-tabs { 
+    padding: 0 20px; 
+    gap: 24px; 
+  }
+  .config-title-bar {
+    padding: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  .config-title-bar h1 { 
+    font-size: 20px; 
+  }
+  .btn-save-config { 
+    width: 100%; 
+    min-height: 48px; 
+  }
+  .config-scroll-area { 
+    padding: 0 20px 20px 20px; 
+  }
+  .config-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .user-info-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .user-info-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  .btn-edit-user { 
+    width: 100%; 
+    min-height: 48px; 
+  }
+  .modal-content-user {
+    width: 95vw !important;
+    max-height: 90vh;
+  }
+  .modal-header-user, 
+  .modal-body-user, 
+  .modal-footer-user {
+    padding: 15px;
+  }
+  .form-user-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  .modal-footer-user {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+  .btn-save-user, 
+  .btn-cancel-user {
+    width: 100%;
+    min-height: 48px;
+  }
+}
 </style>

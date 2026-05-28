@@ -345,10 +345,10 @@
                 </select>
         
                 <select class="filter-select" bind:value={ordenamiento}>
-                    <option value="proximas">Ordenar por próximas (Recomendado)</option>
-                    <option value="fecha_desc">Fecha (De futuras a antiguas)</option>
-                    <option value="fecha_asc">Fecha (De antiguas a futuras)</option>
+                    
+                    <option value="fecha_desc">Ordenar por fecha</option>
                     <option value="tema_az">Ordenar por tema (A-Z)</option>
+                    <option value="ciudad">Ordenar por ciudad</option>
                 </select>
             </div>
     </div>
