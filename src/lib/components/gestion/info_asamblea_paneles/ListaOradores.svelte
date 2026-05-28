@@ -7,6 +7,12 @@
     Edit2, Calendar, CheckSquare, Square
   } from 'lucide-svelte';
 
+  import { generarContexto } from '$lib/utils/contexto_impresion';
+  import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
+  import { emailTemplates, obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
+  import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
+  import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
+
   let asambleaActiva: any = null;
   let oradores: any[] = [];
   let asambleaId: number = 0;
@@ -17,6 +23,9 @@
       const asamblea = JSON.parse(datosGuardados);
       asambleaActiva = await invoke('obtener_asamblea_por_id', { id: asamblea.id });
       await cargarOradoresDesdePrograma(asamblea.id);
+
+      await cargarPlantillasEmail();  
+      await cargarPlantillasWhatsApp();
     }
   });
 
@@ -80,6 +89,93 @@
     return limpio;
   }
 
+  // --- GENERACIÓN DE URL PARA JWPUB (CON PLANTILLA "contacto_orador") ---
+ async function obtenerUrlCorreoLista(orador: any): Promise<string | null> {
+    const emailDestino = (orador.email || "").trim();
+    if (!emailDestino) {
+        alert("⚠️ No hay correo registrado para este orador.");
+        return null;
+    }
+
+    const plantilla = obtenerPlantillaPorId('contacto_orador');
+    const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+    const cuerpoBase = plantilla?.body || "⚠️ No se ha definido la plantilla de contacto general.";
+
+    // 👇 AQUÍ ES DONDE AGREGAMOS LA FECHA Y MÁS DATOS
+    const objetoSimulado = {
+        nombre_orador: orador.nombre,
+        email_orador: orador.email,
+        telefono_orador: orador.telefono,
+        congregacion_orador: orador.congregacion,
+        circuito_orador: orador.circuito,
+        es_betelita: orador.es_betelita,
+        es_interprete: orador.es_interprete,
+        es_visitante: orador.es_visitante,
+        tema: 'Participación en el Programa', 
+        tipo_asignacion: 'General',
+        // Inyectamos datos de la asamblea global
+        fecha: asambleaActiva?.fecha || 'Fecha por definir',
+        nombre_del_lugar: asambleaActiva?.lugar || 'Lugar por definir',
+        tipo_de_evento: asambleaActiva?.tema || 'Asamblea'
+    };
+
+    const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+    let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+    let cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+    return `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+       `&to=${encodeURIComponent(emailDestino)}` +
+       `&subject=${encodeURIComponent(asuntoFinal)}` +
+       `&body=${encodeURIComponent(cuerpoFinal)}`;
+  }
+
+  // --- GENERACIÓN DE URL PARA WHATSAPP (CON PLANTILLA "contacto_orador") ---
+ async function obtenerUrlWhatsAppLista(orador: any): Promise<string | null> {
+    const telefono = (orador.telefono || "").trim();
+    if (!telefono) {
+        alert("⚠️ No hay teléfono registrado para este orador.");
+        return null;
+    }
+
+    let plantilla = obtenerPlantillaWhatsAppPorId('contacto_orador');
+    let cuerpoBase = plantilla?.body || "";
+
+    if (!cuerpoBase) {
+        try {
+            const res: any = await invoke('obtener_plantilla_mensaje', { id: 'contacto_orador' });
+            if (res && res.cuerpo) cuerpoBase = res.cuerpo;
+        } catch (e) {
+            console.error("Error cargando plantilla WhatsApp contacto_orador:", e);
+        }
+    }
+
+    if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla de contacto general.";
+
+    // 👇 IGUAL AQUÍ: Agregamos la fecha y datos de asamblea
+    const objetoSimulado = {
+        nombre_orador: orador.nombre,
+        telefono_orador: orador.telefono,
+        congregacion_orador: orador.congregacion,
+        circuito_orador: orador.circuito,
+        es_betelita: orador.es_betelita,
+        es_interprete: orador.es_interprete,
+        es_visitante: orador.es_visitante,
+        tema: 'Participación en el Programa', 
+        tipo_asignacion: 'General',
+        fecha: asambleaActiva?.fecha || 'Fecha por definir',
+        nombre_del_lugar: asambleaActiva?.lugar || 'Lugar por definir',
+        tipo_de_evento: asambleaActiva?.tema || 'Asamblea'
+    };
+
+    const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+    let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
+    
+    let telWa = limpiarTelefono(telefono).replace(/^\+/, '');
+    if (!telWa.startsWith('53') && telWa.length === 8) telWa = '53' + telWa;
+
+    return `https://wa.me/${telWa}?text=${encodeURIComponent(mensaje)}`;
+  }
+
   async function accionContacto(tipo: string, orador: any) {
     const email = orador.email?.trim();
     const tel = orador.telefono?.trim();
@@ -87,17 +183,14 @@
 
     try {
       switch (tipo) {
-        case 'gmail':
-          if (!email) return alert("No hay correo registrado");
-          url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
-          break;
         case 'email':
           if (!email) return alert("No hay correo registrado");
           url = `mailto:${email}`;
           break;
         case 'jwpub':
-          if (!email) return alert("No hay correo registrado");
-          url = `https://mail.jwpub.org/owa/#path=/mail/action/compose&to=${encodeURIComponent(email)}`;
+          // 👇 Usa la nueva función de plantilla
+          const urlJwpub = await obtenerUrlCorreoLista(orador);
+          if (urlJwpub) url = urlJwpub;
           break;
         case 'llamada':
           if (!tel) return alert("No hay teléfono registrado");
@@ -108,10 +201,9 @@
           url = `sms:${formatearTelCuba(tel)}`;
           break;
         case 'whatsapp':
-          if (!tel) return alert("No hay teléfono registrado");
-          let telWa = limpiarTelefono(tel).replace(/^\+/, '');
-          if (!telWa.startsWith('53') && telWa.length === 8) telWa = '53' + telWa;
-          url = `https://wa.me/${telWa}`;
+          // 👇 Usa la nueva función de plantilla
+          const urlWa = await obtenerUrlWhatsAppLista(orador);
+          if (urlWa) url = urlWa;
           break;
       }
       if (url) await openUrl(url);
@@ -209,21 +301,23 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
           </div>
 
           <div class="acciones-circulares">
-            <button class="btn-circle" on:click={() => accionContacto('gmail', orador)} title="Correo Gmail">
-              <Mail size={16} strokeWidth={1.5}/>
-            </button>
+
             <button class="btn-circle" on:click={() => accionContacto('jwpub', orador)} title="Email Jwpub.org">
               <Mail size={16} strokeWidth={1.5}/>
             </button>
+
             <button class="btn-circle" on:click={() => accionContacto('llamada', orador)} title="Llamar Celular">
               <Phone size={16} strokeWidth={1.5}/>
             </button>
+
             <button class="btn-circle" on:click={() => accionContacto('sms', orador)} title="Mensaje por Celular">
               <MessageSquare size={16} strokeWidth={1.5}/>
             </button>
+
             <button class="btn-circle" on:click={() => accionContacto('whatsapp', orador)} title="WhatsApp">
               <MessageCircle size={16} strokeWidth={1.5}/>
             </button>
+            
           </div>
 
           <div class="grid-datos">

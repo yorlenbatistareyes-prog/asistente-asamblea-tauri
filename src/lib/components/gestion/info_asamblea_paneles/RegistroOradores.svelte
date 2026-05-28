@@ -3,6 +3,12 @@
   import { invoke } from '@tauri-apps/api/core';
   import { MessageSquare } from 'lucide-svelte';
   import { Phone, MessageCircle, Mail } from 'lucide-svelte';
+  import { generarContexto } from '$lib/utils/contexto_impresion';
+  import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
+  import { obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
+  import { whatsAppTemplates, obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
+  import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
+  
   import { open as openUrl } from '@tauri-apps/plugin-shell';
 
   // --- IMPORTACIONES PARA PDF ---
@@ -33,6 +39,11 @@
     if (datosGuardados) {
       const asamblea = JSON.parse(datosGuardados);
       asambleaActiva = await invoke('obtener_asamblea_por_id', { id: asamblea.id });
+      
+      // Aseguramos que las plantillas se cargan desde Rust a Svelte
+      await cargarPlantillasEmail();
+      await cargarPlantillasWhatsApp();
+      
       await cargarTodoElPrograma(asamblea.id);
     }
   });
@@ -177,63 +188,91 @@
     }
   }
 
-  async function abrirWhatsApp(telefono: string) {
+  async function abrirWhatsApp(telefono: string, parte: any) {
     let telLimpio = limpiarTelefono(telefono);
     telLimpio = telLimpio.replace(/^\+/, ''); // WhatsApp usa el número sin el '+'
     if (!telLimpio.startsWith('53') && telLimpio.length === 8) {
         telLimpio = '53' + telLimpio;
     }
+
+    // 1. Buscar la plantilla de contacto general en el almacén de WhatsApp
+    let plantilla = obtenerPlantillaWhatsAppPorId('contacto_orador');
+    let cuerpoBase = plantilla?.body || "";
+
+    if (!cuerpoBase) {
+        try {
+            const res: any = await invoke('obtener_plantilla_mensaje', { id: 'contacto_orador' });
+            if (res && res.cuerpo) cuerpoBase = res.cuerpo;
+        } catch (e) {
+            console.error("Error cargando plantilla WhatsApp contacto_orador:", e);
+        }
+    }
+
+    if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla de contacto general.";
+
+    // 2. Generar el contexto con los datos del orador actual
+    const asId = asambleaActiva?.id || 0;
+    const contexto = await generarContexto(parte, asId, false);
+    let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
+
     try {
-        await openUrl(`https://wa.me/${telLimpio}`);
+        // 3. Abrimos la URL incluyendo el mensaje procesado
+        await openUrl(`https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`);
     } catch(e) {
         console.error("Error al abrir WhatsApp:", e);
     }
   }
 
-  // --- EMAIL MASIVO A TODOS LOS ORADORES ---
+// --- EMAIL MASIVO A TODOS LOS ORADORES ---
   async function enviarEmailMasivo() {
     const emailsUnicos = new Set<string>();
     
     // 1. Recorremos todas las partes cargadas
     partes.forEach(p => {
-      // Buscamos el correo en todas las posibles propiedades (por si acaso)
-      // En Tauri/Rust a veces el campo viene como email_orador o simplemente email
       const correo = p.email_orador || p.email;
-      
       if (correo && correo.trim() !== '' && p.fuente !== 'Video' && p.fuente !== 'video') {
         emailsUnicos.add(correo.trim());
       }
     });
 
-    // Convertimos a lista separada por punto y coma (formato estándar de Outlook/OWA)
     const listaCorreos = Array.from(emailsUnicos).join(';');
     
     if (listaCorreos.length === 0) {
       return alert("⚠️ No se encontraron correos. Verifica que los oradores tengan un email asignado en la base de datos.");
     }
 
-    // 2. Preparamos los textos
-    const asunto = `Asamblea Regional: ${asambleaActiva?.tema || ''}`;
-    const cuerpo = `Estimados hermanos,\n\nComparto información importante sobre el registro de oradores.\n\nSaludos.`;
+    // 2. Extraer la plantilla masiva
+    const plantilla = obtenerPlantillaPorId('masivo_general');
+    const asuntoBase = plantilla?.subject || "Información de la Asamblea";
+    const cuerpoBase = plantilla?.body || "Estimados hermanos, información importante sobre el registro.";
+
+    // 3. Crear contexto simulado (sin datos personales porque es para muchos a la vez)
+    const asId = asambleaActiva?.id || 0;
+    const objetoSimulado = {
+        nombre_orador: 'Hermanos', 
+        tema: 'Asignaciones de la Asamblea', 
+        tipo_asignacion: 'General'
+    };
+
+    const contexto = await generarContexto(objetoSimulado, asId, false);
+    const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+    const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
 
     try {
-      // 3. Formato de URL ajustado para OWA (Outlook Web App)
-      // Cambiamos el '#' por '?' antes de path para que OWA procese mejor los argumentos en algunas versiones
       const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose` +
                   `&to=${encodeURIComponent(listaCorreos)}` +
-                  `&subject=${encodeURIComponent(asunto)}` +
-                  `&body=${encodeURIComponent(cuerpo)}`;
+                  `&subject=${encodeURIComponent(asuntoFinal)}` +
+                  `&body=${encodeURIComponent(cuerpoFinal)}`;
                   
       await openUrl(url);
-      
-      console.log("Correos enviados a:", listaCorreos); // Esto te servirá para ver en la consola si los está capturando
+      console.log("Correos masivos enviados a:", listaCorreos);
     } catch (e) {
       console.error("Error al abrir JWPUB:", e);
       alert("Error al intentar abrir el cliente de correo.");
     }
   }
 
-  // --- EMAIL INDIVIDUAL ---
+// --- EMAIL INDIVIDUAL ---
   async function abrirEmailIndividual(parte: any) {
     const correo = parte.email_orador || parte.email;
     
@@ -241,15 +280,23 @@
       return alert("Este orador no tiene correo electrónico registrado.");
     }
     
-    // Asunto y cuerpo predeterminados
-    const asunto = `Asignación de Asamblea: ${parte.tema || ''}`;
-    const cuerpo = `Estimado hermano ${parte.nombre_orador || ''},\n\nLe escribimos en relación a su parte en la asamblea.\n\nSaludos cordiales.`;
+    // 1. Extraer la plantilla de contacto general
+    const plantilla = obtenerPlantillaPorId('contacto_orador');
+    const asuntoBase = plantilla?.subject || "Asignación de Asamblea";
+    const cuerpoBase = plantilla?.body || "Le escribimos en relación a su asignación.";
+
+    // 2. Generar el contexto dinámico real del hermano
+    const asId = asambleaActiva?.id || 0;
+    const contexto = await generarContexto(parte, asId, false);
+    
+    const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+    const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
     
     try {
       const url = `https://mail.jwpub.org/owa/?path=/mail/action/compose` +
                   `&to=${encodeURIComponent(correo.trim())}` +
-                  `&subject=${encodeURIComponent(asunto)}` +
-                  `&body=${encodeURIComponent(cuerpo)}`;
+                  `&subject=${encodeURIComponent(asuntoFinal)}` +
+                  `&body=${encodeURIComponent(cuerpoFinal)}`;
                   
       await openUrl(url);
     } catch(e) {
@@ -544,7 +591,7 @@ async function generarPDFPlano() {
                           <button class="btn-celular" on:click={() => llamarCelular(tel)} title="Llamar">
                             <Phone size={13}/> {tel}
                           </button>
-                          <button class="btn-whatsapp" on:click={() => abrirWhatsApp(tel)} title="Mensaje por WhatsApp">
+                          <button class="btn-whatsapp" on:click={() => abrirWhatsApp(tel, parte)} title="Mensaje por WhatsApp">
                             <MessageCircle size={13}/> WhatsApp
                           </button>
                         </div>

@@ -211,7 +211,7 @@ function limpiarFiltrosTemporales() {
     }
   }
 
-  // --- CORREOS ---
+ // --- CORREOS ---
   async function obtenerUrlCorreo(objeto: any, esRecordatorio: boolean): Promise<string | null> {
     const emailDestino = (objeto.email_visual || objeto.email_orador || objeto.email || "").trim();
     if (!emailDestino) {
@@ -219,10 +219,18 @@ function limpiarFiltrosTemporales() {
         return null;
     }
 
-    let idPlantilla = 'oradores';
+    // 1. CONEXIÓN DE PLANTILLAS:
+    let idPlantilla = esRecordatorio ? 'programa_recordatorio' : 'programa_individual';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
-    if (rol.includes('presidente')) idPlantilla = 'presidentes';
-    else if (rol.includes('oracion')) idPlantilla = 'oraciones';
+    
+    // Si el rol es de oficina, comité o soporte (departamentos) cambiamos la plantilla
+    if (rol.includes('oficina') || rol.includes('auxiliar')) {
+        idPlantilla = 'oficina';
+    } else if (rol.includes('comite') || rol.includes('comité')) {
+        idPlantilla = 'comite';
+    } else if (rol.includes('audio') || rol.includes('video') || rol.includes('soporte') || rol.includes('departamento')) {
+        idPlantilla = 'departamentos';
+    }
 
     const plantilla = obtenerPlantillaPorId(idPlantilla);
     const asuntoBase = plantilla?.subject || "Asignación JWPUB";
@@ -231,10 +239,6 @@ function limpiarFiltrosTemporales() {
     const contexto = await generarContexto(objeto, asambleaId, true);
     let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
     let cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
-
-    if (esRecordatorio) {
-        asuntoFinal = "RECORDATORIO: " + asuntoFinal;
-    }
 
     return `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
        `&to=${encodeURIComponent(emailDestino)}` +
@@ -260,7 +264,7 @@ function limpiarFiltrosTemporales() {
     }
   }
 
-  // --- WHATSAPP URL ---
+// --- WHATSAPP URL ---
   async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
     const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
     if (!telefono) {
@@ -268,11 +272,17 @@ function limpiarFiltrosTemporales() {
         return null;
     }
 
-    let idPlantilla = 'oradores';
+    // 1. CONEXIÓN DE PLANTILLAS WHATSAPP:
+    let idPlantilla = esRecordatorio ? 'programa_recordatorio' : 'programa_individual';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
-    if (rol.includes('presidente')) idPlantilla = 'presidentes';
-    else if (rol.includes('oracion')) idPlantilla = 'oraciones';
-    else if (esRecordatorio) idPlantilla = 'ensayo';
+    
+    if (rol.includes('oficina') || rol.includes('auxiliar')) {
+        idPlantilla = 'oficina';
+    } else if (rol.includes('comite') || rol.includes('comité')) {
+        idPlantilla = 'comite';
+    } else if (rol.includes('audio') || rol.includes('video') || rol.includes('soporte') || rol.includes('departamento')) {
+        idPlantilla = 'departamentos';
+    }
 
     let plantilla = obtenerPlantillaWhatsAppPorId(idPlantilla);
     let cuerpoBase = plantilla?.body || "";
@@ -900,7 +910,7 @@ async function cargarTodosDias() {
           {/if}
           
           <button class="dia-opcion" 
-                  on:click={() => enviarEmailMasivo('email_todos')}
+                  on:click={() => enviarEmailMasivo('masivo_general')}
                   disabled={cantidadCorreosMasivos === 0}
                   style={cantidadCorreosMasivos === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
             <FileJson size={16} color={cantidadCorreosMasivos > 0 ? "#f97316" : "var(--text-secondary)"}/> 
@@ -910,7 +920,7 @@ async function cargarTodosDias() {
           <div class="separator-dropdown" style="margin: 0;"></div>
           
           <button class="dia-opcion" 
-                  on:click={() => enviarEmailMasivo('email_todos_recordatorio')}
+                  on:click={() => enviarEmailMasivo('masivo_recordatorio')}
                   disabled={cantidadCorreosMasivos === 0}
                   style={cantidadCorreosMasivos === 0 ? 'opacity: 0.5; cursor: not-allowed;' : ''}>
             <Clock size={16} color={cantidadCorreosMasivos > 0 ? "#3b82f6" : "var(--text-secondary)"}/> 

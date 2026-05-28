@@ -14,8 +14,13 @@
 
   import { open as openUrl } from '@tauri-apps/plugin-shell';
   import { generarContexto } from '$lib/utils/contexto_impresion';
-  import { obtenerPlantillaPorId } from '$lib/utils/plantillasEmail';
+  // 👇 Asegúrate de que cargarPlantillasEmail esté aquí adentro:
+  import { obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
   import { prepararAsuntoEmail, prepararContenidoEmail } from '$lib/utils/contextoEmail';
+
+  // 👇 Y asegúrate de tener esta línea completa para WhatsApp:
+  import { obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
+  import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
 
   // --- ESTADO DE GUARDADO ---
   let estadoGuardado: 'idle' | 'guardando' | 'guardado' | 'error' = 'idle';
@@ -77,6 +82,11 @@
         const asamblea = JSON.parse(datosGuardados);
         asambleaId = asamblea.id;
         asambleaIdentificador = asamblea.identificador || "Sin ID";
+        
+        // 👇 Aseguramos que las plantillas estén en memoria
+        await cargarPlantillasEmail();
+        await cargarPlantillasWhatsApp();
+        
         await recargarTodo();
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
@@ -244,7 +254,7 @@
       }
   }
 
-  // Función principal de envío
+// Función principal de envío
   async function enviarEmailComite(tipo: 'comite_entero' | 'sup_programa' | 'audio_video') {
       let destinatarios = new Set<string>();
       let idPlantilla = '';
@@ -257,15 +267,16 @@
               if (h && h.email) destinatarios.add(h.email.trim());
           });
       } else if (tipo === 'sup_programa') {
-          idPlantilla = 'superintendente';
+          idPlantilla = 'comite'; // Usamos la plantilla general del comité
           const h = getDetalles(c.prog);
           if (h && h.email) destinatarios.add(h.email.trim());
       } else if (tipo === 'audio_video') {
-          idPlantilla = 'audiovideo';
+          idPlantilla = 'departamentos'; // Usamos nuestra nueva plantilla de departamentos
           const h = getDetalles(c.av);
           if (h && h.email) destinatarios.add(h.email.trim());
       }
 
+      // ... (El resto de la función queda exactamente igual) ...
       const listaCorreos = Array.from(destinatarios).join(';');
       
       if (listaCorreos.length === 0) {
@@ -273,25 +284,20 @@
       }
 
       try {
-          // 2. Cargar plantilla
           const plantilla = obtenerPlantillaPorId(idPlantilla);
           const asuntoBase = plantilla?.subject || "Información de la Asamblea";
           const cuerpoBase = plantilla?.body || "";
 
-          // 3. Crear contexto base para la asamblea (sin un hermano específico)
           const objetoSimulado = {
               nombre_completo: 'Hermanos', nombre_pila: 'Hermanos', apellidos: '',
-              tema: '', hora_inicio: '', hora: '', tipo_asignacion: 'Comité',
+              tema: '', hora_inicio: '', hora: '', tipo_asignacion: 'Comité / Departamento',
               numero_bosquejo: '', email: '', telefono: '', congregacion: ''
           };
 
           const contexto = await generarContexto(objetoSimulado, asambleaId, false);
-          
-          // 4. Procesar marcadores
           const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
           const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
 
-          // 5. Abrir JWPUB
           const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
                       `&to=${encodeURIComponent(listaCorreos)}` +
                       `&subject=${encodeURIComponent(asuntoFinal)}` +
@@ -306,7 +312,7 @@
       }
   }
 
-  // --- ENVIAR CORREO INDIVIDUAL A UN HERMANO ---
+// --- ENVIAR CORREO INDIVIDUAL A UN HERMANO ---
 async function enviarEmailHermano(hermano: any) {
     if (!hermano.email) {
         alert("⚠️ Este hermano no tiene dirección de correo registrada.");
@@ -314,19 +320,26 @@ async function enviarEmailHermano(hermano: any) {
     }
 
     try {
-        // Usamos la plantilla "superintendente" como base (puedes cambiarla)
-        const idPlantilla = 'superintendente';
+        // Usamos la plantilla 'comite' para todos en esta vista
+        const idPlantilla = 'comite';
         const plantilla = obtenerPlantillaPorId(idPlantilla);
         const asuntoBase = plantilla?.subject || "Información de la Asamblea";
         const cuerpoBase = plantilla?.body || "";
 
-        // Generar contexto para este hermano
-        const contexto = await generarContexto(hermano, asambleaId, false);
-        
+        // Creamos un contexto simulado con los datos del hermano
+        const objetoSimulado = {
+            nombre_orador: hermano.nombre_completo,
+            email_orador: hermano.email,
+            telefono_orador: hermano.telefono,
+            congregacion_orador: hermano.nombre_congregacion,
+            tema: 'Responsabilidades de Asamblea',
+            tipo_asignacion: 'Comité / Departamento'
+        };
+
+        const contexto = await generarContexto(objetoSimulado, asambleaId, false);
         const asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
         const cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
 
-        // Abrir JW Mail con el destinatario
         const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
                     `&to=${encodeURIComponent(hermano.email)}` +
                     `&subject=${encodeURIComponent(asuntoFinal)}` +
@@ -377,24 +390,47 @@ async function llamarTelefono(hermano: any) {
 }
 
 // --- ABRIR WHATSAPP ---
-function abrirWhatsApp(hermano: any) {
+async function abrirWhatsApp(hermano: any) {
     if (!hermano.telefono) {
         alert("⚠️ Este hermano no tiene número de teléfono registrado.");
         return;
     }
     
-    // Limpiar el número: eliminar espacios, guiones, paréntesis y el signo '+'
     let telefonoLimpio = hermano.telefono.replace(/[\s\-\(\)]/g, '');
-    // Eliminar el '+' si existe para el formato de WhatsApp
     telefonoLimpio = telefonoLimpio.replace(/^\+/, '');
     
-    // Si el número no tiene código de país, asumir +53 (Cuba) - ajusta según necesidad
     if (!telefonoLimpio.startsWith('53') && telefonoLimpio.length === 8) {
         telefonoLimpio = '53' + telefonoLimpio;
     }
+
+    // 1. Obtener la plantilla
+    let plantilla = obtenerPlantillaWhatsAppPorId('comite');
+    let cuerpoBase = plantilla?.body || "";
+
+    if (!cuerpoBase) {
+        try {
+            const res: any = await invoke('obtener_plantilla_mensaje', { id: 'comite' });
+            if (res && res.cuerpo) cuerpoBase = res.cuerpo;
+        } catch (e) {
+            console.error("Error cargando plantilla WhatsApp comite:", e);
+        }
+    }
+
+    if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido la plantilla del comité.";
+
+    // 2. Generar el contexto
+    const objetoSimulado = {
+        nombre_orador: hermano.nombre_completo,
+        telefono_orador: hermano.telefono,
+        congregacion_orador: hermano.nombre_congregacion,
+        tema: 'Responsabilidades de Asamblea',
+        tipo_asignacion: 'Comité / Departamento'
+    };
+
+    const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+    let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
     
-    const url = `https://wa.me/${telefonoLimpio}`;
-    openUrl(url);
+    openUrl(`https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`);
 }
 
   $: filtrados = hermanos.filter(h => h.nombre_completo.toLowerCase().includes(terminoBusqueda.toLowerCase()));

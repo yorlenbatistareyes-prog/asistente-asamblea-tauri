@@ -12,6 +12,12 @@
 
   import { exportarOficinaPDF } from '$lib/utils/exportar';
 
+  import { generarContexto } from '$lib/utils/contexto_impresion';
+  import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
+  import { obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
+  import { obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
+  import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
+
   // --- ESTADO ---
   let asambleaId = 0; 
   let tabPrincipal = 'auxiliares'; 
@@ -54,6 +60,11 @@
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
         asambleaId = JSON.parse(datosGuardados).id;
+        
+        // 👇 Añadir la carga de plantillas aquí
+        await cargarPlantillasEmail();
+        await cargarPlantillasWhatsApp();
+        
         await Promise.all([ cargarDatos(), cargarHermanos() ]);
     }
   });
@@ -233,7 +244,79 @@
       ? listaHermanos 
       : listaHermanos.filter(h => h?.nombre_completo?.toLowerCase().includes(terminoBusqueda.toLowerCase().trim()));
 
-// --- EXPORTACIÓN A PDF ---
+
+  // --- CONEXIÓN CON PLANTILLAS PARA AUXILIARES DE OFICINA ---
+  async function enviarCorreoAuxiliar(p: any) {
+      const emailDestino = (p.email || "").trim();
+      if (!emailDestino) {
+          return alert("⚠️ No hay correo registrado para este auxiliar.");
+      }
+
+      const plantilla = obtenerPlantillaPorId('oficina');
+      const asuntoBase = plantilla?.subject || "Asignación en la Oficina de la Asamblea";
+      const cuerpoBase = plantilla?.body || "⚠️ No se ha definido la plantilla de la oficina.";
+
+      // Objeto simulado compatible con tu motor de contexto
+      const objetoSimulado = {
+          nombre_orador: p.nombre_completo,
+          email_orador: p.email,
+          telefono_orador: p.telefono,
+          congregacion_orador: p.nombre_congregacion,
+          tema: 'Asignación de Oficina',
+          tipo_asignacion: 'Personal de Oficina'
+      };
+
+      const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+      let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
+      let cuerpoFinal = prepararContenidoEmail(cuerpoBase, contexto);
+
+      const url = `https://mail.jwpub.org/owa/#path=/mail/action/compose` +
+         `&to=${encodeURIComponent(emailDestino)}` +
+         `&subject=${encodeURIComponent(asuntoFinal)}` +
+         `&body=${encodeURIComponent(cuerpoFinal)}`;
+         
+      openUrl(url).catch(e => console.error(e));
+  }
+
+  async function enviarWhatsAppAuxiliar(p: any) {
+      const telefono = (p.telefono || "").trim();
+      if (!telefono) {
+          return alert("⚠️ No hay teléfono registrado para este auxiliar.");
+      }
+
+      let plantilla = obtenerPlantillaWhatsAppPorId('oficina');
+      let cuerpoBase = plantilla?.body || "";
+
+      if (!cuerpoBase) {
+          try {
+              const res: any = await invoke('obtener_plantilla_mensaje', { id: 'oficina' });
+              if (res && res.cuerpo) cuerpoBase = res.cuerpo;
+          } catch (e) {
+              console.error("Error cargando plantilla WhatsApp oficina:", e);
+          }
+      }
+
+      if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido la plantilla de oficina.";
+
+      const objetoSimulado = {
+          nombre_orador: p.nombre_completo,
+          telefono_orador: p.telefono,
+          congregacion_orador: p.nombre_congregacion,
+          tema: 'Asignación de Oficina',
+          tipo_asignacion: 'Personal de Oficina'
+      };
+
+      const contexto = await generarContexto(objetoSimulado, asambleaId, false);
+      let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
+      
+      let telWa = telefono.replace(/\D/g, '').replace(/^\+/, '');
+      if (!telWa.startsWith('53') && telWa.length === 8) telWa = '53' + telWa;
+
+      openUrl(`https://wa.me/${telWa}?text=${encodeURIComponent(mensaje)}`).catch(e => console.error(e));
+  }
+
+
+      // --- EXPORTACIÓN A PDF ---
   async function manejarExportacionTotal() {
       if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
       
@@ -321,18 +404,24 @@
                                 {/if}
                             </div>
                         </div>
+
                         <div class="tp-footer-botones">
-                            <button class="btn-contacto" on:click={() => p.telefono ? openUrl(`tel:${p.telefono}`) : alert('Sin teléfono')}>
-                                <Phone size={14}/> Tel
+
+                            <button class="btn-contacto" on:click={() => p.telefono ? openUrl(`tel:${p.telefono.replace(/[\s\-\(\)]/g, '')}`) : alert('Sin teléfono')}>
+                                <Phone size={14}/> Teléfono
                             </button>
-                            <button class="btn-contacto" on:click={() => p.telefono ? openUrl(`https://wa.me/${p.telefono.replace(/\D/g, '')}`) : alert('Sin teléfono')}>
-                                <MessageCircle size={14}/> WA
+
+                            <button class="btn-contacto" on:click={() => enviarWhatsAppAuxiliar(p)}>
+                                <MessageCircle size={14}/> WhatsApp
                             </button>
-                            <button class="btn-contacto" on:click={() => openUrl('https://mail.jwpub.org')}>
+
+                            <button class="btn-contacto" on:click={() => enviarCorreoAuxiliar(p)}>
                                 <Mail size={14}/> JW Email
                             </button>
+
                         </div>
                     </div>
+                    
                 {/each}
                 {#if oficina.personal.length === 0}
                     <div class="vacio-absoluto">
