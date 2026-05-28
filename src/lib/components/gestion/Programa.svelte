@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
-  import { open as openUrl } from '@tauri-apps/plugin-shell';
+  import { openUrl } from '@tauri-apps/plugin-opener';
   import { slide } from 'svelte/transition';
   import { fade } from 'svelte/transition'; 
   import { onDestroy } from 'svelte';
@@ -192,22 +192,50 @@ function limpiarFiltrosTemporales() {
       partes = partes.map(p => ({ ...p, _expanded: nuevoEstado }));
   }
 
-  // --- WHATSAPP ---
+ // --- WHATSAPP ---
   async function abrirWhatsAppAsignacion(objeto: any) {
-    const url = await obtenerUrlWhatsApp(objeto, false);
-    if (url) {
-        openUrl(url).catch(e => console.error(e));
-        objeto.whatsapp_enviado = true;
-        partes = partes;
+    const urls = await obtenerUrlsWhatsApp(objeto, false);
+    if (urls) {
+        try {
+            // Intento 1: App Nativa
+            await openUrl(urls.nativeUrl);
+            objeto.whatsapp_enviado = true;
+            partes = partes;
+        } catch (e) {
+            console.warn("App nativa no encontrada, usando fallback web:", e);
+            try {
+                // Intento 2: Navegador Web
+                await openUrl(urls.webUrl);
+                objeto.whatsapp_enviado = true;
+                partes = partes;
+            } catch (err) {
+                console.error("No se pudo abrir WhatsApp:", err);
+                alert("No se pudo abrir WhatsApp. Verifica tu navegador predeterminado.");
+            }
+        }
     }
   }
 
   async function abrirWhatsAppRecordatorio(objeto: any) {
-    const url = await obtenerUrlWhatsApp(objeto, true);
-    if (url) {
-        openUrl(url).catch(e => console.error(e));
-        objeto.recordatorio_whatsapp_enviado = true;
-        partes = partes;
+    const urls = await obtenerUrlsWhatsApp(objeto, true);
+    if (urls) {
+        try {
+            // Intento 1: App Nativa
+            await openUrl(urls.nativeUrl);
+            objeto.recordatorio_whatsapp_enviado = true;
+            partes = partes;
+        } catch (e) {
+            console.warn("App nativa no encontrada, usando fallback web:", e);
+            try {
+                // Intento 2: Navegador Web
+                await openUrl(urls.webUrl);
+                objeto.recordatorio_whatsapp_enviado = true;
+                partes = partes;
+            } catch (err) {
+                console.error("No se pudo abrir WhatsApp:", err);
+                alert("No se pudo abrir WhatsApp. Verifica tu navegador predeterminado.");
+            }
+        }
     }
   }
 
@@ -265,7 +293,7 @@ function limpiarFiltrosTemporales() {
   }
 
 // --- WHATSAPP URL ---
-  async function obtenerUrlWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<string | null> {
+  async function obtenerUrlsWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<{ nativeUrl: string, webUrl: string } | null> {
     const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
     if (!telefono) {
         alert("⚠️ No hay teléfono registrado.");
@@ -308,7 +336,12 @@ function limpiarFiltrosTemporales() {
     mensaje = mensaje.substring(0, 4000);
 
     const numero = telefono.replace(/\D/g, '');
-    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+    
+    // Retornamos ambas URLs estructuradas
+    return {
+        nativeUrl: `whatsapp://send?phone=${numero}&text=${encodeURIComponent(mensaje)}`,
+        webUrl: `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`
+    };
   }
 
   // --- MAPA DE PLANTILLAS PARA IMPRESIÓN ---
