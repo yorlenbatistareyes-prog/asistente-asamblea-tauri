@@ -348,13 +348,13 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
           </div>
 
           <div class="recordatorio-zona">
-            <span class="dato-lbl">Recordatorio</span>
+            <span class="dato-lbl">Notas</span>
             <div class="recordatorio-inputs">
               <textarea placeholder="Agregue una nota para este orador." bind:value={orador.recordatorio_texto}></textarea>
               
               <div class="controles-rec">
                 <input type="date" class="input-fecha-rec" bind:value={orador.recordatorio_fecha}/>
-                <button class="btn-guardar-rec" disabled={!orador.recordatorio_fecha}>Guardar recordatorio</button>
+                <button class="btn-guardar-rec" disabled={!orador.recordatorio_fecha}>Guardar nota</button>
               </div>
             </div>
           </div>

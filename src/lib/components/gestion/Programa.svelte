@@ -883,7 +883,7 @@ async function cargarTodosDias() {
 
     <div class="selector-dia-container email-masivo-container">
       <button class="btn-header-orange" on:click|stopPropagation={() => {mostrarMenuEmailTodos = !mostrarMenuEmailTodos; mostrarSelectorDia = false; mostrarSelectorOrdenar = false;}}>
-        <Mail size={18}/> <span>Email JW a todos</span>
+        <Mail size={18}/> <span>Email a todos</span>
       </button>
       
       {#if mostrarMenuEmailTodos}
@@ -1071,7 +1071,7 @@ async function cargarTodosDias() {
 
                   <button class="btn-pildora btn-jwpub" on:click={() => abrirJWPUBCarta(parte)}>
                     <div class="icono-pildora"><Mail size={20}/></div>
-                    <span>Enviar Carta (JWPub)</span>
+                    <span>Enviar Carta</span>
                     <span class="jw-badge">JW</span>
                   </button>
 
@@ -1081,8 +1081,8 @@ async function cargarTodosDias() {
                   </button>
 
                   <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
-                    <div class="icono-pildora"><FileCheck size={20}/></div>
-                    <span>Asignación, recordatorio (JWPub)</span>
+                    <div class="icono-pildora"><Mail size={20}/></div>
+                    <span>Asignación, recordatorio</span>
                     <span class="jw-badge">JW</span>
                   </button>
                 </div>

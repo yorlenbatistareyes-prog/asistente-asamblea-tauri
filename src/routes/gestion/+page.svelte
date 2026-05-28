@@ -136,6 +136,10 @@
               <span class="txt-tab">Responsabilidades</span>
           </button>
 
+          <button class="tab-btn" class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')}>
+              <span class="txt-tab">Oficina</span>
+          </button>
+
           <button class="tab-btn" class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')}>
               <span class="txt-tab">Programa</span>
           </button>
@@ -148,9 +152,7 @@
               <span class="txt-tab">Ensayos</span>
           </button>
 
-          <button class="tab-btn" class:activo={seccionActiva === 'oficina'} on:click={() => cambiarSeccion('oficina')}>
-              <span class="txt-tab">Oficina</span>
-          </button>
+          
 
           <div class="tab-mas-container">
               <button class="tab-btn btn-mas" 
