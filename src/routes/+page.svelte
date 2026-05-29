@@ -32,7 +32,7 @@
   // ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
   let filtroCategoria = "todas"; 
-  let ordenamiento = "fecha_desc";
+  let ordenamiento = "inteligente";
 
   // --- VARIABLES DEL USUARIO Y RELOJ ---
   let horaActual = "";
@@ -187,11 +187,46 @@ $: asambleasFiltradas = listaAsambleas
           );
       })
       .sort((a: any, b: any) => {
-          const timeA = obtenerTiempoSeguro(a.fecha, false);
-          const timeB = obtenerTiempoSeguro(b.fecha, false);
+          const timeInicioA = obtenerTiempoSeguro(a.fecha, false);
+          const timeFinA = obtenerTiempoSeguro(a.fecha, true);
+          
+          const timeInicioB = obtenerTiempoSeguro(b.fecha, false);
+          const timeFinB = obtenerTiempoSeguro(b.fecha, true);
 
-          if (ordenamiento === 'fecha_desc') return timeB - timeA;
-          if (ordenamiento === 'fecha_asc') return timeA - timeB;
+          if (ordenamiento === 'inteligente') {
+              const hoy = new Date();
+              hoy.setHours(0, 0, 0, 0);
+              const tiempoHoy = hoy.getTime();
+
+              // Función auxiliar para clasificar la asamblea
+              const getCategoria = (inicio: number, fin: number) => {
+                  if (inicio === 0 || fin === 0) return 3; // Sin fecha al fondo
+                  if (inicio <= tiempoHoy && fin >= tiempoHoy) return 0; // 0: PRESENTE (Activa hoy)
+                  if (inicio > tiempoHoy) return 1; // 1: FUTURA
+                  return 2; // 2: PASADA
+              };
+
+              const catA = getCategoria(timeInicioA, timeFinA);
+              const catB = getCategoria(timeInicioB, timeFinB);
+
+              // 1º Prioridad: Ordenar por categoría (Presente -> Futura -> Pasada)
+              if (catA !== catB) {
+                  return catA - catB; 
+              }
+
+              // 2º Prioridad: Ordenar dentro de la misma categoría
+              if (catA === 0 || catA === 1) {
+                  // Si son Presentes o Futuras: La que esté más próxima a la fecha de hoy va primero (ascendente)
+                  return timeInicioA - timeInicioB; 
+              } else {
+                  // Si son Pasadas: La que terminó hace menos tiempo va primero (descendente)
+                  return timeFinB - timeFinA; 
+              }
+          }
+
+          // Resto de ordenamientos clásicos
+          if (ordenamiento === 'fecha_desc') return timeInicioB - timeInicioA;
+          if (ordenamiento === 'fecha_asc') return timeInicioA - timeInicioB;
           if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
           if (ordenamiento === 'ciudad') return (a.ciudad || "").localeCompare(b.ciudad || "");
           
@@ -336,10 +371,11 @@ $: asambleasFiltradas = listaAsambleas
                 </select>
         
                 <select class="filter-select" bind:value={ordenamiento}>
-                    
-                    <option value="fecha_desc">Ordenar por fecha</option>
-                    <option value="tema_az">Ordenar por tema (A-Z)</option>
-                    <option value="ciudad">Ordenar por ciudad</option>
+                   <option value="inteligente">Orden inteligente (Recomendado)</option>
+                   <option value="fecha_desc">Ordenar por fecha (Futuro a Pasado)</option>
+                   <option value="fecha_asc">Ordenar por fecha (Pasado a Futuro)</option>
+                   <option value="tema_az">Ordenar por tema (A-Z)</option>
+                   <option value="ciudad">Ordenar por ciudad</option>
                 </select>
             </div>
     </div>
