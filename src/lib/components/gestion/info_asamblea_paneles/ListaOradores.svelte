@@ -42,30 +42,39 @@
             const nombre = parte.nombre_orador.trim();
 
             if (!oradoresMap.has(nombre)) {
+              // 1. SI EL ORADOR ES NUEVO EN EL BUCLE
               oradoresMap.set(nombre, {
                 nombre: nombre,
                 congregacion: parte.congregacion_orador || '---',
-                circuito: parte.circuito_orador || '---', // ✅ Añadido circuito
+                circuito: parte.circuito_orador || '---', 
                 telefono: parte.telefono_orador || '',
                 email: parte.email_orador || '',
-                es_betelita: parte.es_betelita || false,  // ✅ Añadido betelita
+                es_betelita: parte.es_betelita || false,  
                 es_interprete: parte.es_interprete || false,
-                es_visitante: parte.es_visitante || false,// ✅ Añadido visitante
-                partesCount: 1,
-                parteIds: [parte.id], 
-                co11_recibido: parte.estado === 'Confirmado', 
+                es_visitante: parte.es_visitante || false,
                 recordatorio_texto: '',
-                recordatorio_fecha: ''
+                recordatorio_fecha: '',
+                // 👇 NUEVO: Aquí guardamos su primer discurso completo
+                discursos: [{
+                  id: parte.id,
+                  numero: parte.numero_bosquejo || '--',
+                  tema: parte.tema || 'Sin tema',
+                  dia: dia,
+                  confirmado: parte.estado === 'Confirmado'
+                }]
               });
             } else {
-
+              // 2. SI EL ORADOR YA EXISTE EN EL BUCLE (Tiene más de un discurso)
               const oradorExistente = oradoresMap.get(nombre);
-              oradorExistente.partesCount += 1;
-              oradorExistente.parteIds.push(parte.id); 
               
-              if (parte.estado === 'Confirmado') {
-                oradorExistente.co11_recibido = true; 
-              }
+              // 👇 NUEVO: Añadimos este nuevo discurso a su lista personal
+              oradorExistente.discursos.push({
+                id: parte.id,
+                numero: parte.numero_bosquejo || '--',
+                tema: parte.tema || 'Sin tema',
+                dia: dia,
+                confirmado: parte.estado === 'Confirmado'
+              });
             }
           }
         }); // <-- Aquí cierra el forEach
@@ -77,7 +86,6 @@
       console.error("Error al cargar oradores:", e);
     }
   }
-
   // --- FUNCIONES DE CONTACTO ---
   function limpiarTelefono(tel: string): string {
     return tel.replace(/[\s\-\(\)]/g, '');
@@ -224,25 +232,26 @@
     }
   }
 
-  async function toggleCO11(orador: any) {
-    const nuevoEstado = !orador.co11_recibido;
-    orador.co11_recibido = nuevoEstado;
-    oradores = [...oradores]; // Actualiza el color de la tarjeta al instante
+  async function toggleDiscursoEspecifico(discurso: any) {
+    const nuevoEstado = !discurso.confirmado;
+    
+    // 1. Actualización visual inmediata en Svelte
+    discurso.confirmado = nuevoEstado;
+    oradores = [...oradores]; 
 
     try {
-      // Guardamos la confirmación en la base de datos (en todas las partes del orador)
-      for (const idParte of orador.parteIds) {
-        await invoke('alternar_estado_parte', {
-          id: idParte,
-          tipoAccion: 'confirmacion',
-          valorNuevo: nuevoEstado
-        });
-      }
+      // 2. Enviamos a la base de datos el ID de ESTE discurso específico
+      await invoke('alternar_estado_parte', {
+        id: discurso.id,
+        tipoAccion: 'confirmacion',
+        valorNuevo: nuevoEstado
+      });
     } catch (e) {
-      console.error("Error al guardar CO-11:", e);
+      console.error("Error al guardar CO-11 individual:", e);
       alert("Error al guardar en la base de datos: " + e);
-      // Si falla la conexión, revertimos el color de la tarjeta
-      orador.co11_recibido = !nuevoEstado;
+      
+      // 3. Si falla la conexión, revertimos el check visualmente
+      discurso.confirmado = !nuevoEstado;
       oradores = [...oradores];
     }
   }
@@ -286,15 +295,12 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
 
     <div class="lista-tarjetas">
       {#each oradores as orador}
-        <div class="tarjeta-orador {orador.co11_recibido ? 'estado-recibido' : 'estado-pendiente'}">
+        <div class="tarjeta-orador">
           
           <div class="tarjeta-header">
             <div class="header-izq">
               <h2>{orador.nombre}</h2>
               <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                {#if !orador.co11_recibido}
-                  <span class="badge-alerta">CO-11 needed</span>
-                {/if}
                 {#if orador.es_betelita}
                   <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Betelita</span>
                 {/if}
@@ -304,11 +310,30 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
               </div>
             </div>
             <div class="header-der">
-              <label class="check-co11">
-                <input type="checkbox" checked={orador.co11_recibido} on:change={() => toggleCO11(orador)} />
-                <span>CO-11 received</span>
-              </label>
               <button class="btn-icon-simple"><Edit2 size={16}/></button>
+            </div>
+          </div>
+
+          <div class="seccion-discursos-orador">
+            <span class="dato-lbl">Confirmación de Discursos (CO-11)</span>
+            <div class="lista-discursos-check">
+              {#each orador.discursos as discurso}
+                <label class="check-co11-individual">
+                  <input 
+                    type="checkbox" 
+                    checked={discurso.confirmado} 
+                    on:change={() => toggleDiscursoEspecifico(discurso)} 
+                  />
+                  <div class="detalles-discurso-check" style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+                     <span class="badge-dia" style="width: fit-content;">{discurso.dia}</span>
+  
+                     <div style="display: flex; gap: 6px; align-items: baseline;">
+                         <span class="numero-discurso-simple">{discurso.numero}.</span>
+                         <p class="tema-check" style="margin: 0;">"{discurso.tema}"</p>
+                     </div>
+                  </div>
+                </label>
+              {/each}
             </div>
           </div>
 
@@ -413,11 +438,24 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
    TARJETA DE ORADOR
    ======================================= */
 .tarjeta-orador {
-  border-radius: 8px;
+  border-radius: 12px; /* Bordes un poco más suaves y modernos */
   padding: 24px;
   transition: all 0.3s ease;
+  
+  /* BORDE Y FONDO */
   border: 1px solid var(--border);
-  background-color: var(--bg-card);
+  border-left: 5px solid var(--primary); /* Línea azul elegante a la izquierda */
+  background: var(--bg-card); /* Mantiene compatibilidad con modo oscuro */
+  
+  /* SOMBRA PREMIUM (Efecto flotante sutil) */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Efecto al pasar el mouse para que responda al usuario */
+.tarjeta-orador:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  border-color: rgba(30, 64, 175, 0.2); /* Un toque sutil en el resto del borde */
 }
 
 .tarjeta-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
@@ -480,5 +518,70 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
   .vista-programa-container { padding: 15px; }
   .grid-datos { grid-template-columns: 1fr; }
   .recordatorio-inputs { flex-direction: column; }
+}
+
+/* =======================================
+   NUEVA SECCIÓN DE DISCURSOS INDIVIDUALES
+   ======================================= */
+.seccion-discursos-orador {
+  background: var(--bg-body);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.lista-discursos-check {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.check-co11-individual {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  background: var(--bg-card);
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.check-co11-individual:hover {
+  border-color: var(--primary);
+}
+
+.check-co11-individual input {
+  margin-top: 4px; 
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  /* 🔥 ESTAS DOS LÍNEAS FUERZAN A QUE LA CAJITA APAREZCA SÍ O SÍ 🔥 */
+  appearance: auto !important; 
+  display: inline-block !important;
+}
+
+.detalles-discurso-check {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tema-check {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-main);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.numero-discurso-simple {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main); /* Usa el mismo color del texto principal */
 }
 </style>

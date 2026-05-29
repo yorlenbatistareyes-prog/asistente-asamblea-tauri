@@ -314,15 +314,15 @@
                         } else {
                             // Si NO ha confirmado nada aún
                             if (!confirmadosNombres.has(nombre)) {
-                                // Lo agregamos a pendientes solo si no estaba ya
                                 if (!pendientesMap.has(nombre)) {
-                                    pendientesMap.set(nombre, { ...p, dia });
-                                } else {
-                                    // Marca interna por si luego quieres poner un texto tipo "2 partes"
-                                    let datosOrador = pendientesMap.get(nombre);
-                                    datosOrador.multiples_partes = true; 
-                                }
+                                // Agregamos parteIds como un arreglo para guardar TODAS sus partes
+                                pendientesMap.set(nombre, { ...p, dia, parteIds: [p.id] });
+                            } else {
+                                let datosOrador = pendientesMap.get(nombre);
+                                datosOrador.multiples_partes = true; 
+                                datosOrador.parteIds.push(p.id); // Acumulamos los IDs adicionales
                             }
+                       }
                         }
                     }
                 });
@@ -344,12 +344,21 @@
   }
 
   async function confirmarOradorDesdeResumen(parte: any) {
-      if(!confirm(`¿Confirmar a ${parte.nombre_orador}?`)) return;
-      try {
-          await invoke('alternar_estado_parte', { id: parte.id, tipoAccion: 'confirmacion', valorNuevo: true });
-          await cargarDatosDB();
-      } catch(e) { alert("Error: " + e); }
-  }
+    if(!confirm(`¿Confirmar a ${parte.nombre_orador}?`)) return;
+    try {
+        // Confirmamos TODAS las partes del orador, igual que en ListaOradores
+        for (const idParte of parte.parteIds) {
+            await invoke('alternar_estado_parte', { 
+                id: idParte, 
+                tipoAccion: 'confirmacion', 
+                valorNuevo: true 
+            });
+        }
+        await cargarDatosDB(); // Refresca la lista y el número al instante
+    } catch(e) { 
+        alert("Error: " + e); 
+    }
+}
 </script>
 
 <div class="dashboard-container">
@@ -419,25 +428,23 @@
                               <tr><th>Orador</th><th>Asignación</th><th>Acción</th></tr>
                           </thead>
                           <tbody>
-                              {#each oradoresPendientesLista.slice(0, 5) as p}
-                                  <tr>
-                                      <td class="fw-bold">{p.nombre_orador}</td>
-                                      <td>
-                                          <div class="tema-mini">{p.tema.substring(0, 25)}...</div>
-                                          <span class="badge-dia">{p.dia}</span>
-                                      </td>
-                                      <td>
-                                          <button class="btn-sm-confirmar" on:click={() => confirmarOradorDesdeResumen(p)}>
-                                              Confirmar
-                                          </button>
-                                      </td>
-                                  </tr>
-                              {/each}
-                          </tbody>
+                             {#each oradoresPendientesLista as p}
+                                <tr>
+                                   <td class="fw-bold">{p.nombre_orador}</td>
+                                   <td>
+                                      <div class="tema-mini">{p.tema.substring(0, 25)}...</div>
+                                      <span class="badge-dia">{p.dia}</span>
+                                   </td>
+                                   <td>
+                                      <button class="btn-sm-confirmar" on:click={() => confirmarOradorDesdeResumen(p)}>
+                                          Confirmar
+                                      </button>
+                                   </td>
+                                </tr>
+                            {/each}
+                        </tbody>
                       </table>
-                      {#if oradoresPendientesLista.length > 5}
-                          <div class="ver-mas">...y {oradoresPendientesLista.length - 5} más</div>
-                      {/if}
+
                   </div>
               {:else}
                   <div class="empty-state">
@@ -679,7 +686,13 @@
   }
   .card-header-red h4 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
   
-  .table-container { width: 100%; overflow-x: auto; }
+  .table-container { 
+    width: 100%; 
+    overflow-x: auto; 
+    max-height: 400px; /* Ajusta este valor a tu gusto */
+    overflow-y: auto; 
+}
+
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-sec); font-size: 0.7rem; text-transform: uppercase; }
   
