@@ -295,18 +295,31 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
 
     <div class="lista-tarjetas">
       {#each oradores as orador}
-        <div class="tarjeta-orador">
+        <div class="tarjeta-orador" 
+     class:estado-pendiente={orador.discursos.some((d: any) => !d.confirmado)} 
+     class:estado-recibido={orador.discursos.every((d: any) => d.confirmado)}>
           
           <div class="tarjeta-header">
             <div class="header-izq">
               <h2>{orador.nombre}</h2>
-              <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+              <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                
+               {#if orador.discursos.some((d: any) => !d.confirmado)}
+                  <span class="badge-alerta">CO-11 needed</span>
+               {/if}
+
+               {#if orador.discursos.every((d: any) => d.confirmado)}
+                  <span class="badge-exito">CO-11 received</span>
+               {/if}
+                
                 {#if orador.es_betelita}
                   <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Betelita</span>
                 {/if}
+
                 {#if orador.es_visitante}
                   <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Visitante</span>
                 {/if}
+
               </div>
             </div>
             <div class="header-der">
@@ -435,27 +448,64 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
 .lista-tarjetas { display: flex; flex-direction: column; gap: 20px; margin-top: 10px; }
 
 /* =======================================
-   TARJETA DE ORADOR
+   TARJETA DE ORADOR (DISEÑO RENOVADO)
    ======================================= */
 .tarjeta-orador {
-  border-radius: 12px; /* Bordes un poco más suaves y modernos */
+  border-radius: 14px; /* Bordes un poco más curvos y modernos */
   padding: 24px;
-  transition: all 0.3s ease;
-  
-  /* BORDE Y FONDO */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid var(--border);
-  border-left: 5px solid var(--primary); /* Línea azul elegante a la izquierda */
-  background: var(--bg-card); /* Mantiene compatibilidad con modo oscuro */
+  position: relative;
+  overflow: hidden;
   
-  /* SOMBRA PREMIUM (Efecto flotante sutil) */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* Sombra elegante para dar volumen */
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-/* Efecto al pasar el mouse para que responda al usuario */
+/* 🟠 ESTADO PENDIENTE: Tono ambar/arena cálido y llamativo */
+.tarjeta-orador.estado-pendiente {
+  border-left: 6px solid #f59e0b; /* Línea izquierda naranja vibrante */
+  background: linear-gradient(145deg, #fffbeb 0%, #fff7ed 100%); /* Fondo cálido suave */
+  border-color: #fde68a; /* Borde sutil amarillento */
+}
+
+/* 🟢 ESTADO RECIBIDO: Tono menta/esmeralda fresco y limpio */
+.tarjeta-orador.estado-recibido {
+  border-left: 6px solid #10b981; /* Línea izquierda verde éxito */
+  background: linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 100%); /* Fondo verde pastel */
+  border-color: #bbf7d0; /* Borde sutil verdoso */
+}
+
+/*Efecto al pasar el mouse (Efecto de flotado Premium) */
 .tarjeta-orador:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-  border-color: rgba(30, 64, 175, 0.2); /* Un toque sutil en el resto del borde */
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* 👇 MEJORA EXTRA: Ajuste para la sección interna de discursos 
+   para que resalte bien sobre los nuevos fondos de las tarjetas */
+.seccion-discursos-orador {
+  background: rgba(255, 255, 255, 0.6); /* Fondo semi-transparente blanco */
+  backdrop-filter: blur(4px);
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+}
+
+/* Compatibilidad con Tema Oscuro (Opcional) */
+:global(.dark-theme) .tarjeta-orador.estado-pendiente {
+  background: linear-gradient(145deg, #2d2006, #1e1503);
+  border-color: #78350f;
+}
+:global(.dark-theme) .tarjeta-orador.estado-recibido {
+  background: linear-gradient(145deg, #062f21, #022c1e);
+  border-color: #065f46;
+}
+:global(.dark-theme) .seccion-discursos-orador {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .tarjeta-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
