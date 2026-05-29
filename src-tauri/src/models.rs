@@ -103,6 +103,8 @@ pub struct PartePrograma {
     pub check_viernes: bool,
     pub check_dia: bool,
     pub check_30m: bool,
+
+    pub notas_orador: Option<String>,
 }
 
 // ==========================================

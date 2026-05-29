@@ -1048,13 +1048,13 @@ async function cargarTodosDias() {
                   
                 <div class="traits-container">
                   {#if parte.es_betelita}
-                    <span class="trait-badge">Betelita</span>
+                    <span class="trait-badge betelita">Betelita</span>
                   {/if}
                   {#if parte.es_interprete}
-                    <span class="trait-badge">Intérprete</span>
+                    <span class="trait-badge interprete">Intérprete</span>
                   {/if}
                   {#if parte.es_visitante}
-                    <span class="trait-badge">Visitante</span>
+                    <span class="trait-badge visitante">Visitante</span>
                   {/if}
                 </div>
               {/if}
@@ -1969,18 +1969,54 @@ async function cargarTodosDias() {
   margin-top: 5px;
   flex-wrap: wrap;
 }
+/* --- ETIQUETAS DEL ORADOR (BETELITA / VISITANTE / INTÉRPRETE) --- */
 .trait-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-body);
-  border: 1px solid var(--border);
-  color: var(--text-sec);
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 700; /* Subimos el grosor de la fuente para que resalte más */
   letter-spacing: 0.2px;
+}
+
+/* 🔵 BETELITA: Azul Índigo */
+.trait-badge.betelita {
+  background-color: #e0e7ff; 
+  color: #3730a3; 
+  border: 1px solid #c7d2fe;
+}
+
+/* 🟣 VISITANTE: Púrpura */
+.trait-badge.visitante {
+  background-color: #f3e8ff; 
+  color: #6b21a8; 
+  border: 1px solid #e9d5ff;
+}
+
+/* 🟢 INTÉRPRETE: Verde Esmeralda/Turquesa */
+.trait-badge.interprete {
+  background-color: #ccfbf1; 
+  color: #0f766e; 
+  border: 1px solid #99f6e4;
+}
+
+/* Compatibilidad Tema Oscuro (Para que no encandilen de noche) */
+:global(.dark-theme) .trait-badge.betelita {
+  background-color: rgba(55, 48, 163, 0.25);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+:global(.dark-theme) .trait-badge.visitante {
+  background-color: rgba(107, 33, 168, 0.25);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+:global(.dark-theme) .trait-badge.interprete {
+  background-color: rgba(15, 118, 110, 0.25);
+  color: #5eead4;
+  border-color: rgba(20, 184, 166, 0.3);
 }
 
 /* --- BADGES DE FUENTE Y ENSAYO --- */
@@ -2002,10 +2038,18 @@ async function cargarTodosDias() {
   border: 1px solid transparent;
 }
 .badge-fuente.video {
-  background: rgba(100, 116, 139, 0.15);
-  color: var(--text-sec);
-  border-color: var(--border);
+  background: rgba(225, 29, 72, 0.12); /* Fondo rojizo muy suave */
+  color: #e11d48; /* Rojo carmesí intenso */
+  border-color: rgba(225, 29, 72, 0.3); /* Borde rojizo visible */
 }
+
+/* Y si quieres asegurarte de que se vea perfecto en modo oscuro, añade esto justo debajo: */
+:global(.dark-theme) .badge-fuente.video {
+  background: rgba(225, 29, 72, 0.25);
+  color: #fda4af;
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
 .badge-fuente.stream {
   background: rgba(37, 99, 235, 0.15);
   color: #3b82f6;

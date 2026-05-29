@@ -15,7 +15,7 @@ pub fn obtener_programa_dia(
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
     
-    // ✅ Añadidos los 3 checks al final del SELECT
+    // ✅ Añadidos los 3 checks y la nota del orador al final del SELECT
     let sql = "
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
@@ -26,7 +26,8 @@ pub fn obtener_programa_dia(
         p.fuente, p.es_betelita, p.es_interprete, p.es_visitante,
         per.circuito,
         p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo,
-        p.check_viernes, p.check_dia, p.check_30m
+        p.check_viernes, p.check_dia, p.check_30m,
+        per.notas  -- 👈 1. SOLICITAMOS LA COLUMNA DE NOTAS AQUÍ
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -64,10 +65,10 @@ pub fn obtener_programa_dia(
                 hora_ensayo: row.get(24).ok(),
                 lugar_ensayo: row.get(25).ok(),
                 notas_ensayo: row.get(26).ok(),
-                // ✅ LEEMOS LOS DATOS AQUÍ (Índices 27, 28 y 29)
                 check_viernes: row.get(27).unwrap_or(false),
                 check_dia: row.get(28).unwrap_or(false),
                 check_30m: row.get(29).unwrap_or(false),
+                notas_orador: row.get(30).ok(), // 👈 2. MAPEAMOS LA NOTA AQUÍ (Índice 30)
             })
         })
         .map_err(|e| e.to_string())?;

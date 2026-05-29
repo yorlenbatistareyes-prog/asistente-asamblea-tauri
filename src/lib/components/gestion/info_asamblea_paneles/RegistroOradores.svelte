@@ -115,12 +115,12 @@
   }
 
   function formatearFuente(fuente: string): string {
-    if (!fuente) return 'InPerson';
+    if (!fuente) return 'En persona';
     const f = fuente.toLowerCase();
     if (f.includes('video')) return 'Video';
     if (f.includes('stream')) return 'JWStream';
-    if (f.includes('remota')) return 'Remote';
-    return 'InPerson';
+    if (f.includes('remota')) return 'Remota';
+    return 'En persona';
   }
 
 // --- LLAMADAS Y WHATSAPP ---

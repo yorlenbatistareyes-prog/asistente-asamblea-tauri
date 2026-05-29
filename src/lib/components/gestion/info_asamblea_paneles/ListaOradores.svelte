@@ -53,7 +53,7 @@
                 es_betelita: parte.es_betelita || false,  
                 es_interprete: parte.es_interprete || false,
                 es_visitante: parte.es_visitante || false,
-                recordatorio_texto: '',
+                recordatorio_texto: parte.notas_orador || '',
                 recordatorio_fecha: '',
                 // 👇 NUEVO: Aquí guardamos su primer discurso completo
                 discursos: [{
@@ -313,19 +313,19 @@ async function guardarRecordatorio(orador: any) {
               <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
                 
                {#if orador.discursos.some((d: any) => !d.confirmado)}
-                  <span class="badge-alerta">CO-11 needed</span>
+                  <span class="badge-alerta">CO-11 pendiente</span>
                {/if}
 
                {#if orador.discursos.every((d: any) => d.confirmado)}
-                  <span class="badge-exito">CO-11 received</span>
+                  <span class="badge-exito">CO-11 recibido</span>
                {/if}
                 
                 {#if orador.es_betelita}
-                  <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Betelita</span>
+                    <span class="badge-betelita">Betelita</span>
                 {/if}
 
                 {#if orador.es_visitante}
-                  <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;">Visitante</span>
+                   <span class="badge-visitante">Visitante</span>
                 {/if}
 
               </div>
@@ -336,7 +336,7 @@ async function guardarRecordatorio(orador: any) {
           </div>
 
           <div class="seccion-discursos-orador">
-            <span class="dato-lbl">Confirmación de Discursos (CO-11)</span>
+            <span class="dato-lbl">Confirmación como orador (CO-11)</span>
             <div class="lista-discursos-check">
               {#each orador.discursos as discurso}
                 <label class="check-co11-individual">
@@ -528,6 +528,43 @@ async function guardarRecordatorio(orador: any) {
 .badge-alerta { 
   background-color: var(--accent-danger); color: white; 
   padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; 
+}
+
+/* =======================================
+   ETIQUETAS ESPECIALES (BETELITA / VISITANTE)
+   ======================================= */
+.badge-betelita {
+  background-color: #e0e7ff; /* Fondo azul índigo claro */
+  color: #3730a3; /* Texto azul oscuro intenso */
+  border: 1px solid #c7d2fe;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.badge-visitante {
+  background-color: #f3e8ff; /* Fondo púrpura claro */
+  color: #6b21a8; /* Texto púrpura oscuro intenso */
+  border: 1px solid #e9d5ff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Compatibilidad con Tema Oscuro (Para que no encandilen de noche) */
+:global(.dark-theme) .badge-betelita {
+  background-color: rgba(55, 48, 163, 0.25);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+:global(.dark-theme) .badge-visitante {
+  background-color: rgba(107, 33, 168, 0.25);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.3);
 }
 
 /* REPARACIÓN DEL CHECKBOX CO-11 */
