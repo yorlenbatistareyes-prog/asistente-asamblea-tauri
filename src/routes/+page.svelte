@@ -152,21 +152,32 @@
       return isNaN(t) ? 0 : t;
   }
 
-  $: asambleasFiltradas = listaAsambleas
+  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO (Reactivo) ---
+$: asambleasFiltradas = listaAsambleas
       .filter((a: any) => {
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0); 
+          const tiempoHoy = hoy.getTime();
+
+          const timeInicio = obtenerTiempoSeguro(a.fecha, false); 
+          const timeFin = obtenerTiempoSeguro(a.fecha, true);     
+
+          // 1. FILTRADO POR CATEGORÍA DE TIEMPO
           if (filtroCategoria === 'activas') {
               if (!a.fecha) return false;
-              const timeFinAsamblea = obtenerTiempoSeguro(a.fecha, true); 
-              if (timeFinAsamblea > 0) {
-                  const hoy = new Date();
-                  hoy.setHours(0, 0, 0, 0); 
-                  const tiempoHoy = hoy.getTime();
-                  if (timeFinAsamblea < tiempoHoy) return false;
-              } else {
-                  return false;
-              }
+              if (timeFin > 0 && timeFin < tiempoHoy) return false;
+              if (timeFin === 0) return false;
+          } 
+          else if (filtroCategoria === 'proximas') {
+              // Una asamblea es próxima si su fecha de inicio es estrictamente mayor que hoy
+              if (timeInicio <= tiempoHoy || timeInicio === 0) return false;
+          } 
+          else if (filtroCategoria === 'pasadas') {
+              // Una asamblea es pasada si su fecha de fin ya es menor que el día de hoy
+              if (timeFin >= tiempoHoy || timeFin === 0) return false;
           }
 
+          // 2. FILTRADO POR TÉRMINO DE BÚSQUEDA (Caja de texto)
           if (!terminoBusqueda) return true;
           const tb = terminoBusqueda.toLowerCase();
           return (
@@ -182,30 +193,8 @@
           if (ordenamiento === 'fecha_desc') return timeB - timeA;
           if (ordenamiento === 'fecha_asc') return timeA - timeB;
           if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
+          if (ordenamiento === 'ciudad') return (a.ciudad || "").localeCompare(b.ciudad || "");
           
-          if (ordenamiento === 'proximas') {
-              if (timeA === 0) return 1;
-              if (timeB === 0) return -1;
-              
-              const hoy = new Date();
-              hoy.setHours(0, 0, 0, 0);
-              const tiempoHoy = hoy.getTime();
-
-              const finA = obtenerTiempoSeguro(a.fecha, true);
-              const finB = obtenerTiempoSeguro(b.fecha, true);
-
-              const aEsActiva = finA >= tiempoHoy;
-              const bEsActiva = finB >= tiempoHoy;
-
-              if (aEsActiva && !bEsActiva) return -1; 
-              if (!aEsActiva && bEsActiva) return 1;
-
-              if (aEsActiva && bEsActiva) {
-                  return timeA - timeB; 
-              } else {
-                  return timeB - timeA; 
-              }
-          }
           return 0;
       });
 
@@ -342,6 +331,8 @@
                 <select class="filter-select" bind:value={filtroCategoria}>
                     <option value="todas">Todas las asambleas</option>
                     <option value="activas">Asambleas activas</option>
+                    <option value="proximas">Solo próximas</option>
+                    <option value="pasadas">Solo pasadas</option>
                 </select>
         
                 <select class="filter-select" bind:value={ordenamiento}>
