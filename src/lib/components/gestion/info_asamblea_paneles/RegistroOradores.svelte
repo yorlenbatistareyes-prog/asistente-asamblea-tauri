@@ -123,6 +123,35 @@
     return 'En persona';
   }
 
+  // --- CÁLCULO INTELIGENTE DE FECHAS POR DÍA ---
+  function obtenerFechaEspecifica(fechaRango: string, diaNombre: string): string {
+    if (!fechaRango) return '';
+    
+    // Busca el primer patrón de fecha YYYY-MM-DD en el texto (ej: "2026-12-04")
+    const match = fechaRango.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (!match) return fechaRango; // Si no tiene el formato esperado, devuelve lo que haya
+    
+    const year = parseInt(match[1]);
+    const month = parseInt(match[2]) - 1; // En JavaScript los meses van de 0 a 11
+    const day = parseInt(match[3]);
+    
+    // Asumimos que la primera fecha es Viernes
+    let fecha = new Date(year, month, day);
+    
+    const d = diaNombre.toLowerCase();
+    if (d === 'sábado' || d === 'sabado') {
+        fecha.setDate(fecha.getDate() + 1);
+    } else if (d === 'domingo') {
+        fecha.setDate(fecha.getDate() + 2);
+    }
+    
+    // Formatear para que se vea bonito: "4 de diciembre de 2026"
+    return fecha.toLocaleDateString('es-ES', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+    });
+  }
 // --- LLAMADAS Y WHATSAPP ---
   function limpiarTelefono(tel: string): string {
     return tel.replace(/[\s\-\(\)]/g, ''); // Quita espacios y guiones
@@ -561,7 +590,7 @@ async function generarPDFPlano() {
         <div class="dia-header">
           <div class="dia-titulo-wrapper">
             <h2 class="dia-titulo">{dia}</h2>
-            <p class="dia-fecha">{asambleaActiva?.fecha || ''}</p>
+            <p class="dia-fecha">{obtenerFechaEspecifica(asambleaActiva?.fecha, dia)}</p>
           </div>
           
           <div class="tabla-encabezado">

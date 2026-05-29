@@ -184,6 +184,28 @@
       }
   }
 
+  // --- FORMATEADOR DE RANGO DE FECHAS ---
+  function formatearFechaElegante(fechaRango: string): string {
+    if (!fechaRango || !fechaRango.includes(' a ')) return fechaRango || 'Sin fecha';
+    
+    // Separar las dos fechas
+    const [inicio, fin] = fechaRango.split(' a ');
+    
+    // Función auxiliar para convertir "2026-12-04" a "04/12/2026"
+    const formatear = (fechaIso: string) => {
+      const match = fechaIso.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (!match) return fechaIso;
+      
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      const day = match[3].padStart(2, '0');
+      
+      return `${day}/${month}/${year}`;
+    };
+
+    return `${formatear(inicio)} - ${formatear(fin)}`;
+  }
+
   // --- HELPERS PARA EDITOR TIPTAP ---
   const ejecutar = (editor: Editor, cb: (chain: any) => any) => {
     if (editor) cb(editor.chain().focus()).run();
@@ -435,7 +457,7 @@
             <span class="lbl">Número:</span> <span class="val">{identificador || '0000'}</span>
           </div>
           <div class="bloque-dato">
-            <span class="lbl">Fecha:</span> <span class="val">{fecha || 'Sin fecha'}</span>
+            <span class="lbl">Fecha:</span> <span class="val">{formatearFechaElegante(fecha)}</span>
           </div>
         </div>
       </div>

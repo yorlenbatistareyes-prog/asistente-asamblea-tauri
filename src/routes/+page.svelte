@@ -105,6 +105,28 @@
     return `${inicio.toLocaleDateString('es-ES', opciones)} - ${fin.toLocaleDateString('es-ES', opciones)}, ${inicio.getFullYear()}`;
   }
 
+  // --- FORMATEADOR DE RANGO DE FECHAS ---
+  function formatearFechaElegante(fechaRango: string): string {
+    if (!fechaRango || !fechaRango.includes(' a ')) return fechaRango || 'Sin fecha';
+    
+    // Separar las dos fechas
+    const [inicio, fin] = fechaRango.split(' a ');
+    
+    // Función auxiliar para convertir "2026-12-04" a "04/12/2026"
+    const formatear = (fechaIso: string) => {
+      const match = fechaIso.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (!match) return fechaIso;
+      
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      const day = match[3].padStart(2, '0');
+      
+      return `${day}/${month}/${year}`;
+    };
+
+    return `${formatear(inicio)} - ${formatear(fin)}`;
+  }
+
   onMount(() => { 
       cargarTodo(); 
       cargarNombreUsuario();
@@ -411,7 +433,7 @@ $: asambleasFiltradas = listaAsambleas
                         <div class="info-line">
                             <Calendar size={16} class="ico-dark"/> 
                             <div class="info-col">
-                                <b>{item.fecha}</b>
+                                <b>{formatearFechaElegante(item.fecha)}</b>
                                 <span>Fecha</span>
                             </div>
                         </div>
