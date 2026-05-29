@@ -44,6 +44,7 @@
             if (!oradoresMap.has(nombre)) {
               // 1. SI EL ORADOR ES NUEVO EN EL BUCLE
               oradoresMap.set(nombre, {
+                persona_id: parte.orador_id,
                 nombre: nombre,
                 congregacion: parte.congregacion_orador || '---',
                 circuito: parte.circuito_orador || '---', 
@@ -257,15 +258,22 @@
   }
 
   // En el script de ListaOradores.svelte
-async function guardarRecordatorio(orador: any) { // <-- Añadido : any
+async function guardarRecordatorio(orador: any) {
+
+  const idPersona = Number(orador.persona_id);
+  
+  if (isNaN(idPersona) || idPersona <= 0) {
+    alert("❌ Error: ID de orador inválido (" + orador.persona_id + ")");
+    return;
+  }
+
     try {
-      await invoke('guardar_recordatorio_orador', {
+      await invoke('guardar_nota_directa', {
         asambleaId: asambleaId, 
-        personaId: orador.persona_id || 0, // Ajusta si el campo se llama distinto
-        texto: orador.recordatorio_texto,
-        fecha: orador.recordatorio_fecha
+        id: Number(orador.persona_id), // 👈 Ahora sí enviará el ID real, ej: 45
+        nota: orador.recordatorio_texto || ""
       });
-      alert("✅ Recordatorio guardado");
+      alert("✅ Nota guardada correctamente.");
     } catch (e) {
       alert("❌ Error: " + e);
     }
@@ -403,8 +411,13 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
               <textarea placeholder="Agregue una nota para este orador." bind:value={orador.recordatorio_texto}></textarea>
               
               <div class="controles-rec">
-                <input type="date" class="input-fecha-rec" bind:value={orador.recordatorio_fecha}/>
-                <button class="btn-guardar-rec" disabled={!orador.recordatorio_fecha}>Guardar nota</button>
+                <button 
+                  class="btn-guardar-rec" 
+                  disabled={!orador.recordatorio_texto || orador.recordatorio_texto.trim() === ''}
+                  on:click={() => guardarRecordatorio(orador)}
+                >
+                  Guardar nota
+                </button>
               </div>
             </div>
           </div>
@@ -548,7 +561,17 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
 
 /* RECORDATORIOS */
 .recordatorio-zona { display: flex; flex-direction: column; gap: 8px; }
-.recordatorio-inputs { display: flex; gap: 10px; align-items: stretch; }
+.recordatorio-inputs { 
+  display: flex; 
+  flex-direction: column; /* Cambiamos a columna para que el botón quede abajo ordenadamente */
+  gap: 10px; 
+  align-items: stretch; 
+}
+
+.controles-rec {
+  display: flex;
+  justify-content: flex-end; /* Empuja el botón a la derecha de la tarjeta */
+}
 .recordatorio-inputs textarea {
   flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
   font-size: 13px; font-family: inherit; resize: vertical; background: var(--input-bg); color: var(--text-main);
@@ -558,11 +581,23 @@ async function guardarRecordatorio(orador: any) { // <-- Añadido : any
   background: var(--input-bg); color: var(--text-main); height: 38px;
 }
 .btn-guardar-rec { 
-  background-color: var(--border); color: var(--text-sec); border: none; border-radius: 6px; 
-  font-weight: 600; font-size: 12.5px; height: 38px; cursor: not-allowed;
+  background-color: var(--border); 
+  color: var(--text-sec); 
+  border: none; 
+  border-radius: 6px; 
+  font-weight: 600; 
+  font-size: 12.5px; 
+  height: 38px; 
+  padding: 0 16px; /* Le damos aire a los lados del botón */
+  cursor: not-allowed;
+  transition: background-color 0.2s, color 0.2s;
 }
-.btn-guardar-rec:not(:disabled) { background-color: var(--primary); color: white; cursor: pointer; }
 
+.btn-guardar-rec:not(:disabled) { 
+  background-color: var(--primary); 
+  color: white; 
+  cursor: pointer; 
+}
 /* RESPONSIVO */
 @media (max-width: 768px) {
   .vista-programa-container { padding: 15px; }

@@ -333,3 +333,19 @@ pub fn obtener_oficina_dia(
     Ok(vec![])
 }
 
+#[command]
+pub fn guardar_nota_directa(
+    app: AppHandle,
+    id: i32,
+    nota: String
+) -> Result<(), String> {
+    let conn = conectar_db(&app);
+    
+    // UPDATE directo sin tocar otras tablas, sin restricciones externas
+    conn.execute(
+        "UPDATE personas SET notas = ?1 WHERE id = ?2",
+        params![nota, id]
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}

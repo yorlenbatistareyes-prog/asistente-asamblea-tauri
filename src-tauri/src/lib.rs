@@ -236,6 +236,10 @@ if ruta_pendiente.exists() {
             sync_cmds::actualizar_last_sync_local,
             sync_cmds::exportar_db_json,
             sync_cmds::importar_db_json,
+
+            commands::programa::guardar_nota_directa,
+
+            
             
         ])
         .run(tauri::generate_context!())

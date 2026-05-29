@@ -302,6 +302,8 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         [],
     )?;
 
+    let _ = conn.execute("ALTER TABLE personas ADD COLUMN notas TEXT DEFAULT ''", []).ok();
+    
     // --- 10. RECORDATORIOS DE ORADORES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS recordatorios_oradores (
