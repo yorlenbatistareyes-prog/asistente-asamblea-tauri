@@ -2,6 +2,8 @@
 // 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
   import '../app.css';
   import { onMount } from 'svelte';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import Resumen from '$lib/components/gestion/Resumen.svelte';
   import { Loader2, CheckCircle, AlertTriangle, CloudOff, RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
@@ -19,10 +21,22 @@
   let versionApp = "";
   let temaActual = 'sistema';
 
+  let esModoMonitor = false;
+
   // ==========================================
   // INICIALIZACIÓN (ONMOUNT LIMPIO)
   // ==========================================
   onMount(() => {
+
+    // 👇 NUEVO DETECTOR: Le preguntamos a Tauri si esta ventana se llama 'monitor-pip'
+      const ventanaActual = getCurrentWindow();
+      
+      if (ventanaActual.label === 'monitor-pip') {
+          esModoMonitor = true;
+          aplicarTema(localStorage.getItem('temaApp') || 'sistema'); // Forzamos cargar el tema visual
+          return; // Si es el monitor, no cargamos lo demás de la app principal
+      }
+
       const inicializarApp = async () => {
           await cargarDatosGlobales();
           cargarTemaGuardado();
@@ -76,90 +90,97 @@
   }
 </script>
 
-<div class="app-layout">
-   <header class="top-header">
-    <div class="header-left">
-        <span class="app-brand">RAssembly</span>
-    </div>
-
-    <div class="header-right">
-        {#if $sesionApp.isLoggedIn && $syncStatus.estado !== 'inactivo'}
-            <div class="sync-badge state-{$syncStatus.estado}" 
-                 title={$syncStatus.mensaje}
-                 on:click={() => { if ($syncStatus.estado === 'conflicto') goto('/sincronizacion'); }}>
-                
-                {#if $syncStatus.estado === 'esperando'}
-                    <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
-                {:else if $syncStatus.estado === 'sincronizando'}
-                    <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
-                {:else if $syncStatus.estado === 'al_dia'}
-                    <CheckCircle size={16} /> <span class="badge-text">Al día</span>
-                {:else if $syncStatus.estado === 'conflicto'}
-                    <AlertTriangle size={16} /> <span class="badge-text">Datos Nuevos</span>
-                {:else if $syncStatus.estado === 'error'}
-                    <CloudOff size={16} /> <span class="badge-text">Error</span>
-                {/if}
-            </div>
-        {/if}
-        
-        <button class="btn-nav" on:click={irInicio} title="Inicio">
-            <Home size={18}/><span>Inicio</span>
-        </button>
-        
-        <button class="btn-icon" on:click={cambiarTema} title="Cambiar Tema">
-            {#if temaActual==='claro'}
-              <Sun size={18}/>
-            {:else if temaActual==='oscuro'}
-              <Moon size={18}/>
-            {:else}
-              <Monitor size={18}/>
-            {/if}
-        </button>
-        
-        <button class="btn-icon" on:click={irConfig} title="Configuración">
-            <Settings size={18}/>
-        </button>
-    </div>
-</header>
-
-    <main class="main-content">
-        <slot />
+{#if esModoMonitor}
+    <main class="monitor-aislado" style="height: 100vh; background: var(--bg-card); overflow: hidden;">
+        <Resumen />
     </main>
 
-    <footer class="status-bar">
-        <div class="status-left">
-            <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
-        </div>
-        <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
-        
-        <div class="status-right">
-            v{#if versionApp}{versionApp}{:else}...{/if}
-        </div>
-    </footer>
-
-    {#if $syncStatus.estado === 'conflicto'}
-      <div class="modal-backdrop">
-        <Panel padding="25px" clasesExtra="modal-salones">
-            <div class="modal-top">
-                <h3 style="color: var(--accent-danger);"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
+{:else}
+    <div class="app-layout">
+        <header class="top-header">
+            <div class="header-left">
+                <span class="app-brand">RAssembly</span>
             </div>
+
+            <div class="header-right">
+                {#if $sesionApp.isLoggedIn && $syncStatus.estado !== 'inactivo'}
+                    <div class="sync-badge state-{$syncStatus.estado}" 
+                         title={$syncStatus.mensaje}
+                         on:click={() => { if ($syncStatus.estado === 'conflicto') goto('/sincronizacion'); }}>
+                        
+                        {#if $syncStatus.estado === 'esperando'}
+                            <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
+                        {:else if $syncStatus.estado === 'sincronizando'}
+                            <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
+                        {:else if $syncStatus.estado === 'al_dia'}
+                            <CheckCircle size={16} /> <span class="badge-text">Al día</span>
+                        {:else if $syncStatus.estado === 'conflicto'}
+                            <AlertTriangle size={16} /> <span class="badge-text">Datos Nuevos</span>
+                        {:else if $syncStatus.estado === 'error'}
+                            <CloudOff size={16} /> <span class="badge-text">Error</span>
+                        {/if}
+                    </div>
+                {/if}
+                
+                <button class="btn-nav" on:click={irInicio} title="Inicio">
+                    <Home size={18}/><span>Inicio</span>
+                </button>
+                
+                <button class="btn-icon" on:click={cambiarTema} title="Cambiar Tema">
+                    {#if temaActual==='claro'}
+                      <Sun size={18}/>
+                    {:else if temaActual==='oscuro'}
+                      <Moon size={18}/>
+                    {:else}
+                      <Monitor size={18}/>
+                    {/if}
+                </button>
+                
+                <button class="btn-icon" on:click={irConfig} title="Configuración">
+                    <Settings size={18}/>
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <slot />
+        </main>
+
+        <footer class="status-bar">
+            <div class="status-left">
+                <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
+            </div>
+            <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
             
-            <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
-                <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
-                <p>Para proteger esos datos y no borrarlos accidentalmente, hemos pausado tu guardado automático temporalmente.</p>
-                <p style="margin-top: 10px; font-weight: bold;">Ve a Sincronización para descargar los cambios recientes.</p>
+            <div class="status-right">
+                v{#if versionApp}{versionApp}{:else}...{/if}
             </div>
+        </footer>
 
-            <button class="btn-blue" on:click={() => goto('/sincronizacion')}>
-                Ir a Sincronización
-            </button>
-        </Panel>
-      </div>
-    {/if}
+        {#if $syncStatus.estado === 'conflicto'}
+          <div class="modal-backdrop">
+            <Panel padding="25px" clasesExtra="modal-salones">
+                <div class="modal-top">
+                    <h3 style="color: var(--accent-danger);"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
+                </div>
+                
+                <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
+                    <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
+                    <p>Para proteger esos datos y no borrarlos accidentalmente, hemos pausado tu guardado automático temporalmente.</p>
+                    <p style="margin-top: 10px; font-weight: bold;">Ve a Sincronización para descargar los cambios recientes.</p>
+                </div>
 
-    <Cronometro />
+                <button class="btn-blue" on:click={() => goto('/sincronizacion')}>
+                    Ir a Sincronización
+                </button>
+            </Panel>
+          </div>
+        {/if}
 
-</div>
+        <Cronometro />
+
+    </div>
+{/if}
 
 <style>
   /* LAYOUT */

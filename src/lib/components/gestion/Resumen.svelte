@@ -2,12 +2,16 @@
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
+
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { Pin, PinOff, X } from 'lucide-svelte'; // Traemos los iconos de la chincheta y cerrar
   
   // Iconos (¡Agregamos Film para los videos!)
   import { 
     Users, Droplets, Mic, CheckCircle, AlertCircle, 
-    Clock, Activity, ArrowRight, Film 
-  } from 'lucide-svelte';
+    Clock, Activity, ArrowRight, Film, ExternalLink, } from 'lucide-svelte';
 
   // Importamos el Store Global
   import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
@@ -53,6 +57,9 @@
   let parteActual: any = null;
   let siguienteParte: any = null;
   let programaCompletoCache: any[] = [];
+
+  let fijadoEncima = false;
+  let esVentanaFlotante = false;
   
   // Variable para adelantar/atrasar el reloj del monitor
   let offsetMinutos = 0; 
@@ -91,6 +98,14 @@
 
   // --- INICIO Y DETECTOR MÁGICO ---
   onMount(() => {
+
+    // 👇 DETECTAMOS SI SOMOS LA VENTANA FLOTANTE
+      const win = getCurrentWindow();
+      if (win.label === 'monitor-pip') {
+          esVentanaFlotante = true;
+          tabActual = 'monitor'; // Forzamos abrir directo en el monitor
+      }
+
     cargarAsambleaActiva();
 
     // Actualizamos el reloj cada 10 segundos para mayor precisión
@@ -359,10 +374,41 @@
         alert("Error: " + e); 
     }
 }
+
+async function abrirMonitorFlotante() {
+  const monitorWindow = new WebviewWindow('monitor-pip', {
+    url: '/',  // Pasamos el parámetro para identificarla
+    title: 'Monitor en Vivo',
+    width: 380,
+    height: 260,
+    alwaysOnTop: false,  // Inicia normal, el usuario decidirá si anclarla
+    decorations: false,  // Ventana limpia sin marcos clásicos de Windows
+    resizable: true,
+    transparent: true,   // Permite bordes redondeados estéticos
+    skipTaskbar: false
+  });
+
+  monitorWindow.once('tauri://created', () => {
+    console.log('✅ Ventana del monitor flotante creada');
+  });
+}
+
+
+async function toggleFijarVentana() {
+  fijadoEncima = !fijadoEncima;
+  // Cambia el estado de superposición dinámicamente sobre cualquier app
+  await getCurrentWindow().setAlwaysOnTop(fijadoEncima);
+}
+
+function cerrarMonitorFlotante() {
+  getCurrentWindow().close();
+}
+
 </script>
 
-<div class="dashboard-container">
+<div class="dashboard-container" style={esVentanaFlotante ? "padding: 0; height: 100vh;" : ""}>
 
+  {#if !esVentanaFlotante}
   <div class="tabs-container">
     <button class="tab-btn" class:active={tabActual === 'estadisticas'} on:click={() => tabActual = 'estadisticas'}>
       <Activity size={18} /> Estadísticas
@@ -379,6 +425,7 @@
       <Clock size={18} /> Monitor en Vivo
     </button>
   </div>
+  {/if}
 
   <div class="tab-content">
     
@@ -458,39 +505,58 @@
     {:else if tabActual === 'monitor'}
       <div class="monitor-tab-layout">
           <Panel padding="0" clasesExtra="live-monitor-container">
-              <div class="monitor-header">
-                  <div class="header-left">
+              <div class="monitor-header" data-tauri-drag-region>
+                  <div class="header-left" data-tauri-drag-region>
                       {#if estadoAsamblea === 'futura'}
-                          <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;">
+                          <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;" data-tauri-drag-region>
                               <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
                           </div>
                       {:else if estadoAsamblea === 'finalizada'}
-                          <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;">
+                          <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;" data-tauri-drag-region>
                               <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
                           </div>
                       {:else if parteActual}
-                          <div class="live-badge">
+                          <div class="live-badge" data-tauri-drag-region>
                               <span class="blink-dot"></span> EN CURSO
                           </div>
-                          <span class="monitor-dia">{parteActual.dia}</span>
+                          <span class="monitor-dia" data-tauri-drag-region>{parteActual.dia}</span>
                       {:else}
-                          <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;">
+                          <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;" data-tauri-drag-region>
                               <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
                           </div>
                       {/if}
                   </div>
                   
-                  <div class="ajuste-tiempo">
-                      <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
-                      
-                      <button class="valor-ajuste" 
-                              class:activo={offsetMinutos !== 0} 
-                              on:click={resetearDesfase}
-                              title="Clic para volver a la Hora Real (0m)">
-                          {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+                  <div style="display: flex; gap: 15px; align-items: center;">
+                      <button 
+                          on:click={toggleFijarVentana} 
+                          style="background: transparent; border: none; color: white; cursor: pointer; opacity: {fijadoEncima ? '1' : '0.5'}; transition: all 0.2s;"
+                          title={fijadoEncima ? "Desfijar de la pantalla" : "Fijar siempre encima"}
+                      >
+                          {#if fijadoEncima}
+                              <PinOff size={18} />
+                          {:else}
+                              <Pin size={18} />
+                          {/if}
                       </button>
-                      
-                      <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+
+                      <div class="ajuste-tiempo">
+                          <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
+                          <button class="valor-ajuste" class:activo={offsetMinutos !== 0} on:click={resetearDesfase} title="Clic para volver a la Hora Real (0m)">
+                              {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+                          </button>
+                          <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+                      </div>
+
+                      {#if esVentanaFlotante}
+                          <button 
+                              on:click={cerrarMonitorFlotante} 
+                              style="background: transparent; border: none; color: white; cursor: pointer; padding: 4px; display: flex; align-items: center;"
+                              title="Cerrar monitor"
+                          >
+                              <X size={22} />
+                          </button>
+                      {/if}
                   </div>
               </div>
 
@@ -559,11 +625,17 @@
               </div>
          </Panel>
 
-          <div class="accesos-grid">
-              <button class="btn-acceso" on:click={cargarDatosDB}>
-                  <Activity size={20}/> <span>Actualizar Datos</span>
-              </button>
-          </div>
+          {#if !esVentanaFlotante}
+  <div class="accesos-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <button class="btn-acceso" on:click={cargarDatosDB}>
+         <Activity size={20}/> <span>Actualizar Datos</span>
+      </button>
+
+      <button class="btn-acceso" on:click={abrirMonitorFlotante} style="border-color: var(--primary); color: var(--primary);">
+         <ExternalLink size={20}/> <span>Modo Flotante</span>
+      </button>
+  </div>
+  {/if}
       </div>
     {/if}
   </div>
