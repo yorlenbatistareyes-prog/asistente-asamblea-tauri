@@ -41,8 +41,7 @@
 </script>
 
 <button class="btn-importar" on:click={() => mostrarModal = true}>
-    <DownloadCloud size={16}/>
-    Importar
+    Importar asamblea
 </button>
 
 {#if mostrarModal}
@@ -73,8 +72,25 @@
 
 <style>
     /* Botón compacto para poner al lado de "Añadir Asamblea" */
-    .btn-importar { background: white; color: var(--c-text-mut, #475569); border: 1px solid var(--c-border, #cbd5e1); padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; height: 38px; }
-    .btn-importar:hover { background: #f8fafc; border-color: #94a3b8; color: #0f172a; }
+    .btn-importar {
+    background: transparent;
+    color: var(--primary, #2563eb); 
+    border: 2px solid var(--primary, #2563eb);
+    padding: 0 18px; 
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 42px; /* Alineación perfecta con el otro botón */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-importar:hover {
+    background: rgba(37, 99, 235, 0.1); /* Fondo azul clarito al pasar el ratón */
+}
 
     /* Fondo oscuro del modal */
     .modal-backdrop { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.4); display: flex; justify-content: center; align-items: center; z-index: 9999; backdrop-filter: blur(2px); }
