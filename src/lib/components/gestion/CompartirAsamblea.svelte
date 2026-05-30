@@ -57,7 +57,9 @@
         <h3>Compartir Asamblea (Seguro)</h3>
     </div>
     <p class="desc">
-        Genera un archivo <strong>.rassembly</strong> en tu carpeta de sincronización. Dale la clave a tus auxiliares para que puedan descargarlo.
+        Genera un archivo <strong>.rassembly</strong> en tu carpeta de sincronización. 
+        Dale la clave a tus auxiliares para que puedan descargarlo. 
+        Luego el usuario deberá importar el archivo desde la página de inicio. Así podrá tener la asamblea en la lista.
     </p>
 
     <div class="input-clave">
