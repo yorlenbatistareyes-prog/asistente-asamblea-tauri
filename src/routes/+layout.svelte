@@ -15,7 +15,7 @@
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
   // 2. Importa las herramientas de sincronización
-  import { sesionApp } from '$lib/stores/authStore';
+  import { sesionApp, inicializarSesion } from '$lib/stores/authStore';
   import { syncStatus, iniciarRadarNube, detenerRadarNube } from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
@@ -38,6 +38,7 @@
       }
 
       const inicializarApp = async () => {
+          await inicializarSesion();
           await cargarDatosGlobales();
           cargarTemaGuardado();
           
@@ -103,10 +104,10 @@
             </div>
 
             <div class="header-right">
-                {#if $sesionApp.isLoggedIn && $syncStatus.estado !== 'inactivo'}
-                    <div class="sync-badge state-{$syncStatus.estado}" 
-                         title={$syncStatus.mensaje}
-                         on:click={() => { if ($syncStatus.estado === 'conflicto') goto('/sincronizacion'); }}>
+                
+                <!-- 🔥 NUEVO INDICADOR DE SINCRONIZACIÓN AUTOMÁTICA 🔥 -->
+                {#if $syncStatus.estado !== 'inactivo'}
+                    <div class="sync-badge state-{$syncStatus.estado}" title={$syncStatus.mensaje}>
                         
                         {#if $syncStatus.estado === 'esperando'}
                             <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
@@ -114,13 +115,17 @@
                             <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
                         {:else if $syncStatus.estado === 'al_dia'}
                             <CheckCircle size={16} /> <span class="badge-text">Al día</span>
-                        {:else if $syncStatus.estado === 'conflicto'}
-                            <AlertTriangle size={16} /> <span class="badge-text">Datos Nuevos</span>
                         {:else if $syncStatus.estado === 'error'}
                             <CloudOff size={16} /> <span class="badge-text">Error</span>
                         {/if}
+
                     </div>
                 {/if}
+                <!-- 🔥 FIN DEL NUEVO INDICADOR 🔥 -->
+
+                <button class="btn-nav" on:click={irInicio} title="Inicio">
+                    <Home size={18}/><span>Inicio</span>
+                </button>
                 
                 <button class="btn-nav" on:click={irInicio} title="Inicio">
                     <Home size={18}/><span>Inicio</span>

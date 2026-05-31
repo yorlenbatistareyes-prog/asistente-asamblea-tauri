@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
+  
   import { MessageSquare } from 'lucide-svelte';
   import { Phone, MessageCircle, Mail } from 'lucide-svelte';
   import { generarContexto } from '$lib/utils/contexto_impresion';
@@ -351,14 +353,10 @@ async function abrirWhatsApp(telefono: string, parte: any) {
       // Invertimos el valor al hacer clic
       const nuevoValor = !valorActual;
       
-      // Llamamos a Rust para que lo guarde permanentemente
-      await invoke('actualizar_check_registro', { 
-        id, 
-        campo, 
-        valor: nuevoValor 
-      });
+      // 1. Llamamos al EMBUDO en lugar de usar invoke directo
+      await DB.actualizarCheckRegistro(id, campo, nuevoValor);
 
-      // Actualizamos la interfaz visualmente sin recargar todo
+      // 2. Actualizamos la interfaz visualmente sin recargar todo
       partes = partes.map(p => {
         if (p.id === id) {
           return { ...p, [campo]: nuevoValor };

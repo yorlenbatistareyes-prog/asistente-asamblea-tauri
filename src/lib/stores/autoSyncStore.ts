@@ -5,9 +5,9 @@ import { sesionApp } from './authStore';
 
 export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'error';
 
-// --- STORE DETALLADA (Inspirada en Asistente de Visitas) ---
+// --- STORE DETALLADA ---
 export const syncStatus = writable({
-    estado: 'al_dia' as SyncState,
+    estado: 'inactivo' as SyncState, // 🔥 Nace invisible
     mensaje: '',
     nubeDispositivo: '', 
     nubeFecha: ''       
@@ -23,9 +23,15 @@ let debounceTimer: ReturnType<typeof setTimeout>;
  */
 export function dispararSincronizacionLocal() {
     const sesion = get(sesionApp);
-    if (!sesion.isLoggedIn) return;
+    
+    // Si el sistema piensa que no hay sesión, nos avisa en rojo y aborta
+    if (!sesion.isLoggedIn) {
+        console.warn("🔒 [SyncStore] Bloqueado: El sistema cree que NO has iniciado sesión con Gmail.");
+        return;
+    }
 
-    // UI: Avisamos que detectamos el cambio y estamos esperando 5s de inactividad
+    // UI: Avisamos que detectamos el cambio y estamos esperando 5s
+    console.log("⏳ [SyncStore] Iniciando temporizador de 5 segundos...");
     syncStatus.update(s => ({ ...s, estado: 'esperando', mensaje: 'Cambio detectado, esperando...' }));
     
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -142,4 +148,12 @@ export function detenerRadarNube() {
         clearInterval(radarTimer);
         radarTimer = null;
     }
+}
+
+// 📡 EL AURICULAR: Escuchamos el grito del embudo (db.ts)
+if (typeof window !== 'undefined') {
+    window.addEventListener('db_local_cambiada', () => {
+        console.log("👂 [SyncStore] ¡Señal recibida de la base de datos! Iniciando sincronización...");
+        dispararSincronizacionLocal();
+    });
 }

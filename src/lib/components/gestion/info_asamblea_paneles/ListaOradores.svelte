@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  
+  import { DB } from '$lib/services/db'; // Importamos el embudo maestro
+  
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { 
     Mail, AtSign, Globe, Phone, MessageSquare, MessageCircle, 
@@ -233,7 +236,7 @@
     }
   }
 
-  async function toggleDiscursoEspecifico(discurso: any) {
+ async function toggleDiscursoEspecifico(discurso: any) {
     const nuevoEstado = !discurso.confirmado;
     
     // 1. Actualización visual inmediata en Svelte
@@ -241,17 +244,13 @@
     oradores = [...oradores]; 
 
     try {
-      // 2. Enviamos a la base de datos el ID de ESTE discurso específico
-      await invoke('alternar_estado_parte', {
-        id: discurso.id,
-        tipoAccion: 'confirmacion',
-        valorNuevo: nuevoEstado
-      });
+      // 2. Usamos el EMBUDO en lugar de invoke directo
+      await DB.alternarEstadoParte(discurso.id, 'confirmacion', nuevoEstado);
     } catch (e) {
       console.error("Error al guardar CO-11 individual:", e);
       alert("Error al guardar en la base de datos: " + e);
       
-      // 3. Si falla la conexión, revertimos el check visualmente
+      // 3. Si falla, revertimos
       discurso.confirmado = !nuevoEstado;
       oradores = [...oradores];
     }
@@ -259,20 +258,16 @@
 
   // En el script de ListaOradores.svelte
 async function guardarRecordatorio(orador: any) {
-
-  const idPersona = Number(orador.persona_id);
-  
-  if (isNaN(idPersona) || idPersona <= 0) {
-    alert("❌ Error: ID de orador inválido (" + orador.persona_id + ")");
-    return;
-  }
+    const idPersona = Number(orador.persona_id);
+    
+    if (isNaN(idPersona) || idPersona <= 0) {
+      alert("❌ Error: ID de orador inválido (" + orador.persona_id + ")");
+      return;
+    }
 
     try {
-      await invoke('guardar_nota_directa', {
-        asambleaId: asambleaId, 
-        id: Number(orador.persona_id), // 👈 Ahora sí enviará el ID real, ej: 45
-        nota: orador.recordatorio_texto || ""
-      });
+      // Usamos el EMBUDO en lugar de invoke directo
+      await DB.guardarNotaDirecta(asambleaId, idPersona, orador.recordatorio_texto || "");
       alert("✅ Nota guardada correctamente.");
     } catch (e) {
       alert("❌ Error: " + e);
