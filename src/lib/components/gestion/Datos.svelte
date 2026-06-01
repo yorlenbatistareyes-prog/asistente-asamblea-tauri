@@ -6,6 +6,7 @@
     import Panel from '$lib/components/ui/Panel.svelte';
 
     import Sincronizacion from '$lib/components/Sincronizacion.svelte';
+    
     // --- 1. RESPALDAR DATOS (Exportar) ---
     async function respaldarDatos() {
         try {

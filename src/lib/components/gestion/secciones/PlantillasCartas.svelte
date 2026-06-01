@@ -3,6 +3,7 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   // --- TAURI & STORE ---
   import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
   import { cartasStore } from '$lib/stores/cartas'; 
   
   // --- TIPTAP ---
@@ -246,7 +247,7 @@
 
     try {
       const htmlFinal = editor.getHTML();
-      await invoke('guardar_plantilla', { id: tipoActivo, contenido: htmlFinal });
+      await DB.guardarPlantillaCarta(tipoActivo, htmlFinal);
       
       cartasStore.update(cartas => {
           const index = cartas.findIndex(c => c.id === tipoActivo);

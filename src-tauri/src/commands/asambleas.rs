@@ -411,3 +411,100 @@ pub fn actualizar_check_registro(
         Err(e) => Err(format!("Error al actualizar cajita: {}", e)),
     }
 }
+
+use serde::Deserialize;
+
+// 1. Estructura para empaquetar las 6 sesiones de asistencia y bautismos
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct EstadisticasAsamblea {
+    pub viernes_am: i32,
+    pub viernes_pm: i32,
+    pub sabado_am: i32,
+    pub sabado_pm: i32,
+    pub domingo_am: i32,
+    pub domingo_pm: i32,
+    pub bautismos: i32,
+}
+
+// 2. Comando para LEER los datos de la base de datos al abrir la pantalla
+#[command]
+pub async fn obtener_asistencia_asamblea(
+    asamblea_id: i64,
+    state: tauri::State<'_, crate::database::DbState>,
+) -> Result<EstadisticasAsamblea, String> {
+    let conn = state.conn.lock().unwrap();
+    
+    let mut stmt = conn
+        .prepare(
+            "SELECT asistencia_v_am, asistencia_v_pm, asistencia_s_am, asistencia_s_pm, 
+                    asistencia_d_am, asistencia_d_pm, bautismos 
+             FROM asambleas WHERE id = ?",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let stats = stmt
+        .query_row([asamblea_id], |row| {
+            Ok(EstadisticasAsamblea {
+                viernes_am: row.get(0).unwrap_or(0),
+                viernes_pm: row.get(1).unwrap_or(0),
+                sabado_am: row.get(2).unwrap_or(0),
+                sabado_pm: row.get(3).unwrap_or(0),
+                domingo_am: row.get(4).unwrap_or(0),
+                domingo_pm: row.get(5).unwrap_or(0),
+                bautismos: row.get(6).unwrap_or(0),
+            })
+        })
+        .unwrap_or(EstadisticasAsamblea {
+            viernes_am: 0, viernes_pm: 0,
+            sabado_am: 0, sabado_pm: 0,
+            domingo_am: 0, domingo_pm: 0,
+            bautismos: 0,
+        });
+
+    Ok(stats)
+}
+
+// 3. Comando para GUARDAR las 6 sesiones de asistencia
+#[command]
+pub async fn guardar_asistencia_db(
+    asamblea_id: i64,
+    datos: EstadisticasAsamblea,
+    state: tauri::State<'_, crate::database::DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().unwrap();
+    
+    conn.execute(
+        "UPDATE asambleas SET 
+            asistencia_v_am = ?, asistencia_v_pm = ?, 
+            asistencia_s_am = ?, asistencia_s_pm = ?, 
+            asistencia_d_am = ?, asistencia_d_pm = ?
+         WHERE id = ?",
+        [
+            datos.viernes_am, datos.viernes_pm,
+            datos.sabado_am, datos.sabado_pm,
+            datos.domingo_am, datos.domingo_pm,
+            asamblea_id as i32,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// 4. Comando para GUARDAR los bautismos de forma independiente
+#[command]
+pub async fn guardar_bautismos_db(
+    asamblea_id: i64,
+    cantidad: i32,
+    state: tauri::State<'_, crate::database::DbState>,
+) -> Result<(), String> {
+    let conn = state.conn.lock().unwrap();
+    
+    conn.execute(
+        "UPDATE asambleas SET bautismos = ? WHERE id = ?",
+        [cantidad, asamblea_id as i32],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}

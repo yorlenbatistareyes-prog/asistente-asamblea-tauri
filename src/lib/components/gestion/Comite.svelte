@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
+  
   import { confirm } from '@tauri-apps/plugin-dialog';
   import { 
     ShieldCheck, Save, Search, X, MapPin, Phone, Mail, 
@@ -171,9 +173,9 @@
     if (!nuevoNombre.trim()) return alert("Escribe un nombre");
     
     try {
-      // 3. ENVIAR ID AL CREAR
-      await invoke('crear_persona', { 
-        asambleaId, // <--- Importante
+      // 🔥 USAMOS EL EMBUDO PARA CREAR AL HERMANO
+      await DB.crearPersona({ 
+        asambleaId,
         nombreCompleto: nuevoNombre, 
         genero: "Hombre", 
         privilegios: "Superintendente", 
@@ -188,7 +190,7 @@
       const creado = hermanos.find(h => h.nombre_completo === nuevoNombre);
       
       if (creado) {
-        await seleccionar(creado.id); // Solo se añade el 'await' aquí
+        await seleccionar(creado.id);
       } else {
         alert("Error al recuperar el nuevo registro");
       }
@@ -204,8 +206,8 @@
     try {
       const n = (val: number) => val === 0 ? null : val;
       
-      // Enviamos TODOS los datos al backend (Rust)
-      await invoke('guardar_comite', { 
+      // 🔥 USAMOS EL EMBUDO PARA GUARDAR EL COMITÉ
+      await DB.guardarComite({ 
         id: asambleaId, 
         coordinadorId: n(c.coord), 
         coordinadorAuxId: n(c.coord_a),
@@ -221,8 +223,6 @@
         bautismoAuxId: n(c.baut_a)
       });
 
-    // Pequeño truco UX: Forzamos que el "Guardando..." se vea al menos medio segundo
-      // para que el usuario note el cambio visual, ya que Rust es demasiado rápido.
       if (silencioso) {
           await new Promise(resolve => setTimeout(resolve, 500));
       }

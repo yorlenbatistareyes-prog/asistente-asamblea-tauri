@@ -6,6 +6,7 @@
 
   import ActualizacionApp from './ActualizacionApp.svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
   import { cargarDatosGlobales } from '$lib/stores/appStore';
 
   import SincronizacionCarpeta from '$lib/components/gestion/SincronizacionCarpeta.svelte';
@@ -84,7 +85,7 @@
   function guardarCambiosConfig() { alert("Configuración guardada"); }
   function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
   
-  async function guardarUsuario() {
+ async function guardarUsuario() {
   try {
     // Obtener la configuración actual para conservar tema e idioma
     const configActual = await invoke('obtener_configuracion_general') as any;
@@ -104,8 +105,8 @@
       idioma: configActual.idioma,
     };
 
-    // Guardar en la base de datos usando el comando Rust
-    await invoke('guardar_configuracion_general', { config: datosConfig });
+    // 🔥 USAMOS EL EMBUDO PARA GUARDAR Y AVISAR AL RADAR
+    await DB.guardarConfiguracionGeneral(datosConfig);
 
     // Actualizar la variable local del usuario
     usuario = { ...usuarioEditando };

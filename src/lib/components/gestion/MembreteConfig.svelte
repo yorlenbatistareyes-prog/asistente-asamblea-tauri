@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import { FileText, Save, Eye, LayoutTemplate, Type, Palette, RotateCcw } from 'lucide-svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
+
+  import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db'; // 👈 IMPORTAMOS EL EMBUDO
   
 
   // --- VALORES INICIALES (POR DEFECTO) ---
@@ -27,18 +30,29 @@ const DEFAULT_CONFIG = {
   // Estado reactivo
   let config = { ...DEFAULT_CONFIG };
 
-  onMount(() => {
-    const guardado = localStorage.getItem('config_membrete');
-    if (guardado) {
-      const datosCargados = JSON.parse(guardado);
-      config = { ...config, ...datosCargados };
+  onMount(async () => {
+    try {
+      // 1. Pedimos el membrete a la base de datos (Rust)
+      const guardado = await invoke('obtener_config_membrete');
+      
+      if (guardado) {
+        // Manejamos el dato dependiendo de si Rust devuelve un string (JSON) o un objeto
+        const datosCargados = typeof guardado === 'string' ? JSON.parse(guardado) : guardado;
+        config = { ...config, ...datosCargados };
+      }
+    } catch (error) {
+      console.error("No se pudo cargar el membrete de la base de datos:", error);
     }
   });
 
-  function guardarCambios() {
-    localStorage.setItem('config_membrete', JSON.stringify(config));
-    // await invoke('guardar_config_membrete', { config });
-    alert("Configuración guardada correctamente"); 
+  async function guardarCambios() {
+    try {
+      // 🔥 USAMOS EL EMBUDO PARA GUARDAR EN LA BD Y AVISAR AL RADAR
+      await DB.guardarConfigMembrete(config);
+      alert("✅ Configuración del membrete guardada en la base de datos."); 
+    } catch (error) {
+      alert("❌ Error al guardar el membrete: " + error);
+    }
   }
 
   function restaurarValores() {

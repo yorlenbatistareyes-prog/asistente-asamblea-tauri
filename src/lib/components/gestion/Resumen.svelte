@@ -4,7 +4,8 @@
   import Panel from '$lib/components/ui/Panel.svelte';
 
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-  
+  import { DB } from '$lib/services/db';
+
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { Pin, PinOff, X } from 'lucide-svelte'; // Traemos los iconos de la chincheta y cerrar
   
@@ -182,24 +183,29 @@
   // --- FUNCIÓN CARGAR DATOS LOCALES ---
   function cargarDatosLocales() {
     if (!asambleaIdActual) return;
-    const rawAsis = localStorage.getItem(`dash_asistencia_obj_${asambleaIdActual}`);
-    if (rawAsis) {
-        asistenciaDetalle = JSON.parse(rawAsis);
-    } else {
-        asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
-    }
-    bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
+    
+    // Solo dejamos el desfase del reloj, porque es local para esta pantalla
     offsetMinutos = Number(localStorage.getItem(`dash_offset_${asambleaIdActual}`)) || 0;
   }
 
-  function guardarAsistencia() {
+ async function guardarAsistencia() {
       if (!asambleaIdActual) return;
-      localStorage.setItem(`dash_asistencia_obj_${asambleaIdActual}`, JSON.stringify(asistenciaDetalle));
+      // Guardamos en la base de datos central para que los auxiliares lo vean
+      await DB.guardarAsistencia(asambleaIdActual, asistenciaDetalle);
   }
 
-  function guardarDato(tipo: string, valor: number) {
-    if (!asambleaIdActual) return;
-    localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
+  async function guardarDato(tipo: string, valor: number) {
+      if (!asambleaIdActual) return;
+      
+      try {
+          // Filtramos para asegurarnos de que estamos guardando los bautismos
+          if (tipo === 'bautismos') {
+              // 🔥 AHORA SÍ LLAMAMOS A LA FUNCIÓN EXACTA QUE EXISTE EN db.ts
+              await DB.guardarBautismos(asambleaIdActual, valor);
+          }
+      } catch (e) {
+          console.error("Error al guardar bautismos:", e);
+      }
   }
 
   // --- LÓGICA DE CONTROL DE TIEMPO ---
@@ -295,7 +301,22 @@
     try {
         const listaCongregaciones: any = await invoke('obtener_congregaciones', { asambleaId: asambleaIdActual });
         totalCongregacionesReales = Array.isArray(listaCongregaciones) ? listaCongregaciones.length : 0;
+        
+        // 🔥 NUEVO: LEER LA ASISTENCIA Y BAUTISMOS DESDE EL EMBUDO
+        const datosAsistencia: any = await DB.obtenerAsistencia(asambleaIdActual);
+        if (datosAsistencia) {
+            asistenciaDetalle = {
+                viernes_am: datosAsistencia.viernes_am || 0,
+                viernes_pm: datosAsistencia.viernes_pm || 0,
+                sabado_am: datosAsistencia.sabado_am || 0,
+                sabado_pm: datosAsistencia.sabado_pm || 0,
+                domingo_am: datosAsistencia.domingo_am || 0,
+                domingo_pm: datosAsistencia.domingo_pm || 0
+            };
+            bautismosTotal = datosAsistencia.bautismos || 0;
+        }
     } catch (e) {
+        console.error("Error al cargar congregaciones o estadísticas:", e);
         totalCongregacionesReales = 0;
     }
 
@@ -363,17 +384,14 @@
     try {
         // Confirmamos TODAS las partes del orador, igual que en ListaOradores
         for (const idParte of parte.parteIds) {
-            await invoke('alternar_estado_parte', { 
-                id: idParte, 
-                tipoAccion: 'confirmacion', 
-                valorNuevo: true 
-            });
+            // 🔥 USAMOS EL EMBUDO PARA CONFIRMAR Y AVISAR AL RADAR
+            await DB.alternarEstadoParte(idParte, 'confirmacion', true);
         }
         await cargarDatosDB(); // Refresca la lista y el número al instante
     } catch(e) { 
         alert("Error: " + e); 
     }
-}
+  }
 
 async function abrirMonitorFlotante() {
   const monitorWindow = new WebviewWindow('monitor-pip', {

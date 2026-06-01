@@ -5,6 +5,8 @@
   import { Cloud, FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
   import Panel from '$lib/components/ui/Panel.svelte'; // 👈 Importamos Panel
 
+  import { DB } from '$lib/services/db';
+
   let rutaCarpeta: string | null = null;
   let guardando = false;
 
@@ -27,7 +29,8 @@
       if (seleccion) {
         guardando = true;
         rutaCarpeta = seleccion as string;
-        await invoke('guardar_ruta_sync', { ruta: rutaCarpeta });
+        // 🔥 USAMOS EL EMBUDO
+        await DB.guardarRutaSync(rutaCarpeta);
         guardando = false;
       }
     } catch (e) {
@@ -36,12 +39,14 @@
     }
   }
 
-  async function desvincular() {
+ async function desvincular() {
     if (confirm("¿Desvincular esta carpeta? La app dejará de sincronizar aquí.")) {
       rutaCarpeta = null;
-      await invoke('guardar_ruta_sync', { ruta: null });
+      // 🔥 USAMOS EL EMBUDO
+      await DB.guardarRutaSync(null);
     }
   }
+  
 </script>
 
 <Panel padding="20px" clasesExtra="cloud-panel sync-folder-panel">

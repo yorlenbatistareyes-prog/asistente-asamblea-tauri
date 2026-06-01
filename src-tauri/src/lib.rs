@@ -177,6 +177,11 @@ if ruta_pendiente.exists() {
             commands::asambleas::obtener_info_extra_evento,
             commands::asambleas::actualizar_check_registro,
 
+            // 👇 NUEVOS COMANDOS DE ASISTENCIA Y BAUTISMOS 👇
+            commands::asambleas::obtener_asistencia_asamblea,
+            commands::asambleas::guardar_asistencia_db,
+            commands::asambleas::guardar_bautismos_db,
+
             // IMPORTAR
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,

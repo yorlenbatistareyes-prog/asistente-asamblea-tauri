@@ -24,6 +24,7 @@
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
   import { oradoresPendientes } from '$lib/stores/gestion';
   import Panel from '$lib/components/ui/Panel.svelte';
+  import { DB } from '$lib/services/db';
   
   // --- ESTADO ---
   let asambleaId = 0; 
@@ -414,20 +415,20 @@ function limpiarFiltrosTemporales() {
 async function actualizarDetallesParte(parteId: number) {
     if (!parteEditando) return;
     try {
-        await invoke('actualizar_detalles_parte', { 
+        // 🔥 USAMOS EL EMBUDO
+        await DB.actualizarDetallesParte({ 
             idParte: parteId, 
             numeroBosquejo: parteEditando.numero_bosquejo?.trim() || null,
             fuente: parteEditando.fuente || 'en_persona',
             esBetelita: parteEditando.es_betelita || false,
             esInterprete: parteEditando.es_interprete || false,
             esVisitante: parteEditando.es_visitante || false,
-            duracion: Number(parteEditando.duracion) || 0, // Envía los minutos
+            duracion: Number(parteEditando.duracion) || 0,
             requiereEnsayo: parteEditando.requiere_ensayo || false,
             fechaEnsayo: parteEditando.fecha_ensayo || null,
             horaEnsayo: parteEditando.hora_ensayo || null,
             lugarEnsayo: parteEditando.lugar_ensayo || null,
             notasEnsayo: parteEditando.notas_ensayo || null
-        
           });
         await cargarTodosDias();
         alert("✅ Datos de la parte actualizados correctamente.");
@@ -441,19 +442,19 @@ async function actualizarDetallesParte(parteId: number) {
     if (parteEditando) {
         const bsq = parteEditando?.numero_bosquejo?.trim() || "";
         try {
-          // 1. Guardar primero los minutos y detalles en segundo plano
-          await invoke('actualizar_detalles_parte', { 
+          // 🔥 USAMOS EL EMBUDO PARA ACTUALIZAR DETALLES
+          await DB.actualizarDetallesParte({ 
               idParte: parteEditando.id, 
               numeroBosquejo: bsq || null,
               fuente: parteEditando.fuente || 'en_persona',
               esBetelita: parteEditando.es_betelita || false,
               esInterprete: parteEditando.es_interprete || false,
               esVisitante: parteEditando.es_visitante || false,
-              duracion: Number(parteEditando.duracion) || 0 // Guarda los minutos
+              duracion: Number(parteEditando.duracion) || 0 
           });
 
-          // 2. Guardar el orador asignado y cerrar
-          await invoke('asignar_parte', { 
+          // 🔥 USAMOS EL EMBUDO PARA ASIGNAR ORADOR
+          await DB.asignarParte({ 
             idParte: parteEditando.id, 
             oradorId: oradorId, 
             esVideo: esVideo,
@@ -471,9 +472,10 @@ async function actualizarDetallesParte(parteId: number) {
   async function guardarNuevaParte() {
     if(!nuevaParte.hora || !nuevaParte.tema) return alert("Faltan datos");
     try {
-      await invoke('crear_parte', { 
+      // 🔥 USAMOS EL EMBUDO
+      await DB.crearParte({ 
         asambleaId, 
-        dia: nuevaParte.dia, // Ahora usamos el día del modal
+        dia: nuevaParte.dia, 
         sesion: nuevaParte.sesion, 
         hora: nuevaParte.hora, 
         tema: nuevaParte.tema, 
@@ -484,7 +486,6 @@ async function actualizarDetallesParte(parteId: number) {
         email: nuevaParte.email.trim() || null, 
         telefono: nuevaParte.telefono.trim() || null,
         numero_bosquejo: nuevaParte.numero_bosquejo.trim() || null,
-        // ✅ ENVIAMOS LOS NUEVOS DATOS AL BACKEND
         fuente: nuevaParte.fuente,
         esBetelita: nuevaParte.es_betelita,
         esInterprete: nuevaParte.es_interprete,
@@ -503,7 +504,8 @@ async function actualizarDetallesParte(parteId: number) {
   async function limpiarTodoConfirmado() {
     mostrarModalLimpiar = false;
     try {
-        await invoke('limpiar_programa', { asambleaId });
+        // 🔥 USAMOS EL EMBUDO
+        await DB.limpiarPrograma({ asambleaId });
         await cargarTodosDias();
     } catch (e) {
         alert('Error al limpiar: ' + e);
@@ -517,7 +519,8 @@ async function actualizarDetallesParte(parteId: number) {
     if (!idParteAEliminar) return;
     mostrarModalEliminar = false;
     try {
-        await invoke('eliminar_parte', { id: idParteAEliminar });
+        // 🔥 USAMOS EL EMBUDO
+        await DB.eliminarParte({ id: idParteAEliminar });
         await cargarTodosDias();
         idParteAEliminar = null;
     } catch (e) {
@@ -529,7 +532,8 @@ async function actualizarDetallesParte(parteId: number) {
       try { 
           const f = await openDialog({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
           if(f) { 
-              await invoke('importar_programa_jw', { asambleaId, rutaArchivo: f }); 
+              // 🔥 USAMOS EL EMBUDO
+              await DB.importarProgramaJw({ asambleaId, rutaArchivo: f }); 
               await cargarTodosDias(); 
               await cargarHermanos(); 
           } 

@@ -3,6 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { setResumen, addNota, setNotas, totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, notasRapidas } from '$lib/stores/gestion';
   import { vistaActual } from '$lib/stores/appStore';
+  import { DB } from '$lib/services/db';
 
   // --- TIPTAP Y EXTENSIONES ---
   import { Editor, Extension } from '@tiptap/core';
@@ -423,7 +424,8 @@
 
   async function guardar() {
     try {
-      await invoke('guardar_info_evento', {
+      // 🔥 USAMOS EL EMBUDO PARA GUARDAR Y AVISAR AL RADAR
+      await DB.guardarInfoEvento({
         id: asambleaId, tema, fecha, identificador, lugar, idioma,
         ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
         recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
@@ -431,6 +433,7 @@
       alert("✅ Configuración guardada correctamente");
     } catch (e) { alert("❌ Error al guardar: " + e); }
   }
+  
 </script>
 
 <div class="contenedor">

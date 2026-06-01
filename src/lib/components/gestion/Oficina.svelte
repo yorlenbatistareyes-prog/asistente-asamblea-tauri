@@ -18,6 +18,8 @@
   import { obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
 
+  import { DB } from '$lib/services/db';
+
   // --- ESTADO ---
   let asambleaId = 0; 
   let tabPrincipal = 'auxiliares'; 
@@ -138,7 +140,9 @@
               const personaId = formAsignacion[rol as keyof typeof formAsignacion];
               if (personaId) {
                   const tipoAsignacion = `${rol}_${formAsignacion.seccion}`;
-                  await invoke('guardar_asignacion_especial', {
+                  
+                  // 🔥 USAMOS EL EMBUDO PARA GUARDAR EL BLOQUE
+                  await DB.guardarAsignacionEspecial({
                       asambleaId,
                       dia: formAsignacion.dia,
                       tipoAsignacion: tipoAsignacion,
@@ -157,7 +161,9 @@
       try {
           for (const rol of roles) {
               const obj = oficina.asignaciones[`${rol}_${seccion}`];
-              if (obj && obj.id) await invoke('eliminar_asignacion_especial', { id: obj.id });
+              
+              // 🔥 USAMOS EL EMBUDO PARA ELIMINAR CADA ROL DEL BLOQUE
+              if (obj && obj.id) await DB.eliminarAsignacionEspecial({ id: obj.id });
           }
           await cargarDatos();
       } catch(e) { alert(e); }
@@ -209,16 +215,18 @@
       mostrarSugerencias = false; 
   }
 
-  async function asignarHermano(oradorId: number) {
+ async function asignarHermano(oradorId: number) {
       if (!oradorId || !rolOficinaEditando) return;
       try {
           if (!modoEdicion) {
-              await invoke('guardar_asignacion_especial', { 
+              // 🔥 USAMOS EL EMBUDO
+              await DB.guardarAsignacionEspecial({ 
                   asambleaId, dia: diaSeleccionado, tipoAsignacion: rolOficinaEditando, personaId: oradorId 
               });
           }
           if (rolOficinaEditando === 'personal_oficina') {
-              await invoke('guardar_detalles_oficina', {
+              // 🔥 USAMOS EL EMBUDO
+              await DB.guardarDetallesOficina({
                   personaId: oradorId,
                   responsabilidades: JSON.stringify(responsabilidades),
                   disponibilidad: JSON.stringify(disponibilidad)
@@ -232,7 +240,8 @@
   async function eliminarAsignacion(id: number) {
       if (!confirm("¿Quitar a este hermano permanentemente de la oficina?")) return;
       try {
-          await invoke('eliminar_asignacion_especial', { id });
+          // 🔥 USAMOS EL EMBUDO
+          await DB.eliminarAsignacionEspecial({ id });
           await cargarDatos(); 
       } catch (e) { alert("Error: " + e); }
   }

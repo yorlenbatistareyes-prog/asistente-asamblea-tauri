@@ -304,6 +304,16 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
 
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN notas TEXT DEFAULT ''", []).ok();
     
+    // --- MIGRACIONES PARA ASISTENCIA Y BAUTISMOS (Resumen) ---
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_v_am INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_v_pm INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_s_am INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_s_pm INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_d_am INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_d_pm INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN bautismos INTEGER DEFAULT 0", []);
+
+    
     // --- 10. RECORDATORIOS DE ORADORES ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS recordatorios_oradores (

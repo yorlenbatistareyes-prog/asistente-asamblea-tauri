@@ -4,6 +4,7 @@
   import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2, X  } from 'lucide-svelte';
   import { open, confirm } from '@tauri-apps/plugin-dialog';
   import Panel from '$lib/components/ui/Panel.svelte';
+  import { DB } from '$lib/services/db';
 
   // --- VARIABLES ---
   let asambleaId = 0; 
@@ -62,7 +63,8 @@
   async function guardar() {
     if (!nombre) return alert("Escribe el nombre");
     try {
-      await invoke('crear_congregacion', { 
+      // 🔥 USAMOS EL EMBUDO
+      await DB.crearCongregacion({ 
         asambleaId, nombre, circuito, numero 
       });
       
@@ -77,37 +79,36 @@
       const archivo = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
       
       if (archivo) {
-        const mensaje = await invoke('importar_congregaciones_csv', { 
+        // 🔥 USAMOS EL EMBUDO
+        const mensaje = await DB.importarCongregacionesCsv({ 
             asambleaId, rutaArchivo: archivo 
         });
-        alert(mensaje);
+        alert(mensaje as string);
         cargar(); 
       }
     } catch (e) { alert("Error: " + e); }
   }
 
-  // --- ELIMINAR ---
+// --- ELIMINAR ---
   async function eliminar(id: number, nombreCong: string) {
-    // Congelamos el código hasta que el usuario decida
     const estaSeguro = await confirm(`¿Seguro que quieres eliminar "${nombreCong}"?`, {
         title: 'Confirmar Eliminación',
         kind: 'warning'
     });
 
-    // Si le da a cancelar, abortamos
     if (!estaSeguro) return;
 
     try {
-      await invoke('eliminar_congregacion', { id });
+      // 🔥 USAMOS EL EMBUDO
+      await DB.eliminarCongregacion({ id });
       cargar(); 
     } catch (e) {
       alert("No se pudo eliminar. \n\nPosible causa: Esta congregación tiene personas asignadas.");
     }
   }
 
-  // --- LIMPIAR TODO ---
+ // --- LIMPIAR TODO ---
   async function limpiarTodo() {
-    // Diálogo nativo de Tauri
     const estaSeguro = await confirm(
         "⚠️ ¡PELIGRO! \n\nSe borrarán las congregaciones de ESTA asamblea.\n¿Estás seguro?", 
         {
@@ -116,11 +117,11 @@
         }
     );
     
-    // Si cancela, no borramos nada
     if (!estaSeguro) return;
     
     try {
-      await invoke('limpiar_congregaciones', { asambleaId });
+      // 🔥 USAMOS EL EMBUDO
+      await DB.limpiarCongregaciones({ asambleaId });
       cargar();
     } catch (e) {
       alert("Error al limpiar: " + e);

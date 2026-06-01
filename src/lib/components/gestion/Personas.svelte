@@ -4,6 +4,7 @@
   import { User, Users, Phone, Mail, Plus, Save, Upload, Search, Trash2, MapPin, X } from 'lucide-svelte';
   import { open, confirm } from '@tauri-apps/plugin-dialog';
   import Panel from '$lib/components/ui/Panel.svelte';
+  import { DB } from '$lib/services/db';
 
   // --- VARIABLES ---
   let asambleaId = 0; 
@@ -55,24 +56,25 @@
   });
 
   // --- GUARDAR MANUALMENTE ---
-  async function guardar() {
+ async function guardar() {
     if (!nombre) return alert("Escribe el nombre completo");
-  const idCong = idCongregacion ? idCongregacion : 0; 
+    const idCong = idCongregacion ? idCongregacion : 0; 
   
-  try {
-    await invoke('crear_persona', { 
-      asambleaId, 
-      nombreCompleto: nombre, 
-      sexo: "M",
-      privilegios: privilegio,
-      idCongregacion: idCong, 
-      telefono, 
-      email 
-    });
-    
-    resetFormulario();  // ← AGREGAR ESTA LÍNEA
-    await cargarDatos();
-  } catch (e) { alert("Error: " + e); }
+    try {
+      // 🔥 USAMOS EL NOMBRE EXCLUSIVO
+      await DB.registrarPersona({ 
+        asambleaId, 
+        nombreCompleto: nombre, 
+        sexo: "M",
+        privilegios: privilegio,
+        idCongregacion: idCong, 
+        telefono, 
+        email 
+      });
+      
+      resetFormulario();
+      await cargarDatos();
+    } catch (e) { alert("Error: " + e); }
   }
 
   function resetFormulario() {
@@ -93,13 +95,13 @@ async function guardarYcerrar() {
     try {
       const archivo = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
       if (archivo) {
-        const mensaje = await invoke('importar_personas_csv', { 
+        // 🔥 USAMOS EL EMBUDO
+        const mensaje = await DB.importarPersonasCsv({ 
             asambleaId, 
             rutaArchivo: archivo 
         });
-        alert(mensaje);
+        alert(mensaje as string);
         
-        // Pequeño retraso para que la base de datos termine de procesar y Svelte refresque la lista
         setTimeout(async () => {
             await cargarDatos();
         }, 300);
@@ -109,24 +111,22 @@ async function guardarYcerrar() {
 
   // --- ELIMINAR UNO ---
   async function eliminar(id: number, nombreP: string) {
-    // El "await" congela el código hasta que el usuario hace clic
     const estaSeguro = await confirm(`¿Estás seguro de eliminar a ${nombreP}?`, { 
         title: 'Confirmar Eliminación', 
         kind: 'warning' 
     });
     
-    // Si presiona cancelar (false), abortamos la operación
     if (!estaSeguro) return; 
 
     try {
-        await invoke('eliminar_persona', { id });
+        // 🔥 USAMOS EL EMBUDO
+        await DB.eliminarPersona({ id });
         await cargarDatos();
     } catch(e) { alert(e); }
   }
 
   // --- ELIMINAR TODOS ---
   async function limpiarTodo() {
-    // Diálogo nativo de advertencia que pausa la ejecución
     const estaSeguro = await confirm(
         "⚠️ ¿ESTÁS SEGURO?\n\nSe borrarán las personas de ESTA asamblea.\nLos discursos asignados quedarán vacíos.", 
         { 
@@ -135,11 +135,11 @@ async function guardarYcerrar() {
         }
     );
     
-    // Si presiona cancelar o cierra la ventana, abortamos
     if (!estaSeguro) return; 
 
     try {
-        await invoke('limpiar_personas', { asambleaId });
+        // 🔥 USAMOS EL EMBUDO
+        await DB.limpiarPersonas({ asambleaId });
         await cargarDatos();
     } catch(e) { alert(e); }
   }

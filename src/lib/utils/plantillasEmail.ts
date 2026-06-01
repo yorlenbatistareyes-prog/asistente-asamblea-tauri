@@ -1,7 +1,7 @@
 // src/lib/utils/plantillasEmail.ts
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-
+import { DB } from '$lib/services/db';
 // ------------------------------------------------------------
 // TIPOS
 // ------------------------------------------------------------
@@ -219,7 +219,9 @@ export async function cargarPlantillasEmail(): Promise<void> {
 
 export async function guardarPlantillaEmail(id: string, asunto: string, cuerpo: string): Promise<void> {
     try {
-        await invoke('guardar_plantilla_email', { id, asunto, cuerpo });
+        // 🔥 AHORA SÍ: El nombre es claro y específico para correos
+        await DB.guardarPlantillaEmail(id, asunto, cuerpo);
+        
         emailTemplates.update(items =>
             items.map(p => (p.id === id ? { ...p, subject: asunto, body: cuerpo } : p))
         );

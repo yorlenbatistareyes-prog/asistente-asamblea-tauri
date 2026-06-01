@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
   import { Clock, MapPin, Mic, CheckSquare, CheckCircle, CalendarDays, Video, Download, Globe, UserCheck } from 'lucide-svelte';
 
   let asambleaId = 0;
@@ -88,7 +89,8 @@
       ensayosProgramados = [...ensayosProgramados]; 
 
       try {
-          await invoke('alternar_estado_parte', {
+          // 🔥 USAMOS LA RUTA EXCLUSIVA PARA ENSAYOS
+          await DB.alternarEstadoEnsayo({
               id: ensayo.id,
               tipoAccion: 'ensayo_terminado',
               valorNuevo: nuevoEstado
@@ -96,10 +98,12 @@
       } catch (error) {
           console.error("Error al actualizar ensayo:", error);
           alert("Ocurrió un error al guardar el estado del ensayo.");
+          // Revertir cambio visual en caso de error
           ensayo.ensayo_terminado = !nuevoEstado;
           ensayosProgramados = [...ensayosProgramados];
       }
   }
+  
 </script>
 
 <div class="pagina-ensayos">

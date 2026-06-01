@@ -1,6 +1,7 @@
 // src/lib/utils/plantillasWhatsApp.ts
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { DB } from '$lib/services/db';
 
 export interface PlantillaWhatsApp {
     id: string;
@@ -159,13 +160,17 @@ export async function cargarPlantillasWhatsApp(): Promise<void> {
 // ------------------------------------------------------------
 // GUARDAR - usa guardar_plantilla_mensaje (asunto vacío o título)
 // ------------------------------------------------------------
+// ------------------------------------------------------------
+// GUARDAR - usa DB.guardarPlantillaMensaje
+// ------------------------------------------------------------
 export async function guardarPlantillaWhatsApp(id: string, cuerpo: string): Promise<void> {
     try {
         // Usamos el título de la plantilla como asunto, o vacío
         const plantilla = get(whatsAppTemplates).find(p => p.id === id);
         const asunto = plantilla?.title || '';
         
-        await invoke('guardar_plantilla_mensaje', { id, asunto, cuerpo });
+        // 🔥 USAMOS EL EMBUDO PARA GUARDAR Y DISPARAR LA SEÑAL
+        await DB.guardarPlantillaMensaje(id, asunto, cuerpo);
         
         whatsAppTemplates.update(items =>
             items.map(p => (p.id === id ? { ...p, body: cuerpo } : p))
