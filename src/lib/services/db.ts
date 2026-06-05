@@ -259,6 +259,20 @@ export const DB = {
         const resultado = await invoke('guardar_bautismos_db', { asambleaId, cantidad });
         notificarCambioLocal();
         return resultado;
-    }
+    },
+
+    // --- FUNCIONES PARA CONFIGURACIÓN PDF ---
+    async guardarConfiguracionPDF(config: any) {
+        // Enviamos el objeto como un string JSON a Rust
+        const resultado = await invoke('guardar_configuracion_pdf', { datos: JSON.stringify(config) });
+        notificarCambioLocal(); 
+        return resultado;
+    },
+
+    async obtenerConfiguracionPDF() {
+        // Obtenemos el string de la DB y lo parseamos
+        const datos = await invoke<string | null>('obtener_configuracion_pdf');
+        return datos ? JSON.parse(datos) : null;
+    },
     
 };

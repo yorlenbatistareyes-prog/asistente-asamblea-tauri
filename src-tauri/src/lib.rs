@@ -220,6 +220,10 @@ if ruta_pendiente.exists() {
             // --- CONFIGURACIÓN ---
             commands::configuracion::obtener_configuracion_general,
             commands::configuracion::guardar_configuracion_general,
+
+            commands::configuracion::obtener_configuracion_pdf, // <-- NUEVO
+            commands::configuracion::guardar_configuracion_pdf,
+            
             // --- ACTUALIZACIONES ---
             commands::actualizaciones::check_for_updates,
             

@@ -328,5 +328,15 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         [],
     )?;
 
+    // 👇 --- NUEVO: 11. CONFIGURACIONES PDF --- 👇
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS configuraciones_pdf (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            datos_json TEXT NOT NULL
+        )",
+        [],
+    )?;
+    // 👆 --- FIN NUEVO BLOQUE --- 👆
+
     Ok(conn)
 }

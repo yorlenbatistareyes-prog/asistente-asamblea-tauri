@@ -29,8 +29,7 @@
   onMount(() => {
 
     // 👇 NUEVO DETECTOR: Le preguntamos a Tauri si esta ventana se llama 'monitor-pip'
-      const ventanaActual = getCurrentWindow();
-      
+      const ventanaActual = getCurrentWindow()
       if (ventanaActual.label === 'monitor-pip') {
           esModoMonitor = true;
           aplicarTema(localStorage.getItem('temaApp') || 'sistema'); // Forzamos cargar el tema visual
@@ -123,10 +122,6 @@
                 {/if}
                 <!-- 🔥 FIN DEL NUEVO INDICADOR 🔥 -->
 
-                <button class="btn-nav" on:click={irInicio} title="Inicio">
-                    <Home size={18}/><span>Inicio</span>
-                </button>
-                
                 <button class="btn-nav" on:click={irInicio} title="Inicio">
                     <Home size={18}/><span>Inicio</span>
                 </button>

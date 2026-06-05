@@ -87,57 +87,119 @@
     return 'InPerson';
   }
 
-  async function generarPDFPrograma() {
+async function generarPDFPrograma() {
     try {
-      const docDefinition: TDocumentDefinitions = {
-        pageSize: 'A4',
-        pageMargins: [40, 40, 40, 40],
-        content: [
-          { text: 'Programa de Asamblea', style: 'header' },
-          { text: `${asambleaActiva?.tema || 'Sin tema'} • Número: ${asambleaActiva?.identificador || '000'}`, style: 'subheader' }
-        ],
-        styles: {
-          header: { fontSize: 22, bold: true, color: '#1e293b', margin: [0, 0, 0, 4] },
-          subheader: { fontSize: 12, color: '#64748b', margin: [0, 0, 0, 20] },
-          diaTitulo: { fontSize: 16, bold: true, color: '#2563eb', margin: [0, 15, 0, 5] },
-          sesionTitulo: { fontSize: 11, bold: true, color: '#475569', margin: [0, 10, 0, 5], characterSpacing: 1 },
-          tablaHeader: { bold: true, fontSize: 10, color: '#64748b', margin: [0, 4, 0, 4] },
-          celdaHora: { fontSize: 10, bold: true, color: '#475569', margin: [0, 4, 0, 4] },
-          celdaNormal: { fontSize: 10, margin: [0, 4, 0, 4], color: '#0f172a' },
-          textoGris: { fontSize: 8, color: '#94a3b8' }
+      // --- HELPER PARA LA FECHA ---
+      // Convierte "2026-04-15" a "15 de abril de 2026". Si no es una fecha estándar, la deja como el usuario la escribió.
+      // --- HELPER PARA LA FECHA ---
+      const formatearFecha = (fechaRaw: string) => {
+        if (!fechaRaw) return 'Sin fecha';
+        
+        try {
+          // 1. Verificamos si es un rango que contiene " a "
+          if (fechaRaw.includes(' a ')) {
+            const fechas = fechaRaw.split(' a ');
+            
+            // Invertimos YYYY-MM-DD a DD/MM/YYYY para cada lado
+            const f1 = fechas[0].trim().split('-').reverse().join('/');
+            const f2 = fechas[1].trim().split('-').reverse().join('/');
+            
+            // Los unimos con el guion que pediste
+            return `${f1} - ${f2}`;
+          } 
+          
+          // 2. Si es una sola fecha (sin la "a")
+          return fechaRaw.split('-').reverse().join('/');
+          
+        } catch (e) {
+          // Si algo falla, aplicamos tu reemplazo literal por seguridad
+          return fechaRaw.replace(/-/g, '/').replace(' a ', ' - ');
         }
       };
 
-      // Si hay un día específico seleccionado, imprimimos solo ese. Si no, todos.
+      const fechaElegante = formatearFecha(asambleaActiva?.fecha);
+
+      // 1. Definición general del documento y estilos
+      const docDefinition: TDocumentDefinitions = {
+        pageSize: 'A4',
+        pageMargins: [50, 60, 50, 60],
+        
+        // 2. Cabecera repetitiva
+        header: function(currentPage, pageCount, pageSize) {
+            if (currentPage > 1) {
+                return {
+                    text: `${asambleaActiva?.tema || 'Programa'} - Pág. ${currentPage} de ${pageCount}`,
+                    alignment: 'right',
+                    margin: [0, 20, 50, 0],
+                    fontSize: 9,
+                    color: '#94a3b8'
+                };
+            }
+            return null;
+        },
+
+        content: [
+          // 3. Título Principal Centrado
+          { text: 'PROGRAMA DE ASAMBLEA', style: 'header', alignment: 'center' },
+          { text: asambleaActiva?.tema || 'Sin tema', style: 'subHeaderTema', alignment: 'center' },
+          { 
+              // 👉 AQUÍ USAMOS LA FECHA FORMATEADA
+              text: `Número: ${asambleaActiva?.identificador || '000'} | Fecha: ${fechaElegante}`, 
+              style: 'subHeaderMeta', 
+              alignment: 'center' 
+          },
+          // Línea decorativa
+          { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 495, y2: 0, lineWidth: 1, lineColor: '#cbd5e1' }], margin: [0, 10, 0, 30] }
+        ],
+
+        // 4. Diccionario de Estilos
+        styles: {
+          header: { fontSize: 24, bold: true, color: '#0f172a', margin: [0, 0, 0, 8], characterSpacing: 1 },
+          subHeaderTema: { fontSize: 16, bold: true, color: '#334155', margin: [0, 0, 0, 5] },
+          subHeaderMeta: { fontSize: 11, color: '#64748b', margin: [0, 0, 0, 0] },
+          
+          diaTitulo: { fontSize: 18, bold: true, color: '#2563eb', margin: [0, 20, 0, 10] },
+          sesionTitulo: { fontSize: 12, bold: true, color: '#ffffff', background: '#475569', margin: [0, 15, 0, 10], padding: [5, 2, 5, 2], alignment: 'center' },
+          
+          tablaHeader: { bold: true, fontSize: 10, color: '#1e293b', fillColor: '#f8fafc', margin: [0, 8, 0, 8] },
+          celdaHora: { fontSize: 10, bold: true, color: '#334155', margin: [0, 6, 0, 6] },
+          celdaNormal: { fontSize: 10, color: '#0f172a', margin: [0, 6, 0, 6], lineHeight: 1.2 },
+          textoGris: { fontSize: 8, color: '#64748b', italics: true }
+        },
+        
+        defaultStyle: {
+            columnGap: 20
+        }
+      };
+
       const diasAImprimir = filtroDia === 'Todos los dias' 
         ? ['viernes', 'sábado', 'domingo'] 
         : [filtroDia.toLowerCase()];
 
       diasAImprimir.forEach(dia => {
         if (programaAgrupado[dia]) {
-         (docDefinition.content as Content[]).push({ text: dia.toUpperCase(), style: 'diaTitulo' });
+         (docDefinition.content as Content[]).push({ text: dia.toUpperCase(), style: 'diaTitulo', pageBreak: 'before' });
 
           ['MAÑANA', 'TARDE'].forEach(sesion => {
             if (programaAgrupado[dia][sesion] && programaAgrupado[dia][sesion].length > 0) {
               
-              (docDefinition.content as Content[]).push({ text: sesion, style: 'sesionTitulo' });
+              (docDefinition.content as Content[]).push({ text: `SESIÓN DE LA ${sesion}`, style: 'sesionTitulo' });
 
               const body: any[] = [];
               
-              // No le ponemos fondo a la cabecera para que se vea más como un programa clásico
               body.push([
                 { text: 'HORA', style: 'tablaHeader' },
-                { text: 'DISCURSO', style: 'tablaHeader' },
+                { text: 'TEMA DEL DISCURSO', style: 'tablaHeader' },
                 { text: 'ORADOR', style: 'tablaHeader' }
               ]);
 
               programaAgrupado[dia][sesion].forEach((p: any) => {
-                const numBosquejo = p.numero_bosquejo ? `${p.numero_bosquejo} ` : '';
+                const numBosquejo = p.numero_bosquejo ? `[${p.numero_bosquejo}] ` : '';
                 const fuenteTag = formatearFuente(p.fuente);
 
                 body.push([
                   { text: p.hora_inicio || '--:--', style: 'celdaHora' },
-                  { text: [{ text: numBosquejo, bold: true }, { text: p.tema || '' }], style: 'celdaNormal' },
+                  { text: [{ text: numBosquejo, bold: true, color: '#2563eb' }, { text: p.tema || '' }], style: 'celdaNormal' },
                   { text: [{ text: `${p.nombre_orador || '---'}\n`, bold: true }, { text: fuenteTag, style: 'textoGris' }], style: 'celdaNormal' }
                 ]);
               });
@@ -145,23 +207,36 @@
               (docDefinition.content as Content[]).push({
                 table: {
                   headerRows: 1,
-                  widths: ['auto', '*', '*'],
+                  widths: [40, '*', 160], 
+                  // 👉 AQUÍ ESTÁ LA MAGIA: Evita que un discurso se corte a la mitad en dos páginas
+                  dontBreakRows: true,
                   body: body
                 },
-                layout: 'lightHorizontalLines',
-                margin: [0, 0, 0, 15]
+                layout: {
+                    hLineWidth: function (i: number, node: any) { return (i === 0 || i === node.table.body.length) ? 1 : 0.5; },
+                    vLineWidth: function (i: number, node: any) { return 0; },
+                    hLineColor: function (i: number, node: any) { return '#e2e8f0'; },
+                    paddingTop: function(i: number, node: any) { return 4; },
+                    paddingBottom: function(i: number, node: any) { return 4; }
+                },
+                margin: [0, 0, 0, 25]
               });
             }
           });
         }
       });
 
-      // Si no hay datos (ej. si filtró un día vacío)
+      if (docDefinition.content && Array.isArray(docDefinition.content)) {
+          const primerDiaIndex = docDefinition.content.findIndex((c: any) => c.style === 'diaTitulo');
+          if(primerDiaIndex !== -1) {
+              delete (docDefinition.content[primerDiaIndex] as any).pageBreak;
+          }
+      }
+
       if (partesFiltradas.length === 0) {
           (docDefinition.content as Content[]).push({ text: 'No hay datos del programa para mostrar en este filtro.', margin: [0, 20, 0, 0], italics: true, color: 'gray' });
       }
 
-      // Generar y Guardar
       const pdfDocGenerator = pdf.createPdf(docDefinition);
       const blob = await pdfDocGenerator.getBlob();
       const arrayBuffer = await blob.arrayBuffer();

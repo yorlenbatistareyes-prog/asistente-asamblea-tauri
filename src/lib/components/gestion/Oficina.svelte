@@ -20,6 +20,12 @@
 
   import { DB } from '$lib/services/db';
 
+  // --- IMPORTACIONES PARA EL PANEL DEL PRESIDENTE ---
+  import { get } from 'svelte/store';
+  import { configPDF } from '$lib/stores/pdfConfigStore';
+  import { generarPlantillaPresidenteDia } from '$lib/utils/plantillasPDF/plantillaPresidente';
+  import { generarYGuardarPdfMake } from '$lib/utils/generadorPDF';
+
   // --- ESTADO ---
   let asambleaId = 0; 
   let tabPrincipal = 'auxiliares'; 
@@ -66,6 +72,12 @@
         // 👇 Añadir la carga de plantillas aquí
         await cargarPlantillasEmail();
         await cargarPlantillasWhatsApp();
+
+        // 👇 CARGAR CONFIGURACIÓN DESDE LA BASE DE DATOS AL INICIAR 👇
+        const configGuardada = await DB.obtenerConfiguracionPDF();
+        if (configGuardada) {
+            configPDF.set(configGuardada);
+        }
         
         await Promise.all([ cargarDatos(), cargarHermanos() ]);
     }
@@ -383,11 +395,56 @@
           alert("Error al generar PDF: " + e);
       }
   }
+
+async function manejarExportacionPresidente() {
+        if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
+        
+        try {
+            const asamblea = JSON.parse(localStorage.getItem('asambleaActiva') || '{}');
+            const config = get(configPDF);
+            const dias = ['Viernes', 'Sábado', 'Domingo'];
+
+            let exportados = 0;
+
+            // Ahora iteramos y generamos un documento NUEVO por cada día
+            for (const dia of dias) {
+                const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+                
+                if (res && res.length > 0) {
+                    // Llamamos a la plantilla pasándole solo 1 día
+                    const docDef = generarPlantillaPresidenteDia(res, asamblea, config, dia);
+                    
+                    // Guarda el documento con el nombre del día
+                    await generarYGuardarPdfMake(docDef, `Tablero_Presidente_${dia}_${asamblea.identificador || '000'}`);
+                    exportados++;
+                }
+            }
+            
+            if (exportados > 0) {
+                console.log(`Se exportaron ${exportados} documentos independientes exitosamente.`);
+            }
+
+        } catch (error) {
+            console.error("Error al generar PDF del Presidente:", error);
+            alert("Error al generar el PDF: " + error);
+        }
+    }
+
+  // 1. FUNCIÓN DE GUARDADO (La que me preguntaste)
+    async function manejarCambioConfiguracion() {
+        await DB.guardarConfiguracionPDF($configPDF);
+        console.log("Configuración guardada en la base de datos");
+    }
 </script>
 
 <div class="contenedor-oficina">
     
     <div class="tabs-navegacion">
+
+        <button class:active={tabPrincipal === 'presidente'} on:click={() => tabPrincipal = 'presidente'}>
+           <Briefcase size={18}/> Presidente
+        </button>
+
         <button class:active={tabPrincipal === 'auxiliares'} on:click={() => tabPrincipal = 'auxiliares'}>
             <Users size={18}/> Auxiliares de oficina
         </button>
@@ -556,7 +613,103 @@
             </div>
         </div>
     {/if}
+
+   {#if tabPrincipal === 'presidente'}
+        <div class="area-fade-in">
+            <div class="header-seccion">
+                <div class="textos">
+                    <h2>Panel del Presidente</h2>
+                    <p>Configure las especificaciones del tablero de la asamblea para la oficina de la presidencia.</p>
+                </div>
+                <button class="btn-primary" on:click={manejarExportacionPresidente}>
+                    <Printer size={16}/> Generar PDF del Presidente
+                </button>
+            </div>
+
+            <div class="panel-configuracion-pdf">
+                <h3><Settings size={18} /> Dimensiones y Encabezado del Tablero</h3>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);">
+                    <button class="btn-outline" on:click={() => alert('Seleccionar archivo de imagen...')}>
+                        Agregar imagen de encabezado
+                    </button>
+                    <button class="btn-outline" style="border-color: var(--accent-danger); color: var(--accent-danger);">
+                        Eliminar imagen
+                    </button>
+                </div>
+                
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label>Ancho (pulgadas)</label>
+                        <input type="number" step="0.1" bind:value={$configPDF.ajustesTablero.anchoPulgadas} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
+                    </div>
+
+                    <div class="config-item">
+                        <label>Alto (pulgadas)</label>
+                        <input type="number" step="0.1" bind:value={$configPDF.ajustesTablero.altoPulgadas} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
+                    </div>
+
+                    <div class="config-item">
+                        <label>Desplazamiento X</label>
+                        <input type="number" step="1" bind:value={$configPDF.ajustesTablero.desplazamientoX} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
+                    </div>
+
+                    <div class="config-item">
+                        <label>Desplazamiento Y</label>
+                        <input type="number" step="1" bind:value={$configPDF.ajustesTablero.desplazamientoY} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
+                    </div>
+
+                    <div class="config-item" style="grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; margin: 10px 0;">
+                        <input 
+                            type="checkbox" 
+                            id="checkAMPM" 
+                            bind:checked={$configPDF.mostrarAMPM} 
+                            on:change={manejarCambioConfiguracion} 
+                            style="-webkit-appearance: checkbox !important; appearance: checkbox !important; width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; display: inline-block; margin: 0;" 
+                        />
+                        <label for="checkAMPM" style="cursor: pointer; text-transform: none; font-size: 15px; font-weight: 600; color: var(--text-main); user-select: none;">
+                            Mostrar AM/PM en los horarios
+                        </label>
+                    </div>
+
+                    <div class="config-item color-picker-item">
+                        <label>Color Canción / Oración</label>
+                        <div class="input-color-wrapper">
+                            <input type="color" bind:value={$configPDF.ajustesTablero.colorCancionOracion} on:change={manejarCambioConfiguracion} />
+                            <span>{$configPDF.ajustesTablero.colorCancionOracion}</span>
+                        </div>
+                    </div>
+
+                    <div class="config-item color-picker-item">
+                        <label>Color Bloque Viernes</label>
+                        <div class="input-color-wrapper">
+                            <input type="color" bind:value={$configPDF.coloresPorDia.viernes} on:change={manejarCambioConfiguracion} />
+                            <span>{$configPDF.coloresPorDia.viernes}</span>
+                        </div>
+                    </div>
+
+                    <div class="config-item color-picker-item">
+                        <label>Color Bloque Sábado</label>
+                        <div class="input-color-wrapper">
+                            <input type="color" bind:value={$configPDF.coloresPorDia.sabado} on:change={manejarCambioConfiguracion} />
+                            <span>{$configPDF.coloresPorDia.sabado}</span>
+                        </div>
+                    </div>
+
+                    <div class="config-item color-picker-item">
+                        <label>Color Bloque Domingo</label>
+                        <div class="input-color-wrapper">
+                            <input type="color" bind:value={$configPDF.coloresPorDia.domingo} on:change={manejarCambioConfiguracion} />
+                            <span>{$configPDF.coloresPorDia.domingo}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {/if}
+
 </div>
+
 
 {#if mostrarModalAsignar}
   <div class="modal-backdrop" on:click|self={cerrarModales}>
@@ -1374,5 +1527,89 @@
   .rol-box select {
     width: 100%;
   }
+}
+
+/* ===== PANEL DEL PRESIDENTE ===== */
+.panel-configuracion-pdf {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    margin-top: 10px;
+}
+
+.panel-configuracion-pdf h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.config-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.config-item label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-sec);
+    text-transform: uppercase;
+}
+
+.config-item select {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-body);
+    color: var(--text-main);
+    outline: none;
+    font-family: inherit;
+}
+
+.input-color-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-body);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+.input-color-wrapper input[type="color"] {
+    -webkit-appearance: none;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+    background: none;
+}
+.input-color-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.input-color-wrapper input[type="color"]::-webkit-color-swatch {
+    border: 2px solid rgba(0,0,0,0.1);
+    border-radius: 4px;
+}
+.input-color-wrapper span {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    font-family: monospace;
 }
 </style>
