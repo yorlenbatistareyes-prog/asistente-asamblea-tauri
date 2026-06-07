@@ -90,6 +90,42 @@ export function generarPlantillaPresidenteDia(
         width: anchoPuntos
     });
 
+   // 1.5. IMAGEN PERSONALIZADA (Auto-calculada a la esquina superior derecha)
+    if (config.ajustesTablero?.imagenEncabezado) {
+        contenidoDoc.push({
+            absolutePosition: { 
+                // La imagen parte de la posición 0,0 (esquina absoluta)
+                // Los desplazamientos solo se aplican si el usuario quiere moverla manualmente
+                x: config.ajustesTablero.desplazamientoX || 0, 
+                y: config.ajustesTablero.desplazamientoY || 0 
+            },
+            // Usamos una tabla invisible que ocupa exactamente el 100% del ancho del póster
+            table: {
+                widths: [anchoPuntos],
+                body: [
+                    [
+                        {
+                            image: config.ajustesTablero.imagenEncabezado,
+                            // MAGIA: 'fit' escala cualquier imagen proporcionalmente. 
+                            // Límite ancho: Mitad de la hoja. Límite alto: altoEncabezado (280)
+                            fit: [anchoPuntos / 2, altoEncabezado], 
+                            alignment: 'right' // Empuja la imagen contra el borde derecho
+                        }
+                    ]
+                ]
+            },
+            // Eliminamos todos los rellenos de la tabla para que toque los bordes 100%
+            layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                paddingLeft: () => 0,
+                paddingRight: () => 0,
+                paddingTop: () => 0,
+                paddingBottom: () => 0
+            }
+        });
+    }
+
     // 2. TEXTOS DEL ENCABEZADO
     contenidoDoc.push({
         text: dia.toUpperCase(),

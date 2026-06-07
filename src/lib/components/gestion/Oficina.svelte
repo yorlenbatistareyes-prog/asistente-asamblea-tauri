@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  
+  import { open } from '@tauri-apps/plugin-dialog'; // Para abrir el explorador
+  import { readFile } from '@tauri-apps/plugin-fs'; // Para leer el archivo
+
   // Iconos
   import { 
     Users, Search, X, Trash2, Phone, Mail, UserPlus, UserCheck, 
@@ -435,6 +437,48 @@ async function manejarExportacionPresidente() {
         await DB.guardarConfiguracionPDF($configPDF);
         console.log("Configuración guardada en la base de datos");
     }
+
+    async function seleccionarImagen() {
+    try {
+      // 1. Abrir el explorador de archivos nativo
+      const seleccion = await open({
+        multiple: false,
+        filters: [{
+          name: 'Imagen',
+          extensions: ['png', 'jpg', 'jpeg', 'webp']
+        }]
+      });
+
+      if (seleccion && typeof seleccion === 'string') {
+        // 2. Leer el archivo como bytes
+        const contenido = await readFile(seleccion);
+        
+        // 3. Convertir bytes a Base64 para guardarlo en el Store/DB
+        const base64 = btoa(
+          new Uint8Array(contenido)
+            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+        );
+        
+        const prefijo = `data:image/${seleccion.split('.').pop()};base64,`;
+        
+        // 4. Guardar en el store y en la DB
+        $configPDF.ajustesTablero.imagenEncabezado = prefijo + base64;
+        await manejarCambioConfiguracion();
+        
+        alert("✅ Imagen de encabezado cargada correctamente");
+      }
+    } catch (error) {
+      console.error("Error al cargar imagen:", error);
+      alert("❌ No se pudo cargar la imagen");
+    }
+  }
+
+  async function eliminarImagen() {
+    if (confirm("¿Deseas eliminar la imagen del encabezado?")) {
+      $configPDF.ajustesTablero.imagenEncabezado = null;
+      await manejarCambioConfiguracion();
+    }
+  }
 </script>
 
 <div class="contenedor-oficina">
@@ -629,13 +673,25 @@ async function manejarExportacionPresidente() {
             <div class="panel-configuracion-pdf">
                 <h3><Settings size={18} /> Dimensiones y Encabezado del Tablero</h3>
                 
-                <div style="display: flex; gap: 12px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);">
-                    <button class="btn-outline" on:click={() => alert('Seleccionar archivo de imagen...')}>
-                        Agregar imagen de encabezado
-                    </button>
-                    <button class="btn-outline" style="border-color: var(--accent-danger); color: var(--accent-danger);">
-                        Eliminar imagen
-                    </button>
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);">
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn-outline" on:click={seleccionarImagen}>
+                           <FileUp size={16} /> 
+                           {$configPDF.ajustesTablero.imagenEncabezado ? 'Cambiar imagen' : 'Agregar imagen de encabezado'}
+                        </button>
+        
+                        {#if $configPDF.ajustesTablero.imagenEncabezado}
+                            <button class="btn-outline" on:click={eliminarImagen} style="border-color: var(--accent-danger); color: var(--accent-danger);">
+                                <Trash2 size={16} /> Eliminar imagen
+                            </button>
+                        {/if}
+                    </div>
+
+                    {#if $configPDF.ajustesTablero.imagenEncabezado}
+                        <div style="width: 200px; height: 60px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: #eee;">
+                            <img src={$configPDF.ajustesTablero.imagenEncabezado} alt="Preview" style="width: 100%; height: 100%; object-fit: cover;" />
+                        </div>
+                    {/if}
                 </div>
                 
                 <div class="config-grid">
