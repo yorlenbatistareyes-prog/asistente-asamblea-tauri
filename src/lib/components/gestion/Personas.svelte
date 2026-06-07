@@ -183,9 +183,17 @@ async function guardarYcerrar() {
       {#each listaFiltrada as p}
         <div class="fila">
            <div class="col-nombre">
-             <span class="txt-nombre">{p.nombre_completo}</span>
-             <span class="txt-sub">{p.telefono || '-'} {p.email ? `• ${p.email}` : ''}</span>
-           </div>
+              <span class="txt-nombre">{p.nombre_completo}</span>
+              <span class="txt-sub">
+                {p.telefono || '-'}
+                {#if p.email}
+                    • {p.email}
+                {:else}
+                    • <i style="opacity: 0.6;">Sin correo</i>
+                {/if}
+              </span>
+            </div>
+
            <span class="tag-cong">{p.nombre_congregacion || 'Sin Asignar'}</span>
           <span class="tag-priv">{p.privilegios || 'Publicador'}</span>
           

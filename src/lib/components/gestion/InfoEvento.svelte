@@ -5,6 +5,8 @@
   import { vistaActual } from '$lib/stores/appStore';
   import { DB } from '$lib/services/db';
 
+  import { confirm } from '@tauri-apps/plugin-dialog';
+
   // --- TIPTAP Y EXTENSIONES ---
   import { Editor, Extension } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
@@ -97,10 +99,51 @@
   // --- PRESIDENTE ---
   let presidente: any = null;
   let editandoPresidente = false;
-  let tempPresidente = {
-    nombre: '', apellido: '', segundo_nombre: '', sufijo: '',
-    correo_jw: '', correo_normal: '', telefono: ''
-  };
+  let tempPresidente: any = { nombre: '', apellido: '', segundo_nombre: '', sufijo: '', correo_jw: '', correo_normal: '', telefono: '' };
+
+  // Variables para el buscador del directorio
+  let personasDirectorio: any[] = [];
+  let busquedaPersona = "";
+  let mostrarSugerencias = false;
+
+  // Filtro reactivo: busca coincidencias mientras escribes
+  $: sugerenciasPersonas = busquedaPersona 
+      ? personasDirectorio.filter(p => p.nombre_completo.toLowerCase().includes(busquedaPersona.toLowerCase()))
+      : personasDirectorio;
+
+  // Función para cargar los hermanos de la base de datos
+  async function cargarDirectorioPersonas() {
+      try {
+          personasDirectorio = await invoke('obtener_personas', { asambleaId });
+      } catch (error) {
+          console.error("Error al cargar el directorio:", error);
+      }
+  }
+
+  // Función que se ejecuta al hacer clic en un hermano de la lista
+  function seleccionarPersonaDeLista(persona: any) {
+      // Como en la BD está el nombre completo, lo separamos mágicamente
+      const partes = persona.nombre_completo.trim().split(' ');
+      const nombre = partes[0] || '';
+      const apellido = partes.slice(1).join(' ') || '';
+
+      // Inyectamos los datos en el formulario temporal
+      tempPresidente = {
+          ...tempPresidente,
+          persona_id: persona.id, // ¡Clave! Esto evita que se cree duplicado al guardar
+          nombre: nombre,
+          segundo_nombre: '',
+          apellido: apellido,
+          sufijo: '',
+          correo_jw: persona.email || '',
+          correo_normal: '',
+          telefono: persona.telefono || ''
+      };
+
+      // Cerramos el buscador y mostramos a quién seleccionamos
+      busquedaPersona = persona.nombre_completo;
+      mostrarSugerencias = false;
+  }
 
   // --- ESTADOS DE ACORDEÓN ---
   let verEnsayosPanel = false;
@@ -155,15 +198,70 @@
 
   function cancelarEdicionPresidente() { editandoPresidente = false; }
 
-  async function guardarPresidente() {
-    if (!tempPresidente.nombre || !tempPresidente.apellido) return alert("El nombre y el apellido son obligatorios.");
-    presidente = { ...tempPresidente };
-    editandoPresidente = false;
-    await guardar(); 
+async function guardarPresidente() {
+    if (!tempPresidente.nombre || !tempPresidente.apellido) {
+        return alert("El nombre y el apellido son obligatorios.");
+    }
+
+    try {
+        if (!tempPresidente.id && !tempPresidente.persona_id) {
+            const nombreCompleto = `${tempPresidente.nombre} ${tempPresidente.segundo_nombre || ''} ${tempPresidente.apellido} ${tempPresidente.sufijo || ''}`.replace(/\s+/g, ' ').trim();
+
+            // 👇 NUEVO: Buscamos en la base de datos si ya existe alguien con ese nombre
+            const personasExistentes = await invoke('obtener_personas', { asambleaId }) as any[];
+            const personaDuplicada = personasExistentes.find(p => p.nombre_completo.toLowerCase() === nombreCompleto.toLowerCase());
+
+            if (personaDuplicada) {
+                // Si el hermano ya está en el directorio, lo reciclamos vinculando su ID
+                tempPresidente.persona_id = personaDuplicada.id;
+                console.log("El presidente ya existía en el directorio. Reutilizando ID:", personaDuplicada.id);
+            } else {
+                // Si realmente no existe, entonces sí lo creamos
+                // Si realmente no existe, entonces sí lo creamos
+                const nuevaPersona = {
+                    asambleaId: asambleaId, 
+                    idCongregacion: 0, 
+                    nombreCompleto: nombreCompleto,
+                    email: tempPresidente.correo_jw || tempPresidente.correo_normal || '', 
+                    telefono: tempPresidente.telefono || '',
+                    sexo: "M",
+                    privilegios: "ANCIANO"
+                };
+
+                // 🔥 AHORA SÍ PASA POR TU EMBUDO EXACTO 🔥
+                const personaCreadaId = await DB.registrarPersona(nuevaPersona);
+                tempPresidente.persona_id = personaCreadaId;
+            }
+        }
+
+        // Actualizamos la vista y guardamos en la asamblea
+        presidente = { ...tempPresidente };
+        editandoPresidente = false;
+        await guardar(); 
+
+    } catch (error) {
+        console.error("Error al vincular el presidente:", error);
+        alert("Ocurrió un error al guardar al presidente en el directorio de personas.");
+    }
   }
 
   async function eliminarPresidente() {
-    if (confirm("¿Deseas eliminar al presidente asignado?")) { presidente = null; await guardar(); }
+      // 1. Lanzamos la alerta nativa de confirmación
+      const estaSeguro = await confirm(
+          "¿Estás seguro de que deseas quitar al presidente de esta asamblea?", 
+          { 
+              title: 'Confirmar Eliminación', 
+              kind: 'warning' 
+          }
+      );
+      
+      // 2. Si el usuario cancela, detenemos la función
+      if (!estaSeguro) return;
+
+      // 3. Tu código actual de eliminación va aquí abajo
+      // (Probablemente tienes algo como esto:)
+      presidente = null;
+      await guardar(); // O la función que uses para guardar los cambios
   }
 
   // --- FUNCIONES DEL MODAL GENERAL ---
@@ -612,13 +710,35 @@
         <div class="presidente-form">
             <h4 style="margin: 0 0 15px 0; color: var(--text-main);">Agregar presidente</h4>
             
-            <div class="campo mb-15">
-                <label>Seleccionar del directorio de personas</label>
-                <div class="search-box">
-                    <Search size={16} color="var(--text-sec)" />
-                    <input type="text" placeholder="Seleccionar del directorio de personas" disabled />
+            <div class="campo" style="position: relative; z-index: 50;">
+                <div class="icon-input">
+                    <Search size={14} class="ico"/>
+                    <input 
+                         type="text" 
+                         placeholder="Buscar en el directorio..." 
+                         bind:value={busquedaPersona}
+                         on:focus={() => { mostrarSugerencias = true; cargarDirectorioPersonas(); }}
+                         on:blur={() => setTimeout(() => mostrarSugerencias = false, 200)}
+                    />
                 </div>
-            </div>
+    
+                {#if mostrarSugerencias && sugerenciasPersonas.length > 0}
+                    <div class="dropdown-sugerencias">
+                        {#each sugerenciasPersonas as persona}
+                            <div class="sugerencia-item" on:mousedown|preventDefault={() => seleccionarPersonaDeLista(persona)}>
+                                <div class="sug-nombre">
+                                    <User size={12} style="margin-right: 4px; opacity: 0.7;"/> 
+                                    {persona.nombre_completo}
+                                </div>
+                                <div class="sug-datos">
+                                     {persona.telefono || '-'} 
+                                     {#if persona.email} • {persona.email} {/if}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+              </div>
 
             <div class="divider-text"><span>O ingresar manualmente</span></div>
 
@@ -1201,4 +1321,83 @@ input:disabled { background: var(--bg-body); color: var(--text-sec); cursor: not
 .btn-icon-minimal { background: transparent; border: none; color: var(--text-sec); cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
 .btn-icon-minimal:hover { background: var(--border); color: var(--text-main); }
 .btn-icon-minimal.trash:hover { color: #e11d48; background: #ffe4e6; }
+
+/* ===== ESTILOS PARA EL BUSCADOR DE PERSONAS ===== */
+  .dropdown-sugerencias {
+      position: absolute;
+      top: calc(100% + 5px);
+      left: 0;
+      right: 0;
+      background: var(--bg-card, #ffffff);
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 100;
+  }
+
+  .sugerencia-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border, #f1f5f9);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+  }
+
+  .sugerencia-item:last-child {
+      border-bottom: none;
+  }
+
+  .sugerencia-item:hover {
+      background: var(--hover-bg, #f8fafc);
+      padding-left: 18px; /* Pequeño efecto de deslizamiento */
+  }
+
+  .sug-nombre {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+  }
+
+  .sug-datos {
+      font-size: 11px;
+      color: var(--text-sec, #64748b);
+      padding-left: 16px; /* Para alinear con el texto del nombre, saltando el icono */
+  }
+
+  /* Personalizar el scrollbar del menú desplegable */
+  .dropdown-sugerencias::-webkit-scrollbar {
+      width: 6px;
+  }
+  .dropdown-sugerencias::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+  }
+
+/* ===== ESTILOS PARA EL INPUT CON ICONO ===== */
+  .icon-input {
+      position: relative;
+      width: 100%;
+  }
+
+  .icon-input :global(.ico) {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-sec, #64748b);
+      pointer-events: none; /* Evita que la lupa bloquee el clic del ratón */
+  }
+
+  .icon-input input {
+      width: 100%;
+      padding-left: 35px; /* Deja espacio para que el texto no pise la lupa */
+      box-sizing: border-box;
+  }
+  
 </style>

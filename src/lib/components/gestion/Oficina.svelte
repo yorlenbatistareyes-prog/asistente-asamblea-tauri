@@ -9,7 +9,7 @@
   import { 
     Users, Search, X, Trash2, Phone, Mail, UserPlus, UserCheck, 
     Settings, ChevronRight, MessageCircle, ClipboardList, Printer,
-    Briefcase, Calendar, Clock, Edit2, Download, FileUp
+    Briefcase, Calendar, Clock, Edit2, Download, FileUp, User
   } from 'lucide-svelte';
 
   import { exportarOficinaPDF } from '$lib/utils/exportar';
@@ -37,6 +37,8 @@
       personal: [] as any[],
       asignaciones: {} 
   };
+
+  let presidenteOficina: any = null; // 👈 Para guardar los datos del presidente
 
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
@@ -79,6 +81,15 @@
         const configGuardada = await DB.obtenerConfiguracionPDF();
         if (configGuardada) {
             configPDF.set(configGuardada);
+        }
+// 👇 NUEVO: Cargar al Presidente de esta asamblea 👇
+        const asambleaActual: any = await DB.obtenerAsambleaPorId(asambleaId); // 👈 Añadido ": any" aquí
+        if (asambleaActual && asambleaActual.presidente) {
+            try {
+                presidenteOficina = typeof asambleaActual.presidente === 'string' 
+                    ? JSON.parse(asambleaActual.presidente) 
+                    : asambleaActual.presidente;
+            } catch (e) { console.error("Error al cargar presidente", e); }
         }
         
         await Promise.all([ cargarDatos(), cargarHermanos() ]);
@@ -486,7 +497,7 @@ async function manejarExportacionPresidente() {
     <div class="tabs-navegacion">
 
         <button class:active={tabPrincipal === 'presidente'} on:click={() => tabPrincipal = 'presidente'}>
-           <Briefcase size={18}/> Presidente
+           <User size={18}/> Presidente
         </button>
 
         <button class:active={tabPrincipal === 'auxiliares'} on:click={() => tabPrincipal = 'auxiliares'}>
@@ -663,15 +674,63 @@ async function manejarExportacionPresidente() {
             <div class="header-seccion">
                 <div class="textos">
                     <h2>Panel del Presidente</h2>
-                    <p>Configure las especificaciones del tablero de la asamblea para la oficina de la presidencia.</p>
                 </div>
-                <button class="btn-primary" on:click={manejarExportacionPresidente}>
-                    <Printer size={16}/> Generar PDF del Presidente
-                </button>
+                  
             </div>
 
+            <div class="panel-configuracion-pdf" style="margin-bottom: 20px;">
+                <h3><User size={18} /> Presidente Asignado</h3>
+                
+                {#if presidenteOficina}
+                    <div class="presidente-filled" style="border: none; padding: 0; background: transparent;">
+                        <div class="pres-info-flex">
+                            <div class="icon-circle active-circle-blue">
+                                <User size={22} />
+                            </div>
+                            <div class="pres-data">
+                                <div class="pres-header-row">
+                                    <h4>{presidenteOficina.nombre} {presidenteOficina.segundo_nombre} {presidenteOficina.apellido} {presidenteOficina.sufijo}</h4>
+                                    <span class="badge-blue">Presidente</span>
+                                </div>
+                                <div class="pres-contact-stack">
+                                    {#if presidenteOficina.correo_jw || presidenteOficina.correo_normal}
+                                        <div class="contact-item">
+                                            <Mail size={15} />
+                                            <span>{presidenteOficina.correo_jw || presidenteOficina.correo_normal}</span>
+                                        </div>
+                                    {/if}
+                                    {#if presidenteOficina.telefono}
+                                        <div class="contact-item">
+                                            <Phone size={15} />
+                                            <span>{presidenteOficina.telefono}</span>
+                                        </div>
+                                    {/if}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {:else}
+                    <div class="vacio-absoluto" style="padding: 30px; border: 1px dashed var(--border); background: var(--bg-body); margin-top: 10px;">
+                        <User size={30} color="#cbd5e1"/>
+                        <p style="margin-top: 10px; color: var(--text-sec);">No se ha asignado un presidente para esta asamblea.</p>
+                        <span style="font-size: 12px; color: var(--text-sec); opacity: 0.8;">Vaya a la pestaña "Información de la asamblea" para agregarlo.</span>
+                    </div>
+                {/if}
+            </div>
+            
+
             <div class="panel-configuracion-pdf">
-                <h3><Settings size={18} /> Dimensiones y Encabezado del Tablero</h3>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; padding: 0; border: none;"><Settings size={18} /> Dimensiones y Encabezado del Tablero</h3>
+                        <p style="margin: 0; font-size: 13px; color: var(--text-sec);">Configure las especificaciones del tablero de la asamblea para la oficina de la presidencia.</p>
+                    </div>
+                    
+                    <button class="btn-primary" on:click={manejarExportacionPresidente}>
+                        <Printer size={16}/> Generar PDFs por día
+                    </button>
+                </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);">
                     <div style="display: flex; gap: 12px;">
@@ -679,7 +738,7 @@ async function manejarExportacionPresidente() {
                            <FileUp size={16} /> 
                            {$configPDF.ajustesTablero.imagenEncabezado ? 'Cambiar imagen' : 'Agregar imagen de encabezado'}
                         </button>
-        
+
                         {#if $configPDF.ajustesTablero.imagenEncabezado}
                             <button class="btn-outline" on:click={eliminarImagen} style="border-color: var(--accent-danger); color: var(--accent-danger);">
                                 <Trash2 size={16} /> Eliminar imagen
@@ -1668,4 +1727,15 @@ async function manejarExportacionPresidente() {
     color: var(--text-main);
     font-family: monospace;
 }
+
+/* --- ESTILOS TARJETA PRESIDENTE (LECTURA) --- */
+.presidente-filled { display: flex; justify-content: space-between; align-items: flex-start; }
+.pres-info-flex { display: flex; align-items: flex-start; gap: 15px; }
+.icon-circle { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.active-circle-blue { background: rgba(59, 130, 246, 0.1); width: 45px; height: 45px; color: #2563eb; }
+.pres-data h4 { margin: 0; font-size: 16px; color: var(--text-main); font-weight: 600; }
+.pres-header-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.badge-blue { background: rgba(59, 130, 246, 0.1); color: #2563eb; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.pres-contact-stack { display: flex; flex-direction: column; gap: 8px; }
+.contact-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
 </style>
