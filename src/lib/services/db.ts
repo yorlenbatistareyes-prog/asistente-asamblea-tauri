@@ -27,6 +27,10 @@ export const DB = {
         return await invoke('obtener_asambleas');
     },
 
+    async obtenerAsambleaPorId(id: number) {
+        return await invoke('obtener_asamblea_por_id', { id });
+    },
+
     // --- ESCRITURA BÁSICA ---
     async crearAsamblea(datos: any) {
         const resultado = await invoke('crear_asamblea', datos);

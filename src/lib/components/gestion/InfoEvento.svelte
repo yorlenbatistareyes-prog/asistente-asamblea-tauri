@@ -21,8 +21,8 @@
   import Panel from '$lib/components/ui/Panel.svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
 
-  
   import CompartirAsamblea from '$lib/components/gestion/CompartirAsamblea.svelte';
+  
   // --- ICONOS ---
   import { 
     Save, Calendar, MapPin, Bookmark, Clock, Info, 
@@ -30,7 +30,7 @@
     AlignCenter, AlignRight, AlignJustify, Eraser, Building, Users, Plus, X, 
     MonitorPlay, FileText, Palette, Link as LinkIcon, ListTodo,
     ListOrdered, Minus, IndentDecrease, IndentIncrease, Edit, Pencil, 
-    Map, Flag, FileSpreadsheet, ChevronDown } from 'lucide-svelte';
+    Map, Flag, FileSpreadsheet, ChevronDown, User, Search, Trash2, Mail, Phone } from 'lucide-svelte';
 
   // --- EXTENSIONES PERSONALIZADAS (TIPTAP) ---
   const FontSize = Extension.create({
@@ -94,6 +94,14 @@
   let lugar = "";
   let idioma = "Español";
 
+  // --- PRESIDENTE ---
+  let presidente: any = null;
+  let editandoPresidente = false;
+  let tempPresidente = {
+    nombre: '', apellido: '', segundo_nombre: '', sufijo: '',
+    correo_jw: '', correo_normal: '', telefono: ''
+  };
+
   // --- ESTADOS DE ACORDEÓN ---
   let verEnsayosPanel = false;
   let verOrientacionesPanel = false;
@@ -138,6 +146,26 @@
   let tempEnsayos = { ensayoLugar: '', ensayoFecha: '', ensayoHora: '', htmlNotas: '' };
   let tempOrientaciones = { htmlOrientaciones: '', instruccionesEsp: '', jwStreamStudio: false };
  
+  // --- FUNCIONES PRESIDENTE ---
+  function iniciarEdicionPresidente() {
+    if (presidente) { tempPresidente = { ...presidente }; } 
+    else { tempPresidente = { nombre: '', apellido: '', segundo_nombre: '', sufijo: '', correo_jw: '', correo_normal: '', telefono: '' }; }
+    editandoPresidente = true;
+  }
+
+  function cancelarEdicionPresidente() { editandoPresidente = false; }
+
+  async function guardarPresidente() {
+    if (!tempPresidente.nombre || !tempPresidente.apellido) return alert("El nombre y el apellido son obligatorios.");
+    presidente = { ...tempPresidente };
+    editandoPresidente = false;
+    await guardar(); 
+  }
+
+  async function eliminarPresidente() {
+    if (confirm("¿Deseas eliminar al presidente asignado?")) { presidente = null; await guardar(); }
+  }
+
   // --- FUNCIONES DEL MODAL GENERAL ---
   function abrirModalDetalles() {
     tempGeneral = {
@@ -367,6 +395,13 @@
         htmlOrientaciones = asamblea.recorridos_info || "";
         htmlNotas = asamblea.ensayo_notas || "";
 
+        // 🔥 CARGAR PRESIDENTE
+        if (asamblea.presidente) {
+            try {
+                presidente = typeof asamblea.presidente === 'string' ? JSON.parse(asamblea.presidente) : asamblea.presidente;
+            } catch (e) { console.error("Error al cargar presidente", e); }
+        }
+
         tempEnsayos = { 
             ensayoLugar, 
             ensayoFecha, 
@@ -424,14 +459,28 @@
 
   async function guardar() {
     try {
-      // 🔥 USAMOS EL EMBUDO PARA GUARDAR Y AVISAR AL RADAR
+      // 🔥 CONEXIÓN EXCLUSIVA CON EL EMBUDO DE LA BASE DE DATOS
       await DB.guardarInfoEvento({
-        id: asambleaId, tema, fecha, identificador, lugar, idioma,
-        ensayoLugar, ensayoFecha, ensayoHora, ensayoNotas: htmlNotas,
-        recorridosInfo: htmlOrientaciones, instruccionesEsp, esJwStream: jwStreamStudio
+        id: asambleaId, 
+        tema, 
+        fecha, 
+        identificador, 
+        lugar, 
+        idioma,
+        ensayoLugar, 
+        ensayoFecha, 
+        ensayoHora, 
+        ensayoNotas: htmlNotas,
+        recorridosInfo: htmlOrientaciones, 
+        instruccionesEsp, 
+        esJwStream: jwStreamStudio,
+        // Enviamos el objeto del presidente serializado como texto a la BD
+        presidente: presidente ? JSON.stringify(presidente) : null 
       });
       alert("✅ Configuración guardada correctamente");
-    } catch (e) { alert("❌ Error al guardar: " + e); }
+    } catch (e) { 
+      alert("❌ Error al guardar: " + e); 
+    }
   }
   
 </script>
@@ -504,6 +553,96 @@
         <button class="btn-azul"><FileSpreadsheet size={16} strokeWidth={2.5}/> Importar desde CSV</button>
       </div>
     </div>
+  </Panel>
+
+  <Panel padding="30px" clasesExtra="tarjeta-evento">
+    <div style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 5px 0; color: var(--text-main); font-size: 1.1rem;">Presidente de la asamblea</h3>
+        <p style="margin: 0; font-size: 13px; color: var(--text-sec);">Esta persona envía y recibe correos electrónicos de la asamblea.</p>
+    </div>
+
+    {#if !editandoPresidente}
+        {#if !presidente}
+            <div class="presidente-empty">
+                <div class="icon-circle"><User size={30} color="#94a3b8" /></div>
+                <p>Aún no se ha asignado un presidente</p>
+                <button class="btn-primary-blue" on:click={iniciarEdicionPresidente}>Agregar presidente</button>
+            </div>
+        {:else}
+            <div class="presidente-filled">
+                <div class="pres-info-flex">
+                    <div class="icon-circle active-circle-blue">
+                        <User size={22} />
+                    </div>
+                    
+                    <div class="pres-data">
+                        <div class="pres-header-row">
+                            <h4>{presidente.nombre} {presidente.segundo_nombre} {presidente.apellido} {presidente.sufijo}</h4>
+                            <span class="badge-blue">Vinculado al directorio de personas</span>
+                        </div>
+                        
+                        <div class="pres-contact-stack">
+                            {#if presidente.correo_jw || presidente.correo_normal}
+                                <div class="contact-item">
+                                    <Mail size={15} />
+                                    <span>{presidente.correo_jw || presidente.correo_normal}</span>
+                                </div>
+                            {/if}
+                            {#if presidente.telefono}
+                                <div class="contact-item">
+                                    <Phone size={15} />
+                                    <span>{presidente.telefono}</span>
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pres-actions-minimal">
+                    <button class="btn-icon-minimal" on:click={iniciarEdicionPresidente} title="Editar">
+                        <Pencil size={18} />
+                    </button>
+                    <button class="btn-icon-minimal trash" on:click={eliminarPresidente} title="Eliminar">
+                        <Trash2 size={18} />
+                    </button>
+                </div>
+            </div>
+        {/if}
+    {:else}
+        <div class="presidente-form">
+            <h4 style="margin: 0 0 15px 0; color: var(--text-main);">Agregar presidente</h4>
+            
+            <div class="campo mb-15">
+                <label>Seleccionar del directorio de personas</label>
+                <div class="search-box">
+                    <Search size={16} color="var(--text-sec)" />
+                    <input type="text" placeholder="Seleccionar del directorio de personas" disabled />
+                </div>
+            </div>
+
+            <div class="divider-text"><span>O ingresar manualmente</span></div>
+
+            <div class="grid-2 mb-15">
+                <div class="campo"><label>Nombre <span style="color:red">*</span></label><input type="text" bind:value={tempPresidente.nombre} /></div>
+                <div class="campo"><label>Apellido <span style="color:red">*</span></label><input type="text" bind:value={tempPresidente.apellido} /></div>
+            </div>
+            <div class="grid-2 mb-15">
+                <div class="campo"><label>Segundo nombre</label><input type="text" bind:value={tempPresidente.segundo_nombre} /></div>
+                <div class="campo"><label>Sufijo</label><input type="text" bind:value={tempPresidente.sufijo} /></div>
+            </div>
+            <div class="campo mb-15">
+                <label>Correo electrónico JW.org <span style="font-weight: 400; color: var(--text-sec);">— Se usa para evitar duplicados de oradores</span></label>
+                <input type="email" bind:value={tempPresidente.correo_jw} />
+            </div>
+            <div class="campo mb-15"><label>Dirección de correo electrónico</label><input type="email" bind:value={tempPresidente.correo_normal} /></div>
+            <div class="campo mb-15"><label>Teléfono móvil</label><input type="text" bind:value={tempPresidente.telefono} /></div>
+
+            <div class="form-footer">
+                <button class="btn-cancel-outline" on:click={cancelarEdicionPresidente}>Cancelar</button>
+                <button class="btn-primary-blue" on:click={guardarPresidente}>Crear</button>
+            </div>
+        </div>
+    {/if}
   </Panel>
 
   <div class="grupo-acordeones">
@@ -1018,4 +1157,48 @@ input:disabled { background: var(--bg-body); color: var(--text-sec); cursor: not
   .group { flex-wrap: wrap; justify-content: center; }
   .sep { display: none; } /* Ocultar separadores en móvil para ganar espacio */
 }
+
+/* ========================================
+   DISEÑO DEL PRESIDENTE
+   ======================================== */
+.presidente-empty { border: 1px dashed var(--border); border-radius: 8px; padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-body); margin-top: 10px;}
+.icon-circle { width: 60px; height: 60px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; margin-bottom: 15px; }
+.presidente-empty p { margin: 0 0 20px 0; color: var(--text-sec); font-size: 14px; }
+
+/* Botón Principal Azul */
+.btn-primary-blue { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-primary-blue:hover { background: #1d4ed8; }
+
+/* Formulario */
+.presidente-form { border: 1px solid var(--border); padding: 25px; border-radius: 8px; background: var(--bg-card); }
+.search-box { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; background: var(--input-bg); }
+.search-box input { border: none; outline: none; background: transparent; padding: 10px 8px; box-shadow: none; width: 100%; }
+.divider-text { display: flex; align-items: center; text-align: center; color: var(--text-sec); font-size: 12px; margin: 25px 0; }
+.divider-text::before, .divider-text::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
+.divider-text span { padding: 0 10px; }
+.form-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; border-top: 1px solid var(--border); padding-top: 15px; }
+.btn-cancel-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-cancel-outline:hover { background: var(--bg-body); }
+
+/* --- ESTADO LLENO (NUEVO DISEÑO ELEGANTE Y AZUL) --- */
+.presidente-filled { border: 1px solid var(--border); padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: flex-start; background: var(--bg-card); }
+.pres-info-flex { display: flex; align-items: flex-start; gap: 15px; }
+
+/* Círculo Azul */
+.active-circle-blue { background: rgba(59, 130, 246, 0.1); width: 45px; height: 45px; margin-bottom: 0; color: #2563eb; }
+
+/* Textos y Etiquetas */
+.pres-data h4 { margin: 0; font-size: 16px; color: var(--text-main); font-weight: 600; }
+.pres-header-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.badge-blue { background: rgba(59, 130, 246, 0.1); color: #2563eb; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+/* Contactos en pila vertical */
+.pres-contact-stack { display: flex; flex-direction: column; gap: 8px; }
+.contact-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+
+/* Botones de acción minimalistas (Solo iconos) */
+.pres-actions-minimal { display: flex; gap: 8px; }
+.btn-icon-minimal { background: transparent; border: none; color: var(--text-sec); cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+.btn-icon-minimal:hover { background: var(--border); color: var(--text-main); }
+.btn-icon-minimal.trash:hover { color: #e11d48; background: #ffe4e6; }
 </style>

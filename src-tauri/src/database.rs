@@ -313,6 +313,18 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN asistencia_d_pm INTEGER DEFAULT 0", []);
     let _ = conn.execute("ALTER TABLE asambleas ADD COLUMN bautismos INTEGER DEFAULT 0", []);
 
+    // --- PERSISTENCIA DEL PRESIDENTE (MIGRACIÓN ROBUSTA) ---
+    match conn.execute("ALTER TABLE asambleas ADD COLUMN presidente TEXT", []) {
+        Ok(_) => println!("✅ Columna 'presidente' añadida con éxito a la tabla asambleas."),
+        Err(e) => {
+            let err_msg = e.to_string();
+            if err_msg.contains("duplicate column name") {
+                println!("ℹ️ La columna 'presidente' ya existe en la base de datos.");
+            } else {
+                eprintln!("❌ Error crítico al intentar añadir la columna 'presidente': {}", e);
+            }
+        }
+    }
     
     // --- 10. RECORDATORIOS DE ORADORES ---
     conn.execute(

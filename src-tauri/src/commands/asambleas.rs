@@ -75,6 +75,7 @@ pub fn guardar_info_evento(
     recorridos_info: String,
     instrucciones_esp: String,
     es_jw_stream: bool,
+    presidente: Option<String>,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
     let stream_val = if es_jw_stream { 1 } else { 0 };
@@ -85,13 +86,13 @@ pub fn guardar_info_evento(
                 tema=?1, fecha=?2, identificador=?3, lugar=?4, idioma=?5,
                 ensayo_lugar=?6, ensayo_fecha=?7, ensayo_hora=?8, 
                 ensayo_notas=?9, recorridos_info=?10, instrucciones_esp=?11, 
-                jw_stream_studio=?12 
-              WHERE id=?13",
+                jw_stream_studio=?12, presidente=?13  
+              WHERE id=?14",
             params![
                 tema, fecha, identificador, lugar, idioma,
                 ensayo_lugar, ensayo_fecha, ensayo_hora, 
                 ensayo_notas, recorridos_info, instrucciones_esp, 
-                stream_val, actual_id
+                stream_val, presidente, actual_id
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -100,11 +101,11 @@ pub fn guardar_info_evento(
         conn.execute(
             "INSERT INTO asambleas (
                 tema, fecha, identificador, lugar, idioma, ensayo_lugar, ensayo_fecha, ensayo_hora, 
-                ensayo_notas, recorridos_info, instrucciones_esp, jw_stream_studio
-            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                ensayo_notas, recorridos_info, instrucciones_esp, jw_stream_studio, presidente
+            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12, ?13)",
             params![
                 tema, fecha, identificador, lugar, idioma, ensayo_lugar, ensayo_fecha, ensayo_hora, 
-                ensayo_notas, recorridos_info, instrucciones_esp, stream_val
+                ensayo_notas, recorridos_info, instrucciones_esp, stream_val, presidente
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -207,7 +208,7 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Valu
             prog_super_id, prog_aux_id,
             aloj_super_id, aloj_aux_id,
             audio_video_super_id, video_super_id, audio_super_id, plataforma_super_id,
-            bautismo_super_id, bautismo_aux_id
+            bautismo_super_id, bautismo_aux_id, presidente
         FROM asambleas 
         ORDER BY id DESC LIMIT 1
     ";
@@ -243,6 +244,7 @@ pub fn obtener_asamblea_activa(app: AppHandle) -> Result<Option<serde_json::Valu
                 "plataforma_super_id": row.get::<_, Option<i32>>(22).ok(),
                 "bautismo_super_id": row.get::<_, Option<i32>>(23).ok(),
                 "bautismo_aux_id": row.get::<_, Option<i32>>(24).ok(),
+                "presidente": row.get::<_, Option<String>>(25).ok(),
             }))
         })
         .optional()
@@ -268,7 +270,7 @@ pub fn obtener_asamblea_por_id(
             prog_super_id, prog_aux_id,
             aloj_super_id, aloj_aux_id,
             audio_video_super_id, video_super_id, audio_super_id, plataforma_super_id,
-            bautismo_super_id, bautismo_aux_id
+            bautismo_super_id, bautismo_aux_id, presidente
         FROM asambleas 
         WHERE id = ?1
     ";
@@ -304,6 +306,7 @@ pub fn obtener_asamblea_por_id(
                 "plataforma_super_id": row.get::<_, Option<i32>>(22).ok(),
                 "bautismo_super_id": row.get::<_, Option<i32>>(23).ok(),
                 "bautismo_aux_id": row.get::<_, Option<i32>>(24).ok(),
+                "presidente": row.get::<_, Option<String>>(25).ok(),
             }))
         })
         .optional()
