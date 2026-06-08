@@ -25,16 +25,92 @@ const check = (valor: boolean) => valor ? 'SÍ' : '-';
 const estado = (txt: string) => txt === 'Confirmado' ? 'SÍ' : '-';
 
 /**
- * EXPORTAR PROGRAMA
- * Genera el PDF del programa (Orientación Horizontal para que quepan las columnas)
+ * EXPORTAR PROGRAMA - Versión corregida (sin fillColor en celdas)
  */
-export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
+export async function exportarProgramaPDF(partes: any[], tituloDia: string, coloresSeries?: Map<string, string>) {
     if (!partes || !Array.isArray(partes) || partes.length === 0) {
         alert("No hay datos para exportar.");
         return;
     }
 
-    // 1. Obtener Datos
+    // --- Funciones auxiliares (definidas localmente para evitar errores) ---
+    const check = (valor: boolean) => valor ? 'SÍ' : '-';
+    const estado = (txt: string) => txt === 'Confirmado' ? 'SÍ' : '-';
+
+    function getColorHex(colorName: string): string {
+        const mapa: Record<string, string> = {
+            'naranja': '#f97316',
+            'azul': '#3b82f6',
+            'verde': '#10b981',
+            'morado': '#8b5cf6',
+            'rojo': '#ef4444',
+            'gris': '#64748b'
+        };
+        return mapa[colorName] || '';
+    }
+
+    function extraerBaseSerie(tema: string): string | null {
+        if (!tema) return null;
+        const patron = /\s*\([Pp]arte\s*\d+\)|\s*\(\s*\d+\s*\)|\s*\([IVXLCDM]+\)|\s*\([Ss]erie\s+de\s+discursos\)/;
+        const base = tema.split(patron)[0]?.trim();
+        if (base && base.length > 10 && base !== tema) return base;
+        return null;
+    }
+
+    interface GrupoPDF {
+        tipo: 'normal' | 'serie';
+        cabecera?: any;
+        partes: any[];
+    }
+
+    function agruparPartes(partes: any[], coloresMap: Map<string, string>): GrupoPDF[] {
+        const grupos: GrupoPDF[] = [];
+        let i = 0;
+        const total = partes.length;
+        while (i < total) {
+            const parte = partes[i];
+            if (parte.tipo === 'Serie') {
+                let grupoManual: GrupoPDF = { tipo: 'serie', cabecera: parte, partes: [] };
+                let j = i + 1;
+                while (j < total && partes[j].tipo === 'Discurso' && partes[j].dia === parte.dia && partes[j].sesion === parte.sesion) {
+                    grupoManual.partes.push(partes[j]);
+                    j++;
+                }
+                grupos.push(grupoManual);
+                i = j;
+                continue;
+            }
+            if (parte.tipo === 'Discurso' && !parte.es_video) {
+    const baseActual = extraerBaseSerie(parte.tema);
+    if (baseActual) {
+        let j = i + 1;
+        while (j < total && partes[j].tipo === 'Discurso' && extraerBaseSerie(partes[j].tema) === baseActual) {
+            j++;
+        }
+        if (j - i >= 2) {
+            const discursosSerie = partes.slice(i, j);
+            // ✅ Construir la misma clave compuesta que usas en Programa.svelte
+            const claveSerie = `${parte.dia}|${parte.sesion}|${baseActual}`;
+            const cabeceraVirtual = {
+                ...parte,
+                tema: baseActual,
+                hora_inicio: parte.hora_inicio,
+                // ✅ Buscar el color usando la clave compuesta
+                color_destacado: coloresMap.get(claveSerie) || ''
+            };
+            grupos.push({ tipo: 'serie', cabecera: cabeceraVirtual, partes: discursosSerie });
+            i = j;
+            continue;
+        }
+    }
+}
+            grupos.push({ tipo: 'normal', partes: [parte] });
+            i++;
+        }
+        return grupos;
+    }
+
+    // --- Obtener datos de la asamblea ---
     let asamblea = { tema: 'Asamblea', fecha: '', nombre: 'Asamblea Regional' };
     const guardadoAsamblea = localStorage.getItem('asambleaActiva');
     if (guardadoAsamblea) asamblea = { ...asamblea, ...JSON.parse(guardadoAsamblea) };
@@ -61,10 +137,9 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
         const partesDelDia = partes.filter(p => p && p.dia === dia);
         if (partesDelDia.length === 0) continue;
 
-        // Si no es la primera página, forzamos un salto de página
         const pageBreakConfig = !esPrimeraPagina ? { pageBreak: 'before' as const } : {};
 
-        // --- ENCABEZADO (Solo en la primera página) ---
+        // Encabezado solo en primera página
         if (esPrimeraPagina) {
             contenidoDoc.push({ text: (asamblea.nombre || "ASAMBLEA REGIONAL").toUpperCase(), fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 4] });
             contenidoDoc.push({ text: (asamblea.tema || "").toUpperCase(), fontSize: 12, color: '#4b5563', alignment: 'center', margin: [0, 0, 0, 4] });
@@ -73,50 +148,68 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
             esPrimeraPagina = false;
         }
 
-        // --- PÍLDORA DEL DÍA ---
+        // Píldora del día (sin tabla, solo texto estilizado)
         contenidoDoc.push({
-            ...pageBreakConfig, // Aquí se aplica el salto de página si corresponde
-            table: {
-                widths: ['auto'],
-                body: [[{ text: dia.toUpperCase(), bold: true, color: 'white', fillColor: '#3b82f6', margin: [10, 4, 10, 4] }]]
-            },
-            layout: 'noBorders',
+            ...pageBreakConfig,
+            text: dia.toUpperCase(),
+            style: 'diaPill',
+            alignment: 'center',
             margin: [0, 10, 0, 5]
         });
 
-        // --- TABLA DEL PROGRAMA ---
-        const tableBody: TableCell[][] = [
-            // Cabecera
-            [
-                { text: 'Hora', style: 'th' }, { text: 'Tema', style: 'th' }, { text: 'Orador', style: 'th' }, 
-                { text: 'Bosq.', style: 'th' }, { text: 'Recib.', style: 'th', alignment: 'center' }, 
-                { text: 'Pres.', style: 'th', alignment: 'center' }, { text: 'Ens.', style: 'th', alignment: 'center' }
-            ]
+        // Agrupar partes del día
+        const gruposDia = agruparPartes(partesDelDia, coloresSeries || new Map());
+
+               // Construir tabla (solo 4 columnas)
+        const tableBody: any[][] = [
+            [ { text: 'Hora', style: 'th' }, { text: 'Tema', style: 'th' }, { text: 'Orador', style: 'th' }, { text: 'Bosq.', style: 'th' } ]
         ];
 
-        partesDelDia.forEach(p => {
-            const isVideo = p.es_video || (p.fuente && p.fuente.toLowerCase().includes('video'));
-            const temaFinal = isVideo ? `(V) ${p.tema || ""}` : (p.tema || "");
-            
-            tableBody.push([
-                { text: p.hora_inicio || "-", style: 'td' },
-                { text: temaFinal, style: 'td' },
-                { text: p.nombre_orador || "---", style: 'td', bold: true },
-                { text: p.numero_bosquejo || "", style: 'td' },
-                { text: estado(p.estado), style: 'td', alignment: 'center' },
-                { text: check(p.esta_presente), style: 'td', alignment: 'center' },
-                { text: check(p.ensayo_terminado), style: 'td', alignment: 'center' }
-            ]);
-        });
+        for (const grupo of gruposDia) {
+            // Si es una serie, añadir una fila con colspan=4 para el título
+            if (grupo.tipo === 'serie' && grupo.cabecera) {
+                const tituloSerie = `📚 SERIE DE DISCURSOS: ${grupo.cabecera.tema}`;
+                const colorHex = getColorHex(grupo.cabecera.color_destacado) || null;
+                tableBody.push([
+                    { text: tituloSerie, colSpan: 4, style: 'serieTitle', color: colorHex, bold: true, margin: [0, 2, 0, 2] },
+                    {}, {}, {}
+                ]);
+            }
+            // Discursos de la serie o partes normales
+            for (const p of grupo.partes) {
+                const isVideo = p.es_video || (p.fuente && p.fuente.toLowerCase().includes('video'));
+                const temaFinal = isVideo ? `(V) ${p.tema || ""}` : (p.tema || "");
+                let temaColor = null;
+                let oradorColor = null;
+                if (p.color_destacado) {
+                    const hex = getColorHex(p.color_destacado);
+                    if (hex) {
+                        temaColor = hex;
+                        oradorColor = hex;
+                    }
+                }
+                tableBody.push([
+                    { text: p.hora_inicio || "-", style: 'td' },
+                    { text: temaFinal, style: 'td', color: temaColor },
+                    { text: p.nombre_orador || "---", style: 'td', bold: true, color: oradorColor },
+                    { text: p.numero_bosquejo || "", style: 'td' }
+                ]);
+            }
+        }
 
         contenidoDoc.push({
             table: {
                 headerRows: 1,
-                widths: ['auto', '*', '25%', 'auto', 'auto', 'auto', 'auto'],
+                widths: ['auto', '*', '25%', 'auto'],
                 body: tableBody
             },
             layout: {
-                fillColor: (rowIndex) => rowIndex === 0 ? '#475569' : (rowIndex % 2 === 0 ? '#f8fafc' : null),
+                fillColor: (rowIndex: number) => {
+                    if (rowIndex === 0) return '#475569'; // cabecera
+                    const row = tableBody[rowIndex];
+                    if (row && row[0] && row[0].colSpan === 4) return null;
+                    return rowIndex % 2 === 0 ? '#f8fafc' : null;
+                },
                 hLineWidth: () => 0.5,
                 vLineWidth: () => 0,
                 hLineColor: () => '#e2e8f0'
@@ -127,23 +220,24 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string) {
 
     const docDefinition: TDocumentDefinitions = {
         pageSize: 'A4',
-        pageOrientation: 'landscape', // Horizontal para que quepa bien la tabla
+        pageOrientation: 'landscape',
         pageMargins: [30, 30, 30, pieDePagina ? 40 : 30],
         content: contenidoDoc,
         footer: pieDePagina ? function(currentPage, pageCount) {
-            if (currentPage !== pageCount) return null; // Solo en la última página
+            if (currentPage !== pageCount) return null;
             return { text: pieDePagina, alignment: 'center', fontSize: 8, color: '#6b7280', margin: [40, 10, 40, 0], italics: true };
         } : undefined,
         styles: {
             th: { bold: true, fontSize: 9, color: 'white', margin: [0, 4, 0, 4] },
-            td: { fontSize: 9, color: '#1f2937', margin: [0, 4, 0, 4] }
+            td: { fontSize: 9, color: '#1f2937', margin: [0, 4, 0, 4] },
+            serieTitle: { fontSize: 9, bold: true, margin: [0, 4, 0, 2], italics: true },
+            diaPill: { fontSize: 10, bold: true, color: '#3b82f6', margin: [0, 5, 0, 5] }
         },
         defaultStyle: { font: 'Roboto' }
     };
 
-    generarYGuardarPDF(docDefinition, `Programa_${tituloDia.replace(/ /g, '_')}`);
+    await generarYGuardarPDF(docDefinition, `Programa_${tituloDia.replace(/ /g, '_')}`);
 }
-
 /**
  * EXPORTAR OFICINA
  * Personal en página 1, y cada día de asignación en una página nueva.

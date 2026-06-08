@@ -700,7 +700,7 @@ async function cargarColoresSeriesBD() {
     } else if (diasSeleccionados.length === 0) {
       return alert("⚠️ Seleccione al menos un día para generar el PDF.");
     }
-    await exportarProgramaPDF(partesFiltradas, tituloPDF);
+    await exportarProgramaPDF(partesFiltradas, tituloPDF, coloresSeries);
   }
 
   async function enviarEmailMasivo(idPlantilla: string) {
