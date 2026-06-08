@@ -105,6 +105,7 @@ pub struct PartePrograma {
     pub check_30m: bool,
 
     pub notas_orador: Option<String>,
+    pub color_destacado: Option<String>, // ← NUEVO
 }
 
 // ==========================================

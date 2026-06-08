@@ -511,3 +511,39 @@ pub async fn guardar_bautismos_db(
 
     Ok(())
 }
+
+// 5. GUARDAR COLOR DE SERIE (para persistir colores de series de discursos)
+#[command]
+pub fn guardar_color_serie(
+    app: AppHandle,
+    asamblea_id: i64,
+    base_titulo: String,
+    color: String,
+) -> Result<(), String> {
+    let conn = conectar_db(&app);
+    conn.execute(
+        "INSERT OR REPLACE INTO series_colores (asamblea_id, base_titulo, color) VALUES (?1, ?2, ?3)",
+        params![asamblea_id, base_titulo, color],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// 6. CARGAR COLORES DE SERIE
+#[command]
+pub fn cargar_colores_series(
+    app: AppHandle,
+    asamblea_id: i64,
+) -> Result<Vec<(String, String)>, String> {
+    let conn = conectar_db(&app);
+    let mut stmt = conn
+        .prepare("SELECT base_titulo, color FROM series_colores WHERE asamblea_id = ?1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![asamblea_id], |row| Ok((row.get(0)?, row.get(1)?)))
+        .map_err(|e| e.to_string())?;
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(result)
+}

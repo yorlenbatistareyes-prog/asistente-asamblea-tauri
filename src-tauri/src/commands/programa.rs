@@ -27,7 +27,8 @@ pub fn obtener_programa_dia(
         per.circuito,
         p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo,
         p.check_viernes, p.check_dia, p.check_30m,
-        per.notas  -- 👈 1. SOLICITAMOS LA COLUMNA DE NOTAS AQUÍ
+        per.notas,
+        p.color_destacado
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -68,7 +69,8 @@ pub fn obtener_programa_dia(
                 check_viernes: row.get(27).unwrap_or(false),
                 check_dia: row.get(28).unwrap_or(false),
                 check_30m: row.get(29).unwrap_or(false),
-                notas_orador: row.get(30).ok(), // 👈 2. MAPEAMOS LA NOTA AQUÍ (Índice 30)
+                notas_orador: row.get(30).ok(),
+                color_destacado: row.get(31).unwrap_or_else(|_| Some("".to_string())),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -128,6 +130,7 @@ pub fn crear_parte(
     es_betelita: bool,
     es_interprete: bool,
     es_visitante: bool,
+    color_destacado: Option<String>,
 ) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -189,18 +192,20 @@ pub fn crear_parte(
     let fuente_final = if tipo == "Video" { "video".to_string() } else { fuente };
 
     // ✅ INSERCIÓN ACTUALIZADA CON LOS NUEVOS VALORES
-    tx.execute(
-        "INSERT INTO programa (
-            asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
-            orador_id, es_video, esta_presente, numero_bosquejo, 
-            fuente, es_betelita, es_interprete, es_visitante
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, ?13, ?14, ?15)", 
-        params![
-            asamblea_id, dia, sesion, hora, tema, tipo, duracion, estado, 
-            orador_id_final, tipo == "Video", bosquejo_final.as_deref(),
-            fuente_final, es_betelita, es_interprete, es_visitante
-        ]
-    ).map_err(|e| e.to_string())?;
+   tx.execute(
+    "INSERT INTO programa (
+        asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
+        orador_id, es_video, esta_presente, numero_bosquejo, 
+        fuente, es_betelita, es_interprete, es_visitante,
+        color_destacado
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, ?13, ?14, ?15, ?16)", 
+    params![
+        asamblea_id, dia, sesion, hora, tema, tipo, duracion, estado, 
+        orador_id_final, tipo == "Video", bosquejo_final.as_deref(),
+        fuente_final, es_betelita, es_interprete, es_visitante,
+        color_destacado.unwrap_or_default() // ← NUEVO
+    ]
+).map_err(|e| e.to_string())?;
 
     tx.commit().map_err(|e| e.to_string())?;
     Ok("Creado".to_string())
@@ -210,6 +215,8 @@ pub fn crear_parte(
 pub fn actualizar_detalles_parte(
     app: AppHandle,
     id_parte: i32,
+    tema: String,                    // 👇 NUEVO: Recibe el tema
+    color_destacado: Option<String>, // 👇 NUEVO: Recibe el color
     numero_bosquejo: Option<String>,
     fuente: String,
     es_betelita: bool,
@@ -227,32 +234,35 @@ pub fn actualizar_detalles_parte(
 
     conn.execute(
         "UPDATE programa SET 
-            numero_bosquejo = ?1, 
-            fuente = ?2, 
-            es_betelita = ?3, 
-            es_interprete = ?4, 
-            es_visitante = ?5,
-            duracion = ?6,
-            requiere_ensayo = ?7,
-            fecha_ensayo = ?8,
-            hora_ensayo = ?9,
-            lugar_ensayo = ?10,
-            notas_ensayo = ?11
-         WHERE id = ?12",
+            tema = ?1,              
+            color_destacado = ?2,   
+            numero_bosquejo = ?3, 
+            fuente = ?4, 
+            es_betelita = ?5, 
+            es_interprete = ?6, 
+            es_visitante = ?7,
+            duracion = ?8,
+            requiere_ensayo = ?9,
+            fecha_ensayo = ?10,
+            hora_ensayo = ?11,
+            lugar_ensayo = ?12,
+            notas_ensayo = ?13
+         WHERE id = ?14",
         params![
-            numero_bosquejo.as_deref(), 
-            fuente, 
-            es_betelita, 
-            es_interprete, 
-            es_visitante,
-            duracion, 
-            // 👇 PASAMOS LOS DATOS A LA BASE DE DATOS
-            requiere_ensayo,
-            fecha_ensayo.as_deref(),
-            hora_ensayo.as_deref(),
-            lugar_ensayo.as_deref(),
-            notas_ensayo.as_deref(),
-            id_parte
+            tema,                                // ?1
+            color_destacado.unwrap_or_default(), // ?2 (Guarda el color o vacío)
+            numero_bosquejo.as_deref(),          // ?3
+            fuente,                              // ?4
+            es_betelita,                         // ?5
+            es_interprete,                       // ?6
+            es_visitante,                        // ?7
+            duracion,                            // ?8
+            requiere_ensayo,                     // ?9
+            fecha_ensayo.as_deref(),             // ?10
+            hora_ensayo.as_deref(),              // ?11
+            lugar_ensayo.as_deref(),             // ?12
+            notas_ensayo.as_deref(),             // ?13
+            id_parte                             // ?14
         ],
     )
     .map_err(|e| e.to_string())?;

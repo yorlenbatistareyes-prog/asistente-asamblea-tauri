@@ -244,6 +244,18 @@ export const DB = {
         return resultado;
     },
 
+        // --- FUNCIONES PARA COLORES DE SERIES ---
+    async guardarColorSerie(asambleaId: number, baseTitulo: string, color: string) {
+        const resultado = await invoke('guardar_color_serie', { asambleaId, baseTitulo, color });
+        notificarCambioLocal();
+        return resultado;
+    },
+
+    async cargarColoresSeries(asambleaId: number): Promise<Map<string, string>> {
+        const pares = await invoke<[string, string][]>('cargar_colores_series', { asambleaId });
+        return new Map(pares);
+    },
+
     // --- FUNCIONES PARA ESTADÍSTICAS Y CONFIGURACIÓN DE MONITOR ---
     
     // 1. Nueva función para LEER los datos al abrir la pantalla

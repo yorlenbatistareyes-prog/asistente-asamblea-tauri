@@ -174,6 +174,8 @@ if ruta_pendiente.exists() {
             commands::asambleas::crear_asamblea,
             commands::asambleas::obtener_asambleas,
             commands::asambleas::eliminar_asamblea,
+            commands::asambleas::guardar_color_serie,
+            commands::asambleas::cargar_colores_series,
             commands::asambleas::obtener_info_extra_evento,
             commands::asambleas::actualizar_check_registro,
 

@@ -236,6 +236,9 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_dia BOOLEAN DEFAULT 0", []);
     let _ = conn.execute("ALTER TABLE programa ADD COLUMN check_30m BOOLEAN DEFAULT 0", []);
 
+    // ✅ MIGRACIÓN PARA COLOR DESTACADO
+    let _ = conn.execute("ALTER TABLE programa ADD COLUMN color_destacado TEXT DEFAULT ''", []);
+
     // --- NUEVAS COLUMNAS PARA PERSONAS (Persistencia de Checkboxes) ---
     // Estas líneas aseguran que la tabla 'personas' tenga los campos necesarios
     let _ = conn.execute("ALTER TABLE personas ADD COLUMN responsabilidades TEXT DEFAULT '{\"registro\":false,\"ensayos\":false,\"orientaciones\":false,\"presidentes\":false,\"acompañar_plataforma\":false}'", []);
@@ -336,6 +339,19 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
             PRIMARY KEY(asamblea_id, persona_id),
             FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE,
             FOREIGN KEY(persona_id) REFERENCES personas(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+
+        // --- 11. SERIES COLORES (para persistir colores de series de discursos) ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS series_colores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asamblea_id INTEGER NOT NULL,
+            base_titulo TEXT NOT NULL,
+            color TEXT DEFAULT '',
+            UNIQUE(asamblea_id, base_titulo),
+            FOREIGN KEY(asamblea_id) REFERENCES asambleas(id) ON DELETE CASCADE
         )",
         [],
     )?;
