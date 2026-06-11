@@ -40,6 +40,19 @@
 
   let presidenteOficina: any = null; // 👈 Para guardar los datos del presidente
 
+  let coloresSeries = new Map<string, string>();
+
+async function cargarColoresSeries() {
+    if (!asambleaId) return;
+    try {
+        const mapa = await DB.cargarColoresSeries(asambleaId);
+        coloresSeries = mapa;
+        console.log("📥 Colores de series cargados para Oficina:", Array.from(coloresSeries.entries()));
+    } catch (e) {
+        console.error("Error cargando colores de series:", e);
+    }
+}
+
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
   let mostrarSugerencias = false; 
@@ -91,6 +104,8 @@
                     : asambleaActual.presidente;
             } catch (e) { console.error("Error al cargar presidente", e); }
         }
+
+        await cargarColoresSeries();
         
         await Promise.all([ cargarDatos(), cargarHermanos() ]);
     }
@@ -425,7 +440,7 @@ async function manejarExportacionPresidente() {
                 
                 if (res && res.length > 0) {
                     // Llamamos a la plantilla pasándole solo 1 día
-                    const docDef = generarPlantillaPresidenteDia(res, asamblea, config, dia);
+                   const docDef = generarPlantillaPresidenteDia(res, asamblea, config, dia, coloresSeries);
                     
                     // Guarda el documento con el nombre del día
                     await generarYGuardarPdfMake(docDef, `Tablero_Presidente_${dia}_${asamblea.identificador || '000'}`);

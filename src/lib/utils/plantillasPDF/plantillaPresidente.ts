@@ -1,11 +1,34 @@
 import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces';
 import type { ConfiguracionPDF } from '../../stores/pdfConfigStore';
 
+// Función auxiliar para extraer la base de una serie (copiada del programa principal)
+function extraerBaseSerie(tema: string): string | null {
+    if (!tema) return null;
+    const patron = /\s*\([Pp]arte\s*\d+\)|\s*\(\s*\d+\s*\)|\s*\([IVXLCDM]+\)|\s*\([Ss]erie\s+de\s+discursos\)/;
+    const base = tema.split(patron)[0]?.trim();
+    if (base && base.length > 10 && base !== tema) return base;
+    return null;
+}
+
+// Función para obtener el color hexadecimal a partir del nombre
+function getColorHex(colorName: string): string {
+    const mapa: Record<string, string> = {
+        'naranja': '#f97316',
+        'azul': '#3b82f6',
+        'verde': '#10b981',
+        'morado': '#8b5cf6',
+        'rojo': '#ef4444',
+        'gris': '#64748b'
+    };
+    return mapa[colorName] || '';
+}
+
 export function generarPlantillaPresidenteDia(
     partesDia: any[], 
     asamblea: any,
     config: ConfiguracionPDF,
-    dia: string
+    dia: string,
+    coloresSeries?: Map<string, string>
 ): TDocumentDefinitions {
 
     const contenidoDoc: Content[] = [];
@@ -44,22 +67,16 @@ export function generarPlantillaPresidenteDia(
 
     const fechaEspecifica = obtenerFechaDelDia(asamblea?.fecha, dia);
 
-    // --- FUNCIONES DE FORMATO (CORREGIDO HORARIO 12H) ---
+    // --- FUNCIONES DE FORMATO (HORARIO 12H) ---
     const formatearHora = (hora: string) => {
         if (!hora) return '--:--';
         const [h, m] = hora.split(':');
         const horaNum = parseInt(h, 10);
-        
-        // SIEMPRE convertimos a formato 12 horas (ej. 14 -> 2, 13 -> 1)
         const hora12 = horaNum % 12 || 12;
-        
-        // Solo agregamos las letras AM/PM si el usuario lo marcó en la interfaz
         if (config.mostrarAMPM) {
             const ampm = horaNum >= 12 ? 'PM' : 'AM';
             return `${hora12}:${m} ${ampm}`;
         }
-        
-        // Si está desmarcado, devuelve solo el número limpio (ej. "1:50")
         return `${hora12}:${m}`;
     };
 
@@ -68,12 +85,66 @@ export function generarPlantillaPresidenteDia(
         return String(num).replace(/[^0-9]/g, '').padStart(2, '0');
     };
 
-    // --- COLORES ---
+    // --- COLORES DEL DÍA ---
     const diaLower = dia.toLowerCase();
     const diaClave = (diaLower === 'sábado' ? 'sabado' : diaLower) as 'viernes' | 'sabado' | 'domingo';
     const colorDelDia = config.coloresPorDia[diaClave] || '#2a9d8f';
 
-    // 1. EL ENCABEZADO "DEGRADADO"
+    // --- FUNCIÓN DE AGRUPACIÓN (similar a la del programa principal) ---
+    interface GrupoPDF {
+        tipo: 'normal' | 'serie';
+        cabecera?: any;
+        partes: any[];
+    }
+
+    function agruparPartesDia(partes: any[], coloresMap: Map<string, string>): GrupoPDF[] {
+        const grupos: GrupoPDF[] = [];
+        let i = 0;
+        const total = partes.length;
+        while (i < total) {
+            const parte = partes[i];
+            // Series manuales
+            if (parte.tipo === 'Serie') {
+                let grupoManual: GrupoPDF = { tipo: 'serie', cabecera: parte, partes: [] };
+                let j = i + 1;
+                while (j < total && partes[j].tipo === 'Discurso' && partes[j].dia === parte.dia && partes[j].sesion === parte.sesion) {
+                    grupoManual.partes.push(partes[j]);
+                    j++;
+                }
+                grupos.push(grupoManual);
+                i = j;
+                continue;
+            }
+            // Detección automática
+            if (parte.tipo === 'Discurso' && !parte.es_video) {
+                const baseActual = extraerBaseSerie(parte.tema);
+                if (baseActual) {
+                    let j = i + 1;
+                    while (j < total && partes[j].tipo === 'Discurso' && extraerBaseSerie(partes[j].tema) === baseActual) {
+                        j++;
+                    }
+                    if (j - i >= 2) {
+                        const discursosSerie = partes.slice(i, j);
+                        const claveSerie = `${parte.dia}|${parte.sesion}|${baseActual}`;
+                        const cabeceraVirtual = {
+                            ...parte,
+                            tema: baseActual,
+                            hora_inicio: parte.hora_inicio,
+                            color_destacado: coloresMap.get(claveSerie) || ''
+                        };
+                        grupos.push({ tipo: 'serie', cabecera: cabeceraVirtual, partes: discursosSerie });
+                        i = j;
+                        continue;
+                    }
+                }
+            }
+            grupos.push({ tipo: 'normal', partes: [parte] });
+            i++;
+        }
+        return grupos;
+    }
+
+    // --- ENCABEZADO DEGRADADO E IMAGEN (sin cambios) ---
     const altoEncabezado = 280; 
     const tercios = anchoPuntos / 3;
     const svgEncabezado = `
@@ -90,31 +161,24 @@ export function generarPlantillaPresidenteDia(
         width: anchoPuntos
     });
 
-   // 1.5. IMAGEN PERSONALIZADA (Auto-calculada a la esquina superior derecha)
     if (config.ajustesTablero?.imagenEncabezado) {
         contenidoDoc.push({
             absolutePosition: { 
-                // La imagen parte de la posición 0,0 (esquina absoluta)
-                // Los desplazamientos solo se aplican si el usuario quiere moverla manualmente
                 x: config.ajustesTablero.desplazamientoX || 0, 
                 y: config.ajustesTablero.desplazamientoY || 0 
             },
-            // Usamos una tabla invisible que ocupa exactamente el 100% del ancho del póster
             table: {
                 widths: [anchoPuntos],
                 body: [
                     [
                         {
                             image: config.ajustesTablero.imagenEncabezado,
-                            // MAGIA: 'fit' escala cualquier imagen proporcionalmente. 
-                            // Límite ancho: Mitad de la hoja. Límite alto: altoEncabezado (280)
                             fit: [anchoPuntos / 2, altoEncabezado], 
-                            alignment: 'right' // Empuja la imagen contra el borde derecho
+                            alignment: 'right'
                         }
                     ]
                 ]
             },
-            // Eliminamos todos los rellenos de la tabla para que toque los bordes 100%
             layout: {
                 hLineWidth: () => 0,
                 vLineWidth: () => 0,
@@ -150,7 +214,7 @@ export function generarPlantillaPresidenteDia(
         margin: [0, 0, 0, 80] 
     });
 
-    // 3. AGRUPAR PROGRAMA
+    // 3. AGRUPAR PROGRAMA POR SESIÓN
     const programaAgrupado: Record<string, any[]> = { 'MAÑANA': [], 'TARDE': [] };
     partesDia.forEach(p => {
         if (!p) return;
@@ -159,31 +223,49 @@ export function generarPlantillaPresidenteDia(
         else if (sesion === 'TARDE') programaAgrupado['TARDE'].push(p);
     });
 
-    // 4. CONSTRUIR TABLAS
+    // 4. CONSTRUCCIÓN DE TABLAS CON AGRUPACIÓN Y COLORES
     ['MAÑANA', 'TARDE'].forEach(sesion => {
-        if (programaAgrupado[sesion].length > 0) {
-            
-            contenidoDoc.push({ 
-                text: sesion, 
-                fontSize: T_SESION, 
-                bold: true, 
-                color: colorDelDia, 
-                margin: [0, 20, 0, 30] 
-            });
+        const partesSesion = programaAgrupado[sesion];
+        if (partesSesion.length === 0) return;
 
-            const tableBody: TableCell[][] = [];
-            
-            programaAgrupado[sesion].forEach((p: any) => {
+        contenidoDoc.push({ 
+            text: sesion, 
+            fontSize: T_SESION, 
+            bold: true, 
+            color: colorDelDia, 
+            margin: [0, 20, 0, 30] 
+        });
+
+        const grupos = agruparPartesDia(partesSesion, coloresSeries || new Map());
+        const tableBody: TableCell[][] = [];
+
+        for (const grupo of grupos) {
+            // Título de serie (si corresponde)
+            if (grupo.tipo === 'serie' && grupo.cabecera) {
+                const tituloSerie = `📚 SERIE DE DISCURSOS: ${grupo.cabecera.tema}`;
+                const colorHex = getColorHex(grupo.cabecera.color_destacado) || colorDelDia;
+                tableBody.push([
+                    { text: tituloSerie, colSpan: 5, style: 'serieTitle', color: colorHex, bold: true, margin: [0, 2, 0, 2] },
+                    {}, {}, {}, {}
+                ]);
+            }
+            // Partes individuales (dentro o fuera de serie)
+            for (const p of grupo.partes) {
                 const isVideo = p.es_video || (p.fuente && p.fuente.toLowerCase().includes('video'));
                 const temaFinal = isVideo ? `(Video) ${p.tema || ""}` : (p.tema || "");
-                
                 const temaLower = temaFinal.toLowerCase();
                 const esCancionOracion = /(^|\s)(canción|cancion|oración|oracion)(\s|$|\.|,|:|;)/i.test(temaLower);
                 
-                const colorTexto = esCancionOracion ? (config.ajustesTablero?.colorCancionOracion || '#9b2226') : '#111827';
+                // Color del texto: prioriza color_destacado de la parte, después la regla de canción/oración
+                let colorTexto = '#111827';
+                if (p.color_destacado) {
+                    const hex = getColorHex(p.color_destacado);
+                    if (hex) colorTexto = hex;
+                } else if (esCancionOracion) {
+                    colorTexto = config.ajustesTablero?.colorCancionOracion || '#9b2226';
+                }
                 const colorNumeros = '#374151';
-
-                const mFila: [number, number, number, number] = [0, 20, 0, 20]; 
+                const mFila: [number, number, number, number] = [0, 20, 0, 20];
 
                 tableBody.push([
                     { text: formatearHora(p.hora_inicio), bold: true, fontSize: T_TEXTO, color: colorNumeros, margin: mFila },
@@ -200,19 +282,19 @@ export function generarPlantillaPresidenteDia(
                         alignment: 'right'
                     }
                 ]);
-            });
-
-            contenidoDoc.push({
-                table: {
-                    headerRows: 0,
-                    widths: [150, '*', 110, 'auto', 180], 
-                    dontBreakRows: true,
-                    body: tableBody
-                },
-                layout: 'noBorders',
-                margin: [0, 0, 0, 60]
-            });
+            }
         }
+
+        contenidoDoc.push({
+            table: {
+                headerRows: 0,
+                widths: [150, '*', 110, 'auto', 180], // 5 columnas con los cuadros
+                dontBreakRows: true,
+                body: tableBody
+            },
+            layout: 'noBorders',
+            margin: [0, 0, 0, 60]
+        });
     });
 
     // 5. CONFIGURACIÓN DEL DOCUMENTO
@@ -224,6 +306,9 @@ export function generarPlantillaPresidenteDia(
         defaultStyle: { 
             font: 'Roboto',
             color: '#111827'
+        },
+        styles: {
+            serieTitle: { fontSize: T_TEXTO, bold: true, margin: [0, 4, 0, 4], italics: true }
         }
     };
 }
