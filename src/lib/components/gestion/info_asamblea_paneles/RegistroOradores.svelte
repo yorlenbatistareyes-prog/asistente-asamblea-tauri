@@ -697,13 +697,13 @@ async function generarPDFPlano() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 30px 40px 0 40px;
+  padding: 0px 0px 0 0px;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-.top-fijo { flex-shrink: 0; margin-bottom: 20px; }
-.header-vista h1 { font-size: 26px; font-weight: 800; color: var(--text-main); margin: 0 0 5px 0; }
+.top-fijo { flex-shrink: 0; margin-bottom: 10px; }
+.header-vista h1 { font-size: 20px; font-weight: 700; color: var(--text-main); margin: 0 0 2px 0; }
 .subtitle { font-size: 14px; color: var(--text-sec); margin: 0; }
 
 .controles-vista { display: flex; gap: 10px; margin-top: 20px; align-items: center; }

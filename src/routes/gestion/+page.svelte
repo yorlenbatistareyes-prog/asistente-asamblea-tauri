@@ -3,7 +3,6 @@
   import { invoke } from '@tauri-apps/api/core';
   import { oradoresPendientes } from '$lib/stores/gestion';
   import VistaPrograma from '$lib/components/gestion/info_asamblea_paneles/VistaPrograma.svelte';
-  import RegistroOradores from '$lib/components/gestion/info_asamblea_paneles/RegistroOradores.svelte';
   import ListaOradores from '$lib/components/gestion/info_asamblea_paneles/ListaOradores.svelte';
   
   // --- COMPONENTES ---
@@ -144,10 +143,6 @@
               <span class="txt-tab">Programa</span>
           </button>
 
-          <button class="tab-btn" class:activo={seccionActiva === 'registro_oradores'} on:click={() => cambiarSeccion('registro_oradores')}>
-              <span class="txt-tab">Registro</span>
-          </button>
-
           <button class="tab-btn" class:activo={seccionActiva === 'ensayos'} on:click={() => cambiarSeccion('ensayos')}>
               <span class="txt-tab">Ensayos</span>
           </button>
@@ -192,7 +187,6 @@
       {#if seccionActiva === 'oficina'} <Oficina /> {/if}
       {#if seccionActiva === 'vista_programa'} <VistaPrograma /> {/if}
       {#if seccionActiva === 'ensayos'} <Ensayos /> {/if} 
-      {#if seccionActiva === 'registro_oradores'} <RegistroOradores /> {/if}
       {#if seccionActiva === 'lista_oradores'} <ListaOradores /> {/if}
     </div>
   </main>

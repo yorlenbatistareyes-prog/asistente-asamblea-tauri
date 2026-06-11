@@ -5,6 +5,8 @@
   import { open } from '@tauri-apps/plugin-dialog'; // Para abrir el explorador
   import { readFile } from '@tauri-apps/plugin-fs'; // Para leer el archivo
 
+  import RegistroOradores from '$lib/components/gestion/info_asamblea_paneles/RegistroOradores.svelte';
+
   // Iconos
   import { 
     Users, Search, X, Trash2, Phone, Mail, UserPlus, UserCheck, 
@@ -521,6 +523,10 @@ async function manejarExportacionPresidente() {
         <button class:active={tabPrincipal === 'asignaciones'} on:click={() => tabPrincipal = 'asignaciones'}>
             <Calendar size={18}/> Horario de oficina
         </button>
+
+        <button class:active={tabPrincipal === 'registro'} on:click={() => tabPrincipal = 'registro'}>
+            <ClipboardList size={18}/> Registro
+        </button>
     </div>
 
     {#if tabPrincipal === 'auxiliares'}
@@ -835,6 +841,12 @@ async function manejarExportacionPresidente() {
                     </div>
                 </div>
             </div>
+        </div>
+    {/if}
+
+    {#if tabPrincipal === 'registro'}
+        <div class="area-fade-in" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <RegistroOradores />
         </div>
     {/if}
 
