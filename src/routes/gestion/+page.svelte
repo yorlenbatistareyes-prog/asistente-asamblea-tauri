@@ -4,7 +4,8 @@
   import { oradoresPendientes } from '$lib/stores/gestion';
   import VistaPrograma from '$lib/components/gestion/info_asamblea_paneles/VistaPrograma.svelte';
   import ListaOradores from '$lib/components/gestion/info_asamblea_paneles/ListaOradores.svelte';
-  
+    import RegistroOradores from '$lib/components/gestion/info_asamblea_paneles/RegistroOradores.svelte';
+
   // --- COMPONENTES ---
   import Oficina from '$lib/components/gestion/Oficina.svelte';
   import Resumen from '$lib/components/gestion/Resumen.svelte';
@@ -188,6 +189,7 @@
       {#if seccionActiva === 'vista_programa'} <VistaPrograma /> {/if}
       {#if seccionActiva === 'ensayos'} <Ensayos /> {/if} 
       {#if seccionActiva === 'lista_oradores'} <ListaOradores /> {/if}
+      {#if seccionActiva === 'registro_oradores'}<RegistroOradores />{/if}
     </div>
   </main>
 

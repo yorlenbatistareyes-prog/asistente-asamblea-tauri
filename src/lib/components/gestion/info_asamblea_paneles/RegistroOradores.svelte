@@ -35,46 +35,113 @@
   let asambleaActiva: any = null;
   let partes: any[] = [];
   let programaAgrupado: Record<string, any[]> = {};
+  let cargando = true;
+  let errorCarga = '';
 
-  onMount(async () => {
-    const datosGuardados = localStorage.getItem('asambleaActiva');
-    if (datosGuardados) {
-      const asamblea = JSON.parse(datosGuardados);
-      asambleaActiva = await invoke('obtener_asamblea_por_id', { id: asamblea.id });
-      
-      // Aseguramos que las plantillas se cargan desde Rust a Svelte
-      await cargarPlantillasEmail();
-      await cargarPlantillasWhatsApp();
-      
-      await cargarTodoElPrograma(asamblea.id);
+     onMount(async () => {
+    try {
+      const almacenada = localStorage.getItem('asambleaActiva');
+
+      if (!almacenada) {
+        throw new Error('No existe una asamblea activa en el almacenamiento local.');
+      }
+
+      const asamblea = JSON.parse(almacenada);
+      const idAsamblea = Number(
+        asamblea?.id ??
+        asamblea?.asamblea_id ??
+        asamblea?.asambleaId ??
+        asamblea?.asamblea?.id
+      );
+
+      if (!Number.isInteger(idAsamblea) || idAsamblea <= 0) {
+        throw new Error(`ID de asamblea inválido: ${JSON.stringify(asamblea)}`);
+      }
+
+      asambleaActiva = asamblea?.asamblea ?? asamblea;
+
+      try {
+        const datos = await invoke('obtener_asamblea_por_id', {
+          id: idAsamblea
+        });
+
+        if (datos) {
+          asambleaActiva = datos;
+        }
+      } catch (error) {
+        console.warn('No se pudo obtener la asamblea:', error);
+      }
+
+      await Promise.all([
+        cargarPlantillasEmail(),
+        cargarPlantillasWhatsApp()
+      ]);
+
+      await cargarTodoElPrograma(idAsamblea);
+    } catch (error) {
+      console.error('Error en RegistroOradores:', error);
+      errorCarga = error instanceof Error
+        ? error.message
+        : String(error);
+    } finally {
+      cargando = false;
     }
   });
 
-  async function cargarTodoElPrograma(idAsamblea: number) {
-    try {
-      const dias = ['Viernes', 'Sábado', 'Domingo'];
-      let todasLasPartes: any[] = [];
-      
-      for (const dia of dias) {
-        const res = await invoke('obtener_programa_dia', { asambleaId: idAsamblea, dia }) as any[];
-        // Filtrar partes que no son videos puros (opcional, si quieres que los videos también salgan, quita el filter)
-        const partesConDia = res.map(p => ({ ...p, dia }));
-        todasLasPartes = [...todasLasPartes, ...partesConDia];
+    function agruparPorDia(lista: any[]) {
+    programaAgrupado = {
+      viernes: [],
+      sábado: [],
+      domingo: []
+    };
+
+    for (const parte of lista) {
+      const dia = String(parte.dia ?? '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+      if (dia === 'viernes') {
+        programaAgrupado.viernes.push(parte);
+      } else if (dia === 'sabado') {
+        programaAgrupado.sábado.push(parte);
+      } else if (dia === 'domingo') {
+        programaAgrupado.domingo.push(parte);
       }
-      
-      partes = todasLasPartes.sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || ''));
-      agruparPorDia(partes);
-    } catch (e) { console.error(e); }
+    }
   }
 
-  function agruparPorDia(lista: any[]) {
-    const grupos: Record<string, any[]> = {};
-    lista.forEach(parte => {
-      const dia = parte.dia.toLowerCase();
-      if (!grupos[dia]) grupos[dia] = [];
-      grupos[dia].push(parte);
-    });
-    programaAgrupado = grupos;
+  async function cargarTodoElPrograma(idAsamblea: number) {
+    const dias = ['Viernes', 'Sábado', 'Domingo'];
+    const todasLasPartes: any[] = [];
+
+    for (const dia of dias) {
+      const resultado: any = await invoke('obtener_programa_dia', {
+        asambleaId: idAsamblea,
+        dia
+      });
+
+      let lista: any[] = [];
+
+      if (Array.isArray(resultado)) {
+        lista = resultado;
+      } else if (Array.isArray(resultado?.data)) {
+        lista = resultado.data;
+      } else if (Array.isArray(resultado?.partes)) {
+        lista = resultado.partes;
+      } else if (Array.isArray(resultado?.programa)) {
+        lista = resultado.programa;
+      } else if (resultado && typeof resultado === 'object') {
+        lista = Object.values(resultado).find(Array.isArray) as any[] || [];
+      }
+
+      todasLasPartes.push(
+        ...lista.map(parte => ({ ...parte, dia }))
+      );
+    }
+
+    partes = todasLasPartes;
+    agruparPorDia(partes);
   }
 
   // --- MATEMÁTICA: RESTAR 30 MINUTOS ---
