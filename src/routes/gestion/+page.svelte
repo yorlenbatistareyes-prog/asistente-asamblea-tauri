@@ -37,7 +37,7 @@
       seccionActiva = $vistaActual;
   }
 
-  onMount(async () => {
+    onMount(() => {
     // Cierra el menú "Más" si haces clic en cualquier otra parte de la pantalla
     const handleClickOutside = (event: MouseEvent) => {
         const target = event.target as HTMLElement;
@@ -47,11 +47,12 @@
     };
     window.addEventListener('click', handleClickOutside);
 
-    // Recuperar el nombre de la asamblea activa para mostrarlo en el menú
-    const data = localStorage.getItem('asambleaActiva');
-    if (data) {
-        asambleaActual = JSON.parse(data);
-    }
+    void (async () => {
+      // Recuperar el nombre de la asamblea activa para mostrarlo en el menú
+      const data = localStorage.getItem('asambleaActiva');
+      if (data) {
+          asambleaActual = JSON.parse(data);
+      }
 
     // Validar si la asamblea guardada existe realmente en la base
     if (asambleaActual?.id) {
@@ -100,7 +101,9 @@
       } catch (e) { console.warn('Error cargando oradores pendientes', e); }
     })();
 
-    // Limpieza del listener al desmontar
+        })();
+
+        // Limpieza del listener al desmontar
     return () => window.removeEventListener('click', handleClickOutside);
   });
 
@@ -158,7 +161,7 @@
               </button>
 
               {#if mostrarMenuMas}
-                  <div class="dropdown-mas" on:click|stopPropagation>
+                  <div class="dropdown-mas" role="menu" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
                       <button class="dropdown-item" class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')}>
                           Congregaciones
                       </button>

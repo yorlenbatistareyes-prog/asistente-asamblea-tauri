@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
 import { sesionApp } from '$lib/stores/authStore';
+import { fetch } from '@tauri-apps/plugin-http';
 
 const BASE_URL = 'https://syncserver.ejvapps.online';
 const APP_ID = 'rassembly'; 

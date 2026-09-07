@@ -88,7 +88,7 @@ pub struct PartePrograma {
     pub estado: Option<String>,
     pub esta_presente: bool,
     pub numero_bosquejo: Option<String>,
-    pub ensayo_terminado: bool, 
+    pub ensayo_terminado: bool,
     // ✅ NUEVOS CAMPOS PARA LOS FILTROS
     pub fuente: Option<String>,
     pub es_betelita: bool,

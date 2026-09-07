@@ -55,7 +55,7 @@ pub fn obtener_asignaciones_especiales(
                 estado: row.get(7).ok(),
                 esta_presente: row.get(8)?,
                 ensayo_terminado: row.get(9)?,
-                responsabilidades: row.get(10).ok(), 
+                responsabilidades: row.get(10).ok(),
                 disponibilidad: row.get(11).ok(),
             })
         })
@@ -118,7 +118,7 @@ pub fn alternar_estado_oficina(
     valor_nuevo: bool,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
-    
+
     let sql = match tipo_accion.as_str() {
         "confirmacion" => {
             if valor_nuevo {
@@ -144,8 +144,7 @@ pub fn alternar_estado_oficina(
         _ => return Err("Acción desconocida".to_string()),
     };
 
-    conn.execute(sql, params![id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(sql, params![id]).map_err(|e| e.to_string())?;
 
     Ok("Actualizado".to_string())
 }
@@ -153,8 +152,8 @@ pub fn alternar_estado_oficina(
 #[command]
 pub fn guardar_detalles_oficina(
     app: AppHandle,
-    persona_id: i32, 
-    responsabilidades: String, 
+    persona_id: i32,
+    responsabilidades: String,
     disponibilidad: String,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);

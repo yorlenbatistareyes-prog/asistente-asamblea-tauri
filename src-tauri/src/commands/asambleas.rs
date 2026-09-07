@@ -1,4 +1,3 @@
-use crate::models::Asamblea;
 use rusqlite::{params, Connection, OptionalExtension, Result};
 use serde::Serialize;
 use serde_json::json;
@@ -89,10 +88,20 @@ pub fn guardar_info_evento(
                 jw_stream_studio=?12, presidente=?13  
               WHERE id=?14",
             params![
-                tema, fecha, identificador, lugar, idioma,
-                ensayo_lugar, ensayo_fecha, ensayo_hora, 
-                ensayo_notas, recorridos_info, instrucciones_esp, 
-                stream_val, presidente, actual_id
+                tema,
+                fecha,
+                identificador,
+                lugar,
+                idioma,
+                ensayo_lugar,
+                ensayo_fecha,
+                ensayo_hora,
+                ensayo_notas,
+                recorridos_info,
+                instrucciones_esp,
+                stream_val,
+                presidente,
+                actual_id
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -104,8 +113,19 @@ pub fn guardar_info_evento(
                 ensayo_notas, recorridos_info, instrucciones_esp, jw_stream_studio, presidente
             ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12, ?13)",
             params![
-                tema, fecha, identificador, lugar, idioma, ensayo_lugar, ensayo_fecha, ensayo_hora, 
-                ensayo_notas, recorridos_info, instrucciones_esp, stream_val, presidente
+                tema,
+                fecha,
+                identificador,
+                lugar,
+                idioma,
+                ensayo_lugar,
+                ensayo_fecha,
+                ensayo_hora,
+                ensayo_notas,
+                recorridos_info,
+                instrucciones_esp,
+                stream_val,
+                presidente
             ],
         )
         .map_err(|e| e.to_string())?;
@@ -321,7 +341,7 @@ pub fn crear_asamblea(
     app: AppHandle,
     tema: String,
     fecha: String,
-    lugar: String, 
+    lugar: String,
     idioma: String,
     identificador: String, // 👈 local_id desterrado
 ) -> Result<i64, String> {
@@ -334,49 +354,51 @@ pub fn crear_asamblea(
             lugar, idioma
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
-            tema,          
-            fecha,         
-            identificador, 
-            "",            // ensayo_lugar
-            0,             // jw_stream_studio
-            "",            // ensayo_notas
-            "",            // recorridos_info
-            "",            // ensayo_fecha
-            "",            // ensayo_hora
-            "",            // instrucciones_esp
-            lugar,         
-            idioma         
+            tema,
+            fecha,
+            identificador,
+            "", // ensayo_lugar
+            0,  // jw_stream_studio
+            "", // ensayo_notas
+            "", // recorridos_info
+            "", // ensayo_fecha
+            "", // ensayo_hora
+            "", // instrucciones_esp
+            lugar,
+            idioma
         ],
     )
     .map_err(|e| e.to_string())?;
     Ok(conn.last_insert_rowid())
 }
 
-
 // 6. LISTAR Y ELIMINAR
 #[command]
 pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, String> {
     let conn = conectar_db(&app);
     let mut stmt = conn
-        .prepare("SELECT id, tema, fecha, identificador, lugar, idioma FROM asambleas ORDER BY id DESC")
+        .prepare(
+            "SELECT id, tema, fecha, identificador, lugar, idioma FROM asambleas ORDER BY id DESC",
+        )
         .map_err(|e| e.to_string())?;
-    let rows = stmt.query_map([], |row| {
-        Ok(serde_json::json!({
-            "id": row.get::<_, i64>(0)?,
-            "tema": row.get::<_, String>(1)?,
-            "fecha": row.get::<_, String>(2)?,
-            "identificador": row.get::<_, Option<String>>(3)?,
-            "lugar": row.get::<_, Option<String>>(4)?, // 👈 Índice 4 ahora
-            "idioma": row.get::<_, Option<String>>(5)? // 👈 Índice 5 ahora
-        }))
-    }).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "tema": row.get::<_, String>(1)?,
+                "fecha": row.get::<_, String>(2)?,
+                "identificador": row.get::<_, Option<String>>(3)?,
+                "lugar": row.get::<_, Option<String>>(4)?, // 👈 Índice 4 ahora
+                "idioma": row.get::<_, Option<String>>(5)? // 👈 Índice 5 ahora
+            }))
+        })
+        .map_err(|e| e.to_string())?;
     let mut asambleas = Vec::new();
     for row in rows {
         asambleas.push(row.map_err(|e| e.to_string())?);
     }
     Ok(asambleas)
 }
-
 
 #[command]
 pub fn eliminar_asamblea(app: AppHandle, id: i64) -> Result<(), String> {
@@ -390,11 +412,10 @@ pub fn eliminar_asamblea(app: AppHandle, id: i64) -> Result<(), String> {
 #[command]
 pub fn actualizar_check_registro(
     app: AppHandle,
-    id: i32, 
-    campo: String, 
+    id: i32,
+    campo: String,
     valor: bool,
 ) -> Result<(), String> {
-    
     // Usamos tu función conectar_db() que ya existe en este archivo
     let conn = conectar_db(&app);
 
@@ -436,7 +457,7 @@ pub async fn obtener_asistencia_asamblea(
     state: tauri::State<'_, crate::database::DbState>,
 ) -> Result<EstadisticasAsamblea, String> {
     let conn = state.conn.lock().unwrap();
-    
+
     let mut stmt = conn
         .prepare(
             "SELECT asistencia_v_am, asistencia_v_pm, asistencia_s_am, asistencia_s_pm, 
@@ -458,9 +479,12 @@ pub async fn obtener_asistencia_asamblea(
             })
         })
         .unwrap_or(EstadisticasAsamblea {
-            viernes_am: 0, viernes_pm: 0,
-            sabado_am: 0, sabado_pm: 0,
-            domingo_am: 0, domingo_pm: 0,
+            viernes_am: 0,
+            viernes_pm: 0,
+            sabado_am: 0,
+            sabado_pm: 0,
+            domingo_am: 0,
+            domingo_pm: 0,
             bautismos: 0,
         });
 
@@ -475,7 +499,7 @@ pub async fn guardar_asistencia_db(
     state: tauri::State<'_, crate::database::DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().unwrap();
-    
+
     conn.execute(
         "UPDATE asambleas SET 
             asistencia_v_am = ?, asistencia_v_pm = ?, 
@@ -483,9 +507,12 @@ pub async fn guardar_asistencia_db(
             asistencia_d_am = ?, asistencia_d_pm = ?
          WHERE id = ?",
         [
-            datos.viernes_am, datos.viernes_pm,
-            datos.sabado_am, datos.sabado_pm,
-            datos.domingo_am, datos.domingo_pm,
+            datos.viernes_am,
+            datos.viernes_pm,
+            datos.sabado_am,
+            datos.sabado_pm,
+            datos.domingo_am,
+            datos.domingo_pm,
             asamblea_id as i32,
         ],
     )
@@ -502,7 +529,7 @@ pub async fn guardar_bautismos_db(
     state: tauri::State<'_, crate::database::DbState>,
 ) -> Result<(), String> {
     let conn = state.conn.lock().unwrap();
-    
+
     conn.execute(
         "UPDATE asambleas SET bautismos = ? WHERE id = ?",
         [cantidad, asamblea_id as i32],

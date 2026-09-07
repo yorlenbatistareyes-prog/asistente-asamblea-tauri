@@ -1,6 +1,5 @@
 use crate::database::DbState;
 use crate::models::ConfiguracionGeneral; // Asegúrate de tener este modelo en models.rs
-use rusqlite::params;
 use tauri::State;
 
 // 1. COMANDO PARA OBTENER LA CONFIGURACIÓN
@@ -92,12 +91,13 @@ pub async fn guardar_configuracion_pdf(
     datos: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().unwrap();
-    
+
     conn.execute(
         "INSERT OR REPLACE INTO configuraciones_pdf (id, datos_json) VALUES (1, ?1)",
         rusqlite::params![datos],
-    ).map_err(|e| e.to_string())?;
-    
+    )
+    .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
@@ -107,19 +107,19 @@ pub async fn obtener_configuracion_pdf(
     state: State<'_, DbState>,
 ) -> Result<Option<String>, String> {
     // 1. Importamos la extensión aquí mismo para asegurar que el compilador la vea
-    use rusqlite::OptionalExtension; 
+    use rusqlite::OptionalExtension;
 
     let conn = state.conn.lock().unwrap();
-    
+
     let res: Option<String> = conn
         .query_row(
             "SELECT datos_json FROM configuraciones_pdf WHERE id = 1",
             [],
             // 2. Le decimos explícitamente a Rust que extraiga un texto (String)
-            |row| row.get::<usize, String>(0) 
+            |row| row.get::<usize, String>(0),
         )
         .optional()
         .map_err(|e| e.to_string())?;
-        
+
     Ok(res)
 }

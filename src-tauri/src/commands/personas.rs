@@ -128,19 +128,19 @@ pub fn eliminar_persona(app: AppHandle, id: i32) -> Result<String, String> {
 pub fn limpiar_personas(app: AppHandle, asamblea_id: i32) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    
+
     // 1. Quitar los oradores del programa
     tx.execute(
         "UPDATE programa SET orador_id = NULL WHERE orador_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)", 
         params![asamblea_id]
     ).ok();
-    
+
     // 2. Quitar al presidente de la asamblea (evita bloqueo)
     tx.execute(
         "UPDATE asambleas SET presidente_id = NULL WHERE presidente_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)", 
         params![asamblea_id]
     ).ok();
-    
+
     // 3. Borrar las asignaciones especiales de estas personas
     tx.execute(
         "DELETE FROM asignaciones_especiales WHERE persona_id IN (SELECT id FROM personas WHERE asamblea_id = ?1)", 
@@ -153,9 +153,9 @@ pub fn limpiar_personas(app: AppHandle, asamblea_id: i32) -> Result<String, Stri
         params![asamblea_id],
     )
     .map_err(|e| e.to_string())?;
-    
+
     tx.commit().map_err(|e| e.to_string())?;
-    
+
     Ok("Lista vaciada".to_string())
 }
 
@@ -176,7 +176,8 @@ pub fn guardar_recordatorio_orador(
          texto = excluded.texto,
          fecha_recordatorio = excluded.fecha_recordatorio",
         rusqlite::params![asamblea_id, persona_id, texto, fecha],
-    ).map_err(|e| format!("Error al guardar recordatorio: {}", e))?;
+    )
+    .map_err(|e| format!("Error al guardar recordatorio: {}", e))?;
 
     Ok(())
 }

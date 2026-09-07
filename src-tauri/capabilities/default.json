@@ -10,15 +10,17 @@
     "shell:default",
     "opener:default",
     "opener:allow-open-path",
-
     {
       "identifier": "opener:allow-open-url",
       "allow": [
-        { "url": "whatsapp://*" },
-        { "url": "https://wa.me/*" }
+        {
+          "url": "whatsapp://*"
+        },
+        {
+          "url": "https://wa.me/*"
+        }
       ]
     },
-
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
@@ -40,12 +42,22 @@
     },
     "process:default",
     "store:default",
-
     "core:window:allow-create",
     "core:webview:allow-create-webview-window",
-
     "core:window:allow-start-dragging",
     "core:window:allow-close",
-    "core:window:allow-set-always-on-top"
+    "core:window:allow-set-always-on-top",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        {
+          "url": "https://syncserver.ejvapps.online/*"
+        },
+        {
+          "url": "https://updates.ejvapps.online/*"
+        }
+      ]
+    }
   ]
 }

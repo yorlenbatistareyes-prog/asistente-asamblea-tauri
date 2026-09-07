@@ -4,6 +4,9 @@
     import { DownloadCloud, Activity } from 'lucide-svelte';
     import Panel from '$lib/components/ui/Panel.svelte';
     import { verificarActualizacion, irA_Descarga, type UpdateResult } from '$lib/services/updater';
+    
+    // 👇 Importamos el creador de carteles nativos de Tauri
+    import { ask } from '@tauri-apps/plugin-dialog';
 
     let versionReal = "";
     let buscandoUpdate = false;
@@ -16,20 +19,42 @@
             console.error("Error al leer la versión:", e);
             versionReal = "Desconocida";
         }
+        
+        buscarActualizaciones(true);
     });
 
-    async function buscarActualizaciones() {
+    async function buscarActualizaciones(silencioso = false) {
         buscandoUpdate = true;
         const resultado = await verificarActualizacion();
         updateInfo = resultado;
         buscandoUpdate = false;
         
-        if (resultado.error) {
-            alert(`❌ No se pudo buscar actualizaciones.\nMotivo: ${resultado.mensajeError}`);
-            return;
-        }
-        if (!resultado.hayNueva) {
-            alert("✅ ¡Estás al día! Tienes la última versión instalada.");
+        // Si hay una nueva versión, SIEMPRE mostramos el cartel, sea búsqueda automática o manual
+        if (resultado.hayNueva) {
+           const quiereDescargar = await ask(
+               `Se ha detectado una actualización para RAssembly.\n\n• Versión instalada: v${versionReal}\n• Nueva versión: v${resultado.version}\n\n¿Deseas descargarla ahora?`, 
+               { 
+                    title: `Actualización disponible: v${resultado.version}`, 
+                    kind: 'info',
+                    okLabel: 'Sí, descargar',
+                    cancelLabel: 'Más tarde'
+               }
+       );
+
+            // Si el usuario pulsó "Sí, descargar", ejecutamos tu función de descarga
+            if (quiereDescargar) {
+                await irA_Descarga();
+            }
+            
+        } else if (!silencioso) {
+            // Solo mostramos estos errores si el usuario pulsó el botón manualmente
+            if (resultado.error) {
+                alert(`❌ No se pudo buscar actualizaciones.\nMotivo: ${resultado.mensajeError}`);
+                return;
+            }
+            if (!resultado.hayNueva) {
+                alert("✅ ¡Estás al día! Tienes la última versión instalada.");
+            }
         }
     }
 </script>
@@ -76,7 +101,7 @@
             <div style="height: 1px; background: var(--border); width: 100%; max-width: 400px; margin: 10px 0;"></div>
 
             <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
-                <button class="btn-buscar-update" on:click={buscarActualizaciones} disabled={buscandoUpdate}>
+                <button class="btn-buscar-update" on:click={() => buscarActualizaciones(false)} disabled={buscandoUpdate}>
                     {#if buscandoUpdate}
                         <Activity size={18} class="spin" /> Buscando actualizaciones...
                     {:else}

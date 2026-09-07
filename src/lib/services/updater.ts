@@ -1,5 +1,6 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-shell';
+import { fetch } from '@tauri-apps/plugin-http';
 
 // Interfaz estricta para TypeScript
 export interface UpdateResult {
@@ -48,7 +49,7 @@ export async function verificarActualizacion(): Promise<UpdateResult> {
       return { hayNueva: false, error: true, mensajeError: "La plataforma no está soportada en la respuesta." };
     }
 
-    if (compararVersiones(infoPlataforma.latest_version, versionActual)) {
+    if (true) {
       return {
         hayNueva: true,
         version: infoPlataforma.latest_version,

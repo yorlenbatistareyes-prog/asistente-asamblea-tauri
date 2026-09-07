@@ -10,8 +10,6 @@ html, body {
   width: 100vw;
   max-width: 100%;
   overflow-x: hidden; /* Prohibido terminantemente el scroll horizontal fantasma */
-  -webkit-text-size-adjust: 100%; /* Para navegadores móviles antiguos */
-  text-size-adjust: 100%;         /* Para navegadores modernos */
   -webkit-tap-highlight-color: transparent; 
 }
 
@@ -23,8 +21,8 @@ body {
 }
 
 input, textarea {
-  user-select: auto;
   -webkit-user-select: auto;
+  user-select: auto;
 }
 
 /* --- 2. VARIABLES DE DISEÑO (Dashboard Premium + Colores) --- */
@@ -123,8 +121,8 @@ body {
 }
 
 input, textarea, select {
-    appearance: none;
     -webkit-appearance: none;
+  appearance: none;
 }
 
 img {
@@ -132,7 +130,6 @@ img {
     height: auto;
     -webkit-user-select: none;
     user-select: none;
-    -webkit-user-drag: none;
 }
 
 /* --- 6. CLASES RESPONSIVAS GLOBALES --- */

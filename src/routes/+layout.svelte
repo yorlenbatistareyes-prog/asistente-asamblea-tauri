@@ -11,7 +11,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
   import { getVersion } from '@tauri-apps/api/app';
-
+  import { ask } from '@tauri-apps/plugin-dialog';
+  import { verificarActualizacion, irA_Descarga } from '$lib/services/updater';
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
   // 2. Importa las herramientas de sincronización
@@ -54,8 +55,16 @@
       // Encendemos el radar de la nube
       iniciarRadarNube();
 
-      // Apagamos el radar si el usuario cierra la app
-      return () => detenerRadarNube();
+      // 👇 NUEVO: Encendemos el radar de actualizaciones (espera 3s al abrir)
+      setTimeout(chequearActualizacionesGlobal, 3000);
+      // Y luego busca cada 2 horas (7200000 ms)
+      const intervaloActualizaciones = setInterval(chequearActualizacionesGlobal, 7200000);
+
+      // Apagamos ambos radares si el usuario cierra la app
+      return () => {
+          detenerRadarNube();
+          clearInterval(intervaloActualizaciones);
+      };
   });
 
   // --- TEMA ---
@@ -87,6 +96,36 @@
     }
     vistaActual.set('configuracion');
     goto('/');
+  }
+
+  // ==========================================
+  // VIGILANTE DE ACTUALIZACIONES GLOBAL
+  // ==========================================
+  async function chequearActualizacionesGlobal() {
+      // Si estamos en el monitor secundario, no buscamos actualizaciones para no interrumpir
+      if (esModoMonitor) return; 
+
+      try {
+          const resultado = await verificarActualizacion();
+          
+          if (resultado.hayNueva) {
+              const quiereDescargar = await ask(
+                  `Se ha detectado una actualización para RAssembly.\n\n• Versión instalada: v${versionApp}\n• Nueva versión: v${resultado.version}\n\n¿Deseas descargarla ahora?`, 
+                  { 
+                      title: `Actualización disponible: v${resultado.version}`, 
+                      kind: 'info',
+                      okLabel: 'Sí, descargar',
+                      cancelLabel: 'Más tarde'
+                  }
+              );
+
+              if (quiereDescargar) {
+                  await irA_Descarga();
+              }
+          }
+      } catch (e) {
+          console.error("Fallo silencioso buscando actualizaciones:", e);
+      }
   }
 </script>
 
