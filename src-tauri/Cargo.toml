@@ -1,6 +1,6 @@
 [package]
 name = "rassembly"
-version = "1.0.3"
+version = "1.0.4"
 description = "RAssembly - Gestión de Asambleas Regionales"
 authors = ["Yorlen Batista"]
 edition = "2021"

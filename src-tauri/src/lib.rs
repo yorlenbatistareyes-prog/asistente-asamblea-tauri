@@ -226,6 +226,8 @@ pub fn run() {
             commands::configuracion::guardar_configuracion_general,
             commands::configuracion::obtener_configuracion_pdf, // <-- NUEVO
             commands::configuracion::guardar_configuracion_pdf,
+            commands::configuracion::guardar_config_membrete,
+            commands::configuracion::obtener_config_membrete,
             // --- ACTUALIZACIONES ---
             commands::actualizaciones::check_for_updates,
             // DATOS (Lo nuevo)

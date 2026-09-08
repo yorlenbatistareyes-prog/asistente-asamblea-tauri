@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import Resumen from '$lib/components/gestion/Resumen.svelte';
-  import { Loader2, CheckCircle, AlertTriangle, CloudOff, RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  import { Loader2, CheckCircle, AlertTriangle, CloudOff, RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus, DownloadCloud
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
@@ -17,7 +17,7 @@
 
   // 2. Importa las herramientas de sincronización
   import { sesionApp, inicializarSesion } from '$lib/stores/authStore';
-  import { syncStatus, iniciarRadarNube, detenerRadarNube } from '$lib/stores/autoSyncStore';
+  import { syncStatus, iniciarRadarNube, detenerRadarNube, descargarDatos } from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
   let temaActual = 'sistema';
@@ -127,6 +127,14 @@
           console.error("Fallo silencioso buscando actualizaciones:", e);
       }
   }
+
+  async function resolverConflictoDirecto() {
+      try {
+          await descargarDatos(); 
+      } catch (e) {
+          alert("Error al descargar los cambios: " + e);
+      }
+  }
 </script>
 
 {#if esModoMonitor}
@@ -205,12 +213,12 @@
                 
                 <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
                     <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
-                    <p>Para proteger esos datos y no borrarlos accidentalmente, hemos pausado tu guardado automático temporalmente.</p>
-                    <p style="margin-top: 10px; font-weight: bold;">Ve a Sincronización para descargar los cambios recientes.</p>
+                    <p>¿Deseas descargar y aplicar estos cambios ahora mismo?</p>
                 </div>
 
-                <button class="btn-blue" on:click={() => goto('/sincronizacion')}>
-                    Ir a Sincronización
+                <!-- Botón directo de descarga en lugar de navegar -->
+                <button class="btn-blue" on:click={resolverConflictoDirecto}>
+                    <DownloadCloud size={18} /> Descargar cambios ahora
                 </button>
             </Panel>
           </div>

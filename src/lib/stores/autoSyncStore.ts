@@ -51,14 +51,15 @@ async function ejecutarProcesoDeSincronizacion() {
         // 1. EL RADAR (Chequeo de concurrencia)
         const fechaLocalStr = await DbSyncHelper.obtenerFechaUltimaSincronizacion();
         const estadoNube = await SyncService.chequearEstadoNube();
+        const miDispositivo = get(lastDeviceName); // 🔥 NUEVO: Identificamos tu PC
 
         if (estadoNube && estadoNube.last_synced_at) {
             const tiempoLocal = fechaLocalStr ? new Date(fechaLocalStr).getTime() : 0;
             const tiempoNube = new Date(estadoNube.last_synced_at).getTime();
 
-            // CHOQUE: Si la nube es más nueva, abortamos para proteger datos
-            if (tiempoNube > tiempoLocal) {
-                console.warn("⚠️ CONFLICTO DETECTADO");
+            // 🔥 REGLA DE ORO: Solo es conflicto si la nube es más nueva Y el dispositivo es DISTINTO
+            if (tiempoNube > tiempoLocal && estadoNube.last_device !== miDispositivo) {
+                console.warn("⚠️ CONFLICTO REAL DETECTADO (Otro dispositivo)");
                 syncStatus.set({
                     estado: 'conflicto',
                     mensaje: 'Hay datos más nuevos en la nube.',
@@ -122,19 +123,26 @@ export function iniciarRadarNube() {
     radarTimer = setInterval(async () => {
         try {
             const estadoNube = await SyncService.chequearEstadoNube();
+            const miDispositivo = get(lastDeviceName);
+
             if (estadoNube && estadoNube.last_synced_at) {
                 const fechaLocalStr = await DbSyncHelper.obtenerFechaUltimaSincronizacion();
                 const tiempoLocal = fechaLocalStr ? new Date(fechaLocalStr).getTime() : 0;
                 const tiempoNube = new Date(estadoNube.last_synced_at).getTime();
 
                 if (tiempoNube > tiempoLocal) {
-                    // ¡Encontramos datos nuevos! Activamos el modal
-                    syncStatus.set({
-                        estado: 'conflicto',
-                        mensaje: 'Hay datos nuevos en la nube.',
-                        nubeDispositivo: estadoNube.last_device || 'Otro dispositivo',
-                        nubeFecha: estadoNube.last_synced_at
-                    });
+                    // 🔥 Si fue otro dispositivo -> Lanza el Cartel
+                    if (estadoNube.last_device !== miDispositivo) {
+                        syncStatus.set({
+                            estado: 'conflicto',
+                            mensaje: 'Hay datos nuevos en la nube.',
+                            nubeDispositivo: estadoNube.last_device || 'Otro dispositivo',
+                            nubeFecha: estadoNube.last_synced_at
+                        });
+                    } else {
+                        // 🔥 Si fuiste TÚ mismo, solo iguala las fechas en silencio
+                        await DbSyncHelper.actualizarFechaSincronizacion(estadoNube.last_synced_at);
+                    }
                 }
             }
         } catch (e) {
@@ -147,6 +155,34 @@ export function detenerRadarNube() {
     if (radarTimer) {
         clearInterval(radarTimer);
         radarTimer = null;
+    }
+}
+
+// 🔥 NUEVO: Función para el botón del cartel de conflicto
+export async function descargarDatos() {
+    try {
+        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Descargando...' }));
+        
+        // 1. Descargar el objeto de la nube
+        const respaldoNube = await SyncService.descargarRespaldo(); 
+        
+        // 2. Aplicar el JSON puro en tu base de datos local
+        await DbSyncHelper.aplicarRespaldoNube(respaldoNube.backup_data); 
+        
+        // 3. Emparejar las fechas para calmar al radar
+        if (respaldoNube.last_synced_at) {
+            await DbSyncHelper.actualizarFechaSincronizacion(respaldoNube.last_synced_at);
+        }
+        
+        syncStatus.set({ estado: 'al_dia', mensaje: '¡Datos actualizados!', nubeDispositivo: '', nubeFecha: '' });
+        
+        // Refrescamos la ventana para que la interfaz cargue los nuevos datos
+        setTimeout(() => window.location.reload(), 1500);
+
+    } catch (e) {
+        console.error("Error al descargar los datos:", e);
+        alert("Fallo al descargar. Revisa tu conexión a internet.");
+        syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al descargar' }));
     }
 }
 

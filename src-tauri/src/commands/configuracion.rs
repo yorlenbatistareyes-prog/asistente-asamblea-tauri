@@ -62,21 +62,25 @@ pub async fn guardar_configuracion_general(
     let conn = state.conn.lock().unwrap();
 
     conn.execute(
-        "INSERT OR REPLACE INTO configuracion 
+        "INSERT INTO configuracion 
          (id, nombre, segundo_nombre, apellido, sufijo, email, email_jwpub, movil, identificador, fecha_creacion, tema, idioma) 
-         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+         VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+         ON CONFLICT(id) DO UPDATE SET
+         nombre = excluded.nombre,
+         segundo_nombre = excluded.segundo_nombre,
+         apellido = excluded.apellido,
+         sufijo = excluded.sufijo,
+         email = excluded.email,
+         email_jwpub = excluded.email_jwpub,
+         movil = excluded.movil,
+         identificador = excluded.identificador,
+         fecha_creacion = excluded.fecha_creacion,
+         tema = excluded.tema,
+         idioma = excluded.idioma",
         rusqlite::params![
-            config.nombre,
-            config.segundo_nombre,
-            config.apellido,
-            config.sufijo,
-            config.email,
-            config.email_jwpub,
-            config.movil,
-            config.identificador,
-            config.fecha_creacion,
-            config.tema,
-            config.idioma,
+            config.nombre, config.segundo_nombre, config.apellido, config.sufijo,
+            config.email, config.email_jwpub, config.movil, config.identificador,
+            config.fecha_creacion, config.tema, config.idioma,
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -93,7 +97,8 @@ pub async fn guardar_configuracion_pdf(
     let conn = state.conn.lock().unwrap();
 
     conn.execute(
-        "INSERT OR REPLACE INTO configuraciones_pdf (id, datos_json) VALUES (1, ?1)",
+        "INSERT INTO configuraciones_pdf (id, datos_json) VALUES (1, ?1)
+         ON CONFLICT(id) DO UPDATE SET datos_json = excluded.datos_json",
         rusqlite::params![datos],
     )
     .map_err(|e| e.to_string())?;
@@ -116,6 +121,45 @@ pub async fn obtener_configuracion_pdf(
             "SELECT datos_json FROM configuraciones_pdf WHERE id = 1",
             [],
             // 2. Le decimos explícitamente a Rust que extraiga un texto (String)
+            |row| row.get::<usize, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    Ok(res)
+}
+
+// 5. COMANDO PARA GUARDAR EL MEMBRETE
+#[tauri::command]
+pub async fn guardar_config_membrete(
+    state: tauri::State<'_, DbState>,
+    config: String, 
+) -> Result<(), String> {
+    let conn = state.conn.lock().unwrap();
+
+    // Usamos el ID 2 para que no choque con la configuración del PDF (que usa el ID 1)
+    conn.execute(
+        "INSERT INTO configuraciones_pdf (id, datos_json) VALUES (2, ?1)
+         ON CONFLICT(id) DO UPDATE SET datos_json = excluded.datos_json",
+        rusqlite::params![config],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// 6. COMANDO PARA OBTENER EL MEMBRETE
+#[tauri::command]
+pub async fn obtener_config_membrete(
+    state: tauri::State<'_, DbState>,
+) -> Result<Option<String>, String> {
+    use rusqlite::OptionalExtension;
+    let conn = state.conn.lock().unwrap();
+
+    let res: Option<String> = conn
+        .query_row(
+            "SELECT datos_json FROM configuraciones_pdf WHERE id = 2",
+            [],
             |row| row.get::<usize, String>(0),
         )
         .optional()

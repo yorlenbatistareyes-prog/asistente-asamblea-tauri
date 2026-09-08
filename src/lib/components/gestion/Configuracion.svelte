@@ -120,12 +120,33 @@
   }
 }
 
- onMount(async () => {
+onMount(async () => {
+      // 1. Cargar la versión de la app
       try {
           versionReal = await getVersion();
       } catch (e) {
           console.error("Error al leer la versión:", e);
           versionReal = "Desconocida";
+      }
+
+      // 2. Cargar los datos reales del usuario desde la base de datos
+      try {
+          const configDB = await invoke('obtener_configuracion_general') as any;
+          if (configDB) {
+              usuario = {
+                  nombre: configDB.nombre || "",
+                  segundoNombre: configDB.segundo_nombre || "",
+                  apellido: configDB.apellido || "",
+                  sufijo: configDB.sufijo || "",
+                  email: configDB.email || "",
+                  emailJw: configDB.email_jwpub || "",
+                  movil: configDB.movil || "",
+                  id: configDB.identificador || "",
+                  fechaCreacion: configDB.fecha_creacion || ""
+              };
+          }
+      } catch (e) {
+          console.error("Error al cargar la información del usuario:", e);
       }
   });
   
