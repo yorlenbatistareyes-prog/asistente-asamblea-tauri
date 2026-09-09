@@ -155,9 +155,10 @@ export const DB = {
     },
 
     // --- FUNCIÓN PARA EL MEMBRETE ---
+    // --- FUNCIÓN PARA EL MEMBRETE ---
     async guardarConfigMembrete(config: any) {
-        // Llama a tu backend en Rust
-        const resultado = await invoke('guardar_config_membrete', { config });
+        // Envolvemos 'config' con JSON.stringify para que Rust lo reciba como texto
+        const resultado = await invoke('guardar_config_membrete', { config: JSON.stringify(config) });
         notificarCambioLocal(); // 📢 Despierta al radar de sincronización
         return resultado;
     },

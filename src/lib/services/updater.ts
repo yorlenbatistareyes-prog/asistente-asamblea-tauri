@@ -45,11 +45,12 @@ export async function verificarActualizacion(): Promise<UpdateResult> {
     const esAndroid = /android/i.test(navigator.userAgent);
     const infoPlataforma = esAndroid ? datos.android : datos.windows;
 
-    if (!infoPlataforma) {
+ if (!infoPlataforma) {
       return { hayNueva: false, error: true, mensajeError: "La plataforma no está soportada en la respuesta." };
     }
 
-    if (true) {
+    // 👇 AQUÍ ESTÁ EL CAMBIO: Reemplazamos "if (true)" por tu función
+    if (compararVersiones(infoPlataforma.latest_version, versionActual)) {
       return {
         hayNueva: true,
         version: infoPlataforma.latest_version,

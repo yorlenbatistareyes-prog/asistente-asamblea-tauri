@@ -2,7 +2,7 @@
     import { invoke } from '@tauri-apps/api/core';
     import { save, open, confirm, message } from '@tauri-apps/plugin-dialog';
     import { relaunch } from '@tauri-apps/plugin-process';
-    import { Upload, Download, Trash2, Cloud } from 'lucide-svelte';
+    import { Upload, Download, Trash2, Cloud, Info } from 'lucide-svelte';
     import Panel from '$lib/components/ui/Panel.svelte';
 
     import Sincronizacion from '$lib/components/Sincronizacion.svelte';
@@ -85,7 +85,7 @@
 </script>
 
 <div class="data-management-container">
-    
+
     <div class="section-divider">
         <span class="divider-text">Sincronización Automática en la Nube</span>
     </div>
@@ -319,4 +319,48 @@
     }
     .cloud-component-wrapper { width: 100%; }
     .purple { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+
+.info-card-metodos {
+        background: var(--bg-card, #ffffff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+        margin-top: 5px;
+    }
+
+    .info-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        color: var(--primary, #3b82f6);
+    }
+
+    .info-card-header h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-main, #111827);
+    }
+
+    .info-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .item-metodo {
+        font-size: 13px;
+        color: var(--text-secondary, #4b5563);
+        line-height: 1.4;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .badge-nube { color: #8b5cf6; font-weight: 700; font-size: 12px; }
+    .badge-drive { color: #3b82f6; font-weight: 700; font-size: 12px; }
+    .badge-manual { color: #10b981; font-weight: 700; font-size: 12px; }
+
 </style>

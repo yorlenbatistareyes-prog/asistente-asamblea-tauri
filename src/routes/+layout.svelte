@@ -15,6 +15,9 @@
   import { verificarActualizacion, irA_Descarga } from '$lib/services/updater';
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
+  import NotasVersionModal from '$lib/components/ui/NotasVersionModal.svelte';
+  import { historialCambios } from '$lib/data/historial_cambios';
+
   // 2. Importa las herramientas de sincronización
   import { sesionApp, inicializarSesion } from '$lib/stores/authStore';
   import { syncStatus, iniciarRadarNube, detenerRadarNube, descargarDatos } from '$lib/stores/autoSyncStore';
@@ -24,6 +27,18 @@
 
   let esModoMonitor = false;
 
+  let mostrarNovedades = false;
+   // historialCambios[0] toma siempre la última versión (la que está arriba en la lista)
+  let ultimaActualizacion = historialCambios[0];
+
+
+  function cerrarNovedades() {
+    getVersion().then(v => {
+        // Guardamos en el navegador que el usuario ya vio esta versión
+        localStorage.setItem('rassembly_version_vista', v); 
+        mostrarNovedades = false;
+    });
+  }
   // ==========================================
   // INICIALIZACIÓN (ONMOUNT LIMPIO)
   // ==========================================
@@ -44,6 +59,17 @@
           
           try {
               versionApp = await getVersion();
+              
+              // 👇 NUEVA LÓGICA DE NOVEDADES AQUÍ 👇
+              const versionGuardada = localStorage.getItem('rassembly_version_vista');
+              if (versionGuardada !== versionApp) {
+                  // Comprobamos si la versión instalada tiene notas en nuestro archivo .ts
+                  if (ultimaActualizacion.version === versionApp) {
+                      mostrarNovedades = true;
+                  }
+              }
+              // 👆 FIN DE LA NUEVA LÓGICA 👆
+
           } catch (e) {
               console.error("Error al obtener la versión:", e);
               versionApp = "Desconocida"; 
@@ -135,6 +161,7 @@
           alert("Error al descargar los cambios: " + e);
       }
   }
+
 </script>
 
 {#if esModoMonitor}
@@ -227,6 +254,16 @@
         <Cronometro />
 
     </div>
+{/if}
+
+{#if mostrarNovedades}
+    <NotasVersionModal 
+        version={ultimaActualizacion.version}
+        fecha={ultimaActualizacion.fecha}
+        mensaje={ultimaActualizacion.mensaje}
+        cambios={ultimaActualizacion.cambios}
+        on:cerrar={cerrarNovedades}
+    />
 {/if}
 
 <style>

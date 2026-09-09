@@ -137,9 +137,8 @@ pub async fn guardar_config_membrete(
 ) -> Result<(), String> {
     let conn = state.conn.lock().unwrap();
 
-    // Usamos el ID 2 para que no choque con la configuración del PDF (que usa el ID 1)
     conn.execute(
-        "INSERT INTO configuraciones_pdf (id, datos_json) VALUES (2, ?1)
+        "INSERT INTO configuracion_membrete (id, datos_json) VALUES (1, ?1)
          ON CONFLICT(id) DO UPDATE SET datos_json = excluded.datos_json",
         rusqlite::params![config],
     )
@@ -148,7 +147,6 @@ pub async fn guardar_config_membrete(
     Ok(())
 }
 
-// 6. COMANDO PARA OBTENER EL MEMBRETE
 #[tauri::command]
 pub async fn obtener_config_membrete(
     state: tauri::State<'_, DbState>,
@@ -158,7 +156,7 @@ pub async fn obtener_config_membrete(
 
     let res: Option<String> = conn
         .query_row(
-            "SELECT datos_json FROM configuraciones_pdf WHERE id = 2",
+            "SELECT datos_json FROM configuracion_membrete WHERE id = 1",
             [],
             |row| row.get::<usize, String>(0),
         )

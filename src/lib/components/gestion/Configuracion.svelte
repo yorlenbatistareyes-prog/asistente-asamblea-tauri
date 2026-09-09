@@ -209,7 +209,29 @@ onMount(async () => {
             
             {:else if configSeccion === 'datos'}
                 <div style="display: flex; flex-direction: column; gap: 30px; padding-bottom: 20px;">
-                    <SincronizacionCarpeta />
+                  
+                  <div class="info-card-metodos">
+                        <div class="info-card-header">
+                            <Info size={20} />
+                            <h4>¿Qué método de respaldo elegir? Guía de privacidad</h4>
+                        </div>
+                        <div class="info-card-body">
+                            <div class="item-metodo">
+                                <span class="badge-nube">☁️ Sincronización Automática</span>
+                                <p><strong>Ventaja:</strong> Comodidad total y flujo instantáneo entre dispositivos. <strong>Nota:</strong> Los datos pasan por un servidor externo administrado por colaboradores.</p>
+                            </div>
+                            <div class="item-metodo">
+                                <span class="badge-drive">📁 Google Drive / OneDrive</span>
+                                <p><strong>Ventaja:</strong> Privacidad y control absoluto en tu propia nube personal.</p>
+                            </div>
+                            <div class="item-metodo">
+                                <span class="badge-manual">💾 Respaldo Local (Manual)</span>
+                                <p><strong>Ventaja:</strong> Privacidad del 100% y funcionamiento totalmente offline.</p>
+                            </div>
+                        </div>
+                    </div>
+                  
+                  <SincronizacionCarpeta />
                     <Datos />
                 </div>
 
@@ -703,4 +725,47 @@ onMount(async () => {
     min-height: 48px;
   }
 }
+
+/* --- ESTILOS DE LA GUÍA DE PRIVACIDAD --- */
+.info-card-metodos {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+}
+
+.info-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    color: var(--primary, #3b82f6);
+}
+
+.info-card-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main, #111827);
+}
+
+.info-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.item-metodo {
+    font-size: 13px;
+    color: var(--text-sec, #4b5563);
+    line-height: 1.4;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.badge-nube { color: #8b5cf6; font-weight: 700; font-size: 12px; }
+.badge-drive { color: #3b82f6; font-weight: 700; font-size: 12px; }
+.badge-manual { color: #10b981; font-weight: 700; font-size: 12px; }
 </style>

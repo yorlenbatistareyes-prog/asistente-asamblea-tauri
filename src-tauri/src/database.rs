@@ -435,5 +435,14 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
     )?;
     // 👆 --- FIN NUEVO BLOQUE --- 👆
 
+    // 👇 --- NUEVO: 12. CONFIGURACIÓN MEMBRETE --- 👇
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS configuracion_membrete (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            datos_json TEXT NOT NULL
+        )",
+        [],
+    )?;
+    
     Ok(conn)
 }
