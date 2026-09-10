@@ -2,10 +2,15 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { open } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'; 
   import { Cloud, FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
-  import Panel from '$lib/components/ui/Panel.svelte'; // 👈 Importamos Panel
+  import Panel from '$lib/components/ui/Panel.svelte'; 
 
   import { DB } from '$lib/services/db';
+  import { obtenerOCrearLlave } from '$lib/utils/seguridad';
+  
+  // 🔥 IMPORTAMOS EL ESTADO GLOBAL DE LA BARRA SUPERIOR
+  import { syncStatus } from '$lib/stores/autoSyncStore';
 
   let rutaCarpeta: string | null = null;
   let guardando = false;
@@ -29,7 +34,6 @@
       if (seleccion) {
         guardando = true;
         rutaCarpeta = seleccion as string;
-        // 🔥 USAMOS EL EMBUDO
         await DB.guardarRutaSync(rutaCarpeta);
         guardando = false;
       }
@@ -39,14 +43,87 @@
     }
   }
 
- async function desvincular() {
+  async function desvincular() {
     if (confirm("¿Desvincular esta carpeta? La app dejará de sincronizar aquí.")) {
       rutaCarpeta = null;
-      // 🔥 USAMOS EL EMBUDO
       await DB.guardarRutaSync(null);
     }
   }
   
+  // 🔄 FUNCIÓN DEFINITIVA DE SINCRONIZACIÓN GLOBAL ENCRIPTADA
+  async function sincronizarAhora() {
+    if (!rutaCarpeta) return;
+    try {
+      guardando = true;
+      
+      // 1. ENCENDEMOS EL ESTADO VISUAL ARRIBA AL EMPEZAR
+      syncStatus.set({ estado: 'sincronizando', mensaje: 'Guardando manual...', nubeDispositivo: '', nubeFecha: '' });
+
+      // 🔥 PAUSA ARTIFICIAL DE 1 SEGUNDO PARA QUE SE PUEDA LEER EL MENSAJE
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const llave = await obtenerOCrearLlave();
+
+      const paqueteCifrado = await invoke<string>('exportar_db_encriptada_global', {
+        llaveBase64: llave
+      });
+
+      const separador = rutaCarpeta.includes('/') ? '/' : '\\';
+      const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
+
+      await writeTextFile(rutaArchivoFinal, paqueteCifrado);
+
+      console.log("📦 Archivo cifrado guardado en:", rutaArchivoFinal);
+      
+      // 🔥 2. CAMBIAMOS EL ESTADO A ÉXITO EN LA BARRA SUPERIOR (Sin alertas invasivas)
+      syncStatus.set({ estado: 'al_dia', mensaje: '¡Carpeta sincronizada!', nubeDispositivo: '', nubeFecha: '' });
+
+      // 🔥 3. OCULTAMOS EL MENSAJE TRAS 3 SEGUNDOS
+      setTimeout(() => {
+          syncStatus.set({ estado: 'inactivo', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
+      }, 3000);
+
+    } catch (error) {
+      console.error("Error al sincronizar y guardar:", error);
+      
+      // 🔥 4. MOSTRAMOS EL ERROR EN LA BARRA SUPERIOR
+      syncStatus.set({ estado: 'error', mensaje: 'Error al guardar', nubeDispositivo: '', nubeFecha: '' });
+      setTimeout(() => {
+          syncStatus.set({ estado: 'inactivo', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
+      }, 4000);
+    } finally {
+      guardando = false;
+    }
+  }
+
+  async function importarSincronizacion() {
+    if (!rutaCarpeta) return;
+    if (!confirm("⚠️ ¿Restaurar datos desde la nube? Esto sobrescribirá la base de datos actual con la versión más reciente del equipo principal.")) return;
+    
+    try {
+      guardando = true;
+      const separador = rutaCarpeta.includes('/') ? '/' : '\\';
+      const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
+
+      const paqueteCifrado = await readTextFile(rutaArchivoFinal);
+      const llave = await obtenerOCrearLlave();
+
+      await invoke('importar_db_encriptada_global', {
+        paqueteBase64: paqueteCifrado,
+        llaveBase64: llave
+      });
+
+      alert("¡Base de datos restaurada correctamente desde la nube!");
+      // Forzamos recargar la ventana para reflejar todos los datos
+      window.location.reload();
+    } catch (error) {
+      console.error("Error al importar la sincronización:", error);
+      alert("Hubo un error al leer o restaurar el archivo de sincronización.");
+    } finally {
+      guardando = false;
+    }
+  }
+
 </script>
 
 <Panel padding="20px" clasesExtra="cloud-panel sync-folder-panel">
@@ -85,6 +162,19 @@
         <div class="aviso">
             <Info size={14}/> Esta carpeta servirá como puente seguro (Drive/OneDrive) entre tus dispositivos.
         </div>
+
+        <div class="acciones-sync">
+
+             <button class="btn-sync-moderno btn-sync-primario" on:click={sincronizarAhora} disabled={!rutaCarpeta || guardando}>
+                 {guardando ? 'Sincronizando...' : '🔄 Sincronizar Ahora'}
+             </button>
+
+             <button class="btn-sync-moderno btn-sync-outline" on:click={importarSincronizacion} disabled={!rutaCarpeta || guardando}>
+                 📥 Restaurar Manual
+             </button>
+             
+        </div>
+
     </div>
 </Panel>
 
@@ -155,6 +245,63 @@
       background: rgba(100, 116, 139, 0.05);
       padding: 10px 15px;
       border-radius: 6px;
+  }
+
+  /* Contenedor de los botones */
+  .acciones-sync {
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      align-items: center;
+  }
+
+  /* Estilo base para los botones modernos de sincronización */
+  .btn-sync-moderno {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      outline: none;
+  }
+
+  .btn-sync-moderno:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+  }
+
+  /* Botón Primario (Sincronizar Ahora) - Estilo sólido elegante */
+  .btn-sync-primario {
+      background: #4f46e5; /* O el color primario de tu paleta (ej. var(--primary, #4f46e5)) */
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  }
+
+  .btn-sync-primario:hover:not(:disabled) {
+      background: #4338ca;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+  }
+
+  /* Botón de Contorno (Restaurar Manual) - Limpio y sutil */
+  .btn-sync-outline {
+      background: transparent;
+      color: #475569;
+      border-color: #cbd5e1;
+  }
+
+  .btn-sync-outline:hover:not(:disabled) {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
   }
 
   /* Responsive específico para este bloque */

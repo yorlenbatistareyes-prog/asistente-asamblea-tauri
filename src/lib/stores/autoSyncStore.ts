@@ -2,6 +2,9 @@ import { writable, get } from 'svelte/store';
 import { SyncService } from '$lib/services/syncService';
 import { DbSyncHelper } from '$lib/services/dbSyncHelper';
 import { sesionApp } from './authStore'; 
+import { invoke } from '@tauri-apps/api/core';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { obtenerOCrearLlave } from '$lib/utils/seguridad';
 
 export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'error';
 
@@ -16,29 +19,46 @@ export const syncStatus = writable({
 // Nombre de este dispositivo (para que otros sepan quién subió qué)
 export const lastDeviceName = writable(typeof window !== 'undefined' ? localStorage.getItem('rassembly_device_name') || 'PC Local' : 'PC Local');
 
-let debounceTimer: ReturnType<typeof setTimeout>;
+// ⏱️ Dos temporizadores independientes para que no interfieran entre sí
+let debounceServidorTimer: ReturnType<typeof setTimeout>;
+let debounceCarpetaTimer: ReturnType<typeof setTimeout>;
 
 /**
- * Se llama desde db.ts en cada cambio.
+ * Disparador exclusivo para el Servidor Web (Requiere Sesión)
  */
-export function dispararSincronizacionLocal() {
+function dispararSincronizacionServidor() {
     const sesion = get(sesionApp);
     
-    // Si el sistema piensa que no hay sesión, nos avisa en rojo y aborta
+    // Si no hay sesión, ignoramos el servidor en silencio sin afectar la carpeta local
     if (!sesion.isLoggedIn) {
-        console.warn("🔒 [SyncStore] Bloqueado: El sistema cree que NO has iniciado sesión con Gmail.");
         return;
     }
 
-    // UI: Avisamos que detectamos el cambio y estamos esperando 5s
-    console.log("⏳ [SyncStore] Iniciando temporizador de 5 segundos...");
+    console.log("⏳ [SyncServer] Iniciando temporizador del servidor (5s)...");
     syncStatus.update(s => ({ ...s, estado: 'esperando', mensaje: 'Cambio detectado, esperando...' }));
     
-    if (debounceTimer) clearTimeout(debounceTimer);
+    if (debounceServidorTimer) clearTimeout(debounceServidorTimer);
 
-    debounceTimer = setTimeout(async () => {
+    debounceServidorTimer = setTimeout(async () => {
         await ejecutarProcesoDeSincronizacion();
     }, 5000); 
+}
+
+/**
+ * Disparador exclusivo para la Carpeta Compartida (Independiente del servidor)
+ */
+/**
+ * Disparador exclusivo para la Carpeta Compartida (Independiente del servidor)
+ */
+function dispararSincronizacionCarpeta() {
+    if (debounceCarpetaTimer) clearTimeout(debounceCarpetaTimer);
+
+    // UI: Avisamos que detectamos el cambio y activamos el estado visual de espera
+    syncStatus.update(s => ({ ...s, estado: 'esperando', mensaje: 'Cambio detectado, esperando...' }));
+
+    debounceCarpetaTimer = setTimeout(async () => {
+        await ejecutarSincronizacionCarpetaLocal();
+    }, 5000);
 }
 
 /**
@@ -100,6 +120,59 @@ async function ejecutarProcesoDeSincronizacion() {
             ...s, 
             estado: 'error', 
             mensaje: 'Error de conexión' 
+        }));
+    }
+}
+
+/**
+ * 📁 Respaldo automático cifrado en la carpeta local de Google Drive / OneDrive
+ */
+async function ejecutarSincronizacionCarpetaLocal() {
+    try {
+        // 1. Verificamos si hay una carpeta de sincronización configurada
+        const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
+        if (!rutaCarpeta) return; // Si no hay carpeta vinculada, salimos en silencio
+
+        console.log("📁 [CarpetaSync] Verificando carpeta de sincronización...");
+
+        // UI: Informamos que la carpeta local está sincronizando
+        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Sincronizando carpeta...' }));
+
+        // 2. Obtenemos nuestra llave invisible de la bóveda de forma transparente
+        const llave = await obtenerOCrearLlave();
+
+        // 3. Invocamos a Rust para exportar y cifrar la base de datos global
+        const paqueteCifrado = await invoke<string>('exportar_db_encriptada_global', {
+            llaveBase64: llave
+        });
+
+        // 4. Construimos la ruta segura (compatible con escritorio y Android)
+        const separador = rutaCarpeta.includes('/') ? '/' : '\\';
+        const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
+
+        // 5. Escribimos físicamente el archivo cifrado en el directorio compartido
+        await writeTextFile(rutaArchivoFinal, paqueteCifrado);
+        console.log("✅ [CarpetaSync] Archivo cifrado actualizado en la carpeta compartida:", rutaArchivoFinal);
+
+        // UI: Éxito visual
+        syncStatus.set({
+            estado: 'al_dia',
+            mensaje: '¡Carpeta sincronizada!',
+            nubeDispositivo: '',
+            nubeFecha: ''
+        });
+
+        // Ocultar mensaje de éxito tras 3 segundos
+        setTimeout(() => {
+            syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' }));
+        }, 3000);
+
+    } catch (error) {
+        console.error("❌ [CarpetaSync] Error al sincronizar en la carpeta local:", error);
+        syncStatus.update(s => ({ 
+            ...s, 
+            estado: 'error', 
+            mensaje: 'Error en carpeta local' 
         }));
     }
 }
@@ -189,7 +262,15 @@ export async function descargarDatos() {
 // 📡 EL AURICULAR: Escuchamos el grito del embudo (db.ts)
 if (typeof window !== 'undefined') {
     window.addEventListener('db_local_cambiada', () => {
-        console.log("👂 [SyncStore] ¡Señal recibida de la base de datos! Iniciando sincronización...");
-        dispararSincronizacionLocal();
+        console.log("👂 [SyncStore] ¡Señal recibida de la base de datos!");
+        
+        // 🔥 ESTE ES EL SECRETO: Despertamos la UI inmediatamente para TODOS los canales
+        syncStatus.update(s => ({ ...s, estado: 'esperando', mensaje: 'Cambio detectado, esperando...' }));
+        
+        // 1. Canal Independiente: Servidor de la Nube
+        dispararSincronizacionServidor();
+
+        // 2. Canal Independiente: Carpeta Compartida Local (Drive / OneDrive)
+        dispararSincronizacionCarpeta();
     });
 }

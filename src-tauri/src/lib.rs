@@ -3,6 +3,7 @@
 pub mod database;
 pub mod models;
 pub mod sync_cmds;
+pub mod encriptar;
 
 // Declaración de módulos de comandos
 // Asegúrate de que los archivos existan en la carpeta src-tauri/src/commands/
@@ -246,6 +247,13 @@ pub fn run() {
             sync_cmds::exportar_db_json,
             sync_cmds::importar_db_json,
             commands::programa::guardar_nota_directa,
+
+            sync_cmds::exportar_db_encriptada_global, // 👈 NUEVO
+            sync_cmds::importar_db_encriptada_global, // 👈 NUEVO
+
+            encriptar::generar_llave_invisible,
+            encriptar::encriptar_maletin,
+            encriptar::desencriptar_maletin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

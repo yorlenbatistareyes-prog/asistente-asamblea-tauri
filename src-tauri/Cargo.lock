@@ -3222,9 +3222,10 @@ dependencies = [
 
 [[package]]
 name = "rassembly"
-version = "1.0.5"
+version = "1.0.6"
 dependencies = [
  "aes-gcm",
+ "base64 0.22.1",
  "chrono",
  "csv",
  "pbkdf2",

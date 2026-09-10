@@ -21,6 +21,16 @@
 export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
+{
+    version: "1.0.6",
+    fecha: "10 de Septiembre, 2026",
+    mensaje: "¡Hemos mejorado la sincronización y la estabilidad general!",
+    cambios: [
+      { tipo: "🔒", texto: "Sincronización silenciosa y automática en la nube mediante carpeta compartida usando Google Drive o OneDrive." },
+      { tipo: "🛠️", texto: "Solucionado error al guardar datos locales." },
+    ]
+  }, 
+
   {
     version: "1.0.5",
     fecha: "8 de Septiembre, 2026",

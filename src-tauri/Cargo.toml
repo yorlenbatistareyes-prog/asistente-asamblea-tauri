@@ -1,6 +1,6 @@
 [package]
 name = "rassembly"
-version = "1.0.5"
+version = "1.0.6"
 description = "RAssembly - Gestión de Asambleas Regionales"
 authors = ["Yorlen Batista"]
 edition = "2021"
@@ -27,6 +27,7 @@ aes-gcm = "0.10" # Para la encriptación segura
 pbkdf2 = "0.12"  # Para convertir tu contraseña en una llave fuerte
 sha2 = "0.10"
 rand = "0.8"
+base64 = "0.22.1"
 
 # Esta es la base de datos:
 rusqlite = { version = "0.32.0", features = ["bundled"] }
