@@ -1,29 +1,38 @@
 // src/lib/services/dbSyncHelper.ts
 
 import { invoke } from '@tauri-apps/api/core';
+import { obtenerOCrearLlave } from '$lib/utils/seguridad'; // Asegúrate de que esta ruta coincida con tu proyecto
 
 export const DbSyncHelper = {
     async prepararRespaldoLocal(): Promise<string> {
         try {
-            // 1. Obtenemos la BD pura de Rust
-            const resultado = await invoke<string>('exportar_db_json');
-            if (!resultado) throw new Error("Rust devolvió un paquete vacío");
+            // 1. Obtenemos nuestra llave invisible
+            const llave = await obtenerOCrearLlave();
 
-            // 2. RESCATE DE BORRADORES (LocalStorage)
-            // Convertimos el string a objeto temporalmente
-            const dbObjeto = JSON.parse(resultado);
+            // 2. Pedimos a Rust la base de datos ya cifrada
+            const paqueteCifrado = await invoke<string>('exportar_db_encriptada_global', {
+                llaveBase64: llave
+            });
+            if (!paqueteCifrado) throw new Error("Rust devolvió un paquete cifrado vacío");
 
-            // 3. Inyectamos lo que tienes en el navegador para que viaje a la nube
-            if (typeof window !== 'undefined') { // 👈 AÑADIR ESTA LÍNEA
-                dbObjeto.borradores_local = {
+            // 3. Creamos una "maleta" que contiene la DB cifrada y los datos de la interfaz
+            const payload = {
+                es_encriptado: true,
+                db_cifrada: paqueteCifrado,
+                borradores_local: {} as any
+            };
+
+            // 4. Inyectamos los borradores de LocalStorage
+            if (typeof window !== 'undefined') {
+                payload.borradores_local = {
                     asambleaActiva: localStorage.getItem('asambleaActiva'),
                     resumen: localStorage.getItem('resumen'),
                     temaApp: localStorage.getItem('temaApp')
                 };
-            } // 👈 Y CERRAR LA LLAVE AQUÍ
+            }
 
-            // 4. Volvemos a empaquetar y enviamos a la nube
-            return JSON.stringify(dbObjeto);
+            // 5. Convertimos la maleta entera a string para enviarla al servidor web
+            return JSON.stringify(payload);
 
         } catch (error) {
             console.error("Error en prepararRespaldoLocal:", error);
@@ -35,28 +44,36 @@ export const DbSyncHelper = {
         try {
             if (!jsonDataStr) throw new Error("El JSON de la nube está vacío");
             
-            // 1. DESEMPAQUETAR BORRADORES
-            const dbObjeto = JSON.parse(jsonDataStr);
+            // 1. Abrimos la maleta descargada
+            const payload = JSON.parse(jsonDataStr);
 
-            // Si vienen borradores en la maleta, los guardamos en el navegador local
-            if (dbObjeto.borradores_local && typeof window !== 'undefined') {
-                if (dbObjeto.borradores_local.asambleaActiva) {
-                    localStorage.setItem('asambleaActiva', dbObjeto.borradores_local.asambleaActiva);
+            // 2. Restauramos los borradores en el navegador
+            if (payload.borradores_local && typeof window !== 'undefined') {
+                if (payload.borradores_local.asambleaActiva) {
+                    localStorage.setItem('asambleaActiva', payload.borradores_local.asambleaActiva);
                 }
-                if (dbObjeto.borradores_local.resumen) {
-                    localStorage.setItem('resumen', dbObjeto.borradores_local.resumen);
+                if (payload.borradores_local.resumen) {
+                    localStorage.setItem('resumen', payload.borradores_local.resumen);
                 }
-                if (dbObjeto.borradores_local.temaApp) {
-                    localStorage.setItem('temaApp', dbObjeto.borradores_local.temaApp);
+                if (payload.borradores_local.temaApp) {
+                    localStorage.setItem('temaApp', payload.borradores_local.temaApp);
                 }
-                
-                // Limpiamos el objeto antes de mandarlo a Rust para evitar errores de tablas inexistentes
-                delete dbObjeto.borradores_local;
             }
 
-            // 2. Mandar el resto de la base de datos pura a Rust
-            const dataLimpiaParaRust = JSON.stringify(dbObjeto);
-            await invoke('importar_db_json', { jsonData: dataLimpiaParaRust });
+            // 3. Enrutamos los datos a Rust dependiendo de si están cifrados o no
+            if (payload.es_encriptado && payload.db_cifrada) {
+                // 🔒 FLUJO SEGURO (Nuevo formato)
+                const llave = await obtenerOCrearLlave();
+                await invoke('importar_db_encriptada_global', { 
+                    paqueteBase64: payload.db_cifrada,
+                    llaveBase64: llave
+                });
+            } else {
+                // 🔓 FLUJO RETROCOMPATIBLE (Por si descargas un respaldo viejo)
+                delete payload.borradores_local;
+                const dataLimpiaParaRust = JSON.stringify(payload);
+                await invoke('importar_db_json', { jsonData: dataLimpiaParaRust });
+            }
             
             return true;
         } catch (error) {

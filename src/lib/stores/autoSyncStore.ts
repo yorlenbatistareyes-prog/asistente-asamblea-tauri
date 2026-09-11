@@ -8,6 +8,9 @@ import { obtenerOCrearLlave } from '$lib/utils/seguridad';
 
 export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'error';
 
+// 🔒 CANDADO ANTI-ECO: Evita que la sync reaccione a sus propios guardados
+export let guardandoMetadatosInternos = false;
+
 // --- STORE DETALLADA ---
 export const syncStatus = writable({
     estado: 'inactivo' as SyncState, // 🔥 Nace invisible
@@ -99,8 +102,16 @@ async function ejecutarProcesoDeSincronizacion() {
 
         await SyncService.subirRespaldo(backupJson, nuevaFechaISO, dispositivo);
 
+        // 👇 🔒 ACTIVAMOS EL CANDADO ANTES DE GUARDAR
+        guardandoMetadatosInternos = true;
+
         // 4. ÉXITO (Guardamos marca en SQLite local vía Rust)
         await DbSyncHelper.actualizarFechaSincronizacion(nuevaFechaISO);
+
+        // 👇 🔓 APAGAMOS EL CANDADO (Damos 2 segundos para que el evento pase ignorado)
+        setTimeout(() => {
+            guardandoMetadatosInternos = false;
+        }, 2000);
 
         syncStatus.set({
             estado: 'al_dia',
@@ -259,18 +270,46 @@ export async function descargarDatos() {
     }
 }
 
-// 📡 EL AURICULAR: Escuchamos el grito del embudo (db.ts)
+// 📡 EL AURICULAR: Escuchamos el grito del embudo (db.ts) de forma controlada
 if (typeof window !== 'undefined') {
-    window.addEventListener('db_local_cambiada', () => {
-        console.log("👂 [SyncStore] ¡Señal recibida de la base de datos!");
-        
-        // 🔥 ESTE ES EL SECRETO: Despertamos la UI inmediatamente para TODOS los canales
-        syncStatus.update(s => ({ ...s, estado: 'esperando', mensaje: 'Cambio detectado, esperando...' }));
-        
-        // 1. Canal Independiente: Servidor de la Nube
-        dispararSincronizacionServidor();
+    let filtroAntiBucle: ReturnType<typeof setTimeout>;
 
-        // 2. Canal Independiente: Carpeta Compartida Local (Drive / OneDrive)
-        dispararSincronizacionCarpeta();
+    window.addEventListener('db_local_cambiada', () => {
+        // 🔥 CANDADO EN ACCIÓN: Si el cambio lo provocó la propia sincronización, ignoramos el evento
+        if (guardandoMetadatosInternos) {
+            console.log("🤫 [SyncStore] Ignorando eco interno de la base de datos.");
+            return;
+        }
+
+        // 1. Cancelamos cualquier evaluación pendiente si los eventos llegan muy rápido
+        clearTimeout(filtroAntiBucle);
+
+        // 2. Esperamos 1 segundo de silencio total antes de consultar a Rust
+        filtroAntiBucle = setTimeout(async () => {
+            let rutaCarpeta: string | null = null;
+            try {
+                rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
+            } catch (e) {
+                rutaCarpeta = null;
+            }
+
+            const sesion = get(sesionApp);
+            const sesionActiva = !!sesion?.isLoggedIn;
+
+            // 3. 🛑 FILTRO INTELIGENTE: Si no hay NADA configurado, salimos sin hacer ruido
+            if (!rutaCarpeta && !sesionActiva) {
+                return;
+            }
+
+            console.log("👂 [SyncStore] Canales evaluados con éxito. Despertando UI...");
+            
+            // 4. Activamos el estado visual de espera
+            syncStatus.set({ estado: 'esperando', mensaje: 'Cambio detectado, esperando...', nubeDispositivo: '', nubeFecha: '' });
+            
+            // 5. Disparamos de forma independiente los canales que estén activos
+            if (sesionActiva) dispararSincronizacionServidor();
+            if (rutaCarpeta) dispararSincronizacionCarpeta();
+            
+        }, 1000); // 1000ms de respiro para la red
     });
 }
