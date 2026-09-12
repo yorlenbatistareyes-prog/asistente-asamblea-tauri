@@ -26,7 +26,7 @@ export const historialCambios = [
     fecha: "10 de Septiembre, 2026",
     mensaje: "¡Hemos mejorado la sincronización y la estabilidad general!",
     cambios: [
-      { tipo: "🔒", texto: "Sincronización silenciosa y automática en la nube mediante carpeta compartida usando Google Drive o OneDrive." },
+      { tipo: "🔒", texto: "Sincronización silenciosa y automática mediante carpeta compartida usando Google Drive o OneDrive, y mediante un servidor web ahora encriptan los datos. Los datos están cifrados de extremo a extremo" },
       { tipo: "🛠️", texto: "Solucionado error al guardar datos locales." },
     ]
   }, 

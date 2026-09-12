@@ -169,35 +169,43 @@
   }
 
   // --- CREAR CON DETALLES EN LA ASAMBLEA ACTUAL ---
-  async function crearYSeleccionar() {
-    if (!nuevoNombre.trim()) return alert("Escribe un nombre");
-    
-    try {
-      // 🔥 USAMOS EL EMBUDO PARA CREAR AL HERMANO
-      await DB.crearPersona({ 
-        asambleaId,
-        nombreCompleto: nuevoNombre, 
-        genero: "Hombre", 
-        privilegios: "Superintendente", 
-        idCongregacion: nuevaCongregacionId, 
-        telefono: nuevoTelefono, 
-        email: nuevoEmail        
-      });
+async function crearYSeleccionar() {
+  const nombreLimpio = nuevoNombre.trim();
+  if (!nombreLimpio) return alert("Escribe un nombre");
+  
+  try {
+    // SOLUCIÓN: Enviamos 0 en lugar de null, tal como lo espera Rust
+    const idCong = nuevaCongregacionId ? nuevaCongregacionId : 0; 
 
-      // Recargamos la lista de esta asamblea
-      hermanos = await invoke('obtener_personas', { asambleaId }) || [];
-      
-      const creado = hermanos.find(h => h.nombre_completo === nuevoNombre);
-      
-      if (creado) {
-        await seleccionar(creado.id);
-      } else {
-        alert("Error al recuperar el nuevo registro");
-      }
-    } catch (e) {
-      alert("Error: " + e);
+    await DB.crearPersona({ 
+      asambleaId,
+      nombreCompleto: nombreLimpio, 
+      sexo: "M", // La clave que descubrimos gracias a Personas.svelte
+      privilegios: "Superintendente", 
+      idCongregacion: idCong, // Pasamos el número directamente
+      telefono: nuevoTelefono.trim(), 
+      email: nuevoEmail.trim()        
+    });
+
+    // Recargamos la lista de esta asamblea
+    hermanos = await invoke('obtener_personas', { asambleaId }) || [];
+    
+    // Búsqueda segura para auto-seleccionar
+    const creado = hermanos.find(h => 
+      h.nombre_completo?.toLowerCase().trim() === nombreLimpio.toLowerCase()
+    );
+    
+    if (creado) {
+      await seleccionar(creado.id);
+    } else {
+      alert("El hermano se creó, pero no se pudo seleccionar automáticamente.");
+      mostrarModal = false; 
     }
+  } catch (e) {
+    alert("Error al crear: " + (typeof e === 'object' ? JSON.stringify(e) : e));
   }
+}
+
 
   async function guardar(silencioso = false) {
     // 1. Mostrar estado "Guardando..."
