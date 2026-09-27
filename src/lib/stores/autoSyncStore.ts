@@ -3,8 +3,7 @@ import { SyncService } from '$lib/services/syncService';
 import { DbSyncHelper } from '$lib/services/dbSyncHelper';
 import { sesionApp } from './authStore'; 
 import { invoke } from '@tauri-apps/api/core';
-// 🔥 AÑADIDO: readTextFile para poder leer la carpeta en la descarga manual
-import { writeTextFile, stat, readTextFile } from '@tauri-apps/plugin-fs';
+import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
 import { obtenerOCrearLlave } from '$lib/utils/seguridad';
 
 export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'error';
@@ -153,13 +152,8 @@ async function ejecutarSincronizacionCarpetaLocal() {
             llaveBase64: llave
         });
 
-        const separador = rutaCarpeta.includes('/') ? '/' : '\\';
-        const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
-
-        // 🔒 CANDADO ACTIVO AL EXPORTAR A CARPETA (Evita que el radar de carpeta se dispare)
         guardandoMetadatosInternos = true;
-
-        await writeTextFile(rutaArchivoFinal, paqueteCifrado);
+        await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
 
         setTimeout(() => {
             guardandoMetadatosInternos = false;
@@ -205,18 +199,16 @@ export function iniciarRadarCarpeta() {
             const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
             if (!rutaCarpeta) return;
 
-            const separador = rutaCarpeta.includes('/') ? '/' : '\\';
-            const rutaArchivo = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
-            
-            const metadatos = await stat(rutaArchivo);
-            
-            const tiempoCarpeta = metadatos.mtime ? new Date(metadatos.mtime).getTime() : 0;
+            const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
+            if (!metadatos) return;
+
+            const tiempoCarpeta = metadatos.getTime();
             const fechaLocalStr = await DbSyncHelper.obtenerFechaUltimaSincronizacion();
             const tiempoLocal = fechaLocalStr ? new Date(fechaLocalStr).getTime() : 0;
 
             if (tiempoCarpeta > (tiempoLocal + 2000)) {
                 if (guardandoMetadatosInternos) return;
-                
+
                 syncStatus.set({
                     estado: 'conflicto',
                     mensaje: 'Hay datos nuevos en la carpeta compartida.',
@@ -224,7 +216,6 @@ export function iniciarRadarCarpeta() {
                     nubeFecha: new Date(tiempoCarpeta).toISOString()
                 });
 
-                // Detenemos el radar temporalmente mientras el usuario decide qué hacer
                 detenerRadarCarpeta();
             }
         } catch (e) {
@@ -294,10 +285,7 @@ export async function descargarDatos() {
             const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
             if (!rutaCarpeta) throw new Error("No hay carpeta configurada.");
             
-            const separador = rutaCarpeta.includes('/') ? '/' : '\\';
-            const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
-            
-            const paqueteCifrado = await readTextFile(rutaArchivoFinal);
+            const paqueteCifrado = await PuenteAlmacenamiento.leerArchivo(rutaCarpeta);
             const llave = await obtenerOCrearLlave();
 
             await invoke('importar_db_encriptada_global', {
@@ -305,9 +293,9 @@ export async function descargarDatos() {
                 llaveBase64: llave
             });
 
-            const metadatos = await stat(rutaArchivoFinal);
-            if (metadatos.mtime) {
-                await DbSyncHelper.actualizarFechaSincronizacion(new Date(metadatos.mtime).toISOString());
+            const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
+            if (metadatos) {
+                await DbSyncHelper.actualizarFechaSincronizacion(metadatos.toISOString());
             }
 
         // 👉 ¿EL CONFLICTO VINO DEL SERVIDOR WEB?

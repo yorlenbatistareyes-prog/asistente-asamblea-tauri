@@ -1,19 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { open } from '@tauri-apps/plugin-dialog';
-  // 🔥 AÑADIDO: Importamos 'stat' para leer la fecha del archivo
-  import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs'; 
-  import { Cloud, FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
+  import { FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
   import Panel from '$lib/components/ui/Panel.svelte'; 
 
   import { DB } from '$lib/services/db';
+  import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
   import { obtenerOCrearLlave } from '$lib/utils/seguridad';
-  // 🔥 AÑADIDO: Importamos DbSyncHelper para actualizar la fecha local
   import { DbSyncHelper } from '$lib/services/dbSyncHelper';
-  
-  // 🔥 IMPORTAMOS EL ESTADO GLOBAL Y EL CANDADO DE LA BARRA SUPERIOR
- import { syncStatus, setCandadoSincronizacion } from '$lib/stores/autoSyncStore';
+  import { syncStatus, setCandadoSincronizacion } from '$lib/stores/autoSyncStore';
 
   let rutaCarpeta: string | null = null;
   let guardando = false;
@@ -28,15 +23,11 @@
 
   async function seleccionarCarpeta() {
     try {
-      const seleccion = await open({
-        directory: true,
-        multiple: false,
-        title: "Selecciona tu carpeta de Google Drive / OneDrive"
-      });
+      const seleccion = await PuenteAlmacenamiento.seleccionarCarpeta();
 
       if (seleccion) {
         guardando = true;
-        rutaCarpeta = seleccion as string;
+        rutaCarpeta = seleccion;
         await DB.guardarRutaSync(rutaCarpeta);
         guardando = false;
       }
@@ -71,13 +62,8 @@
         llaveBase64: llave
       });
 
-      const separador = rutaCarpeta.includes('/') ? '/' : '\\';
-      const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
-
-      // 🔥 PONEMOS EL CANDADO ANTES DE ESCRIBIR EL ARCHIVO FÍSICO
       setCandadoSincronizacion(true);
-
-      await writeTextFile(rutaArchivoFinal, paqueteCifrado);
+      await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
       
       // 🔥 QUITAMOS EL CANDADO DESPUÉS DE 2 SEGUNDOS PARA IGNORAR EL "ECO"
       setTimeout(() => {
@@ -112,10 +98,7 @@
     
     try {
       guardando = true;
-      const separador = rutaCarpeta.includes('/') ? '/' : '\\';
-      const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
-
-      const paqueteCifrado = await readTextFile(rutaArchivoFinal);
+      const paqueteCifrado = await PuenteAlmacenamiento.leerArchivo(rutaCarpeta);
       const llave = await obtenerOCrearLlave();
 
       await invoke('importar_db_encriptada_global', {
@@ -123,12 +106,10 @@
         llaveBase64: llave
       });
 
-      // 🔥 NUEVO: IGUALAMOS LA FECHA DE LA BD LOCAL CON LA FECHA DEL ARCHIVO (mtime)
-      // Esto evita que el radar siga alertando de conflicto tras importar
       try {
-          const metadatos = await stat(rutaArchivoFinal);
-          if (metadatos.mtime) {
-              const fechaNube = new Date(metadatos.mtime).toISOString();
+          const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
+          if (metadatos) {
+              const fechaNube = metadatos.toISOString();
               await DbSyncHelper.actualizarFechaSincronizacion(fechaNube);
           }
       } catch (e) {
