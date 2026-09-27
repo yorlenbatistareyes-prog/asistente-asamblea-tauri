@@ -59,6 +59,7 @@
           "url": "https://updates.ejvapps.online/*"
         }
       ]
-    }
+    },
+    "os:default"
   ]
 }

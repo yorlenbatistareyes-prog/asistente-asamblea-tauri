@@ -18,8 +18,9 @@ export class PuenteAlmacenamiento {
     static async seleccionarCarpeta(): Promise<string | null> {
         if (await this.esAndroid()) {
             try {
-                const uri = await invoke<string>('plugin:PluginSincronizacionNativo|pickDirectory');
-                return uri || null;
+                // Ajustado a JSObject y nombre en español
+                const respuesta = await invoke<{ uri: string }>('plugin:PluginSincronizacionNativo|elegirCarpeta');
+                return respuesta?.uri || null;
             } catch (e) {
                 console.error('Error al elegir carpeta en Android:', e);
                 return null;
@@ -40,7 +41,8 @@ export class PuenteAlmacenamiento {
 
     static async escribirArchivo(rutaOCarpeta: string, contenido: string): Promise<void> {
         if (await this.esAndroid()) {
-            await invoke('plugin:PluginSincronizacionNativo|writeSyncFile', {
+            // Ajustado al nombre en español
+            await invoke('plugin:PluginSincronizacionNativo|escribirArchivo', {
                 uriCarpeta: rutaOCarpeta,
                 archivo: NOMBRE_ARCHIVO_SYNC,
                 contenido
@@ -55,10 +57,12 @@ export class PuenteAlmacenamiento {
 
     static async leerArchivo(rutaOCarpeta: string): Promise<string> {
         if (await this.esAndroid()) {
-            return await invoke<string>('plugin:PluginSincronizacionNativo|readSyncFile', {
+            // Ajustado a JSObject y nombre en español
+            const respuesta = await invoke<{ contenido: string }>('plugin:PluginSincronizacionNativo|leerArchivo', {
                 uriCarpeta: rutaOCarpeta,
                 archivo: NOMBRE_ARCHIVO_SYNC
             });
+            return respuesta.contenido;
         }
 
         const rutaArchivoFinal = this.obtenerRutaArchivoSync(rutaOCarpeta);
@@ -69,7 +73,8 @@ export class PuenteAlmacenamiento {
     static async obtenerUltimaModificacion(rutaOCarpeta: string): Promise<Date | null> {
         if (await this.esAndroid()) {
             try {
-                const meta = await invoke<{ mtime?: string | number } | null>('plugin:PluginSincronizacionNativo|validateDirectory', {
+                // Ajustado al nombre en español
+                const meta = await invoke<{ exists: boolean, mtime: number } | null>('plugin:PluginSincronizacionNativo|validarCarpeta', {
                     uriCarpeta: rutaOCarpeta,
                     archivo: NOMBRE_ARCHIVO_SYNC
                 });

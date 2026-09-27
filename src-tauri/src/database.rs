@@ -443,6 +443,6 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         )",
         [],
     )?;
-    
+
     Ok(conn)
 }

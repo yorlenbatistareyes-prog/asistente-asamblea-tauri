@@ -1,9 +1,9 @@
 // src-tauri/src/lib.rs
 
 pub mod database;
+pub mod encriptar;
 pub mod models;
 pub mod sync_cmds;
-pub mod encriptar;
 
 // Declaración de módulos de comandos
 // Asegúrate de que los archivos existan en la carpeta src-tauri/src/commands/
@@ -55,6 +55,7 @@ fn llamar_telefono(telefono: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_http::init())
         // --- AÑADE ESTA LÍNEA AQUÍ (Sin Stronghold) ---
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -247,10 +248,8 @@ pub fn run() {
             sync_cmds::exportar_db_json,
             sync_cmds::importar_db_json,
             commands::programa::guardar_nota_directa,
-
             sync_cmds::exportar_db_encriptada_global, // 👈 NUEVO
             sync_cmds::importar_db_encriptada_global, // 👈 NUEVO
-
             encriptar::generar_llave_invisible,
             encriptar::encriptar_maletin,
             encriptar::desencriptar_maletin,

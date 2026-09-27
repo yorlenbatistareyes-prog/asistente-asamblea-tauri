@@ -133,7 +133,7 @@ pub async fn obtener_configuracion_pdf(
 #[tauri::command]
 pub async fn guardar_config_membrete(
     state: tauri::State<'_, DbState>,
-    config: String, 
+    config: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().unwrap();
 

@@ -19,7 +19,7 @@ pub fn encriptar_maletin(texto_plano: String, llave_base64: String) -> Result<St
     let key_bytes = general_purpose::STANDARD
         .decode(llave_base64)
         .map_err(|e| format!("Error al leer llave: {}", e))?;
-    
+
     let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
 
@@ -39,11 +39,14 @@ pub fn encriptar_maletin(texto_plano: String, llave_base64: String) -> Result<St
 
 // 3. Desencripta los datos cuando vienen de Google Drive
 #[tauri::command]
-pub fn desencriptar_maletin(paquete_base64: String, llave_base64: String) -> Result<String, String> {
+pub fn desencriptar_maletin(
+    paquete_base64: String,
+    llave_base64: String,
+) -> Result<String, String> {
     let key_bytes = general_purpose::STANDARD
         .decode(llave_base64)
         .map_err(|e| format!("Error al leer llave: {}", e))?;
-    
+
     let paquete_bytes = general_purpose::STANDARD
         .decode(paquete_base64)
         .map_err(|e| format!("Error al leer archivo: {}", e))?;

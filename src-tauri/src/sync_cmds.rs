@@ -495,7 +495,10 @@ fn extraer_asignaciones(conn: &Connection) -> Result<Vec<AsignacionSync>, String
 // ==========================================
 
 #[tauri::command]
-pub fn exportar_db_encriptada_global(llave_base64: String, db_state: State<DbState>) -> Result<String, String> {
+pub fn exportar_db_encriptada_global(
+    llave_base64: String,
+    db_state: State<DbState>,
+) -> Result<String, String> {
     // 1. Extrae toda la base de datos a JSON usando tu función global
     let json_datos = exportar_db_json(db_state)?;
 
@@ -506,7 +509,11 @@ pub fn exportar_db_encriptada_global(llave_base64: String, db_state: State<DbSta
 }
 
 #[tauri::command]
-pub fn importar_db_encriptada_global(paquete_base64: String, llave_base64: String, db_state: State<DbState>) -> Result<(), String> {
+pub fn importar_db_encriptada_global(
+    paquete_base64: String,
+    llave_base64: String,
+    db_state: State<DbState>,
+) -> Result<(), String> {
     // 1. Desencripta el paquete recibido de la carpeta compartida
     let json_datos = crate::encriptar::desencriptar_maletin(paquete_base64, llave_base64)?;
 
