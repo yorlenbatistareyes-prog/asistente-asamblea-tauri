@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "shell:default",
+    "permitir-carpetas",
     "opener:default",
     "opener:allow-open-path",
     {
@@ -18,6 +19,9 @@
         },
         {
           "url": "https://wa.me/*"
+        },
+        {
+          "url": "https://updates.ejvapps.online/*"
         }
       ]
     },

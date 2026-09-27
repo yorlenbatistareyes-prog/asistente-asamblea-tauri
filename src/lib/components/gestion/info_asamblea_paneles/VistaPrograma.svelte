@@ -159,7 +159,7 @@ async function generarPDFPrograma() {
           subHeaderMeta: { fontSize: 11, color: '#64748b', margin: [0, 0, 0, 0] },
           
           diaTitulo: { fontSize: 18, bold: true, color: '#2563eb', margin: [0, 20, 0, 10] },
-          sesionTitulo: { fontSize: 12, bold: true, color: '#ffffff', background: '#475569', margin: [0, 15, 0, 10], padding: [5, 2, 5, 2], alignment: 'center' },
+          sesionTitulo: { fontSize: 12, bold: true, color: '#ffffff', alignment: 'center' },
           
           tablaHeader: { bold: true, fontSize: 10, color: '#1e293b', fillColor: '#f8fafc', margin: [0, 8, 0, 8] },
           celdaHora: { fontSize: 10, bold: true, color: '#334155', margin: [0, 6, 0, 6] },
@@ -183,7 +183,22 @@ async function generarPDFPrograma() {
           ['MAÑANA', 'TARDE'].forEach(sesion => {
             if (programaAgrupado[dia][sesion] && programaAgrupado[dia][sesion].length > 0) {
               
-              (docDefinition.content as Content[]).push({ text: `SESIÓN DE LA ${sesion}`, style: 'sesionTitulo' });
+              (docDefinition.content as Content[]).push({
+                table: {
+                  widths: ['*'],
+                  body: [[{ text: `SESIÓN DE LA ${sesion}`, style: 'sesionTitulo' }]]
+                },
+                layout: {
+                  hLineWidth: () => 0,
+                  vLineWidth: () => 0,
+                  paddingLeft: () => 5,
+                  paddingRight: () => 5,
+                  paddingTop: () => 2,
+                  paddingBottom: () => 2,
+                  fillColor: () => '#475569'
+                },
+                margin: [0, 15, 0, 10]
+              });
 
               const body: any[] = [];
               

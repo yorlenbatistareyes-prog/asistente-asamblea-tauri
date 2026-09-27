@@ -1,5 +1,5 @@
 import { getVersion } from '@tauri-apps/api/app';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { fetch } from '@tauri-apps/plugin-http';
 
 // Interfaz estricta para TypeScript
@@ -95,7 +95,7 @@ export async function irA_Descarga() {
   console.log("Intentando abrir el navegador...");
   
   try {
-    await open(url);
+    await openUrl(url);
     console.log("Navegador abierto con éxito");
   } catch (error) {
     alert(`❌ Tauri bloqueó el navegador.\nMotivo exacto: ${error}`);

@@ -298,7 +298,7 @@
   .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
   .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
 
-  /* HEADER */
+ /* HEADER */
  .top-header { 
       display: flex; justify-content: space-between; align-items: center; 
       padding: 15px 30px; 
@@ -307,6 +307,8 @@
       border-bottom: 1px solid var(--border); 
       box-shadow: var(--shadow-sm); 
       z-index: 50; 
+      /* Ajuste seguro para la barra de notificaciones en Android/iOS */
+      padding-top: max(15px, env(safe-area-inset-top, 0px));
   }
 
   .header-left { display: flex; gap: 12px; align-items: center; }
@@ -516,7 +518,8 @@
 @media (max-width: 768px) {
     /* 1. HEADER MÁS COMPACTO Y LIMPIO */
     .top-header {
-        padding: 10px 15px; 
+        padding: 10px 15px;
+        padding-top: max(10px, env(safe-area-inset-top, 0px));
         gap: 10px;
     }
 

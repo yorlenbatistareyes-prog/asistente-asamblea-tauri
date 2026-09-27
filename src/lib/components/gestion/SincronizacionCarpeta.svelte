@@ -22,17 +22,18 @@
   });
 
   async function seleccionarCarpeta() {
+    guardando = true;
     try {
       const seleccion = await PuenteAlmacenamiento.seleccionarCarpeta();
 
       if (seleccion) {
-        guardando = true;
         rutaCarpeta = seleccion;
         await DB.guardarRutaSync(rutaCarpeta);
-        guardando = false;
       }
     } catch (e) {
       console.error(e);
+      alert(`No se pudo abrir el selector de carpetas: ${e}`);
+    } finally {
       guardando = false;
     }
   }
@@ -70,7 +71,7 @@
           setCandadoSincronizacion(false);
       }, 2000);
 
-      console.log("📦 Archivo cifrado guardado en:", rutaArchivoFinal);
+      console.log("📦 Archivo cifrado guardado correctamente.");
       
       // 🔥 2. CAMBIAMOS EL ESTADO A ÉXITO EN LA BARRA SUPERIOR
       syncStatus.set({ estado: 'al_dia', mensaje: '¡Carpeta sincronizada!', nubeDispositivo: '', nubeFecha: '' });

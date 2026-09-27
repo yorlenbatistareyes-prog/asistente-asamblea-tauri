@@ -15,15 +15,16 @@ export class PuenteAlmacenamiento {
         }
     }
 
-    static async seleccionarCarpeta(): Promise<string | null> {
+   static async seleccionarCarpeta(): Promise<string | null> {
         if (await this.esAndroid()) {
             try {
-                // Ajustado a JSObject y nombre en español
-                const respuesta = await invoke<{ uri: string }>('plugin:PluginSincronizacionNativo|elegirCarpeta');
+                console.log("Iniciando selector SAF en Android...");
+                const respuesta = await invoke<{ uri: string }>('plugin:sincronizacion-nativo|elegirCarpeta');
+                console.log("Respuesta cruda del selector SAF:", respuesta);
                 return respuesta?.uri || null;
             } catch (e) {
-                console.error('Error al elegir carpeta en Android:', e);
-                return null;
+                console.error('Error detallado al elegir carpeta en Android:', e);
+                throw e;
             }
         }
 
