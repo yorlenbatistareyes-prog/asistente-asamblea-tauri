@@ -17,25 +17,6 @@ export const guiaUsuario: AyudaItem[] = [
     },
 
     {
-        title: "Gestión de Datos y Copias de Seguridad",
-        content: `En la sección 'Datos' encontrará las herramientas para proteger su información. 
-        Use **'Respaldar datos'** para guardar una copia de seguridad completa 
-        (.sqlite) en su computadora. Si necesita recuperar información previa, utilice 
-        **'Restaurar datos'** (esta acción reemplazará los datos actuales por los 
-        del archivo de respaldo). Por último, **'Limpiar todo'** elimina toda la información 
-        registrada en la aplicación para comenzar desde cero (restablecimiento de fábrica).`
-    },
-
-    {
-        title: "Gestión de Locales y Salones",
-        content: `Desde la pantalla de inicio, utilice el botón 'Locales' para registrar 
-        los Salones de Asambleas disponibles. Esta base de datos le permitirá 
-        vincular una asamblea a su ubicación física al momento de crearla. Además, 
-        estos locales estarán disponibles en la sección 'Información del Evento' para 
-        programar ensayos.`
-    },
-
-    {
         title: "Gestión del Programa y Oradores",
         content: `El proceso comienza en la pantalla principal creando una nueva asamblea. 
         Al entrar en la tarjeta del evento, accederá a un panel lateral con todas las herramientas: 
@@ -91,34 +72,6 @@ export const guiaUsuario: AyudaItem[] = [
         su correspondencia oficial, y llevar un control de cumplimiento mediante los 
         indicadores de estado: 'Asignación recibida', 'Ensayo realizado' y 'Presente en el evento'.`
     },
-
-    {
-        title: "Barra de Estado y Actualizaciones",
-        content: `La barra inferior muestra la salud del sistema en tiempo real. 
-        El indicador verde (Rust + Tauri) confirma que la base de datos está conectada. 
-        A su lado verá su perfil de usuario activo y el total de asambleas creadas. 
-        A la derecha encontrará la versión actual del software y el botón de 'Actualizar' 
-        (esta función se activará en futuras versiones para descargar mejoras automáticamente).`
-    },
-
-    {
-        title: "Sincronización Automática por Carpeta Compartida",
-        content: `En la sección 'Datos' puede vincular una carpeta raíz de servicios en la nube 
-        (como Google Drive o OneDrive) para compartir y sincronizar su información entre 
-        diferentes dispositivos de forma automática. 
-
-        Para vincular y configurar la carpeta, siga estos pasos:
-        1. Diríjase a la sección **'Datos'** dentro del menú de **Configuración**.
-        2. Localice el apartado de **Carpeta de Sincronización** y pulse el botón para seleccionar el directorio.
-        3. Elija en el explorador de archivos la carpeta raíz de su servicio en la nube preferido (por ejemplo, Google Drive o OneDrive).
-        4. Una vez seleccionada, el estado cambiará a **'Vinculado'**.
-
-        Una vez configurada la carpeta, cualquier cambio realizado en la aplicación se empaquetará, 
-        se cifrará de forma segura (AES-256) mediante una 'Llave Invisible' en segundo plano tras unos 
-        segundos de inactividad, y se guardará como un archivo '.rassembly' listo para ser leído por sus 
-        otros equipos. También dispone de un botón de **'Restaurar Manual'** y **'Sincronizar Ahora'** 
-        por si necesita gestionar la actualización de los datos de forma inmediata en un dispositivo secundario.`
-    }
     
 ];
 

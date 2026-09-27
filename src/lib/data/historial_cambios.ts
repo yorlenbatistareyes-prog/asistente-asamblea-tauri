@@ -22,12 +22,12 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
-    version: "1.0.6",
+    version: "1.0.7",
     fecha: "10 de Septiembre, 2026",
     mensaje: "¡Hemos mejorado la sincronización y la estabilidad general!",
     cambios: [
       { tipo: "🔒", texto: "Sincronización silenciosa y automática mediante carpeta compartida usando Google Drive o OneDrive, y mediante un servidor web ahora encriptan los datos. Los datos están cifrados de extremo a extremo" },
-      { tipo: "🛠️", texto: "Solucionado error al guardar datos locales." },
+      { tipo: "🛠️", texto: "Solucionado error al guardar datos locales. No se guaradaba la persona añadida manualmente en la sección Responsabilidades" },
     ]
   }, 
 

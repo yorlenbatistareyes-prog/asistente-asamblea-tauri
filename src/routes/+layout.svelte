@@ -20,7 +20,16 @@
 
   // 2. Importa las herramientas de sincronización
   import { sesionApp, inicializarSesion } from '$lib/stores/authStore';
-  import { syncStatus, iniciarRadarNube, detenerRadarNube, descargarDatos } from '$lib/stores/autoSyncStore';
+  
+  import { 
+    syncStatus, 
+    iniciarRadarNube, 
+    detenerRadarNube,
+    iniciarRadarCarpeta, // 🔥 NUEVO
+    detenerRadarCarpeta, // 🔥 NUEVO
+    descargarDatos,
+    resetearEstadoSincronizacion 
+} from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
   let temaActual = 'sistema';
@@ -81,6 +90,9 @@
       // Encendemos el radar de la nube
       iniciarRadarNube();
 
+      // 🔥 NUEVO: Encendemos el radar de la carpeta compartida
+      iniciarRadarCarpeta();
+
       // 👇 NUEVO: Encendemos el radar de actualizaciones (espera 3s al abrir)
       setTimeout(chequearActualizacionesGlobal, 3000);
       // Y luego busca cada 2 horas (7200000 ms)
@@ -89,6 +101,7 @@
       // Apagamos ambos radares si el usuario cierra la app
       return () => {
           detenerRadarNube();
+          detenerRadarCarpeta(); // 🔥 NUEVO
           clearInterval(intervaloActualizaciones);
       };
   });
@@ -160,6 +173,14 @@
       } catch (e) {
           alert("Error al descargar los cambios: " + e);
       }
+  }
+
+  // 🔥 NUEVA FUNCIÓN PARA CERRAR EL MODAL
+  function ignorarConflicto() {
+      resetearEstadoSincronizacion();
+      // Nota: Al ignorar, el radar se queda en pausa en esta sesión 
+      // para no volver a molestarte a los 15 segundos. 
+      // Te volverá a avisar solo si cierras y vuelves a abrir la app.
   }
 
 </script>
@@ -242,6 +263,12 @@
                     <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
                     <p>¿Deseas descargar y aplicar estos cambios ahora mismo?</p>
                 </div>
+
+                <!-- 🔥 Nuevos botones con opción de ignorar -->
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button on:click={ignorarConflicto} style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-sec); font-weight: bold; cursor: pointer;">
+                        Ignorar por ahora
+                    </button>
 
                 <!-- Botón directo de descarga en lugar de navegar -->
                 <button class="btn-blue" on:click={resolverConflictoDirecto}>

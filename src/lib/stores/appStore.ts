@@ -8,6 +8,8 @@ export const vistaActual = writable('inicio');
 export const appStore = writable({
     usuario: "Usuario",
     congregacion: "",
+
+    
     circuito: "",
     ultimoAcceso: new Date()
 });

@@ -2,15 +2,18 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { open } from '@tauri-apps/plugin-dialog';
-  import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs'; 
+  // 🔥 AÑADIDO: Importamos 'stat' para leer la fecha del archivo
+  import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs'; 
   import { Cloud, FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
   import Panel from '$lib/components/ui/Panel.svelte'; 
 
   import { DB } from '$lib/services/db';
   import { obtenerOCrearLlave } from '$lib/utils/seguridad';
+  // 🔥 AÑADIDO: Importamos DbSyncHelper para actualizar la fecha local
+  import { DbSyncHelper } from '$lib/services/dbSyncHelper';
   
-  // 🔥 IMPORTAMOS EL ESTADO GLOBAL DE LA BARRA SUPERIOR
-  import { syncStatus } from '$lib/stores/autoSyncStore';
+  // 🔥 IMPORTAMOS EL ESTADO GLOBAL Y EL CANDADO DE LA BARRA SUPERIOR
+ import { syncStatus, setCandadoSincronizacion } from '$lib/stores/autoSyncStore';
 
   let rutaCarpeta: string | null = null;
   let guardando = false;
@@ -71,11 +74,19 @@
       const separador = rutaCarpeta.includes('/') ? '/' : '\\';
       const rutaArchivoFinal = `${rutaCarpeta}${separador}sincronizacion_global.rassembly`;
 
+      // 🔥 PONEMOS EL CANDADO ANTES DE ESCRIBIR EL ARCHIVO FÍSICO
+      setCandadoSincronizacion(true);
+
       await writeTextFile(rutaArchivoFinal, paqueteCifrado);
+      
+      // 🔥 QUITAMOS EL CANDADO DESPUÉS DE 2 SEGUNDOS PARA IGNORAR EL "ECO"
+      setTimeout(() => {
+          setCandadoSincronizacion(false);
+      }, 2000);
 
       console.log("📦 Archivo cifrado guardado en:", rutaArchivoFinal);
       
-      // 🔥 2. CAMBIAMOS EL ESTADO A ÉXITO EN LA BARRA SUPERIOR (Sin alertas invasivas)
+      // 🔥 2. CAMBIAMOS EL ESTADO A ÉXITO EN LA BARRA SUPERIOR
       syncStatus.set({ estado: 'al_dia', mensaje: '¡Carpeta sincronizada!', nubeDispositivo: '', nubeFecha: '' });
 
       // 🔥 3. OCULTAMOS EL MENSAJE TRAS 3 SEGUNDOS
@@ -86,7 +97,6 @@
     } catch (error) {
       console.error("Error al sincronizar y guardar:", error);
       
-      // 🔥 4. MOSTRAMOS EL ERROR EN LA BARRA SUPERIOR
       syncStatus.set({ estado: 'error', mensaje: 'Error al guardar', nubeDispositivo: '', nubeFecha: '' });
       setTimeout(() => {
           syncStatus.set({ estado: 'inactivo', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
@@ -112,6 +122,18 @@
         paqueteBase64: paqueteCifrado,
         llaveBase64: llave
       });
+
+      // 🔥 NUEVO: IGUALAMOS LA FECHA DE LA BD LOCAL CON LA FECHA DEL ARCHIVO (mtime)
+      // Esto evita que el radar siga alertando de conflicto tras importar
+      try {
+          const metadatos = await stat(rutaArchivoFinal);
+          if (metadatos.mtime) {
+              const fechaNube = new Date(metadatos.mtime).toISOString();
+              await DbSyncHelper.actualizarFechaSincronizacion(fechaNube);
+          }
+      } catch (e) {
+          console.error("Fallo al actualizar fecha tras importar:", e);
+      }
 
       alert("¡Base de datos restaurada correctamente desde la nube!");
       // Forzamos recargar la ventana para reflejar todos los datos
