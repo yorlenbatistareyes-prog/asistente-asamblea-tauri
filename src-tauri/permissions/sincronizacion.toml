@@ -1,4 +1,0 @@
-[[permission]]
-identifier = "permitir-carpetas"
-description = "Autoriza el uso del selector de carpetas nativo en Android"
-commands.allow = ["plugin:sincronizacion-nativo|elegirCarpeta"]

@@ -12,3 +12,7 @@ vite.config.ts.timestamp-*
 # --- Rust / Tauri (MUY IMPORTANTE) ---
 src-tauri/target/
 src-tauri/gen/
+
+src-tauri/sincronizacion-nativo-plugin/android/build/
+src-tauri/sincronizacion-nativo-plugin/android/.gradle/
+src-tauri/sincronizacion-nativo-plugin/android/.tauri/

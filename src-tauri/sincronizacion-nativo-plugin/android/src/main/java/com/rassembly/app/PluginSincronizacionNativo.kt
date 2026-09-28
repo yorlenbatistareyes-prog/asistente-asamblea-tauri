@@ -11,6 +11,7 @@ import app.tauri.annotation.ActivityCallback
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.JSObject
+import app.tauri.annotation.InvokeArg
 
 @TauriPlugin
 class PluginSincronizacionNativo(private val activity: Activity) : Plugin(activity) {
@@ -66,9 +67,7 @@ class PluginSincronizacionNativo(private val activity: Activity) : Plugin(activi
             val dir = DocumentFile.fromTreeUri(activity, Uri.parse(uriCarpetaStr))
                 ?: return invoke.reject("Carpeta no válida")
             val target = dir.findFile(archivo) ?: return invoke.reject("Archivo no encontrado")
-            val meta = activity.contentResolver.openAssetFileDescriptor(target.uri, "r")
-            val mtime = meta?.length ?: 0L
-            meta?.close()
+            val mtime = target.lastModified()
 
             val obj = JSObject()
             obj.put("exists", true)
@@ -155,13 +154,15 @@ class PluginSincronizacionNativo(private val activity: Activity) : Plugin(activi
     }
 }
 
-data class ParametrosCarpeta(
-    val uriCarpeta: String?,
-    val archivo: String?
-)
+@InvokeArg
+class ParametrosCarpeta {
+    var uriCarpeta: String? = null
+    var archivo: String? = null
+}
 
-data class ParametrosEscritura(
-    val uriCarpeta: String?,
-    val contenido: String?,
-    val archivo: String?
-)
+@InvokeArg
+class ParametrosEscritura {
+    var uriCarpeta: String? = null
+    var contenido: String? = null
+    var archivo: String? = null
+}

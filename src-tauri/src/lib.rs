@@ -65,18 +65,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(
-            tauri::plugin::Builder::<tauri::Wry>::new("sincronizacion-nativo")
-                .setup(|_, api| {
-                    #[cfg(target_os = "android")]
-                    api.register_android_plugin(
-                        "com.rassembly.app",
-                        "PluginSincronizacionNativo",
-                    )?;
-                    Ok(())
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_sincronizacion_nativo::init())
+
         // --- AQUÍ ESTÁ EL CAMBIO: LÓGICA DE INICIO ---
         .setup(|app| {
             let app_handle = app.handle();

@@ -43,7 +43,7 @@ export class PuenteAlmacenamiento {
     static async escribirArchivo(rutaOCarpeta: string, contenido: string): Promise<void> {
         if (await this.esAndroid()) {
             // Ajustado al nombre en español
-            await invoke('plugin:PluginSincronizacionNativo|escribirArchivo', {
+            await invoke('plugin:sincronizacion-nativo|escribirArchivo', {
                 uriCarpeta: rutaOCarpeta,
                 archivo: NOMBRE_ARCHIVO_SYNC,
                 contenido
@@ -59,7 +59,7 @@ export class PuenteAlmacenamiento {
     static async leerArchivo(rutaOCarpeta: string): Promise<string> {
         if (await this.esAndroid()) {
             // Ajustado a JSObject y nombre en español
-            const respuesta = await invoke<{ contenido: string }>('plugin:PluginSincronizacionNativo|leerArchivo', {
+           const respuesta = await invoke<{ contenido: string }>('plugin:sincronizacion-nativo|leerArchivo', {
                 uriCarpeta: rutaOCarpeta,
                 archivo: NOMBRE_ARCHIVO_SYNC
             });
@@ -75,7 +75,7 @@ export class PuenteAlmacenamiento {
         if (await this.esAndroid()) {
             try {
                 // Ajustado al nombre en español
-                const meta = await invoke<{ exists: boolean, mtime: number } | null>('plugin:PluginSincronizacionNativo|validarCarpeta', {
+                const meta = await invoke<{ exists: boolean, mtime: number } | null>('plugin:sincronizacion-nativo|validarCarpeta', {
                     uriCarpeta: rutaOCarpeta,
                     archivo: NOMBRE_ARCHIVO_SYNC
                 });
