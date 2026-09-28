@@ -364,221 +364,588 @@
 {/if}
 
 <style>
-  /* --- ESTILOS GENERALES (LISTA) --- */
-  :global(.panel-plantillas-override) {
-      display: flex !important;
-      flex-direction: column !important;
-      margin-bottom: 30px !important;
-  }
+/* ==========================================================================
+   PLANTILLAS CORREOS - ESTILOS UNIFICADOS CON VARIABLES GLOBALES
+   ========================================================================== */
 
-  .accordion-list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; background: var(--bg-card); }
-  .accordion-item { border-bottom: 1px solid var(--border); }
-  .accordion-item:last-child { border-bottom: none; }
-  
-  .accordion-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: transparent; border: none; cursor: pointer; color: var(--text-main); font-weight: 600; font-size: 14px; transition: background 0.2s; }
-  .accordion-header:hover { background: var(--hover-bg); color: var(--primary); }
-  
-  .acc-title { display: flex; align-items: center; gap: 12px; }
-  .accordion-body-template { padding: 25px; background: var(--bg-body); border-top: 1px solid var(--border); }
-  
-  /* Inputs de la vista previa */
-  .preview-group { margin-bottom: 20px; }
-  .preview-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; }
-  
-  .preview-input { 
-      width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; 
-      background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; 
-      box-sizing: border-box; font-size: 14px; font-family: inherit; transition: all 0.2s;
-  }
-  .preview-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+/* --- ESTILOS GENERALES (LISTA DE PLANTILLAS) --- */
+:global(.panel-plantillas-override) {
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 30px !important;
+}
 
-  .preview-textarea {
-      display: block; width: 100%; box-sizing: border-box; padding: 20px;
-      min-height: 100px; max-height: 300px; overflow-y: auto; overflow-x: hidden;
-      background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px;
-      color: var(--text-main); font-size: 14px; line-height: 1.6;
-      white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
-  }
+.accordion-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--bg-card);
+}
+.accordion-item {
+  border-bottom: 1px solid var(--border);
+}
+.accordion-item:last-child {
+  border-bottom: none;
+}
 
-  .preview-textarea :global(*) { max-width: 100% !important; white-space: pre-wrap !important; word-wrap: break-word !important; overflow-wrap: anywhere !important; }
-  .preview-textarea :global(ul), .preview-textarea :global(ol) { padding-left: 20px; margin: 10px 0; }
-  .preview-textarea :global(p) { margin-bottom: 0.8em; }
-  
-  /* --- BOTONES DE PLANTILLA UNIFICADOS AL TEMA --- */
-  .template-actions { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-top: 20px; width: 100%; }
-  .group-center { display: flex; flex-wrap: wrap; gap: 10px; flex: 1 1 auto; justify-content: center; }
+.accordion-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+.accordion-header:hover {
+  background: var(--hover-bg);
+  color: var(--primary);
+}
 
-  .btn-template-action { 
-      background: #475569; /* Gris pizarra sólido para Exportar/Importar */
-      color: white; border: none; padding: 8px 16px; border-radius: 6px; 
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; 
-      white-space: nowrap; flex: 1 1 auto; font-size: 13px; font-weight: 600; transition: all 0.2s; 
-  }
-  .btn-template-action:hover { background: #334155; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-  
-  /* Botón Editar (Izquierda) */
-  .btn-template-action.left { background: var(--primary); }
-  .btn-template-action.left:hover { background: #2563eb; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+.acc-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-  /* Botón Restablecer (Derecha) */
-  .btn-template-action.right { background: #ef4444; }
-  .btn-template-action.right:hover { background: #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+.accordion-body-template {
+  padding: 25px;
+  background: var(--bg-body);
+  border-top: 1px solid var(--border);
+}
 
-  /* --- ESTILOS DEL EDITOR (MODO EDICIÓN) --- */
-  .editor-layout-wrapper { display: grid; grid-template-columns: 1fr 280px; gap: 20px; height: calc(100vh - 200px); min-height: 600px; margin-bottom: 40px; }
-  
-  .editor-main { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-premium); }
-  
-  .editor-header-bar { padding: 15px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  .title-wrap { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text-main); font-size: 15px; }
-  .autosave-badge { margin-left: 15px; }
-  .status-pill { font-size: 11px; padding: 4px 10px; border-radius: 12px; display: flex; gap: 5px; align-items: center; font-weight: 600; }
-  .status-pill.saved { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-  .status-pill.saving { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
-  .status-pill.unsaved { background: rgba(148, 163, 184, 0.15); color: var(--text-secondary); }
-  .btn-close-header { background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px; border-radius: 6px; display: flex; align-items: center; transition: all 0.2s; }
-  .btn-close-header:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+/* --- VISTA PREVIA --- */
+.preview-group {
+  margin-bottom: 20px;
+}
+.preview-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sec);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.preview-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-main);
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  font-size: 14px;
+  font-family: var(--font-main);
+  transition: all 0.2s;
+}
+.preview-input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
+.preview-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 20px;
+  min-height: 100px;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.preview-textarea :global(*) {
+  max-width: 100% !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+.preview-textarea :global(ul),
+.preview-textarea :global(ol) {
+  padding-left: 20px;
+  margin: 10px 0;
+}
+.preview-textarea :global(p) {
+  margin-bottom: 0.8em;
+}
 
-  .editor-form-area { padding: 25px; flex: 1; display: flex; flex-direction: column; overflow: hidden; gap: 20px; background: var(--bg-body); }
-  
-  .input-group-top label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; }
-  .input-subject { width: 100%; padding: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); border-radius: 8px; box-sizing: border-box; font-size: 14px; transition: all 0.2s; }
-  .input-subject:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+/* --- BOTONES DE PLANTILLA --- */
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  margin-top: 20px;
+  width: 100%;
+}
+.group-center {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+.btn-template-action {
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-template-action:hover {
+  background: var(--hover-bg);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-template-action.left {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+.btn-template-action.left:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+}
+.btn-template-action.right {
+  background: var(--accent-danger);
+  border-color: var(--accent-danger);
+  color: white;
+}
+.btn-template-action.right:hover {
+  background: var(--accent-danger-hover);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
 
-  .editor-wrapper-box { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-  .editor-wrapper-box label { display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; }
+/* --- EDITOR (MODO EDICIÓN) --- */
+.editor-layout-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  height: calc(100vh - 200px);
+  min-height: 600px;
+  margin-bottom: 40px;
+}
+.editor-main {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-premium);
+}
+.editor-header-bar {
+  padding: 15px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 15px;
+}
+.autosave-badge {
+  margin-left: 15px;
+}
+.status-pill {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-weight: 600;
+}
+.status-pill.saved {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-success);
+}
+.status-pill.saving {
+  background: rgba(234, 88, 12, 0.15);
+  color: #ea580c;
+}
+.status-pill.unsaved {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-sec);
+}
+.btn-close-header {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-sec);
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+.btn-close-header:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-danger);
+}
 
-  /* Toolbar */
-  .toolbar-ribbon { display: flex; gap: 4px; padding: 10px; background: var(--bg-card); border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; flex-wrap: wrap; align-items: center; }
-  .tool-btn { background: transparent; border: 1px solid transparent; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
-  
-  /* Hover visible igual que en PlantillasCartas */
-  .tool-btn:hover { background: rgba(128, 128, 128, 0.2); border-color: rgba(128, 128, 128, 0.3); color: var(--text-main); }
-  
-  .tool-btn.active { background: rgba(59, 130, 246, 0.15); color: var(--primary); border-color: rgba(59, 130, 246, 0.3); }
-  .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
+.editor-form-area {
+  padding: 25px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 20px;
+  background: var(--bg-body);
+}
+.input-group-top label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sec);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.input-subject {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.input-subject:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
 
-  /* Editor TipTap */
-  .editor-container { flex: 1; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-main); border-radius: 0 0 8px 8px; overflow-y: auto; padding: 20px; cursor: text; min-height: 250px; font-size: 15px; line-height: 1.6; }
-  :global(.ProseMirror) { height: 100%; outline: none; }
-  :global(.ProseMirror p) { margin-top: 0; margin-bottom: 1em; }
-  :global(.ProseMirror ul, .ProseMirror ol) { padding-left: 1.5em; margin: 0.5em 0; }
+.editor-wrapper-box {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+.editor-wrapper-box label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sec);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
 
-  .editor-footer { padding: 15px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); }
-  .btn-cancel { background: transparent; color: var(--text-main); border: 1px solid var(--border); padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-  .btn-cancel:hover { background: var(--hover-bg); }
-  .btn-save { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-  .btn-save:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+/* Toolbar */
+.toolbar-ribbon {
+  display: flex;
+  gap: 4px;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tool-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tool-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--border);
+  color: var(--text-main);
+}
+.tool-btn.active {
+  background: rgba(var(--primary-rgb), 0.15);
+  color: var(--primary);
+  border-color: rgba(var(--primary-rgb), 0.3);
+}
+.tool-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+}
 
-  /* Sidebar Marcadores */
-  .editor-sidebar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-premium); }
-  .sidebar-header { padding: 15px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); font-weight: 700; color: var(--text-main); font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .markers-list { overflow-y: auto; flex: 1; }
-  .marker-group { border-bottom: 1px solid var(--border); }
-  .marker-group-btn { width: 100%; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: transparent; border: none; color: var(--text-main); cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; }
-  .marker-group-btn:hover { background: var(--hover-bg); color: var(--primary); }
-  .marker-content { background: var(--bg-body); padding: 8px 0; }
-  
-  .marker-pill { display: block; width: 100%; padding: 12px 20px; text-align: left; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); border-bottom: 1px solid var(--border); transition: all 0.2s; }
-  .marker-pill:last-child { border-bottom: none; }
-  .marker-pill:hover { background: var(--hover-bg); color: var(--primary); padding-left: 24px; }
-  .marker-content-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-  .m-label { font-size: 13px; font-weight: 600; color: var(--text-main); }
-  .marker-row-desc { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-bottom: 6px; opacity: 0.9; line-height: 1.4; }
-  .m-code { font-size: 11px; font-family: 'Courier New', Courier, monospace; color: var(--primary); background: rgba(59,130,246,0.1); padding: 4px 8px; border-radius: 4px; width: fit-content; font-weight: 600; }
+/* Editor TipTap */
+.editor-container {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--text-main);
+  border-radius: 0 0 8px 8px;
+  overflow-y: auto;
+  padding: 20px;
+  cursor: text;
+  min-height: 250px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+:global(.ProseMirror) {
+  height: 100%;
+  outline: none;
+}
+:global(.ProseMirror p) {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+:global(.ProseMirror ul),
+:global(.ProseMirror ol) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
 
-  /* =========================================================
-   DISEÑO RESPONSIVO (PLANTILLAS CORREO: WINDOWS + ANDROID)
+.editor-footer {
+  padding: 15px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-secondary);
+}
+.btn-cancel {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-cancel:hover {
+  background: var(--hover-bg);
+}
+.btn-save {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-save:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+}
+
+/* Sidebar de marcadores */
+.editor-sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-premium);
+}
+.sidebar-header {
+  padding: 15px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.markers-list {
+  overflow-y: auto;
+  flex: 1;
+}
+.marker-group {
+  border-bottom: 1px solid var(--border);
+}
+.marker-group-btn {
+  width: 100%;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.marker-group-btn:hover {
+  background: var(--hover-bg);
+  color: var(--primary);
+}
+.marker-content {
+  background: var(--bg-body);
+  padding: 8px 0;
+}
+.marker-pill {
+  display: block;
+  width: 100%;
+  padding: 12px 20px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-sec);
+  border-bottom: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.marker-pill:last-child {
+  border-bottom: none;
+}
+.marker-pill:hover {
+  background: var(--hover-bg);
+  color: var(--primary);
+  padding-left: 24px;
+}
+.marker-content-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.m-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.marker-row-desc {
+  font-size: 11px;
+  color: var(--text-sec);
+  font-style: italic;
+  margin-bottom: 6px;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+.m-code {
+  font-size: 11px;
+  font-family: 'Courier New', Courier, monospace;
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  width: fit-content;
+  font-weight: 600;
+}
+
+/* =========================================================
+   DISEÑO RESPONSIVO
    ========================================================= */
-
 @media (max-width: 1024px) {
-    /* 1. ELIMINAR LA DOBLE COLUMNA (Editor y Marcadores uno sobre otro) */
-    .editor-layout-wrapper {
-        display: flex;
-        flex-direction: column;
-        height: auto;
-        min-height: auto;
-    }
-
-    .editor-sidebar {
-        width: 100%;
-        max-height: 400px; /* Limitamos la altura de los marcadores en tablet/móvil */
-        order: 2; /* Los marcadores pasan abajo del editor */
-    }
-
-    .editor-main {
-        width: 100%;
-        order: 1;
-    }
+  .editor-layout-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: auto;
+  }
+  .editor-sidebar {
+    width: 100%;
+    max-height: 400px;
+    order: 2;
+  }
+  .editor-main {
+    width: 100%;
+    order: 1;
+  }
 }
 
 @media (max-width: 768px) {
-    /* 2. OPTIMIZACIÓN DE ACCIONES EN LA LISTA */
-    .template-actions {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .group-center {
-        width: 100%;
-        flex-direction: column;
-    }
-
-    .btn-template-action {
-        width: 100%;
-        height: 48px; /* Botones grandes para el dedo */
-    }
-
-    /* 3. TOOLBAR DEL EDITOR (Scroll horizontal) */
-    .toolbar-ribbon {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 15px; /* Espacio para el dedo al deslizar */
-    }
-
-    .tool-btn {
-        min-width: 40px;
-        min-height: 40px;
-        flex-shrink: 0;
-    }
-
-    /* 4. AJUSTES DEL EDITOR */
-    .editor-form-area {
-        padding: 15px;
-    }
-
-    .input-subject {
-        height: 48px;
-        font-size: 16px; /* Evita que iOS/Android haga zoom automático al enfocar */
-    }
-
-    .editor-container {
-        min-height: 300px;
-    }
-
-    /* 5. FOOTER DEL EDITOR */
-    .editor-footer {
-        flex-direction: column-reverse;
-        gap: 10px;
-        padding: 15px;
-    }
-
-    .btn-save, .btn-cancel {
-        width: 100%;
-        height: 48px;
-    }
-
-    /* 6. PÍLDORAS DE MARCADORES MÁS GRANDES */
-    .marker-pill {
-        padding: 15px 20px;
-    }
-    
-    .m-code {
-        font-size: 12px;
-        padding: 6px 10px;
-    }
+  .template-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .group-center {
+    width: 100%;
+    flex-direction: column;
+  }
+  .btn-template-action {
+    width: 100%;
+    height: 48px;
+  }
+  .toolbar-ribbon {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 15px;
+  }
+  .tool-btn {
+    min-width: 40px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+  .editor-form-area {
+    padding: 15px;
+  }
+  .input-subject {
+    height: 48px;
+    font-size: 16px;
+  }
+  .editor-container {
+    min-height: 300px;
+  }
+  .editor-footer {
+    flex-direction: column-reverse;
+    gap: 10px;
+    padding: 15px;
+  }
+  .btn-save,
+  .btn-cancel {
+    width: 100%;
+    height: 48px;
+  }
+  .marker-pill {
+    padding: 15px 20px;
+  }
+  .m-code {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
 }
-
 </style>

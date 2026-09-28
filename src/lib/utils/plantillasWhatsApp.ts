@@ -1,6 +1,7 @@
 // src/lib/utils/plantillasWhatsApp.ts
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
+import { DB } from '$lib/services/db';
 
 export interface PlantillaWhatsApp {
     id: string;
@@ -113,15 +114,26 @@ export const marcadoresWhatsApp: GrupoMarcadores[] = [
 // STORE REACTIVO - USA LOS COMANDOS DE mensajería.rs
 // ------------------------------------------------------------
 export const whatsAppTemplates = writable<PlantillaWhatsApp[]>([
-    { id: 'oradores', title: 'Oradores (Discursos)', body: '', isOpen: false },
-    { id: 'presidentes', title: 'Presidentes de sesión', body: '', isOpen: false },
-    { id: 'oraciones', title: 'Oraciones (Apertura/Conclusión)', body: '', isOpen: false },
-    { id: 'ensayo', title: 'Recordatorio de ensayo', body: '', isOpen: false },
-    { id: 'plataforma', title: 'Plataforma', body: '', isOpen: false },
+    { id: 'programa_individual', title: 'Programa, orador específico', body: '', isOpen: false },
+    
+    { id: 'programa_recordatorio', title: 'Programa, recordatorio de asignación', body: '', isOpen: false },
+    
+    { id: 'contacto_orador', title: 'Lista de oradores, contacto general', body: '', isOpen: false },
+    
+     { 
+        id: 'registro_orador', 
+        title: 'Registro de Oradores', 
+        body: '', 
+        isOpen: false 
+    },
+
+    { id: 'ensayo', title: 'Recordatorio de Ensayo', body: '', isOpen: false },
+    
+    { id: 'oficina', title: 'Auxiliares de Oficina', body: '', isOpen: false },
+   
     { id: 'comite', title: 'Comité de Asamblea', body: '', isOpen: false },
-    { id: 'superintendente', title: 'Sup. de Programa', body: '', isOpen: false },
-    { id: 'audiovideo', title: 'Audio y Video', body: '', isOpen: false },
-    { id: 'oficina', title: 'Personal de Oficina', body: '', isOpen: false }
+    
+    { id: 'departamentos', title: 'Departamentos (Audio/Video, Soporte, etc.)', body: '', isOpen: false }
 ]);
 
 // ------------------------------------------------------------
@@ -148,13 +160,17 @@ export async function cargarPlantillasWhatsApp(): Promise<void> {
 // ------------------------------------------------------------
 // GUARDAR - usa guardar_plantilla_mensaje (asunto vacío o título)
 // ------------------------------------------------------------
+// ------------------------------------------------------------
+// GUARDAR - usa DB.guardarPlantillaMensaje
+// ------------------------------------------------------------
 export async function guardarPlantillaWhatsApp(id: string, cuerpo: string): Promise<void> {
     try {
         // Usamos el título de la plantilla como asunto, o vacío
         const plantilla = get(whatsAppTemplates).find(p => p.id === id);
         const asunto = plantilla?.title || '';
         
-        await invoke('guardar_plantilla_mensaje', { id, asunto, cuerpo });
+        // 🔥 USAMOS EL EMBUDO PARA GUARDAR Y DISPARAR LA SEÑAL
+        await DB.guardarPlantillaMensaje(id, asunto, cuerpo);
         
         whatsAppTemplates.update(items =>
             items.map(p => (p.id === id ? { ...p, body: cuerpo } : p))

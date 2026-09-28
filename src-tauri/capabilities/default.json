@@ -3,13 +3,31 @@
   "identifier": "default",
   "description": "Permisos completos para gestión de archivos e impresión de cartas",
   "windows": [
-    "main"
+    "*"
   ],
   "permissions": [
     "core:default",
+    "sincronizacion-nativo:allow-elegirCarpeta",
+    "sincronizacion-nativo:allow-escribirArchivo",
+    "sincronizacion-nativo:allow-leerArchivo",
+    "sincronizacion-nativo:allow-validarCarpeta",
     "shell:default",
     "opener:default",
     "opener:allow-open-path",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "whatsapp://*"
+        },
+        {
+          "url": "https://wa.me/*"
+        },
+        {
+          "url": "https://updates.ejvapps.online/*"
+        }
+      ]
+    },
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
@@ -17,6 +35,7 @@
     "fs:allow-write-file",
     "fs:allow-mkdir",
     "fs:allow-exists",
+    "fs:allow-stat",
     "fs:allow-remove",
     "fs:allow-read-dir",
     "fs:allow-copy-file",
@@ -29,6 +48,25 @@
         "**"
       ]
     },
-    "process:default"
+    "process:default",
+    "store:default",
+    "core:window:allow-create",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close",
+    "core:window:allow-set-always-on-top",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        {
+          "url": "https://syncserver.ejvapps.online/*"
+        },
+        {
+          "url": "https://updates.ejvapps.online/*"
+        }
+      ]
+    },
+    "os:default"
   ]
 }

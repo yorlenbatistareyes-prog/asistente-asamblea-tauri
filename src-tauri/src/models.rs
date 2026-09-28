@@ -42,7 +42,6 @@ pub struct Asamblea {
     pub local_id: Option<i32>,
     pub identificador: Option<String>,
     // --- Campos del comité ---
-    pub presidente_id: Option<i32>,
     pub coordinador_id: Option<i32>,
     pub coordinador_aux_id: Option<i32>,
     pub prog_super_id: Option<i32>,
@@ -82,18 +81,31 @@ pub struct PartePrograma {
     pub orador_id: Option<i32>,
     pub nombre_orador: Option<String>,
     pub congregacion_orador: Option<String>,
+    pub circuito_orador: Option<String>,
     pub email_orador: Option<String>,
     pub telefono_orador: Option<String>,
     pub es_video: bool,
     pub estado: Option<String>,
     pub esta_presente: bool,
     pub numero_bosquejo: Option<String>,
-    pub ensayo_terminado: bool, 
+    pub ensayo_terminado: bool,
     // ✅ NUEVOS CAMPOS PARA LOS FILTROS
     pub fuente: Option<String>,
     pub es_betelita: bool,
     pub es_interprete: bool,
     pub es_visitante: bool,
+    pub requiere_ensayo: bool,
+    pub fecha_ensayo: Option<String>,
+    pub hora_ensayo: Option<String>,
+    pub lugar_ensayo: Option<String>,
+    pub notas_ensayo: Option<String>,
+
+    pub check_viernes: bool,
+    pub check_dia: bool,
+    pub check_30m: bool,
+
+    pub notas_orador: Option<String>,
+    pub color_destacado: Option<String>, // ← NUEVO
 }
 
 // ==========================================
@@ -112,6 +124,8 @@ pub struct AsignacionEspecialDTO {
     pub estado: Option<String>,
     pub esta_presente: bool,
     pub ensayo_terminado: bool,
+    pub responsabilidades: Option<String>,
+    pub disponibilidad: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

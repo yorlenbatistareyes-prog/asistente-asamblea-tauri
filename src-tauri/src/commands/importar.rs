@@ -53,24 +53,40 @@ struct FilaProgramaJW {
     fecha: String,
     #[serde(alias = "Hora")]
     hora: String,
+    // ✅ NUEVO: Bosquejo
+    #[serde(alias = "Bosquejo", alias = "Outline")]
+    bosquejo: Option<String>,
     #[serde(alias = "Título")]
     titulo: String,
     #[serde(alias = "Fuente", alias = "Source material")]
     fuente: Option<String>,
     #[serde(alias = "Orador", alias = "Speaker")]
     orador: Option<String>,
+    // ✅ NUEVO: Circuito
+    #[serde(alias = "Circuito", alias = "Circuit")]
+    circuito: Option<String>,
     #[serde(alias = "Congregación", alias = "Congregation")]
     congregacion: Option<String>,
     #[serde(alias = "Teléfono móvil", alias = "Mobile phone")]
     movil: Option<String>,
+    // ✅ NUEVO: Teléfono fijo
+    #[serde(alias = "Teléfono fijo", alias = "Landline")]
+    fijo: Option<String>,
     #[serde(alias = "Correo electrónico", alias = "Email address")]
     email: Option<String>,
-    // ✅ NUEVAS COLUMNAS CAPTURADAS DEL CSV
-    #[serde(alias = "Speaker Bethelite", alias = "Orador betelita", alias = "Betelita")]
+    #[serde(
+        alias = "Speaker Bethelite",
+        alias = "Orador betelita",
+        alias = "Betelita"
+    )]
     es_betelita: Option<String>,
     #[serde(alias = "Interpreter", alias = "Intérprete", alias = "Interprete")]
     es_interprete: Option<String>,
-    #[serde(alias = "Visiting speaker", alias = "Orador visitante", alias = "Visitante")]
+    #[serde(
+        alias = "Visiting speaker",
+        alias = "Orador visitante",
+        alias = "Visitante"
+    )]
     es_visitante: Option<String>,
 }
 
@@ -133,28 +149,36 @@ pub fn importar_personas_csv(
                 continue;
             }
 
-            let mut id_cong = 0;
+            // ✅ CORRECCIÓN: Permitimos que sea Nulo si viene vacío
+            let mut id_cong: Option<i32> = None;
+
             if let Some(cong) = &fila.congregacion {
-                let existe_c: Option<i32> = stmt_find_cong
-                    .query_row(params![asamblea_id, cong.trim()], |row| row.get(0))
-                    .optional()
-                    .unwrap_or(None);
-                if let Some(cid) = existe_c {
-                    id_cong = cid;
-                } else {
-                    stmt_ins_cong
-                        .execute(params![asamblea_id, cong.trim()])
-                        .unwrap_or(0);
-                    id_cong = tx.last_insert_rowid() as i32;
+                let c_limpio = cong.trim();
+                if !c_limpio.is_empty() {
+                    let existe_c: Option<i32> = stmt_find_cong
+                        .query_row(params![asamblea_id, c_limpio], |row| row.get(0))
+                        .optional()
+                        .unwrap_or(None);
+                    if let Some(cid) = existe_c {
+                        id_cong = Some(cid);
+                    } else {
+                        stmt_ins_cong
+                            .execute(params![asamblea_id, c_limpio])
+                            .unwrap_or(0);
+                        id_cong = Some(tx.last_insert_rowid() as i32);
+                    }
                 }
             }
+
             let tel = fila.celular.or(fila.fijo).unwrap_or_default();
             let email = fila.email.unwrap_or_default();
             let privi = fila.privilegio.unwrap_or_default();
+
             let existe_p: Option<i32> = stmt_check_pers
                 .query_row(params![asamblea_id, &nombre_final], |row| row.get(0))
                 .optional()
                 .unwrap_or(None);
+
             if let Some(pid) = existe_p {
                 stmt_upd_pers
                     .execute(params![id_cong, privi, tel, email, pid])
@@ -165,7 +189,7 @@ pub fn importar_personas_csv(
                         asamblea_id,
                         nombre_final,
                         privi,
-                        id_cong,
+                        id_cong, // Ahora pasará NULL si no tiene en lugar de 0
                         tel,
                         email
                     ])
@@ -234,16 +258,21 @@ pub fn importar_programa_jw(
             .prepare("SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2")
             .map_err(|e| e.to_string())?;
 
-        // 👇 CORRECCIÓN AQUÍ: Se añade 'sexo' y se ajustan los parámetros (?1 a ?7)
-        let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5)").map_err(|e| e.to_string())?;
+        // 👇 ACTUALIZADO: Añadido circuito (?6) y telefono_fijo (?7)
+        let mut stmt_ins_pers = tx.prepare("INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email, circuito, telefono_fijo) VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5, ?6, ?7)").map_err(|e| e.to_string())?;
 
-        let mut stmt_ins_prog = tx.prepare("
+        // 👇 ACTUALIZADO: Añadido numero_bosquejo (?13)
+        let mut stmt_ins_prog = tx
+            .prepare(
+                "
             INSERT INTO programa (
                 asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, 
                 orador_id, es_video, estado, esta_presente, 
-                fuente, es_betelita, es_interprete, es_visitante
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12)
-        ").map_err(|e| e.to_string())?;
+                fuente, es_betelita, es_interprete, es_visitante, numero_bosquejo
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, 'Pendiente', 0, ?9, ?10, ?11, ?12, ?13)
+        ",
+            )
+            .map_err(|e| e.to_string())?;
 
         for result in rdr.deserialize() {
             let fila: FilaProgramaJW = match result {
@@ -288,30 +317,48 @@ pub fn importar_programa_jw(
                         .unwrap_or(None);
                     if let Some(pid) = existe_p {
                         orador_id = Some(pid);
+
+                        // ✅ AÑADIDO: Si el orador ya existe, le actualizamos el circuito
+                        let _ = tx.execute(
+                            "UPDATE personas SET circuito = ?1, telefono_fijo = ?2 WHERE id = ?3",
+                            params![
+                                fila.circuito.clone().unwrap_or_default(),
+                                fila.fijo.clone().unwrap_or_default(),
+                                pid
+                            ],
+                        );
                     } else {
-                        let mut id_cong = 0;
+                        // ✅ CORRECCIÓN: Ahora es Option<i32>, permite nulos
+                        let mut id_cong: Option<i32> = None;
+
                         if let Some(c) = fila.congregacion {
-                            let ex_c: Option<i32> = stmt_find_cong
-                                .query_row(params![asamblea_id, c.trim()], |row| row.get(0))
-                                .optional()
-                                .unwrap_or(None);
-                            if let Some(cid) = ex_c {
-                                id_cong = cid;
-                            } else {
-                                stmt_ins_cong
-                                    .execute(params![asamblea_id, c.trim()])
-                                    .unwrap_or(0);
-                                id_cong = tx.last_insert_rowid() as i32;
+                            let c_limpio = c.trim();
+                            if !c_limpio.is_empty() {
+                                let ex_c: Option<i32> = stmt_find_cong
+                                    .query_row(params![asamblea_id, c_limpio], |row| row.get(0))
+                                    .optional()
+                                    .unwrap_or(None);
+                                if let Some(cid) = ex_c {
+                                    id_cong = Some(cid);
+                                } else {
+                                    stmt_ins_cong
+                                        .execute(params![asamblea_id, c_limpio])
+                                        .unwrap_or(0);
+                                    id_cong = Some(tx.last_insert_rowid() as i32);
+                                }
                             }
                         }
-                        // 👇 Ajustado para enviar el número correcto de parámetros a stmt_ins_pers
+
+                        // 👇 ACTUALIZADO: Pasamos id_cong como Option, permite nulos (sin congregación)
                         stmt_ins_pers
                             .execute(params![
                                 asamblea_id,
                                 nombre_final,
-                                id_cong,
+                                id_cong, // Ahora pasa NULL si no tiene congregación
                                 fila.movil.unwrap_or_default(),
-                                fila.email.unwrap_or_default()
+                                fila.email.unwrap_or_default(),
+                                fila.circuito.unwrap_or_default(), // ?6
+                                fila.fijo.unwrap_or_default()      // ?7
                             ])
                             .unwrap_or(0);
                         orador_id = Some(tx.last_insert_rowid() as i32);
@@ -319,11 +366,33 @@ pub fn importar_programa_jw(
                 }
             }
 
-            // Convertimos los valores de texto del CSV ("Yes", "Sí", etc) a booleanos para la DB
-            let es_betel = fila.es_betelita.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
-            let es_inter = fila.es_interprete.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
-            let es_visit = fila.es_visitante.map(|s| s.to_lowercase().contains('y') || s.to_lowercase().contains('s')).unwrap_or(false);
-            
+            // Convertimos los valores de texto del CSV a booleanos para la DB
+            let es_betel = fila
+                .es_betelita
+                .map(|s| {
+                    s.to_lowercase().contains('y')
+                        || s.to_lowercase().contains('s')
+                        || s.to_lowercase().contains('í')
+                })
+                .unwrap_or(false);
+            let es_inter = fila
+                .es_interprete
+                .map(|s| {
+                    s.to_lowercase().contains('y')
+                        || s.to_lowercase().contains('s')
+                        || s.to_lowercase().contains('í')
+                })
+                .unwrap_or(false);
+            let es_visit = fila
+                .es_visitante
+                .map(|s| {
+                    s.to_lowercase().contains('y')
+                        || s.to_lowercase().contains('s')
+                        || s.to_lowercase().contains('í')
+                })
+                .unwrap_or(false);
+
+            // 👇 ACTUALIZADO: Pasamos el bosquejo a la tabla programa
             stmt_ins_prog
                 .execute(params![
                     asamblea_id,
@@ -334,10 +403,11 @@ pub fn importar_programa_jw(
                     tipo,
                     orador_id,
                     es_video,
-                    fuente,     // ?9
-                    es_betel,   // ?10
-                    es_inter,   // ?11
-                    es_visit    // ?12
+                    fuente,                            // ?9
+                    es_betel,                          // ?10
+                    es_inter,                          // ?11
+                    es_visit,                          // ?12
+                    fila.bosquejo.unwrap_or_default()  // ?13 (Número de bosquejo)
                 ])
                 .unwrap_or(0);
         }

@@ -1,7 +1,7 @@
 // src/lib/utils/plantillasEmail.ts
 import { writable, get } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-
+import { DB } from '$lib/services/db';
 // ------------------------------------------------------------
 // TIPOS
 // ------------------------------------------------------------
@@ -117,79 +117,70 @@ export const marcadoresEmail: GrupoMarcadores[] = [
 ];
 
 // ------------------------------------------------------------
-// STORE REACTIVO (LISTA COMPLETA DE PLANTILLAS ORDENADA)
+// STORE REACTIVO (LISTA SIMPLIFICADA Y SEPARADA)
 // ------------------------------------------------------------
 export const emailTemplates = writable<PlantillaEmail[]>([
-    // --- 1. INDIVIDUALES (Desde la lista de discursos) ---
+    
+    // --- 1. INDIVIDUALES (Para los botones de cada fila en Programa) ---
     { 
-        id: 'oradores', 
-        title: 'Oradores (Discursos)', 
-        subject: 'Asignación de Discurso', 
+        id: 'programa_individual', 
+        title: 'Programa, a orador específico', 
+        subject: 'Asignación en el Programa de la Asamblea', 
         body: '', 
         isOpen: false 
     },
     { 
-        id: 'oradores_recordatorio', 
-        title: 'Oradores (Recordatorio de asignación)', 
-        subject: 'Recordatorio de Asignación', 
+        id: 'programa_recordatorio', 
+        title: 'Programa, recordatorio de asignación', 
+        subject: 'Recordatorio de su participación en la Asamblea', 
         body: '', 
         isOpen: false 
     },
 
-    // --- 2. MASIVOS (Para el botón "Email a todos") ---
+     // --- 2. MASIVOS (Para los botones globales "Email a todos") ---
     { 
-        id: 'email_todos', 
-        title: 'Email a todos (Discursos)', 
+        id: 'masivo_general', 
+        title: 'Programa, Email a todos (General)', 
         subject: 'Información importante de la Asamblea', 
         body: '', 
         isOpen: false 
     },
     { 
-        id: 'email_todos_recordatorio', 
-        title: 'Email a todos (Recordatorio de asignación)', 
+        id: 'masivo_recordatorio', 
+        title: 'Programa, Email a todos (Recordatorio)', 
         subject: 'Recordatorio General de Asignaciones', 
         body: '', 
         isOpen: false 
     },
 
-    // --- 3. OFICINA Y PLATAFORMA ---
+    // --- 3. SEGUIMIENTO Y CONTACTO (Para la Lista de Oradores) ---
     { 
-        id: 'auxiliares_oficina', 
+        id: 'contacto_orador', 
+        title: 'Lista de oradores, contacto general', 
+        subject: 'Información sobre su asignación en la Asamblea', 
+        body: '', 
+        isOpen: false 
+    },
+
+    // --- 4. SEGUIMIENTO Y CONTACTO (Para el registro de Oradores) ---
+    { 
+        id: 'registro_orador', // <--- ID NUEVO Y ESPECÍFICO
+        title: 'Registro de Oradores', 
+        subject: 'Información sobre su asignación en la asamblea', 
+        body: '', 
+        isOpen: false 
+    },
+
+   
+
+    // --- 5. OFICINA, COMITÉ Y DEPARTAMENTOS ---
+    { 
+        id: 'oficina', 
         title: 'Auxiliares de la Oficina', 
         subject: 'Asignación en la Oficina de la Asamblea', 
         body: '', 
         isOpen: false 
     },
-    { 
-        id: 'presidentes', 
-        title: 'Presidentes de Sesión', 
-        subject: 'Asignación de Presidencia', 
-        body: '', 
-        isOpen: false 
-    },
-    { 
-        id: 'oraciones', 
-        title: 'Oraciones (Apertura/Conclusión)', 
-        subject: 'Asignación de Oración', 
-        body: '', 
-        isOpen: false 
-    },
-    { 
-        id: 'bosquejos', 
-        title: 'Seguimiento de Bosquejos', 
-        subject: 'Asignación: Seguimiento de Bosquejos', 
-        body: '', 
-        isOpen: false 
-    },
-    { 
-        id: 'plataforma', 
-        title: 'Acompañantes a la Plataforma', 
-        subject: 'Asignación: Acompañante a la Plataforma', 
-        body: '', 
-        isOpen: false 
-    },
-
-    // --- 4. OTROS DEPARTAMENTOS ---
     { 
         id: 'comite', 
         title: 'Comité de Asamblea', 
@@ -198,23 +189,16 @@ export const emailTemplates = writable<PlantillaEmail[]>([
         isOpen: false 
     },
     { 
-        id: 'superintendente', 
-        title: 'Superintendente de Programa', 
-        subject: 'Asuntos del Programa', 
-        body: '', 
-        isOpen: false 
-    },
-    { 
-        id: 'audiovideo', 
-        title: 'Audio y Video', 
-        subject: 'Asignación de Audio y Video', 
+        id: 'departamentos', 
+        title: 'Departamentos (Audio/Video, Soporte, etc.)', 
+        subject: 'Asignación de Departamento en la Asamblea', 
         body: '', 
         isOpen: false 
     }
 ]);
 
 // ------------------------------------------------------------
-// FUNCIONES DE CARGA / GUARDADO (SIN CAMBIOS)
+// FUNCIONES DE CARGA / GUARDADO
 // ------------------------------------------------------------
 export async function cargarPlantillasEmail(): Promise<void> {
     const plantillas = get(emailTemplates);
@@ -235,7 +219,9 @@ export async function cargarPlantillasEmail(): Promise<void> {
 
 export async function guardarPlantillaEmail(id: string, asunto: string, cuerpo: string): Promise<void> {
     try {
-        await invoke('guardar_plantilla_email', { id, asunto, cuerpo });
+        // 🔥 AHORA SÍ: El nombre es claro y específico para correos
+        await DB.guardarPlantillaEmail(id, asunto, cuerpo);
+        
         emailTemplates.update(items =>
             items.map(p => (p.id === id ? { ...p, subject: asunto, body: cuerpo } : p))
         );

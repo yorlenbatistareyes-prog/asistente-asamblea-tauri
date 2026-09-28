@@ -14,8 +14,8 @@ pub fn obtener_programa_dia(
     dia: String,
 ) -> Result<Vec<PartePrograma>, String> {
     let conn = conectar_db(&app);
-    
-    // ✅ Añadidas las 4 columnas al final del SELECT
+
+    // ✅ Añadidos los 3 checks y la nota del orador al final del SELECT
     let sql = "
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
@@ -23,7 +23,12 @@ pub fn obtener_programa_dia(
         per.email, per.telefono, 
         p.es_video, p.estado, p.esta_presente,
         p.numero_bosquejo, p.ensayo_terminado,
-        p.fuente, p.es_betelita, p.es_interprete, p.es_visitante
+        p.fuente, p.es_betelita, p.es_interprete, p.es_visitante,
+        per.circuito,
+        p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo,
+        p.check_viernes, p.check_dia, p.check_30m,
+        per.notas,
+        p.color_destacado
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -51,11 +56,23 @@ pub fn obtener_programa_dia(
                 esta_presente: row.get(14).unwrap_or(false),
                 numero_bosquejo: row.get(15).ok(),
                 ensayo_terminado: row.get(16).unwrap_or(false),
-                // ✅ Capturamos los nuevos campos para los filtros
-                fuente: row.get(17).unwrap_or_else(|_| Some("en_persona".to_string())),
+                fuente: row
+                    .get(17)
+                    .unwrap_or_else(|_| Some("en_persona".to_string())),
                 es_betelita: row.get(18).unwrap_or(false),
                 es_interprete: row.get(19).unwrap_or(false),
                 es_visitante: row.get(20).unwrap_or(false),
+                circuito_orador: row.get(21).ok(),
+                requiere_ensayo: row.get(22).unwrap_or(false),
+                fecha_ensayo: row.get(23).ok(),
+                hora_ensayo: row.get(24).ok(),
+                lugar_ensayo: row.get(25).ok(),
+                notas_ensayo: row.get(26).ok(),
+                check_viernes: row.get(27).unwrap_or(false),
+                check_dia: row.get(28).unwrap_or(false),
+                check_30m: row.get(29).unwrap_or(false),
+                notas_orador: row.get(30).ok(),
+                color_destacado: row.get(31).unwrap_or_else(|_| Some("".to_string())),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -115,6 +132,7 @@ pub fn crear_parte(
     es_betelita: bool,
     es_interprete: bool,
     es_visitante: bool,
+    color_destacado: Option<String>,
 ) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -172,22 +190,45 @@ pub fn crear_parte(
         }
     }
 
-    let bosquejo_final = if tipo == "Video" { None } else { numero_bosquejo };
-    let fuente_final = if tipo == "Video" { "video".to_string() } else { fuente };
+    let bosquejo_final = if tipo == "Video" {
+        None
+    } else {
+        numero_bosquejo
+    };
+    let fuente_final = if tipo == "Video" {
+        "video".to_string()
+    } else {
+        fuente
+    };
 
     // ✅ INSERCIÓN ACTUALIZADA CON LOS NUEVOS VALORES
     tx.execute(
         "INSERT INTO programa (
-            asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
-            orador_id, es_video, esta_presente, numero_bosquejo, 
-            fuente, es_betelita, es_interprete, es_visitante
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, ?13, ?14, ?15)", 
+        asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
+        orador_id, es_video, esta_presente, numero_bosquejo, 
+        fuente, es_betelita, es_interprete, es_visitante,
+        color_destacado
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
-            asamblea_id, dia, sesion, hora, tema, tipo, duracion, estado, 
-            orador_id_final, tipo == "Video", bosquejo_final.as_deref(),
-            fuente_final, es_betelita, es_interprete, es_visitante
-        ]
-    ).map_err(|e| e.to_string())?;
+            asamblea_id,
+            dia,
+            sesion,
+            hora,
+            tema,
+            tipo,
+            duracion,
+            estado,
+            orador_id_final,
+            tipo == "Video",
+            bosquejo_final.as_deref(),
+            fuente_final,
+            es_betelita,
+            es_interprete,
+            es_visitante,
+            color_destacado.unwrap_or_default() // ← NUEVO
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     tx.commit().map_err(|e| e.to_string())?;
     Ok("Creado".to_string())
@@ -197,32 +238,54 @@ pub fn crear_parte(
 pub fn actualizar_detalles_parte(
     app: AppHandle,
     id_parte: i32,
+    tema: String,                    // 👇 NUEVO: Recibe el tema
+    color_destacado: Option<String>, // 👇 NUEVO: Recibe el color
     numero_bosquejo: Option<String>,
     fuente: String,
     es_betelita: bool,
     es_interprete: bool,
     es_visitante: bool,
-    duracion: i32, // <-- NUEVO PARÁMETRO
+    duracion: i32,
+    // 👇 NUEVOS PARÁMETROS PARA ENSAYOS
+    requiere_ensayo: bool,
+    fecha_ensayo: Option<String>,
+    hora_ensayo: Option<String>,
+    lugar_ensayo: Option<String>,
+    notas_ensayo: Option<String>,
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
 
     conn.execute(
         "UPDATE programa SET 
-            numero_bosquejo = ?1, 
-            fuente = ?2, 
-            es_betelita = ?3, 
-            es_interprete = ?4, 
-            es_visitante = ?5,
-            duracion = ?6 
-         WHERE id = ?7",
+            tema = ?1,              
+            color_destacado = ?2,   
+            numero_bosquejo = ?3, 
+            fuente = ?4, 
+            es_betelita = ?5, 
+            es_interprete = ?6, 
+            es_visitante = ?7,
+            duracion = ?8,
+            requiere_ensayo = ?9,
+            fecha_ensayo = ?10,
+            hora_ensayo = ?11,
+            lugar_ensayo = ?12,
+            notas_ensayo = ?13
+         WHERE id = ?14",
         params![
-            numero_bosquejo.as_deref(), 
-            fuente, 
-            es_betelita, 
-            es_interprete, 
-            es_visitante,
-            duracion, 
-            id_parte
+            tema,                                // ?1
+            color_destacado.unwrap_or_default(), // ?2 (Guarda el color o vacío)
+            numero_bosquejo.as_deref(),          // ?3
+            fuente,                              // ?4
+            es_betelita,                         // ?5
+            es_interprete,                       // ?6
+            es_visitante,                        // ?7
+            duracion,                            // ?8
+            requiere_ensayo,                     // ?9
+            fecha_ensayo.as_deref(),             // ?10
+            hora_ensayo.as_deref(),              // ?11
+            lugar_ensayo.as_deref(),             // ?12
+            notas_ensayo.as_deref(),             // ?13
+            id_parte                             // ?14
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -238,7 +301,7 @@ pub fn alternar_estado_parte(
     valor_nuevo: bool, // Cambiamos el nombre para que sea claro: esto es lo que QUEREMOS guardar
 ) -> Result<String, String> {
     let conn = conectar_db(&app);
-    
+
     let sql = match tipo_accion.as_str() {
         "confirmacion" => {
             // Si valor_nuevo es TRUE, queremos guardar 'Confirmado'.
@@ -257,17 +320,16 @@ pub fn alternar_estado_parte(
             }
         }
         "ensayo_terminado" => {
-         if valor_nuevo {
-        "UPDATE programa SET ensayo_terminado = 1 WHERE id = ?1"
-    } else {
-        "UPDATE programa SET ensayo_terminado = 0 WHERE id = ?1"
-    }
-}
+            if valor_nuevo {
+                "UPDATE programa SET ensayo_terminado = 1 WHERE id = ?1"
+            } else {
+                "UPDATE programa SET ensayo_terminado = 0 WHERE id = ?1"
+            }
+        }
         _ => return Err("Acción desconocida".to_string()),
     };
 
-    conn.execute(sql, params![id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(sql, params![id]).map_err(|e| e.to_string())?;
 
     Ok("Actualizado".to_string())
 }
@@ -302,4 +364,18 @@ pub fn obtener_oficina_dia(
     _dia: String,
 ) -> Result<Vec<AsignacionEspecial>, String> {
     Ok(vec![])
+}
+
+#[command]
+pub fn guardar_nota_directa(app: AppHandle, id: i32, nota: String) -> Result<(), String> {
+    let conn = conectar_db(&app);
+
+    // UPDATE directo sin tocar otras tablas, sin restricciones externas
+    conn.execute(
+        "UPDATE personas SET notas = ?1 WHERE id = ?2",
+        params![nota, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

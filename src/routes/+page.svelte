@@ -1,17 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import { DB } from '$lib/services/db';
   import { goto } from '$app/navigation';
   import { ask } from "@tauri-apps/plugin-dialog";
-  import { vistaActual } from '$lib/stores/appStore';
+  import { appStore, vistaActual } from '$lib/stores/appStore';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
-  import { Plus, Calendar, Trash2, Lectern, X, Building, Globe, Search } from 'lucide-svelte';
+  import { MapPin, Plus, Calendar, Trash2, Lectern, X, Globe, Search, User, Upload, Clock } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
+  import { invoke } from '@tauri-apps/api/core';
   
+  import ImportarAsamblea from '$lib/components/gestion/ImportarAsamblea.svelte'; // <- Revisa que la ruta sea correcta
+
   // DATOS
   let listaAsambleas: any[] = [];
-  let listaLocales: any[] = [];
   let mostrarModal = false;
   let editandoFecha = false;
 
@@ -19,25 +21,81 @@
     tema: "", 
     fechaInicio: null as Date | null, 
     fechaFin: null as Date | null, 
-    local_id: null as number | null, 
     identificador: "", 
-    idioma: "Español" 
-};
+    idioma: "Español",
+    ciudad: "",
+    lugar_nombre: "",
+    pais: "",
+    direccion: ""
+  };
 
-// ESTADOS DE BÚSQUEDA Y FILTRO
+  // ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
   let filtroCategoria = "todas"; 
-  let ordenamiento = "fecha_desc";
+  let ordenamiento = "inteligente";
 
-  // Función única corregida (Elimina cualquier otra versión de abrirModal)
+  // --- VARIABLES DEL USUARIO Y RELOJ ---
+  let horaActual = "";
+  let saludo = "Hola"; 
+  let nombreUsuario = "Usuario";
+  let fotoUsuario = ""; 
+  let mostrarMenuAvatar = false; 
+  let fileInput: HTMLInputElement;
+
+  async function cargarNombreUsuario() {
+      try {
+          const res: any = await invoke('obtener_configuracion_general');
+          
+          if (!res) return;
+
+          const config = typeof res === 'string' ? JSON.parse(res) : res;
+          const nombre = config.nombre || config.Nombre || (config.config && config.config.nombre);
+          
+          if (nombre && nombre.trim() !== "") {
+              nombreUsuario = nombre;
+          } else if ($appStore && $appStore.usuario && $appStore.usuario !== "Usuario") {
+              nombreUsuario = $appStore.usuario;
+          }
+      } catch (e) { 
+          console.error("Error al pedir el usuario a Rust:", e); 
+      }
+  }
+
+  function iniciarReloj() { actualizarTiempo(); setInterval(actualizarTiempo, 1000); }
+    
+  function actualizarTiempo() {
+      const ahora = new Date();
+      horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const h = ahora.getHours(); 
+      saludo = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
+  }
+
+  function manejarCambioFoto(event: Event) {
+      const input = event.target as HTMLInputElement;
+      if (input.files && input.files.length > 0) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              fotoUsuario = e.target?.result as string; 
+              localStorage.setItem('fotoPerfil', fotoUsuario); 
+          };
+          reader.readAsDataURL(input.files[0]); 
+      }
+  }
+
+  function quitarFoto() {
+      fotoUsuario = ""; localStorage.removeItem('fotoPerfil'); 
+      if (fileInput) fileInput.value = ""; 
+      mostrarMenuAvatar = false; 
+  }
+
   async function abrirModal() {
       await cargarTodo();
-      form = { tema: "", fechaInicio: null, fechaFin: null, local_id: null, identificador: "", idioma: "Español" };
+      form = { tema: "", fechaInicio: null, fechaFin: null, identificador: "", idioma: "Español", ciudad: "", lugar_nombre: "", pais: "", direccion: "" };
       editandoFecha = false; 
       mostrarModal = true;
   }
 
-function manejarSeleccionFinal() {
+  function manejarSeleccionFinal() {
       editandoFecha = false;
   }
 
@@ -47,37 +105,55 @@ function manejarSeleccionFinal() {
     return `${inicio.toLocaleDateString('es-ES', opciones)} - ${fin.toLocaleDateString('es-ES', opciones)}, ${inicio.getFullYear()}`;
   }
 
-// Carga inicial
-  onMount(() => { cargarTodo(); });
+  // --- FORMATEADOR DE RANGO DE FECHAS ---
+  function formatearFechaElegante(fechaRango: string): string {
+    if (!fechaRango || !fechaRango.includes(' a ')) return fechaRango || 'Sin fecha';
+    
+    // Separar las dos fechas
+    const [inicio, fin] = fechaRango.split(' a ');
+    
+    // Función auxiliar para convertir "2026-12-04" a "04/12/2026"
+    const formatear = (fechaIso: string) => {
+      const match = fechaIso.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (!match) return fechaIso;
+      
+      const year = match[1];
+      const month = match[2].padStart(2, '0');
+      const day = match[3].padStart(2, '0');
+      
+      return `${day}/${month}/${year}`;
+    };
+
+    return `${formatear(inicio)} - ${formatear(fin)}`;
+  }
+
+  onMount(() => { 
+      cargarTodo(); 
+      cargarNombreUsuario();
+      fotoUsuario = localStorage.getItem('fotoPerfil') || "";
+      iniciarReloj(); 
+  });
   
   $: if ($vistaActual === 'inicio') { cargarTodo(); }
+  $: if ($appStore) { cargarNombreUsuario(); }
 
   async function cargarTodo() {
       try {
-          const [a, l] = await Promise.all([invoke('obtener_asambleas'), invoke('obtener_locales')]);
+          const a = await DB.obtenerAsambleas();
           listaAsambleas = a as any[]; 
-          listaLocales = l as any[];
       } catch(e) { console.error(e); }
   }
 
-
-
-  // --- TRADUCTOR DE FECHAS A PRUEBA DE RANGOS (TypeScript) ---
   function obtenerTiempoSeguro(fechaStr: string, usarFin: boolean = false): number {
       if (!fechaStr) return 0;
       
-      // 1. Separamos el rango si tiene el formato "YYYY-MM-DD a YYYY-MM-DD"
       const partesFecha = fechaStr.split(' a ');
-      
-      // 2. Elegimos qué parte usar (Inicio por defecto, Fin si lo pedimos y existe)
       let fechaObjetivo = partesFecha[0];
       if (usarFin && partesFecha.length > 1) {
           fechaObjetivo = partesFecha[1];
       }
-      
       fechaObjetivo = fechaObjetivo.trim();
 
-      // 3. Descomponemos para forzar hora LOCAL y evitar desfases
       const partes = fechaObjetivo.split(/[\/\-]/);
       if (partes.length === 3) {
           let y: number, m: number, d: number;
@@ -98,29 +174,32 @@ function manejarSeleccionFinal() {
       return isNaN(t) ? 0 : t;
   }
 
-  // LÓGICA REACTIVA: Filtra y ordena las asambleas
-  $: asambleasFiltradas = listaAsambleas
+  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO (Reactivo) ---
+$: asambleasFiltradas = listaAsambleas
       .filter((a: any) => {
-          // 1. FILTRO DE CATEGORÍA ("activas")
+          const hoy = new Date();
+          hoy.setHours(0, 0, 0, 0); 
+          const tiempoHoy = hoy.getTime();
+
+          const timeInicio = obtenerTiempoSeguro(a.fecha, false); 
+          const timeFin = obtenerTiempoSeguro(a.fecha, true);     
+
+          // 1. FILTRADO POR CATEGORÍA DE TIEMPO
           if (filtroCategoria === 'activas') {
               if (!a.fecha) return false;
-
-              // Para saber si está activa, comprobamos su fecha de FIN
-              const timeFinAsamblea = obtenerTiempoSeguro(a.fecha, true); 
-              
-              if (timeFinAsamblea > 0) {
-                  const hoy = new Date();
-                  hoy.setHours(0, 0, 0, 0); 
-                  const tiempoHoy = hoy.getTime();
-
-                  // Si la fecha de fin ya pasó, la ocultamos
-                  if (timeFinAsamblea < tiempoHoy) return false;
-              } else {
-                  return false;
-              }
+              if (timeFin > 0 && timeFin < tiempoHoy) return false;
+              if (timeFin === 0) return false;
+          } 
+          else if (filtroCategoria === 'proximas') {
+              // Una asamblea es próxima si su fecha de inicio es estrictamente mayor que hoy
+              if (timeInicio <= tiempoHoy || timeInicio === 0) return false;
+          } 
+          else if (filtroCategoria === 'pasadas') {
+              // Una asamblea es pasada si su fecha de fin ya es menor que el día de hoy
+              if (timeFin >= tiempoHoy || timeFin === 0) return false;
           }
 
-          // 2. FILTRO DE TEXTO (Buscador)
+          // 2. FILTRADO POR TÉRMINO DE BÚSQUEDA (Caja de texto)
           if (!terminoBusqueda) return true;
           const tb = terminoBusqueda.toLowerCase();
           return (
@@ -130,53 +209,59 @@ function manejarSeleccionFinal() {
           );
       })
       .sort((a: any, b: any) => {
-          // Para ORDENAR, usamos siempre la fecha de INICIO
-          const timeA = obtenerTiempoSeguro(a.fecha, false);
-          const timeB = obtenerTiempoSeguro(b.fecha, false);
-
-          if (ordenamiento === 'fecha_desc') return timeB - timeA;
-          if (ordenamiento === 'fecha_asc') return timeA - timeB;
-          if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
+          const timeInicioA = obtenerTiempoSeguro(a.fecha, false);
+          const timeFinA = obtenerTiempoSeguro(a.fecha, true);
           
-          if (ordenamiento === 'proximas') {
-              if (timeA === 0) return 1;
-              if (timeB === 0) return -1;
-              
+          const timeInicioB = obtenerTiempoSeguro(b.fecha, false);
+          const timeFinB = obtenerTiempoSeguro(b.fecha, true);
+
+          if (ordenamiento === 'inteligente') {
               const hoy = new Date();
               hoy.setHours(0, 0, 0, 0);
               const tiempoHoy = hoy.getTime();
 
-              // Usamos el fin para saber de qué lado de "hoy" están
-              const finA = obtenerTiempoSeguro(a.fecha, true);
-              const finB = obtenerTiempoSeguro(b.fecha, true);
+              // Función auxiliar para clasificar la asamblea
+              const getCategoria = (inicio: number, fin: number) => {
+                  if (inicio === 0 || fin === 0) return 3; // Sin fecha al fondo
+                  if (inicio <= tiempoHoy && fin >= tiempoHoy) return 0; // 0: PRESENTE (Activa hoy)
+                  if (inicio > tiempoHoy) return 1; // 1: FUTURA
+                  return 2; // 2: PASADA
+              };
 
-              const aEsActiva = finA >= tiempoHoy;
-              const bEsActiva = finB >= tiempoHoy;
+              const catA = getCategoria(timeInicioA, timeFinA);
+              const catB = getCategoria(timeInicioB, timeFinB);
 
-              if (aEsActiva && !bEsActiva) return -1; // Futuras/Activas van primero
-              if (!aEsActiva && bEsActiva) return 1;
+              // 1º Prioridad: Ordenar por categoría (Presente -> Futura -> Pasada)
+              if (catA !== catB) {
+                  return catA - catB; 
+              }
 
-              if (aEsActiva && bEsActiva) {
-                  // Ambas son futuras: la más cercana a hoy va primero
-                  return timeA - timeB; 
+              // 2º Prioridad: Ordenar dentro de la misma categoría
+              if (catA === 0 || catA === 1) {
+                  // Si son Presentes o Futuras: La que esté más próxima a la fecha de hoy va primero (ascendente)
+                  return timeInicioA - timeInicioB; 
               } else {
-                  // Ambas son pasadas: la que pasó más recientemente va primero
-                  return timeB - timeA; 
+                  // Si son Pasadas: La que terminó hace menos tiempo va primero (descendente)
+                  return timeFinB - timeFinA; 
               }
           }
+
+          // Resto de ordenamientos clásicos
+          if (ordenamiento === 'fecha_desc') return timeInicioB - timeInicioA;
+          if (ordenamiento === 'fecha_asc') return timeInicioA - timeInicioB;
+          if (ordenamiento === 'tema_az') return (a.tema || "").localeCompare(b.tema || "");
+          if (ordenamiento === 'ciudad') return (a.ciudad || "").localeCompare(b.ciudad || "");
+          
           return 0;
       });
 
-
   async function crear() {
       try {
-          // 1. Validación
           if(!form.tema || !form.fechaInicio || !form.fechaFin) {
               alert("Debes escribir el tema y seleccionar el rango de fechas en el calendario.");
               return;
           }
           
-          // 2. Extraemos las fechas
           const y1 = form.fechaInicio.getFullYear();
           const m1 = String(form.fechaInicio.getMonth() + 1).padStart(2, '0');
           const d1 = String(form.fechaInicio.getDate()).padStart(2, '0');
@@ -187,38 +272,24 @@ function manejarSeleccionFinal() {
           const d2 = String(form.fechaFin.getDate()).padStart(2, '0');
           const fechaFinStr = `${y2}-${m2}-${d2}`;
 
-          // Unificamos la fecha (como lo tienes en InfoEvento)
           const fechaUnida = `${fechaInicioStr} a ${fechaFinStr}`;
 
-          // 3. Local
-          let nombreLugar = "Sin asignar";
-          let idFinal = null;
+          let nombreLugar = form.lugar_nombre || "Sin asignar";
+          if (form.ciudad) nombreLugar += `, ${form.ciudad}`;
 
-          if(form.local_id) {
-              const idBuscado = Number(form.local_id);
-              const loc = listaLocales.find((x:any) => x.id === idBuscado);
-              if(loc) { 
-                  nombreLugar = loc.nombre; 
-                  if (loc.ciudad) nombreLugar += `, ${loc.ciudad}`;
-                  idFinal = idBuscado; 
-              }
-          }
-
-          // 4. Enviamos a Rust
-          await invoke('crear_asamblea', { 
+          await DB.crearAsamblea({ 
               tema: form.tema,
-              fecha: fechaUnida, // 👈 OJO AQUÍ
+              fecha: fechaUnida, 
               identificador: form.identificador,
               idioma: form.idioma,
               lugar: nombreLugar, 
-              localId: idFinal 
+              localId: null 
           });
           
           mostrarModal = false; 
           cargarTodo();
 
       } catch (error) {
-          // Si Rust se queja, ahora sí lo veremos en pantalla
           console.error("Error desde Rust:", error);
           alert("No se pudo crear la asamblea. Error: " + error);
       }
@@ -229,7 +300,10 @@ function manejarSeleccionFinal() {
       const respuesta = await ask('¿Estás seguro de que deseas eliminar esta asamblea permanentemente?', { 
           title: 'Confirmar eliminación', kind: 'warning', okLabel: 'Eliminar', cancelLabel: 'Cancelar'
       });
-      if(respuesta) { await invoke('eliminar_asamblea', { id }); cargarTodo(); }
+      if(respuesta) { 
+          await DB.eliminarAsamblea(id); 
+          cargarTodo(); 
+      }
   }
 
   function gestionar(item: any) {
@@ -247,33 +321,58 @@ function manejarSeleccionFinal() {
   }
 }
 
-  // ESTA FUNCIÓN ES LA CLAVE PARA QUE SALGA EL NOMBRE
-  function obtenerNombreLugar(idLocal: any) {
-      if (!idLocal) return "Sin asignar";
-      
-      // Buscamos en la lista de locales (convertimos a texto para asegurar coincidencia)
-      const local = listaLocales.find((l: any) => l.id == idLocal);
-      
-      if (local) {
-          // Si tiene ciudad, mostramos "Nombre, Ciudad"
-          if (local.ciudad && local.ciudad.trim() !== "") {
-              return `${local.nombre}, ${local.ciudad}`;
-          }
-          return local.nombre;
-      }
-      return "Salón no encontrado"; // Opcional: podrías poner "Sin asignar" también aquí
-  }
 </script>
 
 {#if $vistaActual === 'inicio'}
     <div class="dashboard">
+
+        <div class="bienvenida-jw">
+            <input type="file" accept="image/*" style="display: none;" bind:this={fileInput} on:change={manejarCambioFoto} />
+
+            <div class="perfil-jw" on:click|stopPropagation={() => mostrarMenuAvatar = !mostrarMenuAvatar}>
+                <div class="avatar-jw">
+                    {#if fotoUsuario}
+                        <img src={fotoUsuario} alt="Perfil" class="foto-perfil-jw" />
+                    {:else}
+                        <User size={20} />
+                    {/if}
+                </div>
+                <div class="saludo-jw">
+                    {saludo}, <strong>{nombreUsuario}</strong>
+                </div>
+
+                {#if mostrarMenuAvatar}
+                    <div class="dropdown-avatar" on:click|stopPropagation>
+                        <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
+                            <Upload size={16} /> Cambiar foto
+                        </button>
+                        {#if fotoUsuario}
+                            <div class="dropdown-separator"></div>
+                            <button class="menu-item text-red" on:click={quitarFoto}>
+                                <Trash2 size={16} /> Quitar foto
+                            </button>
+                        {/if}
+                    </div>
+                {/if}
+            </div>
+
+            <div class="reloj-jw">
+                <span>{horaActual}</span>
+            </div>
+        </div>
+
         <div class="header-principal">
             <div class="textos-header">
                 <h2>Listas de asambleas</h2>
                 <p class="subtitulo-header">Administrar todas las asambleas en un solo lugar.</p>
             </div>
 
-            <button class="btn-new" on:click={abrirModal}><Plus size={18}/> Nueva Asamblea</button>
+            <div class="botonera-acciones">
+                <ImportarAsamblea />
+                <button class="btn-new" on:click={abrirModal}>
+                    <Plus size={18}/> Añadir Asamblea
+                </button>
+            </div>
         </div>
 
         <div class="controles-busqueda">
@@ -289,18 +388,19 @@ function manejarSeleccionFinal() {
                 <select class="filter-select" bind:value={filtroCategoria}>
                     <option value="todas">Todas las asambleas</option>
                     <option value="activas">Asambleas activas</option>
+                    <option value="proximas">Solo próximas</option>
+                    <option value="pasadas">Solo pasadas</option>
                 </select>
         
                 <select class="filter-select" bind:value={ordenamiento}>
-                    <option value="proximas">Ordenar por próximas (Recomendado)</option>
-                    <option value="fecha_desc">Fecha (De futuras a antiguas)</option>
-                    <option value="fecha_asc">Fecha (De antiguas a futuras)</option>
-                    <option value="tema_az">Ordenar por tema (A-Z)</option>
+                   <option value="inteligente">Orden inteligente (Recomendado)</option>
+                   <option value="fecha_desc">Ordenar por fecha (Futuro a Pasado)</option>
+                   <option value="fecha_asc">Ordenar por fecha (Pasado a Futuro)</option>
+                   <option value="tema_az">Ordenar por tema (A-Z)</option>
+                   <option value="ciudad">Ordenar por ciudad</option>
                 </select>
             </div>
     </div>
-
-        <div class="list-header"><Lectern size={20}/> ASAMBLEAS REGISTRADAS</div>
 
 {#if asambleasFiltradas.length === 0}
     <div class="empty">
@@ -323,9 +423,9 @@ function manejarSeleccionFinal() {
                         <h3>"{item.tema}"</h3>
                         
                         <div class="info-line">
-                            <Building size={16} class="ico-dark"/> 
+                            <MapPin size={16} class="ico-dark"/> 
                             <div class="info-col">
-                                <b>{obtenerNombreLugar(item.local_id)}</b>
+                                <b>{item.lugar || 'Sin asignar'}</b>
                                 <span>Ubicación</span>
                             </div>
                         </div>
@@ -333,7 +433,7 @@ function manejarSeleccionFinal() {
                         <div class="info-line">
                             <Calendar size={16} class="ico-dark"/> 
                             <div class="info-col">
-                                <b>{item.fecha}</b>
+                                <b>{formatearFechaElegante(item.fecha)}</b>
                                 <span>Fecha</span>
                             </div>
                         </div>
@@ -414,12 +514,34 @@ function manejarSeleccionFinal() {
         </div>
     {/if}
 </div>
-                    <label>Lugar</label>
-                    <select bind:value={form.local_id}>
-                        <option value={null}>-- Seleccionar --</option>
-                        {#each listaLocales as l}<option value={l.id}>{l.nombre}</option>{/each}
-                    </select>
+                    <div class="ubicacion-card">
+                        <h4 class="ubicacion-titulo">Detalles de la ubicación</h4>
+                        
+                        <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                                <label>Ciudad</label>
+                                <input bind:value={form.ciudad} placeholder="Ej: Holguín">
+                            </div>
+                            <div style="flex: 2; display: flex; flex-direction: column; gap: 5px;">
+                                <label>Nombre del lugar</label>
+                                <input bind:value={form.lugar_nombre} placeholder="Ej: Salón de Asambleas Holguín">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                                <label>País</label>
+                                <input bind:value={form.pais} placeholder="Ej: Cuba">
+                            </div>
+                            <div style="flex: 2; display: flex; flex-direction: column; gap: 5px;">
+                                <label>Dirección</label>
+                                <input bind:value={form.direccion} placeholder="Dirección exacta">
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+
                 <div class="modal-foot">
                     <button class="btn-sec" on:click={()=>mostrarModal=false}>Cancelar</button>
                     <button class="btn-pri" on:click={crear}>Crear</button>
@@ -434,9 +556,17 @@ function manejarSeleccionFinal() {
 
 <style>
     /* ESTILOS GENERALES PÁGINA */
-    .dashboard { padding: 30px 40px; }
+    .dashboard { padding: 10px 40px 30px 40px; }
     .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
     .action-bar h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--text-main); }
+    
+    /* 👇 ESTILO NUEVO PARA LA BOTONERA DE LA CABECERA 👇 */
+    .botonera-acciones {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
     /* BOTÓN NUEVA ASAMBLEA (Color Azul Unificado) */
     .btn-new { 
         background: var(--primary); 
@@ -450,6 +580,8 @@ function manejarSeleccionFinal() {
         cursor: pointer; 
         transition: filter 0.2s; 
         box-shadow: var(--shadow-sm);
+        height: 42px; /* Alineación perfecta con el botón de importar */
+        align-items: center;
     }
     .btn-new:hover { filter: brightness(0.9); }
 
@@ -568,20 +700,21 @@ function manejarSeleccionFinal() {
     .btn-manage-blue:hover { transform: scale(1.02); background: #1e3a8a; }
 
     /* MODAL */
-    /* MODAL AMPLIADO Y CENTRADO ARRIBA */
+    /* === MODAL CENTRADO PERFECTO === */
     .modal-bg { 
         position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
         background: rgba(0,0,0,0.6); z-index: 9999; 
         display: flex; justify-content: center; 
-        align-items: flex-start; /* Evita que el modal se corte por arriba */
-        padding: 40px 20px;
-        overflow-y: auto;
+        align-items: center; /* 👈 Esto lo baja y lo centra verticalmente */
+        padding: 20px;
         backdrop-filter: blur(2px); 
     }
     
     :global(.modal-ancho) { 
-        width: 720px !important; /* Más ancho para el calendario doble */
+        width: 720px !important; 
         max-width: 95vw; 
+        max-height: 90vh; /* 👈 Evita que sea más alto que tu pantalla */
+        overflow-y: auto; /* 👈 Agrega barra de scroll interna si la pantalla es bajita */
         display: flex; flex-direction: column; gap: 10px; 
     }
     
@@ -861,20 +994,23 @@ function manejarSeleccionFinal() {
 
 @media (max-width: 768px) {
     /* 1. MÁRGENES GENERALES MÁS COMPACTOS */
-    .dashboard {
-        padding: 15px; /* Aprovechamos toda la pantalla del teléfono */
-    }
+    .dashboard { padding: 5px 15px 15px 15px; }
 
-    /* 2. CABECERA: APILAR TÍTULO Y BOTÓN */
+    /* 2. CABECERA: APILAR TÍTULO Y BOTONES */
     .header-principal {
         flex-direction: column;
         gap: 15px;
     }
+
+    .botonera-acciones {
+        width: 100%;
+        flex-direction: column-reverse; /* El botón de añadir arriba en móvil */
+    }
     
-    .btn-new {
-        width: 100%; /* Botón gigante fácil de tocar */
+    .btn-new, :global(.btn-importar) {
+        width: 100% !important; /* Botones gigantes fáciles de tocar */
         justify-content: center;
-        height: 48px;
+        height: 48px !important;
     }
 
     /* 3. BUSCADOR Y FILTROS: APILADO TOTAL ANTIDESBORDES (¡AQUÍ ESTÁ LA MAGIA!) */
@@ -941,13 +1077,16 @@ function manejarSeleccionFinal() {
 
     /* 7. MODAL DE NUEVA ASAMBLEA ADAPTADO AL TELÉFONO */
     :global(.modal-ancho) {
-        width: 95vw !important; /* Que no se salga de la pantalla */
+        width: 95vw !important; 
+        max-height: 85vh !important; /* 👈 Evita que se encaje, dejando aire arriba y abajo */
+        overflow-y: auto !important; /* 👈 Activa el scroll interno si la pantalla es muy pequeña */
         padding: 15px !important;
     }
 
-    /* Hacemos que "Identificador" e "Idioma" se pongan uno encima del otro */
-    .modal-form > div[style*="display: flex"] {
+    /* Hacemos que TODOS los campos (incluyendo los de ubicación) se apilen hacia abajo */
+    .modal-form div[style*="display: flex"] {
         flex-direction: column !important;
+        gap: 10px !important;
     }
 
     .modal-foot {
@@ -960,4 +1099,102 @@ function manejarSeleccionFinal() {
         height: 48px;
     }
 }
+
+/* === ESTILOS DEL PANEL DE BIENVENIDA === */
+    .bienvenida-jw {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 15px; /* 👈 Antes 35px o 40px, ahora 15px para acercar las listas */
+        margin-top: 0px;     /* 👈 Pegado arriba */
+        position: relative;
+    }
+
+    .perfil-jw {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        cursor: pointer;
+        padding: 6px 16px;
+        border-radius: 30px;
+        transition: background 0.2s;
+    }
+    .perfil-jw:hover { background: rgba(0,0,0,0.04); }
+
+    .avatar-jw {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .foto-perfil-jw { width: 100%; height: 100%; object-fit: cover; }
+
+    .saludo-jw {
+        font-size: 18px;
+        color: var(--text-main);
+    }
+    .saludo-jw strong { font-weight: 700; }
+
+    .reloj-jw {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-main);
+        font-size: 15px;
+        margin-top: -10px; /* 👈 El truco está aquí: un valor negativo lo pega al saludo */
+        font-weight: 900; 
+    }
+
+    /* Menú desplegable */
+    .dropdown-avatar {
+        position: absolute;
+        top: 45px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        min-width: 160px;
+        z-index: 100;
+        display: flex; flex-direction: column;
+    }
+    .menu-item {
+        padding: 12px 15px; background: none; border: none;
+        display: flex; align-items: center; gap: 10px;
+        font-size: 13px; font-weight: 500; color: var(--text-main);
+        cursor: pointer; transition: background 0.2s; text-align: left;
+    }
+    .menu-item:hover { background: rgba(0,0,0,0.05); }
+    .menu-item.text-red { color: #ef4444; }
+    .dropdown-separator { height: 1px; background: var(--border); margin: 0; }
+
+    /* === TARJETA DE UBICACIÓN EN EL MODAL === */
+    .ubicacion-card {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px 18px;
+        margin-top: 5px;
+    }
+    
+    .ubicacion-titulo {
+        margin: 0 0 15px 0;
+        font-size: 12px;
+        color: var(--text-sec);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Soporte para modo oscuro (opcional) */
+    :global(.dark-theme) .ubicacion-card {
+        background: rgba(255,255,255,0.02);
+    }
+
 </style>

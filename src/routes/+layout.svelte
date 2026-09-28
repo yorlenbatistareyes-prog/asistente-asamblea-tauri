@@ -2,127 +2,83 @@
 // 1. IMPORTACIÓN DEL CSS GLOBAL AQUÍ
   import '../app.css';
   import { onMount } from 'svelte';
-  import { RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus 
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import Resumen from '$lib/components/gestion/Resumen.svelte';
+  import { Loader2, CheckCircle, AlertTriangle, CloudOff, RefreshCw, User, Upload, Clock, Sun, Moon, Monitor, Settings, Building, X, Home, Trash2, MapPin, Users, Plus, DownloadCloud
   } from 'lucide-svelte';
   import { appStore, vistaActual, cargarDatosGlobales } from '$lib/stores/appStore';
   import { goto } from '$app/navigation';
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
   import { getVersion } from '@tauri-apps/api/app';
-
-  // 👈 HERRAMIENTAS DE TAURI PARA LECTURA/ESCRITURA
-  import { stat, readFile, writeFile, BaseDirectory } from '@tauri-apps/plugin-fs';
-
+  import { ask } from '@tauri-apps/plugin-dialog';
+  import { verificarActualizacion, irA_Descarga } from '$lib/services/updater';
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
 
+  import NotasVersionModal from '$lib/components/ui/NotasVersionModal.svelte';
+  import { historialCambios } from '$lib/data/historial_cambios';
+
+  // 2. Importa las herramientas de sincronización
+  import { sesionApp, inicializarSesion } from '$lib/stores/authStore';
+  
+  import { 
+    syncStatus, 
+    iniciarRadarNube, 
+    detenerRadarNube,
+    iniciarRadarCarpeta, // 🔥 NUEVO
+    detenerRadarCarpeta, // 🔥 NUEVO
+    descargarDatos,
+    resetearEstadoSincronizacion 
+} from '$lib/stores/autoSyncStore';
+
   let versionApp = "";
-
-  // --- VARIABLES DE ESTADO ---
-  let horaActual = "";
-  let fechaActual = "";
-  let saludo = "Hola"; 
   let temaActual = 'sistema';
-  let nombreUsuario = "Usuario";
-  let fotoUsuario = ""; 
-  let mostrarMenuAvatar = false; 
-  let fileInput: HTMLInputElement;
 
-  // --- QUITAR FOTO ---
-  function quitarFoto() {
-      fotoUsuario = ""; 
-      localStorage.removeItem('fotoPerfil'); 
-      if (fileInput) fileInput.value = ""; 
-      mostrarMenuAvatar = false; 
+  let esModoMonitor = false;
+
+  let mostrarNovedades = false;
+   // historialCambios[0] toma siempre la última versión (la que está arriba en la lista)
+  let ultimaActualizacion = historialCambios[0];
+
+
+  function cerrarNovedades() {
+    getVersion().then(v => {
+        // Guardamos en el navegador que el usuario ya vio esta versión
+        localStorage.setItem('rassembly_version_vista', v); 
+        mostrarNovedades = false;
+    });
   }
-  
-  // --- VARIABLES GESTIÓN SALONES ---
-  let mostrarModalLocales = false;
-  let listaLocales: any[] = [];
-  let nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 };
-
-  // ==========================================
-  // LÓGICA DE SINCRONIZACIÓN INTELIGENTE
-  // ==========================================
-  const DB_NAME = 'asamblea_db_v7.sqlite';
-  const BACKUP_NAME = 'rassembly_sync_backup.db';
-  
-  let rutaSync = "";
-  let isSyncing = false;
-
-  async function ejecutarSincronizacionInteligente() {
-      rutaSync = localStorage.getItem('assembly_sync_path') || "";
-      if (!rutaSync) return;
-      isSyncing = true;
-
-      try {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          const separador = rutaSync.includes('\\') ? '\\' : '/';
-          const barra = rutaSync.endsWith(separador) ? '' : separador;
-          const rutaFinal = `${rutaSync}${barra}${BACKUP_NAME}`;
-
-          let cloudStat: any = null;
-          try { cloudStat = await stat(rutaFinal); } catch(e) {}
-
-          const localBytes = await readFile(DB_NAME, { baseDir: BaseDirectory.AppData });
-
-          if (!cloudStat) {
-              await writeFile(rutaFinal, localBytes);
-              localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-              alert("Primera copia de seguridad creada en la nube.");
-          } else {
-              const cloudBytes = await readFile(rutaFinal);
-
-              let sonIdenticos = false;
-              if (localBytes.length === cloudBytes.length) {
-                  sonIdenticos = localBytes.every((val, index) => val === cloudBytes[index]);
-              }
-
-              if (sonIdenticos) {
-                  alert("Tus datos ya están completamente sincronizados y al día.");
-                  isSyncing = false;
-                  return;
-              }
-
-              const localStat = await stat(DB_NAME, { baseDir: BaseDirectory.AppData });
-              const localTime = localStat.mtime ? new Date(localStat.mtime).getTime() : 0;
-              const cloudTime = cloudStat.mtime ? new Date(cloudStat.mtime).getTime() : 0;
-
-              if (cloudTime > localTime) {
-                  if (confirm("Hay datos más recientes en tu carpeta compartida. ¿Deseas importarlos a este equipo?")) {
-                      await writeFile(DB_NAME, cloudBytes, { baseDir: BaseDirectory.AppData });
-                      localStorage.setItem('assembly_last_import', new Date().toLocaleString());
-                      alert("Datos importados correctamente. La aplicación se reiniciará.");
-                      window.location.reload();
-                  }
-              } else {
-                  await writeFile(rutaFinal, localBytes);
-                  localStorage.setItem('assembly_last_export', new Date().toLocaleString());
-                  alert("Tus cambios recientes se guardaron en la carpeta de sincronización.");
-              }
-          }
-      } catch (error) {
-          console.error("Error en sincronización:", error);
-          alert("Ocurrió un error al intentar sincronizar. Revisa que la carpeta exista.");
-      } finally {
-          isSyncing = false;
-      }
-  }
-
   // ==========================================
   // INICIALIZACIÓN (ONMOUNT LIMPIO)
   // ==========================================
   onMount(() => {
+
+    // 👇 NUEVO DETECTOR: Le preguntamos a Tauri si esta ventana se llama 'monitor-pip'
+      const ventanaActual = getCurrentWindow()
+      if (ventanaActual.label === 'monitor-pip') {
+          esModoMonitor = true;
+          aplicarTema(localStorage.getItem('temaApp') || 'sistema'); // Forzamos cargar el tema visual
+          return; // Si es el monitor, no cargamos lo demás de la app principal
+      }
+
       const inicializarApp = async () => {
+          await inicializarSesion();
           await cargarDatosGlobales();
-          await cargarNombreUsuario();
-          fotoUsuario = localStorage.getItem('fotoPerfil') || "";
-          rutaSync = localStorage.getItem('assembly_sync_path') || "";
-          iniciarReloj(); 
           cargarTemaGuardado();
-          cargarLocales();
           
           try {
               versionApp = await getVersion();
+              
+              // 👇 NUEVA LÓGICA DE NOVEDADES AQUÍ 👇
+              const versionGuardada = localStorage.getItem('rassembly_version_vista');
+              if (versionGuardada !== versionApp) {
+                  // Comprobamos si la versión instalada tiene notas en nuestro archivo .ts
+                  if (ultimaActualizacion.version === versionApp) {
+                      mostrarNovedades = true;
+                  }
+              }
+              // 👆 FIN DE LA NUEVA LÓGICA 👆
+
           } catch (e) {
               console.error("Error al obtener la versión:", e);
               versionApp = "Desconocida"; 
@@ -131,88 +87,24 @@
 
       inicializarApp();
 
-      // 👈 ENVÍA LA CONFIGURACIÓN INICIAL A RUST
-          const autoExport = localStorage.getItem('assembly_auto_export') === 'true';
-          invoke('actualizar_config_sync', { 
-              auto_export: autoExport, // Ojo: snake_case porque Rust lo espera así
-              sync_path: rutaSync 
-          }).catch(console.error);
+      // Encendemos el radar de la nube
+      iniciarRadarNube();
+
+      // 🔥 NUEVO: Encendemos el radar de la carpeta compartida
+      iniciarRadarCarpeta();
+
+      // 👇 NUEVO: Encendemos el radar de actualizaciones (espera 3s al abrir)
+      setTimeout(chequearActualizacionesGlobal, 3000);
+      // Y luego busca cada 2 horas (7200000 ms)
+      const intervaloActualizaciones = setInterval(chequearActualizacionesGlobal, 7200000);
+
+      // Apagamos ambos radares si el usuario cierra la app
+      return () => {
+          detenerRadarNube();
+          detenerRadarCarpeta(); // 🔥 NUEVO
+          clearInterval(intervaloActualizaciones);
+      };
   });
-
-  // --- NUEVA FUNCIÓN: CARGAR NOMBRE DESDE RUST ---
-  async function cargarNombreUsuario() {
-    try {
-        const config: any = await invoke('obtener_configuracion_general');
-        if (config && config.nombre) {
-            nombreUsuario = config.nombre;
-        }
-    } catch (e) {
-        console.error("No se pudo cargar el nombre del usuario:", e);
-    }
-  }
-
-  $: if ($appStore) {
-      cargarNombreUsuario();
-  }
-
-  // --- CARGAR NUEVA FOTO ---
-  function manejarCambioFoto(event: Event) {
-      const input = event.target as HTMLInputElement;
-      if (input.files && input.files.length > 0) {
-          const archivo = input.files[0];
-          const reader = new FileReader();
-          
-          reader.onload = (e) => {
-              const resultado = e.target?.result as string;
-              fotoUsuario = resultado; 
-              localStorage.setItem('fotoPerfil', resultado); 
-          };
-          reader.readAsDataURL(archivo); 
-      }
-  }
-
-  // --- GESTIÓN DE SALONES ---
-  function abrirModalSalones() {
-      mostrarModalLocales = true; 
-      nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
-      cargarLocales(); 
-  }
-
-  async function cargarLocales() {
-      try { listaLocales = await invoke('obtener_locales') as any[]; } catch(e) { console.error(e); }
-  }
-
-  async function guardarLocal() {
-    if (!nuevoLocal.nombre) return alert("El nombre es obligatorio");
-    try {
-        await invoke('crear_local', { ...nuevoLocal, capacidad: Number(nuevoLocal.capacidad) });
-        cargarLocales();
-        nuevoLocal = { nombre: "", direccion: "", ciudad: "", estado: "", capacidad: 0 }; 
-    } catch (e) { alert("Error al guardar: " + e); }
-  }
-
-  async function eliminarLocal(id: number) {
-     if(confirm("¿Seguro que deseas eliminar este salón?")) { 
-         try {
-            await invoke('eliminar_local', { id }); 
-            cargarLocales();
-         } catch (e) { alert("No se pudo eliminar: " + e); }
-     }
-  }
-
-  // --- RELOJ ---
-  function iniciarReloj() {
-    actualizarTiempo(); setInterval(actualizarTiempo, 1000); 
-  }
-  function actualizarTiempo() {
-    const ahora = new Date();
-    horaActual = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const opciones = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } as const;
-    let f = ahora.toLocaleDateString('es-ES', opciones);
-    fechaActual = f.charAt(0).toUpperCase() + f.slice(1);
-    const h = ahora.getHours(); 
-    saludo = h < 12 ? "Buenos días" : h < 20 ? "Buenas tardes" : "Buenas noches";
-  }
 
   // --- TEMA ---
   function cargarTemaGuardado() {
@@ -220,11 +112,13 @@
     if (t) temaActual = t;
     aplicarTema(temaActual);
   }
+  
   function cambiarTema() {
       temaActual = temaActual === 'sistema' ? 'claro' : temaActual === 'claro' ? 'oscuro' : 'sistema';
       localStorage.setItem('temaApp', temaActual);
       aplicarTema(temaActual);
   }
+  
   function aplicarTema(modo: string) {
       const root = document.documentElement;
       const oscuro = modo === 'oscuro' || (modo === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -235,204 +129,186 @@
   function irInicio() { vistaActual.set('inicio'); goto('/'); }
 
   function irConfig() {
-  const currentPath = window.location.pathname;
-  if (currentPath !== '/') {
-    localStorage.setItem('rutaAnterior', currentPath);
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/') {
+      localStorage.setItem('rutaAnterior', currentPath);
+    }
+    vistaActual.set('configuracion');
+    goto('/');
   }
-  vistaActual.set('configuracion');
-  goto('/');
-}
+
+  // ==========================================
+  // VIGILANTE DE ACTUALIZACIONES GLOBAL
+  // ==========================================
+  async function chequearActualizacionesGlobal() {
+      // Si estamos en el monitor secundario, no buscamos actualizaciones para no interrumpir
+      if (esModoMonitor) return; 
+
+      try {
+          const resultado = await verificarActualizacion();
+          
+          if (resultado.hayNueva) {
+              const quiereDescargar = await ask(
+                  `Se ha detectado una actualización para RAssembly.\n\n• Versión instalada: v${versionApp}\n• Nueva versión: v${resultado.version}\n\n¿Deseas descargarla ahora?`, 
+                  { 
+                      title: `Actualización disponible: v${resultado.version}`, 
+                      kind: 'info',
+                      okLabel: 'Sí, descargar',
+                      cancelLabel: 'Más tarde'
+                  }
+              );
+
+              if (quiereDescargar) {
+                  await irA_Descarga();
+              }
+          }
+      } catch (e) {
+          console.error("Fallo silencioso buscando actualizaciones:", e);
+      }
+  }
+
+  async function resolverConflictoDirecto() {
+      try {
+          await descargarDatos(); 
+      } catch (e) {
+          alert("Error al descargar los cambios: " + e);
+      }
+  }
+
+  // 🔥 NUEVA FUNCIÓN PARA CERRAR EL MODAL
+  function ignorarConflicto() {
+      resetearEstadoSincronizacion();
+      // Nota: Al ignorar, el radar se queda en pausa en esta sesión 
+      // para no volver a molestarte a los 15 segundos. 
+      // Te volverá a avisar solo si cierras y vuelves a abrir la app.
+  }
+
 </script>
 
-<svelte:window on:click={() => mostrarMenuAvatar = false} />
-
-<div class="app-layout">
-   <header class="top-header">
-        <div class="header-left">
-            <input type="file" accept="image/*" style="display: none;" bind:this={fileInput} on:change={manejarCambioFoto} />
-            
-            <div class="avatar-container" on:click|stopPropagation={() => mostrarMenuAvatar = !mostrarMenuAvatar}>
-                <div class="avatar" title="Opciones de perfil">
-                    {#if fotoUsuario}
-                        <img src={fotoUsuario} alt="Perfil" class="foto-perfil" />
-                    {:else}
-                        <User size={24} />
-                    {/if}
-                </div>
-                
-                {#if mostrarMenuAvatar}
-                    <div class="dropdown-avatar" on:click|stopPropagation>
-                        <button class="menu-item" on:click={() => { fileInput.click(); mostrarMenuAvatar = false; }}>
-                            <Upload size={16} /> Seleccionar foto
-                        </button>
-                        
-                        {#if fotoUsuario}
-                            <div class="dropdown-separator"></div>
-                            <button class="menu-item text-red" on:click={quitarFoto}>
-                                <Trash2 size={16} /> Quitar foto
-                            </button>
-                        {/if}
-                    </div>
-                {/if}
-            </div>
-
-            <div class="user-data">
-                <h2>{saludo}, {$appStore.usuario}!</h2>
-                <span>{fechaActual}</span>
-            </div>
-        </div>
-
-        <div class="header-center">
-            <Clock size={16}/> <span>{horaActual}</span>
-        </div>
-
-        <div class="header-right">
-            <button class="btn-nav" on:click={irInicio} title="Inicio">
-                <Home size={18}/><span>Inicio</span>
-            </button>
-
-            {#if rutaSync}
-                <button 
-                    class="btn-icon" 
-                    class:anim-spin={isSyncing} 
-                    on:click={ejecutarSincronizacionInteligente} 
-                    disabled={isSyncing} 
-                    title="Sincronización Inteligente">
-                    <RefreshCw size={18} />
-                </button>
-            {/if}
-            
-            <button class="btn-icon" on:click={cambiarTema}>
-                {#if temaActual==='claro'}<Sun size={18}/>{:else if temaActual==='oscuro'}<Moon size={18}/>{:else}<Monitor size={18}/>{/if}
-            </button>
-            
-            <button class="btn-nav" on:click={abrirModalSalones}>
-                <Building size={16}/><span>Salones</span>
-            </button>
-            
-            <button class="btn-icon" on:click={irConfig}>
-                <Settings size={18}/>
-            </button>
-        </div>
-    </header>
-
-    <main class="main-content">
-        <slot />
+{#if esModoMonitor}
+    <main class="monitor-aislado" style="height: 100vh; background: var(--bg-card); overflow: hidden;">
+        <Resumen />
     </main>
 
-    <footer class="status-bar">
-        <div class="status-left">
-            <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
-        </div>
-        <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
-        
-        <div class="status-right">
-            v{#if versionApp}{versionApp}{:else}...{/if}
-        </div>
-        </footer>
-
-    {#if mostrarModalLocales}
-      <div class="modal-backdrop" on:click|self={()=>mostrarModalLocales=false}>
-        <Panel padding="25px" clasesExtra="modal-salones">
-            <div class="modal-top">
-                <h3><Building size={20} class="ico-blue"/> Gestión de Salones</h3>
-                <button class="btn-close" on:click={()=>mostrarModalLocales=false}><X size={20}/></button>
+{:else}
+    <div class="app-layout">
+        <header class="top-header">
+            <div class="header-left">
+                <span class="app-brand">RAssembly</span>
             </div>
-            
-            <div class="form-grid">
-                <div class="input-group full-width">
-                    <label>Nombre del Salón</label>
-                    <input type="text" placeholder="Ej: Salón de Asambleas Holguín" bind:value={nuevoLocal.nombre}>
-                </div>
 
-                <div class="input-group full-width">
-                    <label>Dirección</label>
-                    <input type="text" placeholder="Calle, Número, Reparto..." bind:value={nuevoLocal.direccion}>
-                </div>
+            <div class="header-right">
+                
+                <!-- 🔥 NUEVO INDICADOR DE SINCRONIZACIÓN AUTOMÁTICA 🔥 -->
+                {#if $syncStatus.estado !== 'inactivo'}
+                    <div class="sync-badge state-{$syncStatus.estado}" title={$syncStatus.mensaje}>
+                        
+                        {#if $syncStatus.estado === 'esperando'}
+                            <Clock size={16} class="pulse-icon" /> <span class="badge-text">Esperando...</span>
+                        {:else if $syncStatus.estado === 'sincronizando'}
+                            <Loader2 size={16} class="spin-icon" /> <span class="badge-text">Guardando...</span>
+                        {:else if $syncStatus.estado === 'al_dia'}
+                            <CheckCircle size={16} /> <span class="badge-text">Al día</span>
+                        {:else if $syncStatus.estado === 'error'}
+                            <CloudOff size={16} /> <span class="badge-text">Error</span>
+                        {/if}
 
-                <div class="input-group">
-                    <label>Ciudad</label>
-                    <input type="text" placeholder="Ciudad" bind:value={nuevoLocal.ciudad}>
-                </div>
+                    </div>
+                {/if}
+                <!-- 🔥 FIN DEL NUEVO INDICADOR 🔥 -->
 
-                <div class="input-group">
-                    <label>Provincia / Estado</label>
-                    <input type="text" placeholder="Provincia" bind:value={nuevoLocal.estado}>
-                </div>
-
-                <div class="input-group">
-                    <label>Capacidad</label>
-                    <input type="number" placeholder="0" bind:value={nuevoLocal.capacidad}>
-                </div>
-
-                <button class="btn-blue" on:click={guardarLocal}>
-                    <Plus size={16}/> Guardar Salón
+                <button class="btn-nav" on:click={irInicio} title="Inicio">
+                    <Home size={18}/><span>Inicio</span>
+                </button>
+                
+                <button class="btn-icon" on:click={cambiarTema} title="Cambiar Tema">
+                    {#if temaActual==='claro'}
+                      <Sun size={18}/>
+                    {:else if temaActual==='oscuro'}
+                      <Moon size={18}/>
+                    {:else}
+                      <Monitor size={18}/>
+                    {/if}
+                </button>
+                
+                <button class="btn-icon" on:click={irConfig} title="Configuración">
+                    <Settings size={18}/>
                 </button>
             </div>
+        </header>
 
-            <div class="separator"></div>
-            <div class="list-label">Salones guardados:</div>
-            
-            <div class="list-scroll">
-                {#if listaLocales.length === 0}
-                    <div class="empty-msg">
-                        <Building size={30} strokeWidth={1} style="opacity:0.3; margin-bottom:5px;"/>
-                        <p>No hay salones registrados.</p>
-                    </div>
-                {:else}
-                    {#each listaLocales as l}
-                        <div class="list-item">
-                            <div class="item-info">
-                                <div class="item-title">
-                                    <strong>{l.nombre}</strong>
-                                    {#if l.capacidad}
-                                        <span class="badge-cap"><Users size={10}/> {l.capacidad}</span>
-                                    {/if}
-                                </div>
-                                
-                                <div class="item-details">
-                                    <MapPin size={10}/> 
-                                    <span>
-                                        {l.direccion || 'Sin dirección'}
-                                        {#if l.ciudad} 
-                                            <strong> • {l.ciudad}</strong> 
-                                        {/if}
-                                        {#if l.estado} 
-                                            <span style="opacity:0.7"> ({l.estado})</span> 
-                                        {/if}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <button class="btn-red" on:click={()=>eliminarLocal(l.id)} title="Borrar Salón">
-                                <Trash2 size={16}/>
-                            </button>
-                        </div>
-                    {/each}
-                {/if}
+        <main class="main-content">
+            <slot />
+        </main>
+
+        <footer class="status-bar">
+            <div class="status-left">
+                <span class="dot pulse"></span> Sistema Conectado <strong class="tech">(Rust/Tauri)</strong>
             </div>
-        </Panel>
-      </div>
-    {/if}
+            <div class="status-center">Construido y diseñado para Presidentes de Asambleas Regionales</div>
+            
+            <div class="status-right">
+                v{#if versionApp}{versionApp}{:else}...{/if}
+            </div>
+        </footer>
 
-    <Cronometro />
+        {#if $syncStatus.estado === 'conflicto'}
+          <div class="modal-backdrop">
+            <Panel padding="25px" clasesExtra="modal-salones">
+                <div class="modal-top">
+                    <h3 style="color: var(--accent-danger);"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
+                </div>
+                
+                <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
+                    <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
+                    <p>¿Deseas descargar y aplicar estos cambios ahora mismo?</p>
+                </div>
 
-</div>
+                <!-- 🔥 Nuevos botones con opción de ignorar -->
+                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                    <button on:click={ignorarConflicto} style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-sec); font-weight: bold; cursor: pointer;">
+                        Ignorar por ahora
+                    </button>
+
+                <!-- Botón directo de descarga en lugar de navegar -->
+                <button class="btn-blue" on:click={resolverConflictoDirecto}>
+                    <DownloadCloud size={18} /> Descargar cambios ahora
+                </button>
+            </Panel>
+          </div>
+        {/if}
+
+        <Cronometro />
+
+    </div>
+{/if}
+
+{#if mostrarNovedades}
+    <NotasVersionModal 
+        version={ultimaActualizacion.version}
+        fecha={ultimaActualizacion.fecha}
+        mensaje={ultimaActualizacion.mensaje}
+        cambios={ultimaActualizacion.cambios}
+        on:cerrar={cerrarNovedades}
+    />
+{/if}
 
 <style>
   /* LAYOUT */
   .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
   .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
 
-  /* HEADER */
+ /* HEADER */
  .top-header { 
       display: flex; justify-content: space-between; align-items: center; 
       padding: 15px 30px; 
       background-color: var(--bg-card); 
-      background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)); /* El mismo "tinte" gris de las tarjetas */
+      background-image: linear-gradient(rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04)); 
       border-bottom: 1px solid var(--border); 
       box-shadow: var(--shadow-sm); 
       z-index: 50; 
+      /* Ajuste seguro para la barra de notificaciones en Android/iOS */
+      padding-top: max(15px, env(safe-area-inset-top, 0px));
   }
 
   .header-left { display: flex; gap: 12px; align-items: center; }
@@ -446,30 +322,30 @@
       align-items: center; 
       justify-content: center; 
       color: white; 
-      cursor: pointer; /* 👈 NUEVO: Ratón de manito */
-      overflow: hidden; /* 👈 NUEVO: Evita que la foto se salga del círculo */
+      cursor: pointer; 
+      overflow: hidden; 
       transition: opacity 0.2s; 
   }
-  .avatar:hover { opacity: 0.8; } /* 👈 NUEVO: Efecto al pasar el ratón */
+  .avatar:hover { opacity: 0.8; } 
   
-  /* 👈 NUEVA CLASE PARA LA IMAGEN */
   .foto-perfil { 
       width: 100%; 
       height: 100%; 
-      object-fit: cover; /* Asegura que la foto no se deforme */
+      object-fit: cover; 
   }
 
   .user-data h2 { margin: 0; font-size: 14px; } .user-data span { font-size: 11px; color: var(--text-sec); }
-  .header-center { background: var(--bg-body); padding: 5px 15px; border-radius: 20px; border: 1px solid var(--border); display: flex; gap: 8px; font-weight: 600; align-items: center; }
+  
   .header-right { display: flex; gap: 8px; }
   .btn-nav { background: var(--bg-body); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 6px; color: var(--text-main); font-weight: 600; align-items: center; }
-  .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); display: flex; }
+  .btn-icon { background: transparent; border: 1px solid transparent; padding: 8px; cursor: pointer; color: var(--text-sec); display: flex; align-items: center; }
   .btn-nav:hover, .btn-icon:hover { background: var(--border); }
 
   /* FOOTER */
   .status-bar { position: fixed; bottom: 0; width: 100%; height: 32px; background: var(--status-bg); color: var(--status-text); display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 12px; font-weight: 600; border-top: 1px solid var(--border); z-index: 100; transition: background 0.3s; box-sizing: border-box; }
-  .status-center, .tech { color: inherit; } .tech { color: #059669; }
-  .dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .status-center, .tech { color: inherit; } 
+  .tech { color: var(--accent-success); }
+  .dot { width: 6px; height: 6px; background: var(--accent-success); border-radius: 50%; display: inline-block; margin-right: 5px; }
 
   /* MODAL ESTILIZADO */
   .modal-backdrop { 
@@ -479,9 +355,9 @@
       z-index: 9999; backdrop-filter: blur(2px); 
   }
   :global(.modal-salones) { 
-      width: 95%;          /* 1. Ocupa casi todo el espacio disponible */
-      max-width: 700px;    /* 2. EL FRENO: En Windows se detiene en 700px */
-      margin: 0 auto;      /* 3. Lo mantiene perfectamente centrado */
+      width: 95%;          
+      max-width: 700px;    
+      margin: 0 auto;      
       display: flex; 
       flex-direction: column; 
       gap: 15px;
@@ -514,11 +390,9 @@
       background: var(--primary); color: white; border: none; 
       padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 700; 
       display: flex; justify-content: center; gap: 8px; align-items: center;
-      
-      /* EL FRENO PARA EL BOTÓN */
       width: 100%; 
       max-width: 350px; 
-      margin: 15px auto 0 auto; /* Centrado en Windows */
+      margin: 15px auto 0 auto; 
   }
 
   .separator { height: 1px; background: var(--border); margin: 5px 0; }
@@ -539,8 +413,8 @@
   .badge-cap { background: var(--primary); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; display: flex; align-items: center; gap: 3px; }
   .item-details { display: flex; gap: 5px; align-items: center; font-size: 11px; color: var(--text-sec); }
 
-  .btn-red { color: #ef4444; background: none; border: none; cursor: pointer; padding: 5px; }
-  .btn-red:hover { background: #fee2e2; border-radius: 6px; }
+  .btn-red { color: var(--accent-danger); background: none; border: none; cursor: pointer; padding: 5px; }
+  .btn-red:hover { background: var(--accent-danger-hover); border-radius: 6px; color: white; }
   
   .empty-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: var(--text-sec); font-size: 13px; }
 
@@ -557,7 +431,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      box-shadow: var(--shadow-premium);
       min-width: 160px;
       display: flex;
       flex-direction: column;
@@ -583,15 +457,16 @@
   }
 
   .menu-item:hover {
-      background: var(--hover-bg);
+      background: var(--border);
   }
 
   .menu-item.text-red {
-      color: #ef4444;
+      color: var(--accent-danger);
   }
 
   .menu-item.text-red:hover {
-      background: #fee2e2;
+      background: var(--accent-danger-hover);
+      color: white;
   }
 
   .dropdown-separator {
@@ -605,6 +480,37 @@
       to { opacity: 1; transform: translateY(0); }
   }
 
+/* =============================================
+     ESTILOS DEL INDICADOR DE SINCRONIZACIÓN NUBE
+     ============================================= */
+  .sync-badge {
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 700;
+      transition: all 0.3s ease; border: 1px solid transparent;
+      margin-right: 10px;
+  }
+  .state-esperando { background: rgba(234, 179, 8, 0.15); color: #ca8a04; border-color: rgba(234, 179, 8, 0.3); }
+  .state-sincronizando { background: rgba(59, 130, 246, 0.15); color: #2563eb; border-color: rgba(59, 130, 246, 0.3); }
+  .state-al_dia { background: rgba(34, 197, 94, 0.15); color: #16a34a; border-color: rgba(34, 197, 94, 0.3); }
+  .state-error { background: rgba(107, 114, 128, 0.15); color: #4b5563; border-color: rgba(107, 114, 128, 0.3); }
+  
+  .state-conflicto { 
+      background: rgba(239, 68, 68, 0.15); color: #dc2626; border-color: rgba(239, 68, 68, 0.4); 
+      cursor: pointer; box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  }
+  .state-conflicto:hover { background: rgba(239, 68, 68, 0.25); transform: scale(1.05); }
+
+  /* MODO OSCURO */
+  :global(.dark-theme) .state-esperando { color: #fde047; }
+  :global(.dark-theme) .state-sincronizando { color: #60a5fa; }
+  :global(.dark-theme) .state-al_dia { color: #4ade80; }
+  :global(.dark-theme) .state-conflicto { color: #f87171; }
+  :global(.dark-theme) .state-error { color: #9ca3af; }
+
+  .spin-icon { animation: spin 1.5s linear infinite; }
+  .pulse-icon { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
   /* =========================================================
    DISEÑO RESPONSIVO (+LAYOUT: WINDOWS + ANDROID)
    ========================================================= */
@@ -612,17 +518,18 @@
 @media (max-width: 768px) {
     /* 1. HEADER MÁS COMPACTO Y LIMPIO */
     .top-header {
-        padding: 10px 15px; /* Reducimos márgenes laterales */
+        padding: 10px 15px;
+        padding-top: max(10px, env(safe-area-inset-top, 0px));
         gap: 10px;
     }
 
     /* 2. OCULTAR ELEMENTOS NO ESENCIALES */
     .header-center {
-        display: none; /* Ocultamos el reloj en el teléfono para liberar espacio */
+        display: none; 
     }
     
     .user-data h2 {
-        font-size: 13px; /* Saludo un poco más pequeño */
+        font-size: 13px; 
     }
 
     /* 3. BOTONES DE NAVEGACIÓN (Solo Iconos, sin texto) */
@@ -631,11 +538,11 @@
     }
     
     .btn-nav span {
-        display: none; /* Ocultamos las palabras "Inicio" y "Salones" */
+        display: none; 
     }
     
     .btn-nav, .btn-icon {
-        padding: 10px; /* Áreas táctiles seguras de 40x40px aprox */
+        padding: 10px; 
         min-width: 42px;
         min-height: 42px;
         justify-content: center;
@@ -643,40 +550,38 @@
 
     /* 4. BARRA DE ESTADO (Antidesbordes) */
     .status-center {
-        display: none; /* Ocultamos la frase larga para que no se amontone */
+        display: none; 
     }
     
     .status-bar {
         padding: 0 10px;
-        font-size: 10px; /* Letra un poco más pequeña */
+        font-size: 10px; 
     }
 
     /* 5. MODAL DE SALONES (Apilado y fluido) */
     :global(.modal-salones) {
-        width: 95vw !important; /* Ancho fluido */
-        max-height: 90vh; /* Que no se pase del alto de la pantalla */
-        overflow-y: auto; /* Permite hacer scroll si el teclado tapa algo */
+        width: 95vw !important; 
+        max-height: 90vh; 
+        overflow-y: auto; 
         padding: 15px !important;
     }
     
     .form-grid {
-        grid-template-columns: 1fr; /* 1 sola columna hacia abajo */
+        grid-template-columns: 1fr; 
         gap: 12px;
     }
     
-    /* Reseteamos los elementos que abarcaban 2 columnas en Windows */
     .input-group.full-width, .btn-blue {
         grid-column: 1 / -1; 
     }
     
     .btn-blue {
-        min-height: 48px; /* Botón grande para el dedo */
+        min-height: 48px; 
     }
 }
 
-/* ANIMACIÓN DE GIRO PARA EL BOTÓN SYNC */
   .anim-spin {
-      pointer-events: none; /* Evita doble clic */
+      pointer-events: none; 
   }
   .anim-spin :global(svg) {
       animation: spin 1s linear infinite;
@@ -686,16 +591,12 @@
       to { transform: rotate(360deg); }
   }
   
-  /* =========================================================
-     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
-     ========================================================= */
   .btn-icon.anim-spin {
-      color: #3b82f6 !important; /* El azul brillante */
+      color: var(--primary) !important; 
       background-color: transparent;
-      pointer-events: none; /* Bloquea clics dobles */
+      pointer-events: none; 
   }
 
-  /* Hace que solo el icono SVG gire, no todo el botón */
   .btn-icon.anim-spin :global(svg) {
       animation: rotar-radar 1s linear infinite;
   }
@@ -705,21 +606,21 @@
       to { transform: rotate(360deg); }
   }
 
-  /* =========================================================
-     ANIMACIÓN DEL BOTÓN DE SINCRONIZACIÓN INTELIGENTE
-     ========================================================= */
   button.anim-spin {
-      color: #3b82f6 !important; /* El azul brillante */
+      color: var(--primary) !important; 
       background-color: transparent !important;
   }
 
-  /* Hace que solo el icono SVG gire */
   button.anim-spin :global(svg) {
       animation: rotar-radar 1s linear infinite !important;
   }
 
-  @keyframes rotar-radar {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+  .app-brand {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+      user-select: none; 
   }
+
 </style>

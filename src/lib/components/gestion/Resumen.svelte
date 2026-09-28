@@ -2,12 +2,17 @@
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import Panel from '$lib/components/ui/Panel.svelte';
+
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { DB } from '$lib/services/db';
+
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { Pin, PinOff, X } from 'lucide-svelte'; // Traemos los iconos de la chincheta y cerrar
   
   // Iconos (¡Agregamos Film para los videos!)
   import { 
     Users, Droplets, Mic, CheckCircle, AlertCircle, 
-    Clock, Activity, ArrowRight, Film 
-  } from 'lucide-svelte';
+    Clock, Activity, ArrowRight, Film, ExternalLink, } from 'lucide-svelte';
 
   // Importamos el Store Global
   import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
@@ -16,6 +21,9 @@
   let horaActual = '';
   let asambleaIdActual = 0; 
   let nombreAsamblea = '';
+
+  // ✅ Estado de la pestaña actual
+  let tabActual: 'estadisticas' | 'oradores' | 'monitor' = 'estadisticas';
 
   // ✅ Estado de la asamblea
   let estadoAsamblea: 'en_curso' | 'futura' | 'finalizada' = 'en_curso';
@@ -50,6 +58,9 @@
   let parteActual: any = null;
   let siguienteParte: any = null;
   let programaCompletoCache: any[] = [];
+
+  let fijadoEncima = false;
+  let esVentanaFlotante = false;
   
   // Variable para adelantar/atrasar el reloj del monitor
   let offsetMinutos = 0; 
@@ -88,6 +99,14 @@
 
   // --- INICIO Y DETECTOR MÁGICO ---
   onMount(() => {
+
+    // 👇 DETECTAMOS SI SOMOS LA VENTANA FLOTANTE
+      const win = getCurrentWindow();
+      if (win.label === 'monitor-pip') {
+          esVentanaFlotante = true;
+          tabActual = 'monitor'; // Forzamos abrir directo en el monitor
+      }
+
     cargarAsambleaActiva();
 
     // Actualizamos el reloj cada 10 segundos para mayor precisión
@@ -164,24 +183,29 @@
   // --- FUNCIÓN CARGAR DATOS LOCALES ---
   function cargarDatosLocales() {
     if (!asambleaIdActual) return;
-    const rawAsis = localStorage.getItem(`dash_asistencia_obj_${asambleaIdActual}`);
-    if (rawAsis) {
-        asistenciaDetalle = JSON.parse(rawAsis);
-    } else {
-        asistenciaDetalle = { viernes_am: 0, viernes_pm: 0, sabado_am: 0, sabado_pm: 0, domingo_am: 0, domingo_pm: 0 };
-    }
-    bautismosTotal = Number(localStorage.getItem(`dash_bautismos_${asambleaIdActual}`)) || 0;
+    
+    // Solo dejamos el desfase del reloj, porque es local para esta pantalla
     offsetMinutos = Number(localStorage.getItem(`dash_offset_${asambleaIdActual}`)) || 0;
   }
 
-  function guardarAsistencia() {
+ async function guardarAsistencia() {
       if (!asambleaIdActual) return;
-      localStorage.setItem(`dash_asistencia_obj_${asambleaIdActual}`, JSON.stringify(asistenciaDetalle));
+      // Guardamos en la base de datos central para que los auxiliares lo vean
+      await DB.guardarAsistencia(asambleaIdActual, asistenciaDetalle);
   }
 
-  function guardarDato(tipo: string, valor: number) {
-    if (!asambleaIdActual) return;
-    localStorage.setItem(`dash_${tipo}_${asambleaIdActual}`, valor.toString());
+  async function guardarDato(tipo: string, valor: number) {
+      if (!asambleaIdActual) return;
+      
+      try {
+          // Filtramos para asegurarnos de que estamos guardando los bautismos
+          if (tipo === 'bautismos') {
+              // 🔥 AHORA SÍ LLAMAMOS A LA FUNCIÓN EXACTA QUE EXISTE EN db.ts
+              await DB.guardarBautismos(asambleaIdActual, valor);
+          }
+      } catch (e) {
+          console.error("Error al guardar bautismos:", e);
+      }
   }
 
   // --- LÓGICA DE CONTROL DE TIEMPO ---
@@ -277,13 +301,31 @@
     try {
         const listaCongregaciones: any = await invoke('obtener_congregaciones', { asambleaId: asambleaIdActual });
         totalCongregacionesReales = Array.isArray(listaCongregaciones) ? listaCongregaciones.length : 0;
+        
+        // 🔥 NUEVO: LEER LA ASISTENCIA Y BAUTISMOS DESDE EL EMBUDO
+        const datosAsistencia: any = await DB.obtenerAsistencia(asambleaIdActual);
+        if (datosAsistencia) {
+            asistenciaDetalle = {
+                viernes_am: datosAsistencia.viernes_am || 0,
+                viernes_pm: datosAsistencia.viernes_pm || 0,
+                sabado_am: datosAsistencia.sabado_am || 0,
+                sabado_pm: datosAsistencia.sabado_pm || 0,
+                domingo_am: datosAsistencia.domingo_am || 0,
+                domingo_pm: datosAsistencia.domingo_pm || 0
+            };
+            bautismosTotal = datosAsistencia.bautismos || 0;
+        }
     } catch (e) {
+        console.error("Error al cargar congregaciones o estadísticas:", e);
         totalCongregacionesReales = 0;
     }
 
     const dias = ['Viernes', 'Sábado', 'Domingo'];
-    let pendientes: any[] = []; 
-    let confirmadosCount = 0;
+    
+    // 👇 NUEVO: Usamos Map y Set para contar personas únicas, no discursos
+    let pendientesMap = new Map();
+    let confirmadosNombres = new Set(); 
+    
     programaCompletoCache = [];
 
     for (const dia of dias) {
@@ -292,9 +334,32 @@
             if (Array.isArray(partes)) {
                 partes.forEach(p => {
                     programaCompletoCache.push({ ...p, dia });
-                    if (!p.es_video && p.nombre_orador) {
-                        if (p.estado === 'Confirmado' || p.recibido_manual) confirmadosCount++;
-                        else pendientes.push({ ...p, dia });
+                    
+                    // Verificamos que sea una persona real (no video ni espacio vacío)
+                    if (!p.es_video && p.nombre_orador && p.nombre_orador.trim() !== '') {
+                        const nombre = p.nombre_orador.trim();
+
+                        if (p.estado === 'Confirmado' || p.recibido_manual) {
+                            // Añade a la lista de confirmados (ignora repetidos automáticamente)
+                            confirmadosNombres.add(nombre);
+                            
+                            // Si lo teníamos en pendientes por otro discurso, lo borramos
+                            if (pendientesMap.has(nombre)) {
+                                pendientesMap.delete(nombre);
+                            }
+                        } else {
+                            // Si NO ha confirmado nada aún
+                            if (!confirmadosNombres.has(nombre)) {
+                                if (!pendientesMap.has(nombre)) {
+                                // Agregamos parteIds como un arreglo para guardar TODAS sus partes
+                                pendientesMap.set(nombre, { ...p, dia, parteIds: [p.id] });
+                            } else {
+                                let datosOrador = pendientesMap.get(nombre);
+                                datosOrador.multiples_partes = true; 
+                                datosOrador.parteIds.push(p.id); // Acumulamos los IDs adicionales
+                            }
+                       }
+                        }
                     }
                 });
             }
@@ -302,7 +367,12 @@
     }
     
     programaCompletoCache.sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
-    estadisticasPrograma.confirmados = confirmadosCount;
+    
+    // 👇 Convertimos el Map en una lista normal para mostrar en pantalla
+    let pendientes = Array.from(pendientesMap.values());
+
+    // Ahora guardamos la cantidad real de personas únicas
+    estadisticasPrograma.confirmados = confirmadosNombres.size;
     estadisticasPrograma.pendientes = pendientes.length;
     oradoresPendientesLista = pendientes;
     
@@ -310,230 +380,326 @@
   }
 
   async function confirmarOradorDesdeResumen(parte: any) {
-      if(!confirm(`¿Confirmar a ${parte.nombre_orador}?`)) return;
-      try {
-          await invoke('alternar_estado_parte', { id: parte.id, tipoAccion: 'confirmacion', valorNuevo: true });
-          await cargarDatosDB();
-      } catch(e) { alert("Error: " + e); }
+    if(!confirm(`¿Confirmar a ${parte.nombre_orador}?`)) return;
+    try {
+        // Confirmamos TODAS las partes del orador, igual que en ListaOradores
+        for (const idParte of parte.parteIds) {
+            // 🔥 USAMOS EL EMBUDO PARA CONFIRMAR Y AVISAR AL RADAR
+            await DB.alternarEstadoParte(idParte, 'confirmacion', true);
+        }
+        await cargarDatosDB(); // Refresca la lista y el número al instante
+    } catch(e) { 
+        alert("Error: " + e); 
+    }
   }
+
+async function abrirMonitorFlotante() {
+  const monitorWindow = new WebviewWindow('monitor-pip', {
+    url: '/',  // Pasamos el parámetro para identificarla
+    title: 'Monitor en Vivo',
+    width: 380,
+    height: 260,
+    alwaysOnTop: false,  // Inicia normal, el usuario decidirá si anclarla
+    decorations: false,  // Ventana limpia sin marcos clásicos de Windows
+    resizable: true,
+    transparent: true,   // Permite bordes redondeados estéticos
+    skipTaskbar: false
+  });
+
+  monitorWindow.once('tauri://created', () => {
+    console.log('✅ Ventana del monitor flotante creada');
+  });
+}
+
+
+async function toggleFijarVentana() {
+  fijadoEncima = !fijadoEncima;
+  // Cambia el estado de superposición dinámicamente sobre cualquier app
+  await getCurrentWindow().setAlwaysOnTop(fijadoEncima);
+}
+
+function cerrarMonitorFlotante() {
+  getCurrentWindow().close();
+}
+
 </script>
 
-<div class="dashboard-container">
+<div class="dashboard-container" style={esVentanaFlotante ? "padding: 0; height: 100vh;" : ""}>
 
-  <div class="main-grid">
-      
-    <div class="col-left">
-        
-        <div class="stats-row">
-            <button class="card stat-card btn-card-asistencia" on:click={() => mostrarModalAsistencia = true}>
-              <div class="icon-wrapper blue"><Users size={22} /></div>
+  {#if !esVentanaFlotante}
+  <div class="tabs-container">
+    <button class="tab-btn" class:active={tabActual === 'estadisticas'} on:click={() => tabActual = 'estadisticas'}>
+      <Activity size={18} /> Estadísticas
+    </button>
+    
+    <button class="tab-btn" class:active={tabActual === 'oradores'} on:click={() => tabActual = 'oradores'}>
+      <Users size={18} /> Oradores Pendientes
+      {#if estadisticasPrograma.pendientes > 0}
+        <span class="tab-badge">{estadisticasPrograma.pendientes}</span>
+      {/if}
+    </button>
+    
+    <button class="tab-btn" class:active={tabActual === 'monitor'} on:click={() => tabActual = 'monitor'}>
+      <Clock size={18} /> Monitor en Vivo
+    </button>
+  </div>
+  {/if}
+
+  <div class="tab-content">
+    
+    {#if tabActual === 'estadisticas'}
+      <div class="stats-row">
+          <button class="card stat-card btn-card-asistencia" on:click={() => mostrarModalAsistencia = true}>
+            <div class="icon-wrapper blue"><Users size={22} /></div>
+            <div class="stat-info">
+               <span class="label">Asistencia Máxima</span>
+               <span class="numero-grande">{maxAsistencia}</span>
+              <span class="subtext">Clic para desglosar</span>
+            </div>
+          </button>
+
+          <Panel padding="15px" clasesExtra="stat-card">
+              <div class="icon-wrapper cyan"><Droplets size={22} /></div>
               <div class="stat-info">
-                 <span class="label">Asistencia Máxima</span>
-                 <span class="numero-grande">{maxAsistencia}</span>
-                <span class="subtext">Clic para desglosar</span>
+                  <span class="label">Bautismos</span>
+                  <input type="number" class="editable-num" 
+                         bind:value={bautismosTotal} 
+                         on:input={() => guardarDato('bautismos', bautismosTotal)}>
               </div>
-            </button>
+          </Panel>
+          
+          <Panel padding="15px" clasesExtra="stat-card">
+              <div class="icon-wrapper purple">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+              </div>
+              <div class="stat-info">
+                  <span class="label">Congregaciones</span>
+                  <span class="numero-grande">{totalCongregacionesReales}</span>
+                  <span class="subtext">Registradas</span>
+              </div>
+          </Panel>
+      </div>
 
-            <Panel padding="15px" clasesExtra="stat-card">
-                <div class="icon-wrapper cyan"><Droplets size={22} /></div>
-                <div class="stat-info">
-                    <span class="label">Bautismos</span>
-                    <input type="number" class="editable-num" 
-                           bind:value={bautismosTotal} 
-                           on:input={() => guardarDato('bautismos', bautismosTotal)}>
-                </div>
-            </Panel>
-            
-            <Panel padding="15px" clasesExtra="stat-card">
-                <div class="icon-wrapper purple">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
-                </div>
-                <div class="stat-info">
-                    <span class="label">Congregaciones</span>
-                    <span class="numero-grande">{totalCongregacionesReales}</span>
-                    <span class="subtext">Registradas</span>
-                </div>
-            </Panel>
-        </div>
+    {:else if tabActual === 'oradores'}
+      <Panel padding="0" clasesExtra="alertas-section">
+          <div class="card-header-red">
+              <h4><AlertCircle size={18} /> Oradores Pendientes ({estadisticasPrograma.pendientes})</h4>
+          </div>
+          <div class="lista-pendientes">
+              {#if oradoresPendientesLista.length > 0}
+                  <div class="table-container">
+                      <table>
+                          <thead>
+                              <tr><th>Orador</th><th>Asignación</th><th>Acción</th></tr>
+                          </thead>
+                          <tbody>
+                             {#each oradoresPendientesLista as p}
+                                <tr>
+                                   <td class="fw-bold">{p.nombre_orador}</td>
+                                   <td>
+                                      <div class="tema-mini">{p.tema.substring(0, 25)}...</div>
+                                      <span class="badge-dia">{p.dia}</span>
+                                   </td>
+                                   <td>
+                                      <button class="btn-sm-confirmar" on:click={() => confirmarOradorDesdeResumen(p)}>
+                                          Confirmar
+                                      </button>
+                                   </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                      </table>
 
-        <Panel padding="0" clasesExtra="alertas-section">
-            <div class="card-header-red">
-                <h4><AlertCircle size={18} /> Oradores Pendientes ({estadisticasPrograma.pendientes})</h4>
-            </div>
-            <div class="lista-pendientes">
-                {#if oradoresPendientesLista.length > 0}
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr><th>Orador</th><th>Asignación</th><th>Acción</th></tr>
-                            </thead>
-                            <tbody>
-                                {#each oradoresPendientesLista.slice(0, 5) as p}
-                                    <tr>
-                                        <td class="fw-bold">{p.nombre_orador}</td>
-                                        <td>
-                                            <div class="tema-mini">{p.tema.substring(0, 25)}...</div>
-                                            <span class="badge-dia">{p.dia}</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn-sm-confirmar" on:click={() => confirmarOradorDesdeResumen(p)}>
-                                                Confirmar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                        {#if oradoresPendientesLista.length > 5}
-                            <div class="ver-mas">...y {oradoresPendientesLista.length - 5} más</div>
-                        {/if}
-                    </div>
-                {:else}
-                    <div class="empty-state">
-                        <CheckCircle size={40} color="#10b981"/>
-                        <p>¡Todo al día! No hay pendientes.</p>
-                    </div>
-                {/if}
-            </div>
-        </Panel>
-    </div>
+                  </div>
+              {:else}
+                  <div class="empty-state">
+                      <CheckCircle size={40} color="#10b981"/>
+                      <p>¡Todo al día! No hay pendientes.</p>
+                  </div>
+              {/if}
+          </div>
+      </Panel>
 
-    <div class="col-right">
-        <Panel padding="0" clasesExtra="live-monitor-container">
-            <div class="monitor-header">
-                <div class="header-left">
-                    {#if estadoAsamblea === 'futura'}
-                        <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;">
-                            <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
-                        </div>
-                    {:else if estadoAsamblea === 'finalizada'}
-                        <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;">
-                            <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
-                        </div>
-                    {:else if parteActual}
-                        <div class="live-badge">
-                            <span class="blink-dot"></span> EN CURSO
-                        </div>
-                        <span class="monitor-dia">{parteActual.dia}</span>
-                    {:else}
-                        <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;">
-                            <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
-                        </div>
-                    {/if}
-                </div>
-                
-                <div class="ajuste-tiempo">
-                    <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
-                    
-                    <button class="valor-ajuste" 
-                            class:activo={offsetMinutos !== 0} 
-                            on:click={resetearDesfase}
-                            title="Clic para volver a la Hora Real (0m)">
-                        {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
-                    </button>
-                    
-                    <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
-                </div>
-            </div>
+    {:else if tabActual === 'monitor'}
+      <div class="monitor-tab-layout">
+          <Panel padding="0" clasesExtra="live-monitor-container">
+              <div class="monitor-header" data-tauri-drag-region>
+                  <div class="header-left" data-tauri-drag-region>
+                      {#if estadoAsamblea === 'futura'}
+                          <div class="live-badge" style="background: rgba(59, 130, 246, 0.2); border-color: transparent;" data-tauri-drag-region>
+                              <span style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; display: inline-block;"></span> FUTURA
+                          </div>
+                      {:else if estadoAsamblea === 'finalizada'}
+                          <div class="live-badge" style="background: rgba(100, 116, 139, 0.2); border-color: transparent;" data-tauri-drag-region>
+                              <span style="width: 8px; height: 8px; background: #64748b; border-radius: 50%; display: inline-block;"></span> FINALIZADA
+                          </div>
+                      {:else if parteActual}
+                          <div class="live-badge" data-tauri-drag-region>
+                              <span class="blink-dot"></span> EN CURSO
+                          </div>
+                          <span class="monitor-dia" data-tauri-drag-region>{parteActual.dia}</span>
+                      {:else}
+                          <div class="live-badge" style="background: rgba(255,255,255,0.1); border-color: transparent; opacity: 0.8;" data-tauri-drag-region>
+                              <span style="width: 8px; height: 8px; background: #cbd5e1; border-radius: 50%; display: inline-block;"></span> EN ESPERA
+                          </div>
+                      {/if}
+                  </div>
+                  
+                  <div style="display: flex; gap: 15px; align-items: center;">
+                      <button 
+                          on:click={toggleFijarVentana} 
+                          style="background: transparent; border: none; color: white; cursor: pointer; opacity: {fijadoEncima ? '1' : '0.5'}; transition: all 0.2s;"
+                          title={fijadoEncima ? "Desfijar de la pantalla" : "Fijar siempre encima"}
+                      >
+                          {#if fijadoEncima}
+                              <PinOff size={18} />
+                          {:else}
+                              <Pin size={18} />
+                          {/if}
+                      </button>
 
-            <div class="monitor-body">
-                {#if estadoAsamblea === 'futura'}
-                    <div class="descanso-mode">
-                        <Clock size={40} color="var(--primary)"/>
-                        <h3>Asamblea Futura</h3>
-                        <p>Programada para iniciar próximamente.</p>
-                    </div>
-                {:else if estadoAsamblea === 'finalizada'}
-                    <div class="descanso-mode">
-                        <CheckCircle size={40} color="var(--text-sec)"/>
-                        <h3>Asamblea Concluida</h3>
-                        <p>El programa de esta asamblea ha finalizado.</p>
-                    </div>
-                {:else if parteActual}
-                    <span class="hora-big">{parteActual.hora_inicio}</span>
-                    <h3 class="tema-big">{parteActual.tema}</h3>
-                    
-                    {#if parteActual.es_video}
-                        <div class="orador-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: var(--primary);">
-                            <Film size={18}/>
-                            <span>Reproducción Multimedia</span>
-                        </div>
-                    {:else}
-                        <div class="orador-box">
-                            <Mic size={18}/>
-                            <span>{parteActual.nombre_orador || "---"}</span>
-                        </div>
-                    {/if}
-                {:else}
-                    <div class="descanso-mode">
-                        <Activity size={40} color="var(--text-sec)"/>
-                        <h3>En pausa</h3>
-                        <p>Esperando la siguiente sesión del día...</p>
-                    </div>
-                {/if}
-            </div>
+                      <div class="ajuste-tiempo">
+                          <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
+                          <button class="valor-ajuste" class:activo={offsetMinutos !== 0} on:click={resetearDesfase} title="Clic para volver a la Hora Real (0m)">
+                              {offsetMinutos > 0 ? '+' : ''}{offsetMinutos}m
+                          </button>
+                          <button class="btn-ajuste" on:click={() => ajustarDesfase(1)} title="Adelantar 1 min">+</button>
+                      </div>
 
-            <div class="monitor-footer">
-                {#if siguienteParte && estadoAsamblea === 'en_curso'}
-                    <span class="label-next">A CONTINUACIÓN:</span>
-                    <div class="next-row">
-                        <span class="next-hora">{siguienteParte.hora_inicio}</span>
-                        <div class="next-info">
-                            <span class="next-tema">{siguienteParte.tema}</span>
-                            
-                            {#if siguienteParte.es_video}
-                                <span class="next-orador" style="color: var(--primary); font-weight: 600;">▶ Video / Canción</span>
-                            {:else}
-                                <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
-                            {/if}
-                        </div>
-                        <ArrowRight size={16} color="var(--text-sec)"/>
-                    </div>
-                {:else}
-                    <span class="text-muted" style="display: block; text-align: center;">
-                        {#if estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada'}
-                            Programa inactivo
-                        {:else}
-                            Fin del programa del día.
-                        {/if}
-                    </span>
-                {/if}
-            </div>
-       </Panel>
+                      {#if esVentanaFlotante}
+                          <button 
+                              on:click={cerrarMonitorFlotante} 
+                              style="background: transparent; border: none; color: white; cursor: pointer; padding: 4px; display: flex; align-items: center;"
+                              title="Cerrar monitor"
+                          >
+                              <X size={22} />
+                          </button>
+                      {/if}
+                  </div>
+              </div>
 
-        <div class="accesos-grid">
-            <button class="btn-acceso" on:click={cargarDatosDB}>
-                <Activity size={20}/> <span>Actualizar Datos</span>
-            </button>
-        </div>
+              <div class="monitor-body">
+                  {#if estadoAsamblea === 'futura'}
+                      <div class="descanso-mode">
+                          <Clock size={40} color="var(--primary)"/>
+                          <h3>Asamblea Futura</h3>
+                          <p>Programada para iniciar próximamente.</p>
+                      </div>
+                  {:else if estadoAsamblea === 'finalizada'}
+                      <div class="descanso-mode">
+                          <CheckCircle size={40} color="var(--text-sec)"/>
+                          <h3>Asamblea Concluida</h3>
+                          <p>El programa de esta asamblea ha finalizado.</p>
+                      </div>
+                  {:else if parteActual}
+                      <span class="hora-big">{parteActual.hora_inicio}</span>
+                      <h3 class="tema-big">{parteActual.tema}</h3>
+                      
+                      {#if parteActual.es_video}
+                          <div class="orador-box" style="background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: var(--primary);">
+                              <Film size={18}/>
+                              <span>Reproducción Multimedia</span>
+                          </div>
+                      {:else}
+                          <div class="orador-box">
+                              <Mic size={18}/>
+                              <span>{parteActual.nombre_orador || "---"}</span>
+                          </div>
+                      {/if}
+                  {:else}
+                      <div class="descanso-mode">
+                          <Activity size={40} color="var(--text-sec)"/>
+                          <h3>En pausa</h3>
+                          <p>Esperando la siguiente sesión del día...</p>
+                      </div>
+                  {/if}
+              </div>
 
-    </div>
+              <div class="monitor-footer">
+                  {#if siguienteParte && estadoAsamblea === 'en_curso'}
+                      <span class="label-next">A CONTINUACIÓN:</span>
+                      <div class="next-row">
+                          <span class="next-hora">{siguienteParte.hora_inicio}</span>
+                          <div class="next-info">
+                              <span class="next-tema">{siguienteParte.tema}</span>
+                              
+                              {#if siguienteParte.es_video}
+                                  <span class="next-orador" style="color: var(--primary); font-weight: 600;">▶ Video / Canción</span>
+                              {:else}
+                                  <span class="next-orador">{siguienteParte.nombre_orador || ""}</span>
+                              {/if}
+                          </div>
+                          <ArrowRight size={16} color="var(--text-sec)"/>
+                      </div>
+                  {:else}
+                      <span class="text-muted" style="display: block; text-align: center;">
+                          {#if estadoAsamblea === 'futura' || estadoAsamblea === 'finalizada'}
+                              Programa inactivo
+                          {:else}
+                              Fin del programa del día.
+                          {/if}
+                      </span>
+                  {/if}
+              </div>
+         </Panel>
+
+          {#if !esVentanaFlotante}
+  <div class="accesos-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <button class="btn-acceso" on:click={cargarDatosDB}>
+         <Activity size={20}/> <span>Actualizar Datos</span>
+      </button>
+
+      <button class="btn-acceso" on:click={abrirMonitorFlotante} style="border-color: var(--primary); color: var(--primary);">
+         <ExternalLink size={20}/> <span>Modo Flotante</span>
+      </button>
+  </div>
+  {/if}
+      </div>
+    {/if}
   </div>
 </div>
 
 {#if mostrarModalAsistencia}
-<div class="modal-backdrop" on:click|self={() => mostrarModalAsistencia = false}>
+<div class="modal-backdrop" role="dialog" aria-modal="true" on:click|self={() => mostrarModalAsistencia = false} on:keydown={(e) => { if (e.key === 'Escape') mostrarModalAsistencia = false; }}>
     <div class="modal-content-asistencia">
         <div class="modal-header">
             <h3>Registro de Asistencia</h3>
-            <button class="btn-close" on:click={() => mostrarModalAsistencia = false}>✕</button>
+            <button class="btn-close" on:click={() => mostrarModalAsistencia = false} aria-label="Cerrar modal">✕</button>
         </div>
-        
+
         <div class="grid-dias">
             <div class="col-dia">
                 <h4>Viernes</h4>
-                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}></div>
-                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal">
+                    <label for="viernes-am">Mañana</label>
+                    <input id="viernes-am" type="number" bind:value={asistenciaDetalle.viernes_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label for="viernes-pm">Tarde</label>
+                    <input id="viernes-pm" type="number" bind:value={asistenciaDetalle.viernes_pm} on:input={guardarAsistencia}>
+                </div>
             </div>
             <div class="col-dia">
                 <h4>Sábado</h4>
-                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}></div>
-                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal">
+                    <label for="sabado-am">Mañana</label>
+                    <input id="sabado-am" type="number" bind:value={asistenciaDetalle.sabado_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label for="sabado-pm">Tarde</label>
+                    <input id="sabado-pm" type="number" bind:value={asistenciaDetalle.sabado_pm} on:input={guardarAsistencia}>
+                </div>
             </div>
             <div class="col-dia">
                 <h4>Domingo</h4>
-                <div class="input-group-modal"><label>Mañana</label><input type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}></div>
-                <div class="input-group-modal"><label>Tarde</label><input type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}></div>
+                <div class="input-group-modal">
+                    <label for="domingo-am">Mañana</label>
+                    <input id="domingo-am" type="number" bind:value={asistenciaDetalle.domingo_am} on:input={guardarAsistencia}>
+                </div>
+                <div class="input-group-modal">
+                    <label for="domingo-pm">Tarde</label>
+                    <input id="domingo-pm" type="number" bind:value={asistenciaDetalle.domingo_pm} on:input={guardarAsistencia}>
+                </div>
             </div>
         </div>
         
@@ -547,29 +713,15 @@
 <style>
   /* --- ESTILOS --- */
   .dashboard-container {
-    display: flex; flex-direction: column; gap: 20px; height: 100%; overflow-y: auto;
-    padding-bottom: 20px;
+    display: flex; 
+    flex-direction: column; 
+    gap: 25px; /* 👈 Un poco más de espacio entre filas */
+    height: 100%; 
+    overflow-y: auto;
+    padding: 30px 40px; /* 👈 Mucho más aire arriba (30px) y a los lados (40px) */
+    max-width: 1600px; /* 👈 Evita que se estire demasiado en monitores gigantes */
+    margin: 0 auto; /* 👈 Lo centra si el monitor es ultra-ancho */
   }
-  
-  .header-torre {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    padding-bottom: 10px; border-bottom: 1px solid var(--border);
-  }
-  h2 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
-  .subtitulo-header { font-size: 0.9rem; color: var(--text-sec); }
-  .reloj-badge {
-    font-size: 1.5rem; font-weight: 800; color: var(--primary);
-    display: flex; align-items: center; gap: 10px;
-    background: var(--bg-card); padding: 5px 15px; border-radius: 12px;
-    border: 1px solid var(--border);
-  }
-
-  .main-grid {
-    display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px;
-  }
-  @media (max-width: 950px) { .main-grid { grid-template-columns: 1fr; } }
-
-  .col-left, .col-right { display: flex; flex-direction: column; gap: 20px; }
 
   /* --- TARJETAS STATS --- */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -624,7 +776,13 @@
   }
   .card-header-red h4 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
   
-  .table-container { width: 100%; overflow-x: auto; }
+  .table-container { 
+    width: 100%; 
+    overflow-x: auto; 
+    max-height: 400px; /* Ajusta este valor a tu gusto */
+    overflow-y: auto; 
+}
+
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
   th { text-align: left; padding: 8px 15px; background: var(--bg-body); color: var(--text-sec); font-size: 0.7rem; text-transform: uppercase; }
   
@@ -810,14 +968,6 @@
     border-color: var(--text-sec) !important; /* Usa el texto secundario que en oscuro es #cbd5e1 */
 }
 
-.live-monitor {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow-premium);
-    overflow: hidden;
-}
-
 /* Ajuste para que el header mantenga sus bordes redondeados arriba */
 .monitor-header {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
@@ -841,8 +991,10 @@
 
 @media (max-width: 768px) {
     /* 1. LAYOUT DE COLUMNAS (TODO HACIA ABAJO) */
-    .main-grid {
-        grid-template-columns: 1fr;
+
+    /* 1.5 AJUSTE DEL CONTENEDOR PRINCIPAL PARA MÓVIL */
+    .dashboard-container {
+        padding: 15px; /* En el teléfono reducimos el aire para aprovechar la pantalla */
         gap: 15px;
     }
 
@@ -929,4 +1081,58 @@
         font-size: 16px;
     }
 }
+
+/* --- SISTEMA DE PESTAÑAS --- */
+  .tabs-container {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 15px;
+    overflow-x: auto; /* Permite deslizar en móviles */
+    scrollbar-width: none; /* Oculta barra de scroll en Firefox */
+  }
+  .tabs-container::-webkit-scrollbar { display: none; /* Oculta barra en Chrome/Edge */ }
+
+  .tab-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-sec);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .tab-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-main);
+  }
+  .tab-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  }
+  .tab-badge {
+    background: #ef4444;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  /* Centrar el monitor para que no ocupe 100% del ancho en pantallas grandes */
+  .monitor-tab-layout {
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 </style>
