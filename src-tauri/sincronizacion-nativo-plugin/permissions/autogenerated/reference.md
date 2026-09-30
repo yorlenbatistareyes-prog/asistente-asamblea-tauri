@@ -62,6 +62,32 @@ Denies the escribirArchivo command without any pre-configured scope.
 <tr>
 <td>
 
+`sincronizacion-nativo:allow-guardarContenidoBase64`
+
+</td>
+<td>
+
+Enables the guardarContenidoBase64 command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-guardarContenidoBase64`
+
+</td>
+<td>
+
+Denies the guardarContenidoBase64 command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `sincronizacion-nativo:allow-leerArchivo`
 
 </td>

@@ -25,8 +25,60 @@ pub mod commands {
 
 use crate::database::DbState;
 use std::fs;
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::Manager; // Necesario para mover archivos
+
+fn aplicar_restauracion_pendiente(
+    app_dir: &Path,
+    nombre_db: &str,
+    ruta_pendiente: &Path,
+) -> Result<(), String> {
+    database::validar_archivo_db(ruta_pendiente)?;
+
+    let ruta_db = app_dir.join(nombre_db);
+    let marca_tiempo = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let ruta_respaldo = app_dir.join(format!("{}.pre-restore-{}", nombre_db, marca_tiempo));
+    let habia_db = ruta_db.exists();
+
+    if habia_db {
+        fs::copy(&ruta_db, &ruta_respaldo)
+            .map_err(|e| format!("No se pudo proteger la BD actual: {}", e))?;
+        fs::remove_file(&ruta_db)
+            .map_err(|e| format!("No se pudo preparar el reemplazo de la BD: {}", e))?;
+    }
+
+    if let Err(error) = fs::rename(ruta_pendiente, &ruta_db) {
+        if habia_db {
+            if let Err(restore_error) = fs::copy(&ruta_respaldo, &ruta_db) {
+                return Err(format!(
+                    "Falló la instalación de la BD ({}) y también su recuperación desde {} ({}).",
+                    error,
+                    ruta_respaldo.display(),
+                    restore_error
+                ));
+            }
+        }
+        return Err(format!("No se pudo instalar la BD restaurada: {}", error));
+    }
+
+    for sufijo in ["-wal", "-shm"] {
+        let ruta_auxiliar = app_dir.join(format!("{}{}", nombre_db, sufijo));
+        if ruta_auxiliar.exists() {
+            if let Err(error) = fs::remove_file(&ruta_auxiliar) {
+                eprintln!("No se pudo quitar {}: {}", ruta_auxiliar.display(), error);
+            }
+        }
+    }
+
+    if habia_db {
+        println!("Copia previa conservada en {}", ruta_respaldo.display());
+    }
+    Ok(())
+}
 
 // ==========================================
 // COMANDO PARA LLAMAR POR TELÉFONO (Windows)
@@ -83,57 +135,22 @@ pub fn run() {
             // Así siempre coincidirán los nombres.
             let nombre_db = database::DB_NAME;
 
-            let ruta_db_real = app_dir.join(nombre_db);
             let ruta_pendiente = app_dir.join("restaurar_pendiente.sqlite");
 
             // 1. REVISAR SI HAY UNA RESTAURACIÓN PENDIENTE
             if ruta_pendiente.exists() {
-                println!("♻️ Restauración detectada. Iniciando limpieza...");
-
-                // Definir rutas de archivos temporales (WAL y SHM)
-                let ruta_wal = app_dir.join(format!("{}-wal", nombre_db));
-                let ruta_shm = app_dir.join(format!("{}-shm", nombre_db));
-
-                // Borrar archivos viejos para evitar Error 500
-                if ruta_wal.exists() {
-                    let _ = fs::remove_file(&ruta_wal);
+                match aplicar_restauracion_pendiente(&app_dir, nombre_db, &ruta_pendiente) {
+                    Ok(()) => println!("✅ Base de datos restaurada correctamente."),
+                    Err(error) => eprintln!("❌ Restauración pendiente rechazada: {}", error),
                 }
-                if ruta_shm.exists() {
-                    let _ = fs::remove_file(&ruta_shm);
-                }
+            }
 
-                // Borrar la DB vieja
-                if ruta_db_real.exists() {
-                    let _ = fs::remove_file(&ruta_db_real);
-                }
-
-                // Poner la nueva en su lugar
-                match fs::rename(&ruta_pendiente, &ruta_db_real) {
-                    Ok(_) => println!("✅ Base de datos restaurada correctamente."),
-                    Err(_) => {
-                        // Plan B: Copiar y borrar si rename falla
-                        let _ = fs::copy(&ruta_pendiente, &ruta_db_real);
-                        let _ = fs::remove_file(&ruta_pendiente);
-                    }
-                }
-
-                // --- NUEVO: Verificar y optimizar la base de datos restaurada ---
-                if let Ok(temp_conn) = rusqlite::Connection::open(&ruta_db_real) {
-                    // Ejecutar VACUUM para compactar y asegurar integridad
-                    if let Err(e) = temp_conn.execute("VACUUM;", []) {
-                        eprintln!("❌ Error al ejecutar VACUUM en base restaurada: {}", e);
-                    } else {
-                        println!("✅ VACUUM completado en base restaurada");
-                    }
-                    // Verificar integridad (opcional, pero útil para depurar)
-                    let integrity: Result<String, _> =
-                        temp_conn.query_row("PRAGMA integrity_check;", [], |row| row.get(0));
-                    match integrity {
-                        Ok(msg) => println!("✅ Integridad de base restaurada: {}", msg),
-                        Err(e) => eprintln!("❌ Error en integridad de base restaurada: {}", e),
-                    }
-                } else {
-                    eprintln!("❌ No se pudo abrir la base restaurada para verificación");
+            // Detectar una restauración binaria pendiente.
+            let ruta_restore_binaria = app_dir.join("asamblea_db_restore.sqlite");
+            if ruta_restore_binaria.exists() {
+                match aplicar_restauracion_pendiente(&app_dir, nombre_db, &ruta_restore_binaria) {
+                    Ok(()) => println!("✅ BD restaurada (binaria) aplicada correctamente."),
+                    Err(error) => eprintln!("❌ Restauración binaria rechazada: {}", error),
                 }
             }
 
@@ -236,6 +253,7 @@ pub fn run() {
             commands::actualizaciones::check_for_updates,
             // DATOS (Lo nuevo)
             commands::datos::exportar_base_datos,
+            commands::datos::exportar_base_datos_base64,
             commands::datos::importar_base_datos,
             commands::datos::limpiar_datos,
             commands::datos::guardar_ruta_sync,
@@ -255,6 +273,9 @@ pub fn run() {
             encriptar::generar_llave_invisible,
             encriptar::encriptar_maletin,
             encriptar::desencriptar_maletin,
+            // 👇 NUEVOS COMANDOS BINARIOS 👇
+            encriptar::exportar_db_binaria_encriptada,
+            encriptar::importar_db_binaria_encriptada,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

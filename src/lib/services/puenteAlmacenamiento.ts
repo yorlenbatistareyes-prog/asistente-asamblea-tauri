@@ -55,11 +55,9 @@ export class PuenteAlmacenamiento {
         if (!rutaArchivoFinal) throw new Error('No hay una ruta de carpeta válida para escribir el archivo de sincronización.');
         await writeTextFile(rutaArchivoFinal, contenido);
     }
-
     static async leerArchivo(rutaOCarpeta: string): Promise<string> {
         if (await this.esAndroid()) {
-            // Ajustado a JSObject y nombre en español
-           const respuesta = await invoke<{ contenido: string }>('plugin:sincronizacion-nativo|leerArchivo', {
+            const respuesta = await invoke<{ contenido: string }>('plugin:sincronizacion-nativo|leerArchivo', {
                 uriCarpeta: rutaOCarpeta,
                 archivo: NOMBRE_ARCHIVO_SYNC
             });

@@ -5,6 +5,7 @@ import { sesionApp } from './authStore';
 import { invoke } from '@tauri-apps/api/core';
 import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
 import { obtenerOCrearLlave } from '$lib/utils/seguridad';
+import { relaunch } from '@tauri-apps/plugin-process';
 
 export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'error';
 
@@ -148,12 +149,22 @@ async function ejecutarSincronizacionCarpetaLocal() {
         syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Sincronizando carpeta...' }));
 
         const llave = await obtenerOCrearLlave();
-        const paqueteCifrado = await invoke<string>('exportar_db_encriptada_global', {
+        const paqueteCifrado = await invoke<string>('exportar_db_binaria_encriptada', {
             llaveBase64: llave
         });
 
         guardandoMetadatosInternos = true;
         await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
+
+        // 🔥 NUEVO: Matar el "eco" en el guardado automático
+        try {
+            const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
+            if (metadatos) {
+                await DbSyncHelper.actualizarFechaSincronizacion(metadatos.toISOString());
+            }
+        } catch (e) {
+            console.error("Fallo al actualizar fecha tras auto-sync:", e);
+        }
 
         setTimeout(() => {
             guardandoMetadatosInternos = false;
@@ -279,6 +290,7 @@ export async function descargarDatos() {
         syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Descargando...' }));
         
         const estadoActual = get(syncStatus);
+        let esPaqueteBinario = false;
 
         // 👉 ¿EL CONFLICTO VINO DE LA CARPETA?
         if (estadoActual.nubeDispositivo === 'Carpeta en la nube') {
@@ -288,10 +300,18 @@ export async function descargarDatos() {
             const paqueteCifrado = await PuenteAlmacenamiento.leerArchivo(rutaCarpeta);
             const llave = await obtenerOCrearLlave();
 
-            await invoke('importar_db_encriptada_global', {
-                paqueteBase64: paqueteCifrado,
-                llaveBase64: llave
-            });
+            esPaqueteBinario = paqueteCifrado.startsWith('RASSEMBLY2:');
+            if (esPaqueteBinario) {
+                await invoke('importar_db_binaria_encriptada', {
+                    paqueteBase64: paqueteCifrado,
+                    llaveBase64: llave
+                });
+            } else {
+                await invoke('importar_db_encriptada_global', {
+                    paqueteBase64: paqueteCifrado,
+                    llaveBase64: llave
+                });
+            }
 
             const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
             if (metadatos) {
@@ -310,8 +330,16 @@ export async function descargarDatos() {
         
         syncStatus.set({ estado: 'al_dia', mensaje: '¡Datos actualizados!', nubeDispositivo: '', nubeFecha: '' });
         
-        // Refrescamos la ventana para que la interfaz cargue los nuevos datos
-        setTimeout(() => window.location.reload(), 1500);
+        document.body.style.cursor = 'wait';
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // 🔥 REINICIO INTELIGENTE
+        const esAndroid = /android/i.test(navigator.userAgent);
+        if (esAndroid && !esPaqueteBinario) {
+            window.location.reload();
+        } else {
+            await relaunch();
+        }
 
     } catch (e) {
         console.error("Error al descargar los datos:", e);

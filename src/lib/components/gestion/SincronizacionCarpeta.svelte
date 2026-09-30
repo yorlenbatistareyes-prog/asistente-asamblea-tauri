@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { relaunch } from '@tauri-apps/plugin-process';
   import { FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
   import Panel from '$lib/components/ui/Panel.svelte'; 
-
   import { DB } from '$lib/services/db';
   import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
   import { obtenerOCrearLlave } from '$lib/utils/seguridad';
@@ -59,14 +59,24 @@
       
       const llave = await obtenerOCrearLlave();
 
-      const paqueteCifrado = await invoke<string>('exportar_db_encriptada_global', {
+      const paqueteCifrado = await invoke<string>('exportar_db_binaria_encriptada', {
         llaveBase64: llave
       });
 
       setCandadoSincronizacion(true);
       await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
       
-      // 🔥 QUITAMOS EL CANDADO DESPUÉS DE 2 SEGUNDOS PARA IGNORAR EL "ECO"
+      // 🔥 ESTO FALTABA: Leer la fecha recién guardada para matar el eco
+      try {
+          const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
+          if (metadatos) {
+              await DbSyncHelper.actualizarFechaSincronizacion(metadatos.toISOString());
+          }
+      } catch (e) {
+          console.error("Fallo al actualizar fecha tras escribir:", e);
+      }
+      
+      // 🔥 QUITAMOS EL CANDADO DESPUÉS DE 2 SEGUNDOS
       setTimeout(() => {
           setCandadoSincronizacion(false);
       }, 2000);
@@ -102,10 +112,17 @@
       const paqueteCifrado = await PuenteAlmacenamiento.leerArchivo(rutaCarpeta);
       const llave = await obtenerOCrearLlave();
 
-      await invoke('importar_db_encriptada_global', {
-        paqueteBase64: paqueteCifrado,
-        llaveBase64: llave
-      });
+      if (paqueteCifrado.startsWith('RASSEMBLY2:')) {
+        await invoke('importar_db_binaria_encriptada', {
+          paqueteBase64: paqueteCifrado,
+          llaveBase64: llave
+        });
+      } else {
+        await invoke('importar_db_encriptada_global', {
+          paqueteBase64: paqueteCifrado,
+          llaveBase64: llave
+        });
+      }
 
       try {
           const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
@@ -117,16 +134,19 @@
           console.error("Fallo al actualizar fecha tras importar:", e);
       }
 
-      alert("¡Base de datos restaurada correctamente desde la nube!");
-      // Forzamos recargar la ventana para reflejar todos los datos
-      window.location.reload();
+      alert("✅ Datos restaurados. La aplicación se reiniciará para aplicar los cambios.");
+      document.body.style.cursor = 'wait';
+
+      // La restauración binaria se instala al arrancar, sin emitir un evento de guardado.
+      await relaunch();
+      
     } catch (error) {
       console.error("Error al importar la sincronización:", error);
-      alert("Hubo un error al leer o restaurar el archivo de sincronización.");
+      alert(`Hubo un error al leer o restaurar el archivo de sincronización: ${error}`);
     } finally {
       guardando = false;
     }
-  }
+}
 
 </script>
 

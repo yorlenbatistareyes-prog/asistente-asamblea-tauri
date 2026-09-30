@@ -3,6 +3,7 @@ package com.rassembly.app
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.util.Base64
 import androidx.activity.result.ActivityResult
 import androidx.documentfile.provider.DocumentFile
 import app.tauri.annotation.Command
@@ -152,6 +153,26 @@ class PluginSincronizacionNativo(private val activity: Activity) : Plugin(activi
             invoke.reject("Error escribiendo el archivo de sincronización: ${e.message}")
         }
     }
+
+    @Command
+    fun guardarContenidoBase64(invoke: Invoke) {
+        try {
+            val parametros = invoke.parseArgs(ParametrosRespaldo::class.java)
+            val uri = Uri.parse(parametros.uriDestino)
+            if (uri.scheme != "content") {
+                return invoke.reject("El destino elegido no es una ubicación SAF válida")
+            }
+
+            val bytes = Base64.decode(parametros.contenidoBase64, Base64.DEFAULT)
+            activity.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
+                stream.write(bytes)
+            } ?: return invoke.reject("No se pudo abrir el destino para guardar el respaldo")
+
+            invoke.resolve()
+        } catch (e: Exception) {
+            invoke.reject("Error guardando el respaldo: ${e.message}")
+        }
+    }
 }
 
 @InvokeArg
@@ -165,4 +186,10 @@ class ParametrosEscritura {
     var uriCarpeta: String? = null
     var contenido: String? = null
     var archivo: String? = null
+}
+
+@InvokeArg
+class ParametrosRespaldo {
+    lateinit var uriDestino: String
+    lateinit var contenidoBase64: String
 }

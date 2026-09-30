@@ -1,10 +1,44 @@
 use rusqlite::Connection;
+use rusqlite::OpenFlags;
 use std::fs;
-use std::path::PathBuf;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
 pub const DB_NAME: &str = "asamblea_db_v7.sqlite";
+
+pub fn validar_archivo_db(path: &Path) -> Result<(), String> {
+    let mut file = fs::File::open(path).map_err(|e| format!("No se pudo abrir la BD: {}", e))?;
+    let mut header = [0; 16];
+    file.read_exact(&mut header)
+        .map_err(|e| format!("La BD está incompleta: {}", e))?;
+    if &header != b"SQLite format 3\0" {
+        return Err("El archivo recibido no tiene formato SQLite.".into());
+    }
+
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| format!("No se pudo abrir la BD recibida: {}", e))?;
+    let integrity: String = conn
+        .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+        .map_err(|e| format!("No se pudo verificar la BD: {}", e))?;
+    if integrity != "ok" {
+        return Err(format!("La BD recibida está dañada: {}", integrity));
+    }
+
+    let has_asambleas: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'asambleas')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("No se pudo validar el esquema de la BD: {}", e))?;
+    if !has_asambleas {
+        return Err("La BD recibida no contiene la tabla de asambleas.".into());
+    }
+
+    Ok(())
+}
 
 pub struct DbState {
     pub conn: Mutex<Connection>,

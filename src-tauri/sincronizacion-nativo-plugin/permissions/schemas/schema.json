@@ -319,6 +319,18 @@
           "markdownDescription": "Denies the escribirArchivo command without any pre-configured scope."
         },
         {
+          "description": "Enables the guardarContenidoBase64 command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-guardarContenidoBase64",
+          "markdownDescription": "Enables the guardarContenidoBase64 command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the guardarContenidoBase64 command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-guardarContenidoBase64",
+          "markdownDescription": "Denies the guardarContenidoBase64 command without any pre-configured scope."
+        },
+        {
           "description": "Enables the leerArchivo command without any pre-configured scope.",
           "type": "string",
           "const": "allow-leerArchivo",

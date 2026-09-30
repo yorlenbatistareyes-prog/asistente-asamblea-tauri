@@ -6,9 +6,13 @@
     import Panel from '$lib/components/ui/Panel.svelte';
 
     import Sincronizacion from '$lib/components/Sincronizacion.svelte';
+
+    let respaldando = false;
     
     // --- 1. RESPALDAR DATOS (Exportar) ---
     async function respaldarDatos() {
+        if (respaldando) return;
+        respaldando = true;
         try {
             const ruta = await save({
                 filters: [{ name: 'Respaldo SQLite', extensions: ['sqlite'] }],
@@ -17,10 +21,20 @@
 
             if (!ruta) return; // Usuario canceló
 
-            await invoke('exportar_base_datos', { rutaDestino: ruta });
+            if (ruta.startsWith('content://')) {
+                const contenidoBase64 = await invoke<string>('exportar_base_datos_base64');
+                await invoke('plugin:sincronizacion-nativo|guardarContenidoBase64', {
+                    uriDestino: ruta,
+                    contenidoBase64
+                });
+            } else {
+                await invoke('exportar_base_datos', { rutaDestino: ruta });
+            }
             await message('Copia de seguridad guardada con éxito.', { title: 'Éxito', kind: 'info' });
         } catch (error) {
             await message(`Error al respaldar: ${error}`, { title: 'Error', kind: 'error' });
+        } finally {
+            respaldando = false;
         }
     }
 
@@ -114,7 +128,9 @@
             <h3>Respaldar Datos</h3>
             <p>Guardar copia de seguridad en un archivo.</p>
         </div>
-        <button class="btn-data-action primary" on:click={respaldarDatos}>Respaldar</button>
+        <button class="btn-data-action primary" on:click={respaldarDatos} disabled={respaldando}>
+            {respaldando ? 'Guardando...' : 'Respaldar'}
+        </button>
     </Panel>
 
     <Panel padding="20px" clasesExtra="data-card-override">

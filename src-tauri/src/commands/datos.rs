@@ -1,7 +1,8 @@
 use crate::database::obtener_ruta_db;
 use rusqlite::{params, Connection};
+use base64::{engine::general_purpose, Engine as _};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{command, AppHandle};
 
 // Importaciones para la encriptación y JSON
@@ -16,16 +17,118 @@ use sha2::Sha256;
 
 #[command]
 pub fn exportar_base_datos(app: AppHandle, ruta_destino: String) -> Result<String, String> {
-    let ruta_db_actual = obtener_ruta_db(&app);
-    let conn = Connection::open(&ruta_db_actual).map_err(|e| e.to_string())?;
-
-    if std::path::Path::new(&ruta_destino).exists() {
-        let _ = fs::remove_file(&ruta_destino);
+    if ruta_destino.starts_with("content://") {
+        return Err("El destino Android debe guardarse mediante el selector de archivos SAF.".into());
     }
 
-    match conn.execute("VACUUM INTO ?", [ruta_destino]) {
-        Ok(_) => Ok("Respaldo completo de la base de datos creado.".to_string()),
-        Err(e) => Err(format!("Error al generar respaldo: {}", e)),
+    let bytes = crear_respaldo_db(&app)?;
+    let destino = Path::new(&ruta_destino);
+    let padre = destino.parent().filter(|path| !path.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let nombre = destino
+        .file_name()
+        .ok_or_else(|| "La ruta de destino no contiene un nombre de archivo.".to_string())?
+        .to_string_lossy();
+    let marca_tiempo = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let temporal = padre.join(format!(".{}.tmp-{}", nombre, marca_tiempo));
+    let respaldo_anterior = padre.join(format!(".{}.old-{}", nombre, marca_tiempo));
+
+    fs::write(&temporal, bytes).map_err(|e| format!("No se pudo escribir el respaldo temporal: {}", e))?;
+    if let Err(error) = crate::database::validar_archivo_db(&temporal) {
+        let _ = fs::remove_file(&temporal);
+        return Err(error);
+    }
+
+    let existia_destino = destino.exists();
+    if existia_destino {
+        fs::rename(destino, &respaldo_anterior)
+            .map_err(|e| format!("No se pudo proteger el respaldo anterior: {}", e))?;
+    }
+    if let Err(error) = fs::rename(&temporal, destino) {
+        if existia_destino {
+            let _ = fs::rename(&respaldo_anterior, destino);
+        }
+        let _ = fs::remove_file(&temporal);
+        return Err(format!("No se pudo finalizar el respaldo: {}", error));
+    }
+
+    if existia_destino {
+        let _ = fs::remove_file(respaldo_anterior);
+    }
+    Ok("Respaldo completo de la base de datos creado y verificado.".to_string())
+}
+
+#[command]
+pub fn exportar_base_datos_base64(app: AppHandle) -> Result<String, String> {
+    let bytes = crear_respaldo_db(&app)?;
+    Ok(general_purpose::STANDARD.encode(bytes))
+}
+
+fn crear_respaldo_db(app: &AppHandle) -> Result<Vec<u8>, String> {
+    let ruta_db_actual = obtener_ruta_db(app);
+    crate::database::validar_archivo_db(&ruta_db_actual)?;
+
+    let marca_tiempo = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let snapshot = ruta_db_actual.with_file_name(format!("respaldo-{}.sqlite", marca_tiempo));
+    let conn = Connection::open(&ruta_db_actual)
+        .map_err(|e| format!("No se pudo abrir la base de datos: {}", e))?;
+    conn.busy_timeout(std::time::Duration::from_secs(10))
+        .map_err(|e| format!("No se pudo preparar la base de datos: {}", e))?;
+    conn.execute("VACUUM INTO ?1", params![snapshot.to_string_lossy().to_string()])
+        .map_err(|e| format!("No se pudo crear el respaldo: {}", e))?;
+    drop(conn);
+
+    let resultado = (|| {
+        crate::database::validar_archivo_db(&snapshot)?;
+        fs::read(&snapshot).map_err(|e| format!("No se pudo leer el respaldo creado: {}", e))
+    })();
+    let _ = fs::remove_file(&snapshot);
+    resultado
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vacuum_into_crea_un_respaldo_valido_con_ruta_parametrizada() {
+        let marca_tiempo = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let carpeta = std::env::temp_dir();
+        let origen = carpeta.join(format!("rassembly-origen-{}.sqlite", marca_tiempo));
+        let destino = carpeta.join(format!("rassembly-respaldo-{}.sqlite", marca_tiempo));
+
+        let conexion = Connection::open(&origen).unwrap();
+        conexion
+            .execute("CREATE TABLE asambleas (id INTEGER PRIMARY KEY)", [])
+            .unwrap();
+        conexion
+            .execute("INSERT INTO asambleas (id) VALUES (1)", [])
+            .unwrap();
+        conexion
+            .execute(
+                "VACUUM INTO ?1",
+                params![destino.to_string_lossy().to_string()],
+            )
+            .unwrap();
+        drop(conexion);
+
+        crate::database::validar_archivo_db(&destino).unwrap();
+        let conexion_respaldo = Connection::open(&destino).unwrap();
+        let asambleas: i64 = conexion_respaldo
+            .query_row("SELECT COUNT(*) FROM asambleas", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(asambleas, 1);
+
+        let _ = fs::remove_file(origen);
+        let _ = fs::remove_file(destino);
     }
 }
 

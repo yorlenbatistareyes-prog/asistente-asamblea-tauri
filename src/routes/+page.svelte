@@ -127,11 +127,23 @@
     return `${formatear(inicio)} - ${formatear(fin)}`;
   }
 
-  onMount(() => { 
+    onMount(() => { 
       cargarTodo(); 
       cargarNombreUsuario();
       fotoUsuario = localStorage.getItem('fotoPerfil') || "";
       iniciarReloj(); 
+
+      // 🔄 Escuchar cambios en la BD (importaciones, sync desde nube, etc.)
+      const handleDbChange = () => {
+          console.log("🔔 [PAGE] Cambio en BD detectado, recargando datos...");
+          cargarTodo();
+          cargarNombreUsuario();
+      };
+      window.addEventListener('db_local_cambiada', handleDbChange);
+
+      return () => {
+          window.removeEventListener('db_local_cambiada', handleDbChange);
+      };
   });
   
   $: if ($vistaActual === 'inicio') { cargarTodo(); }

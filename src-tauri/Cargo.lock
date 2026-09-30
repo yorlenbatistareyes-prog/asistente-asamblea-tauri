@@ -3221,7 +3221,7 @@ dependencies = [
 
 [[package]]
 name = "rassembly"
-version = "1.0.11"
+version = "1.0.14"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

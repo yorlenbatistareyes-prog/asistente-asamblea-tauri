@@ -22,7 +22,7 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
-    version: "1.0.11",
+    version: "1.0.14",
     fecha: "28 de Septiembre, 2026",
     mensaje: "¡Hemos mejorado la sincronización!",
     cambios: [

@@ -11,6 +11,7 @@
     "sincronizacion-nativo:allow-escribirArchivo",
     "sincronizacion-nativo:allow-leerArchivo",
     "sincronizacion-nativo:allow-validarCarpeta",
+    "sincronizacion-nativo:allow-guardarContenidoBase64",
     "shell:default",
     "opener:default",
     "opener:allow-open-path",
