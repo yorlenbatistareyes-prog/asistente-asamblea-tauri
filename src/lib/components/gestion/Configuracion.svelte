@@ -2,57 +2,35 @@
   import { createEventDispatcher } from 'svelte';
   import { getVersion } from '@tauri-apps/api/app';
   import { onMount } from 'svelte';
-  import Datos from '$lib/components/gestion/Datos.svelte';
-
-  import ActualizacionApp from './ActualizacionApp.svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { message } from '@tauri-apps/plugin-dialog'; // 🔥 Agregado para notificaciones nativas
+
+  // --- STORES Y SERVICIOS ---
   import { DB } from '$lib/services/db';
   import { cargarDatosGlobales } from '$lib/stores/appStore';
 
-  import SincronizacionCarpeta from '$lib/components/gestion/SincronizacionCarpeta.svelte';
-  
   // --- COMPONENTES HIJOS ---
+  import Datos from '$lib/components/gestion/Datos.svelte';
+  import ActualizacionApp from './ActualizacionApp.svelte';
+  import SincronizacionCarpeta from '$lib/components/gestion/SincronizacionCarpeta.svelte';
   import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
   import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
   import SeccionAyuda from './secciones/SeccionAyuda.svelte';
   import PlantillasCartas from './secciones/PlantillasCartas.svelte';
- 
-  // --- ICONOS (Corregido: Agregados X, ChevronUp, ChevronDown) ---
+  import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
+  import Panel from '$lib/components/ui/Panel.svelte';
+
+  // --- ICONOS ---
   import { 
     DownloadCloud, ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
     ChevronUp, ChevronDown, X, Info, ShieldCheck, Activity, FileText, 
   } from 'lucide-svelte';
-
-  import Panel from '$lib/components/ui/Panel.svelte';
-
-  import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
-
-  import { verificarActualizacion, irA_Descarga, type UpdateResult } from '$lib/services/updater';
-  
-  let buscandoUpdate = false;
-  let updateInfo: UpdateResult | null = null;
-
-  async function buscarActualizaciones() {
-    buscandoUpdate = true;
-    const resultado = await verificarActualizacion();
-    updateInfo = resultado;
-    buscandoUpdate = false;
-    
-    if (resultado.error) {
-      alert(`❌ No se pudo buscar actualizaciones.\nMotivo: ${resultado.mensajeError}`);
-      return;
-    }
-    if (!resultado.hayNueva) {
-      alert("✅ ¡Estás al día! Tienes la última versión instalada.");
-    }
-  }
 
   const dispatch = createEventDispatcher();
   let configSeccion = 'general'; 
   
   // ESTADO: ¿Hay un editor abierto en pantalla completa en alguno de los hijos?
   let editorAbierto = false; 
-
   let versionReal = "";
 
   function cerrar() { dispatch('close'); }
@@ -81,47 +59,51 @@
   let mostrarModalUsuario = false;
   let usuarioEditando = { ...usuario }; 
   
-  
-  function guardarCambiosConfig() { alert("Configuración guardada"); }
-  function abrirModalUsuario() { usuarioEditando = { ...usuario }; mostrarModalUsuario = true; }
-  
- async function guardarUsuario() {
-  try {
-    // Obtener la configuración actual para conservar tema e idioma
-    const configActual = await invoke('obtener_configuracion_general') as any;
-
-    // Construir el objeto con todos los campos del formulario
-    const datosConfig = {
-      nombre: usuarioEditando.nombre || null,
-      segundo_nombre: usuarioEditando.segundoNombre || null,
-      apellido: usuarioEditando.apellido || null,
-      sufijo: usuarioEditando.sufijo || null,
-      email: usuarioEditando.email || null,
-      email_jwpub: usuarioEditando.emailJw || null,
-      movil: usuarioEditando.movil || null,
-      identificador: usuarioEditando.id || null,
-      fecha_creacion: usuarioEditando.fechaCreacion || null,
-      tema: configActual.tema,
-      idioma: configActual.idioma,
-    };
-
-    // 🔥 USAMOS EL EMBUDO PARA GUARDAR Y AVISAR AL RADAR
-    await DB.guardarConfiguracionGeneral(datosConfig);
-
-    // Actualizar la variable local del usuario
-    usuario = { ...usuarioEditando };
-    mostrarModalUsuario = false;
-
-    // Actualizar el store global para que la barra de estado refleje el cambio
-    await cargarDatosGlobales();
-
-  } catch (e) {
-    alert('Error al guardar usuario: ' + e);
+  // 🔥 Reemplazo de alert() por message() nativo
+  async function guardarCambiosConfig() { 
+      await message("Configuración guardada correctamente.", { title: 'Éxito', kind: 'info' }); 
   }
-}
+  
+  function abrirModalUsuario() { 
+      usuarioEditando = { ...usuario }; 
+      mostrarModalUsuario = true; 
+  }
+  
+  async function guardarUsuario() {
+    try {
+      const configActual = await invoke('obtener_configuracion_general') as any;
 
-onMount(async () => {
-      // 1. Cargar la versión de la app
+      const datosConfig = {
+        nombre: usuarioEditando.nombre || null,
+        segundo_nombre: usuarioEditando.segundoNombre || null,
+        apellido: usuarioEditando.apellido || null,
+        sufijo: usuarioEditando.sufijo || null,
+        email: usuarioEditando.email || null,
+        email_jwpub: usuarioEditando.emailJw || null,
+        movil: usuarioEditando.movil || null,
+        identificador: usuarioEditando.id || null,
+        fecha_creacion: usuarioEditando.fechaCreacion || null,
+        tema: configActual.tema,
+        idioma: configActual.idioma,
+      };
+
+      await DB.guardarConfiguracionGeneral(datosConfig);
+
+      usuario = { ...usuarioEditando };
+      mostrarModalUsuario = false;
+
+      await cargarDatosGlobales();
+      
+      // Opcional: Avisar que se guardó bien
+      await message("Datos de usuario actualizados.", { title: 'Guardado', kind: 'info' });
+
+    } catch (e) {
+      // 🔥 Reemplazo de alert() por message() nativo
+      await message(`Error al guardar usuario:\n${e}`, { title: 'Error', kind: 'error' });
+    }
+  }
+
+  onMount(async () => {
       try {
           versionReal = await getVersion();
       } catch (e) {
@@ -129,7 +111,6 @@ onMount(async () => {
           versionReal = "Desconocida";
       }
 
-      // 2. Cargar los datos reales del usuario desde la base de datos
       try {
           const configDB = await invoke('obtener_configuracion_general') as any;
           if (configDB) {
@@ -149,7 +130,6 @@ onMount(async () => {
           console.error("Error al cargar la información del usuario:", e);
       }
   });
-  
 </script>
 
 <div class="config-layout">
@@ -161,10 +141,10 @@ onMount(async () => {
         
         <nav class="config-tabs">
             <button class:active={configSeccion === 'general'} on:click={() => configSeccion = 'general'}>General</button>
+            <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}>Datos</button>
             <button class:active={configSeccion === 'cartas'} on:click={() => configSeccion = 'cartas'}>Plantillas de cartas</button>
             <button class:active={configSeccion === 'correos'} on:click={() => configSeccion = 'correos'}>Plantillas de correo</button>
             <button class:active={configSeccion === 'whatsapp'} on:click={() => configSeccion = 'whatsapp'}>Plantillas de WhatsApp</button>
-            <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}>Datos</button>
             <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}>Ayuda</button>
             <button class:active={configSeccion === 'actualizaciones'} on:click={() => configSeccion = 'actualizaciones'}>Acerca de</button>
         </nav>
@@ -194,20 +174,7 @@ onMount(async () => {
                 
                 <MembreteConfig />
 
-            {:else if configSeccion === 'whatsapp'}
-                <div class="config-grid" class:full-width={editorAbierto}>
-                    <div class="col-main">
-                        <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
-                    </div>                  
-                </div>
-
-            {:else if configSeccion === 'cartas'}
-                <PlantillasCartas on:cambioModo={manejarCambioModo} />
-                  
-            {:else if configSeccion === 'correos'}
-                <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
-            
-            {:else if configSeccion === 'datos'}
+                {:else if configSeccion === 'datos'}
                 <div style="display: flex; flex-direction: column; gap: 30px; padding-bottom: 20px;">
                   
                   <div class="info-card-metodos">
@@ -234,6 +201,19 @@ onMount(async () => {
                   <SincronizacionCarpeta />
                     <Datos />
                 </div>
+
+            {:else if configSeccion === 'whatsapp'}
+                <div class="config-grid" class:full-width={editorAbierto}>
+                    <div class="col-main">
+                        <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
+                    </div>                  
+                </div>
+
+            {:else if configSeccion === 'cartas'}
+                <PlantillasCartas on:cambioModo={manejarCambioModo} />
+                  
+            {:else if configSeccion === 'correos'}
+                <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
 
             {:else if configSeccion === 'ayuda'} 
               <SeccionAyuda />

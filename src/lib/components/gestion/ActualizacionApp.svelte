@@ -6,7 +6,7 @@
     import { verificarActualizacion, irA_Descarga, type UpdateResult } from '$lib/services/updater';
     
     // 👇 Importamos el creador de carteles nativos de Tauri
-    import { ask } from '@tauri-apps/plugin-dialog';
+    import { ask, message } from '@tauri-apps/plugin-dialog';
 
     let versionReal = "";
     let buscandoUpdate = false;
@@ -49,11 +49,11 @@
         } else if (!silencioso) {
             // Solo mostramos estos errores si el usuario pulsó el botón manualmente
             if (resultado.error) {
-                alert(`❌ No se pudo buscar actualizaciones.\nMotivo: ${resultado.mensajeError}`);
+                await message(`No se pudo buscar actualizaciones.\nMotivo: ${resultado.mensajeError}`, { title: 'Error de conexión', kind: 'error' });
                 return;
             }
             if (!resultado.hayNueva) {
-                alert("✅ ¡Estás al día! Tienes la última versión instalada.");
+                await message("¡Estás al día! Tienes la última versión instalada en este momento.", { title: 'Software Actualizado', kind: 'info' });
             }
         }
     }
