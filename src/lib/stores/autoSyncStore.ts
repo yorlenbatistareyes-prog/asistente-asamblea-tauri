@@ -11,10 +11,12 @@ export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 
 
 // 🔒 CANDADO ANTI-ECO: Evita que la sync reaccione a sus propios guardados
 export let guardandoMetadatosInternos = false;
+let operacionesConCandado = 0;
 
 // 🔥 FUNCIÓN PARA PODER CAMBIAR EL CANDADO DESDE OTROS ARCHIVOS
 export function setCandadoSincronizacion(estado: boolean) {
-    guardandoMetadatosInternos = estado;
+    operacionesConCandado = Math.max(0, operacionesConCandado + (estado ? 1 : -1));
+    guardandoMetadatosInternos = operacionesConCandado > 0;
 }
 
 // --- STORE DETALLADA ---
@@ -106,14 +108,14 @@ async function ejecutarProcesoDeSincronizacion() {
         await SyncService.subirRespaldo(backupJson, nuevaFechaISO, dispositivo);
 
         // 👇 🔒 ACTIVAMOS EL CANDADO ANTES DE GUARDAR
-        guardandoMetadatosInternos = true;
+        setCandadoSincronizacion(true);
 
         // 4. ÉXITO (Guardamos marca en SQLite local vía Rust)
         await DbSyncHelper.actualizarFechaSincronizacion(nuevaFechaISO);
 
         // 👇 🔓 APAGAMOS EL CANDADO (Damos 2 segundos para que el evento pase ignorado)
         setTimeout(() => {
-            guardandoMetadatosInternos = false;
+            setCandadoSincronizacion(false);
         }, 2000);
 
         syncStatus.set({
@@ -142,6 +144,8 @@ async function ejecutarProcesoDeSincronizacion() {
  * 📁 Respaldo automático cifrado en la carpeta local de Google Drive / OneDrive
  */
 async function ejecutarSincronizacionCarpetaLocal() {
+    let candadoActivo = false;
+
     try {
         const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
         if (!rutaCarpeta) return; 
@@ -153,7 +157,8 @@ async function ejecutarSincronizacionCarpetaLocal() {
             llaveBase64: llave
         });
 
-        guardandoMetadatosInternos = true;
+        setCandadoSincronizacion(true);
+        candadoActivo = true;
         await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
 
         // 🔥 NUEVO: Matar el "eco" en el guardado automático
@@ -167,8 +172,9 @@ async function ejecutarSincronizacionCarpetaLocal() {
         }
 
         setTimeout(() => {
-            guardandoMetadatosInternos = false;
+            setCandadoSincronizacion(false);
         }, 2000);
+        candadoActivo = false;
 
         syncStatus.set({
             estado: 'al_dia',
@@ -183,10 +189,12 @@ async function ejecutarSincronizacionCarpetaLocal() {
 
     } catch (error) {
         console.error("❌ [CarpetaSync] Error al sincronizar en la carpeta local:", error);
+        if (candadoActivo) setCandadoSincronizacion(false);
+        const detalle = error instanceof Error ? error.message : String(error);
         syncStatus.update(s => ({ 
             ...s, 
             estado: 'error', 
-            mensaje: 'Error en carpeta local' 
+            mensaje: `Error en carpeta local: ${detalle}`
         }));
     }
 }
@@ -290,6 +298,7 @@ export async function descargarDatos() {
         syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Descargando...' }));
         
         const estadoActual = get(syncStatus);
+        const esAndroid = /android/i.test(navigator.userAgent);
         let esPaqueteBinario = false;
 
         // 👉 ¿EL CONFLICTO VINO DE LA CARPETA?
@@ -306,6 +315,10 @@ export async function descargarDatos() {
                     paqueteBase64: paqueteCifrado,
                     llaveBase64: llave
                 });
+
+                if (esAndroid) {
+                    await invoke('aplicar_restauracion_binaria_pendiente');
+                }
             } else {
                 await invoke('importar_db_encriptada_global', {
                     paqueteBase64: paqueteCifrado,
@@ -334,8 +347,7 @@ export async function descargarDatos() {
         await new Promise(resolve => setTimeout(resolve, 1500));
         
         // 🔥 REINICIO INTELIGENTE
-        const esAndroid = /android/i.test(navigator.userAgent);
-        if (esAndroid && !esPaqueteBinario) {
+        if (esAndroid) {
             window.location.reload();
         } else {
             await relaunch();

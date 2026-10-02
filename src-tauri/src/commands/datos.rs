@@ -527,3 +527,47 @@ pub fn importar_asamblea_encriptada(
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[command]
+pub fn importar_base_datos_base64(app: AppHandle, contenido_base64: String) -> Result<String, String> {
+    let ruta_db_actual = obtener_ruta_db(&app);
+    // 1. Archivo temporal: Nunca tocamos la DB real hasta estar seguros de que el respaldo sirve
+    let ruta_temporal = ruta_db_actual.with_file_name("temp_restaurar.sqlite");
+
+    // 2. Decodifica el Base64 a bytes reales
+    let bytes = general_purpose::STANDARD.decode(contenido_base64)
+        .map_err(|e| format!("Error decodificando base64: {}", e))?;
+
+    // 3. Escribe los bytes en el archivo temporal
+    fs::write(&ruta_temporal, bytes)
+        .map_err(|e| format!("Error al guardar el archivo temporal: {}", e))?;
+
+    // 4. VALIDACIÓN PROFESIONAL: Comprobar que es un archivo SQLite válido usando tu propia función
+    if let Err(e) = crate::database::validar_archivo_db(&ruta_temporal) {
+        let _ = fs::remove_file(&ruta_temporal); // Limpiar basura si el archivo era falso/corrupto
+        return Err(format!("El archivo de respaldo está corrupto o no es válido: {}", e));
+    }
+
+    // 5. Preparar la DB actual cerrando transacciones en memoria
+    if let Ok(conn) = Connection::open(&ruta_db_actual) {
+        let _ = conn.execute("PRAGMA wal_checkpoint(TRUNCATE);", []);
+        let _ = conn.execute("PRAGMA journal_mode=DELETE;", []);
+    } // Al salir de este bloque, Rust cierra la conexión.
+
+    // 6. REEMPLAZO EN CALIENTE (HOT-SWAP)
+    match fs::rename(&ruta_temporal, &ruta_db_actual) {
+        Ok(_) => {
+            // Destruir memoria caché antigua (archivos fantasma) para obligar a leer los datos frescos
+            let ruta_wal = format!("{}-wal", ruta_db_actual.display());
+            let ruta_shm = format!("{}-shm", ruta_db_actual.display());
+            let _ = fs::remove_file(ruta_wal);
+            let _ = fs::remove_file(ruta_shm);
+            
+            Ok("Datos restaurados correctamente.".to_string())
+        },
+        Err(e) => {
+            let _ = fs::remove_file(&ruta_temporal);
+            Err(format!("Error crítico al sobrescribir la base de datos: {}", e))
+        }
+    }
+}

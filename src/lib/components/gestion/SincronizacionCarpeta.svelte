@@ -48,6 +48,7 @@
   // 🔄 FUNCIÓN DEFINITIVA DE SINCRONIZACIÓN GLOBAL ENCRIPTADA
   async function sincronizarAhora() {
     if (!rutaCarpeta) return;
+    let candadoActivo = false;
     try {
       guardando = true;
       
@@ -64,6 +65,7 @@
       });
 
       setCandadoSincronizacion(true);
+      candadoActivo = true;
       await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
       
       // 🔥 ESTO FALTABA: Leer la fecha recién guardada para matar el eco
@@ -80,6 +82,7 @@
       setTimeout(() => {
           setCandadoSincronizacion(false);
       }, 2000);
+      candadoActivo = false;
 
       console.log("📦 Archivo cifrado guardado correctamente.");
       
@@ -93,8 +96,10 @@
 
     } catch (error) {
       console.error("Error al sincronizar y guardar:", error);
+      if (candadoActivo) setCandadoSincronizacion(false);
+      const detalle = error instanceof Error ? error.message : String(error);
       
-      syncStatus.set({ estado: 'error', mensaje: 'Error al guardar', nubeDispositivo: '', nubeFecha: '' });
+      syncStatus.set({ estado: 'error', mensaje: `Error al guardar: ${detalle}`, nubeDispositivo: '', nubeFecha: '' });
       setTimeout(() => {
           syncStatus.set({ estado: 'inactivo', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
       }, 4000);

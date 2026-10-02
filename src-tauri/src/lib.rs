@@ -27,7 +27,7 @@ use crate::database::DbState;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
-use tauri::Manager; // Necesario para mover archivos
+use tauri::{Manager, State}; // Necesario para mover archivos
 
 fn aplicar_restauracion_pendiente(
     app_dir: &Path,
@@ -78,6 +78,95 @@ fn aplicar_restauracion_pendiente(
         println!("Copia previa conservada en {}", ruta_respaldo.display());
     }
     Ok(())
+}
+
+#[tauri::command]
+fn aplicar_restauracion_binaria_pendiente(
+    app: tauri::AppHandle,
+    db_state: State<'_, DbState>,
+) -> Result<(), String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let ruta_db = app_dir.join(database::DB_NAME);
+    let ruta_pendiente = app_dir.join("asamblea_db_restore.sqlite");
+
+    if !ruta_pendiente.exists() {
+        return Err("No hay una restauración binaria pendiente.".into());
+    }
+    database::validar_archivo_db(&ruta_pendiente)?;
+
+    let marca_tiempo = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_nanos();
+    let ruta_respaldo = app_dir.join(format!(
+        "{}.runtime-rollback-{}",
+        database::DB_NAME,
+        marca_tiempo
+    ));
+
+    let mut conexion = db_state
+        .conn
+        .lock()
+        .map_err(|e| format!("No se pudo bloquear la base de datos: {}", e))?;
+    let conexion_temporal = rusqlite::Connection::open_in_memory()
+        .map_err(|e| format!("No se pudo preparar la conexión: {}", e))?;
+    let conexion_anterior = std::mem::replace(&mut *conexion, conexion_temporal);
+    if let Err((conexion_anterior, error)) = conexion_anterior.close() {
+        *conexion = conexion_anterior;
+        return Err(format!("No se pudo cerrar la base de datos actual: {}", error));
+    }
+
+    if ruta_db.exists() {
+        if let Err(error) = fs::copy(&ruta_db, &ruta_respaldo) {
+            let reapertura = database::initialize_database(&app)
+                .map_err(|e| format!("No se pudo reabrir la base de datos: {}", e));
+            if let Ok(reapertura) = reapertura {
+                *conexion = reapertura;
+            }
+            return Err(format!("No se pudo proteger la base de datos actual: {}", error));
+        }
+    }
+
+    if let Err(error) = aplicar_restauracion_pendiente(
+        &app_dir,
+        database::DB_NAME,
+        &ruta_pendiente,
+    ) {
+        if ruta_respaldo.exists() {
+            fs::copy(&ruta_respaldo, &ruta_db)
+                .map_err(|e| format!("{} Además, falló la recuperación de la base anterior: {}", error, e))?;
+        }
+        let reapertura = database::initialize_database(&app)
+            .map_err(|e| format!("{} No se pudo reabrir la base anterior: {}", error, e))?;
+        *conexion = reapertura;
+        return Err(error);
+    }
+
+    match database::initialize_database(&app) {
+        Ok(conexion_restaurada) => {
+            *conexion = conexion_restaurada;
+            let _ = fs::remove_file(&ruta_respaldo);
+            Ok(())
+        }
+        Err(error) => {
+            if ruta_respaldo.exists() {
+                fs::copy(&ruta_respaldo, &ruta_db).map_err(|e| {
+                    format!(
+                        "No se pudo abrir la base restaurada ({}) ni recuperar la anterior: {}",
+                        error, e
+                    )
+                })?;
+            }
+            for sufijo in ["-wal", "-shm"] {
+                let ruta_auxiliar = app_dir.join(format!("{}{}", database::DB_NAME, sufijo));
+                let _ = fs::remove_file(ruta_auxiliar);
+            }
+            let conexion_anterior = database::initialize_database(&app)
+                .map_err(|e| format!("No se pudo reabrir la base anterior: {}", e))?;
+            *conexion = conexion_anterior;
+            Err(format!("No se pudo abrir la base restaurada: {}", error))
+        }
+    }
 }
 
 // ==========================================
@@ -255,6 +344,7 @@ pub fn run() {
             commands::datos::exportar_base_datos,
             commands::datos::exportar_base_datos_base64,
             commands::datos::importar_base_datos,
+            commands::datos::importar_base_datos_base64,
             commands::datos::limpiar_datos,
             commands::datos::guardar_ruta_sync,
             commands::datos::obtener_ruta_sync,
@@ -276,6 +366,7 @@ pub fn run() {
             // 👇 NUEVOS COMANDOS BINARIOS 👇
             encriptar::exportar_db_binaria_encriptada,
             encriptar::importar_db_binaria_encriptada,
+            aplicar_restauracion_binaria_pendiente,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

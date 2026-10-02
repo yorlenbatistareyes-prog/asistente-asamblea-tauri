@@ -6,7 +6,8 @@
     import Panel from '$lib/components/ui/Panel.svelte';
 
     import Sincronizacion from '$lib/components/Sincronizacion.svelte';
-
+    import { readFile } from '@tauri-apps/plugin-fs';
+    
     let respaldando = false;
     
     // --- 1. RESPALDAR DATOS (Exportar) ---
@@ -55,20 +56,60 @@
             });
 
             if (!ruta) return;
-               await invoke('importar_base_datos', { rutaOrigen: ruta });
-               await message('Datos restaurados correctamente. La aplicación se reiniciará ahora.', { title: 'Éxito' });
-               localStorage.clear();
 
-               // Opcional: Cambiar el cursor a "esperando"
-               document.body.style.cursor = 'wait';
+            // 🔥 NUEVA LÓGICA PARA LEER ARCHIVOS EN ANDROID VS PC
+            if (ruta.startsWith('content://')) {
+                // 1. Leemos los bytes del archivo directamente con Tauri
+                const bytes = await readFile(ruta);
+                
+                // 2. Convertimos a Base64 de forma segura para no saturar la memoria
+                const contenidoBase64 = await new Promise<string>((resolve, reject) => {
+                    const blob = new Blob([bytes]);
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        if (typeof reader.result === 'string') {
+                            resolve(reader.result.split(',')[1]); // Quitamos el encabezado "data:..."
+                        } else {
+                            reject(new Error("No se pudo procesar el archivo."));
+                        }
+                    };
+                    reader.onerror = () => reject(new Error("Error de lectura nativa."));
+                    reader.readAsDataURL(blob);
+                });
 
-               // Esperamos 5 segundos (es seguro) para que Rust cierre bien la conexión
-               await new Promise(resolve => setTimeout(resolve, 5000));
+                // 3. Enviamos el texto en Base64 a Rust
+                await invoke('importar_base_datos_base64', { contenidoBase64 });
+            } else {
+                await invoke('importar_base_datos', { rutaOrigen: ruta });
+            }
 
-               await relaunch(); // Reinicia la app
+            // Mensaje de éxito y limpieza
+            await message('Datos restaurados correctamente. La aplicación se reiniciará ahora.', { title: 'Éxito' });
+            localStorage.clear();
+
+            // Opcional: Cambiar el cursor a "esperando"
+            document.body.style.cursor = 'wait';
+
+            // Esperamos 5 segundos (es seguro) para que Rust cierre bien la conexión
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            // 🔥 REINICIO INTELIGENTE SEGÚN LA PLATAFORMA
+            const esAndroid = /android/i.test(navigator.userAgent);
+            if (esAndroid) {
+                window.location.reload(); // En móviles recargamos la interfaz
+            } else {
+                await relaunch(); // En PC reiniciamos el proceso completo
+            }
 
         } catch (error) {
-            await message(`Error al restaurar: ${error}`, { title: 'Error', kind: 'error' });
+            // Extractor de errores reales
+            let detalle = error;
+            if (error instanceof Error) {
+                detalle = error.message;
+            } else if (typeof error === 'object') {
+                detalle = JSON.stringify(error, null, 2);
+            }
+            await message(`Error detallado:\n${detalle}`, { title: 'Error', kind: 'error' });
         }
     }
 
