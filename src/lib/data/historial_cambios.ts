@@ -22,6 +22,16 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
+    version: "1.0.20'",
+    fecha: "02 de octubre, 2026",
+    mensaje: "¡Hemos mejorado la restauración de datos!",
+    cambios: [
+      { tipo: "🛠️", texto: "corregido logotipo de la aplicación en móviles" },
+      
+    ]
+  },
+
+{
     version: "1.0.18",
     fecha: "01 de octubre, 2026",
     mensaje: "¡Hemos mejorado la restauración de datos!",
