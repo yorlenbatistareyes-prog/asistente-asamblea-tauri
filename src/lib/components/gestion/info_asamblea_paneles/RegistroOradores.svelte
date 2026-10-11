@@ -4,7 +4,8 @@
   import { DB } from '$lib/services/db';
   
   import { MessageSquare } from 'lucide-svelte';
-  import { Phone, MessageCircle, Mail } from 'lucide-svelte';
+  import { Phone, MessageCircle, Mail, FileText, FileCheck } from 'lucide-svelte';
+  import PdfIcon from '$lib/components/ui/PdfIcon.svelte';
   import { generarContexto } from '$lib/utils/contexto_impresion';
   import { prepararContenidoEmail, prepararAsuntoEmail } from '$lib/utils/contextoEmail';
   import { obtenerPlantillaPorId, cargarPlantillasEmail } from '$lib/utils/plantillasEmail';
@@ -638,13 +639,17 @@ async function generarPDFPlano() {
 
     <div class="controles-vista">
 
-      <button class="btn-email-masivo" on:click={enviarEmailMasivo} title="Enviar correo a todos los oradores">
-        <Mail size={16} style="margin-right: 6px;"/> Email a todos los oradores
+      <button class="btn-email-masivo" on:click={enviarEmailMasivo} title="Enviar correo a todos los oradores" aria-label="Enviar correo a todos los oradores">
+        <Mail size={16}/> <span>Email a todos los oradores</span>
       </button>
 
-      <button class="btn-pdf" on:click={generarPDFPlano}>Generar PDF</button>
+      <button class="btn-pdf" on:click={generarPDFPlano} title="Generar PDF" aria-label="Generar PDF">
+        <PdfIcon /> <span>Generar PDF</span>
+      </button>
       
-      <button class="btn-pdf-outline" on:click={generarPDFRellenable}>Generar PDF rellenable</button>
+      <button class="btn-pdf-outline" on:click={generarPDFRellenable} title="Generar PDF rellenable" aria-label="Generar PDF rellenable">
+        <FileCheck size={18}/> <span>Generar PDF rellenable</span>
+      </button>
     </div>
   </div>
 
@@ -764,45 +769,52 @@ async function generarPDFPlano() {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 0px 0px 0 0px;
+  padding: 18px 24px 0;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-.top-fijo { flex-shrink: 0; margin-bottom: 10px; }
+.top-fijo { flex-shrink: 0; margin-bottom: 18px; padding-bottom: 14px; }
 .header-vista h1 { font-size: 20px; font-weight: 700; color: var(--text-main); margin: 0 0 2px 0; }
 .subtitle { font-size: 14px; color: var(--text-sec); margin: 0; }
 
-.controles-vista { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
+.controles-vista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 24px;
+  align-items: center;
+}
 
 /* BOTONES */
 .btn-email-masivo {
-  background-color: var(--accent-danger);
+  background-color: #f97316;
   color: #ffffff;
   border: none;
-  padding: 8px 16px;
+  padding: 10px 18px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
+  gap: 6px;
   transition: background 0.2s;
 }
-.btn-email-masivo:hover { background-color: var(--accent-danger-hover); }
+.btn-email-masivo:hover { background-color: #ea580c; }
 
-.btn-pdf { background-color: var(--primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
-.btn-pdf:hover { background-color: var(--primary-hover); }
+.btn-pdf { background-color: #701c35; color: #ffffff; border: none; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-pdf:hover { background-color: #571629; }
 
 .btn-pdf-outline { 
-  background-color: transparent; color: var(--primary); 
-  border: 2px solid var(--primary); padding: 6px 16px; border-radius: 6px; 
-  font-size: 14px; font-weight: 600; cursor: pointer; 
+  background-color: #b42332; color: #ffffff; 
+  border: 1px solid #b42332; padding: 9px 18px; border-radius: 6px; 
+  font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
-.btn-pdf-outline:hover { background-color: rgba(0, 120, 212, 0.1); }
+.btn-pdf-outline:hover { background-color: #951b28; border-color: #951b28; }
 
 /* TABLA Y GRID */
-.contenido-programa { flex: 1; overflow-y: auto; padding-right: 15px; padding-bottom: 40px; }
+.contenido-programa { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 40px; }
 .dia-header {
   position: sticky; top: 0;
   background-color: var(--bg-card);
@@ -881,12 +893,67 @@ async function generarPDFPlano() {
 
 /* RESPONSIVO */
 @media (max-width: 768px) {
-  .vista-programa-container { padding: 15px; }
-  .controles-vista { flex-direction: column; align-items: stretch; }
+  .vista-programa-container { padding: 16px 16px 0; }
+  .top-fijo { margin-bottom: 16px; padding-bottom: 14px; }
+  .header-vista h1 { font-size: 18px; }
+  .subtitle { font-size: 12px; }
+  .controles-vista {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .controles-vista button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 4px;
+    font-size: 12px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .controles-vista button span { display: none; }
   .tabla-encabezado { display: none; }
-  .fila-registro { grid-template-columns: 1fr; gap: 12px; padding: 15px; }
-  .fila-registro > div:nth-child(5)::before { content: "VIERNES: "; font-weight: 700; color: var(--text-sec); }
-  .fila-registro > div:nth-child(6)::before { content: "DÍA DE: "; font-weight: 700; color: var(--text-sec); }
-  .fila-registro > div:nth-child(7)::before { content: "30 MIN: "; font-weight: 700; color: var(--text-sec); }
+  .fila-registro {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 8px;
+    padding: 12px;
+  }
+  .fila-registro > div:nth-child(-n+4) { grid-column: 1 / -1; }
+  .fila-registro > .td-check,
+  .fila-registro > .td-check30 {
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 3px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-body);
+    text-align: center;
+  }
+  .fila-registro > div:nth-child(5)::before {
+    content: "Viernes";
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-sec);
+  }
+  .fila-registro > div:nth-child(6)::before {
+    content: "Día de";
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-sec);
+  }
+  .fila-registro > div:nth-child(7)::before {
+    content: "30 min";
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-sec);
+  }
+  .td-check30 { flex-wrap: wrap; }
+  .tiempo-30m { font-size: 10px; }
+  .caja-check { width: 20px; height: 20px; }
 }
 </style>

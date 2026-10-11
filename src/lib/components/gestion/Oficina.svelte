@@ -2,16 +2,14 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl } from '@tauri-apps/plugin-opener';
-  import { open } from '@tauri-apps/plugin-dialog'; // Para abrir el explorador
-  import { readFile } from '@tauri-apps/plugin-fs'; // Para leer el archivo
 
   import RegistroOradores from '$lib/components/gestion/info_asamblea_paneles/RegistroOradores.svelte';
 
   // Iconos
   import { 
     Users, Search, X, Trash2, Phone, Mail, UserPlus, UserCheck, 
-    Settings, ChevronRight, MessageCircle, ClipboardList, Printer,
-    Briefcase, Calendar, Clock, Edit2, Download, FileUp, User
+    ChevronRight, MessageCircle, ClipboardList,
+    Briefcase, Calendar, Clock, Edit2, FileUp, User
   } from 'lucide-svelte';
 
   import { exportarOficinaPDF } from '$lib/utils/exportar';
@@ -24,11 +22,14 @@
 
   import { DB } from '$lib/services/db';
 
-  // --- IMPORTACIONES PARA EL PANEL DEL PRESIDENTE ---
-  import { get } from 'svelte/store';
-  import { configPDF } from '$lib/stores/pdfConfigStore';
-  import { generarPlantillaPresidenteDia } from '$lib/utils/plantillasPDF/plantillaPresidente';
-  import { generarYGuardarPdfMake } from '$lib/utils/generadorPDF';
+  function portalToBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
 
   // --- ESTADO ---
   let asambleaId = 0; 
@@ -41,19 +42,6 @@
   };
 
   let presidenteOficina: any = null; // 👈 Para guardar los datos del presidente
-
-  let coloresSeries = new Map<string, string>();
-
-async function cargarColoresSeries() {
-    if (!asambleaId) return;
-    try {
-        const mapa = await DB.cargarColoresSeries(asambleaId);
-        coloresSeries = mapa;
-        console.log("📥 Colores de series cargados para Oficina:", Array.from(coloresSeries.entries()));
-    } catch (e) {
-        console.error("Error cargando colores de series:", e);
-    }
-}
 
   let listaHermanos: any[] = []; 
   let terminoBusqueda = "";
@@ -92,11 +80,6 @@ async function cargarColoresSeries() {
         await cargarPlantillasEmail();
         await cargarPlantillasWhatsApp();
 
-        // 👇 CARGAR CONFIGURACIÓN DESDE LA BASE DE DATOS AL INICIAR 👇
-        const configGuardada = await DB.obtenerConfiguracionPDF();
-        if (configGuardada) {
-            configPDF.set(configGuardada);
-        }
 // 👇 NUEVO: Cargar al Presidente de esta asamblea 👇
         const asambleaActual: any = await DB.obtenerAsambleaPorId(asambleaId); // 👈 Añadido ": any" aquí
         if (asambleaActual && asambleaActual.presidente) {
@@ -107,8 +90,6 @@ async function cargarColoresSeries() {
             } catch (e) { console.error("Error al cargar presidente", e); }
         }
 
-        await cargarColoresSeries();
-        
         await Promise.all([ cargarDatos(), cargarHermanos() ]);
     }
   });
@@ -426,87 +407,6 @@ async function cargarColoresSeries() {
       }
   }
 
-async function manejarExportacionPresidente() {
-        if (!asambleaId) return alert("⚠️ No hay asamblea seleccionada.");
-        
-        try {
-            const asamblea = JSON.parse(localStorage.getItem('asambleaActiva') || '{}');
-            const config = get(configPDF);
-            const dias = ['Viernes', 'Sábado', 'Domingo'];
-
-            let exportados = 0;
-
-            // Ahora iteramos y generamos un documento NUEVO por cada día
-            for (const dia of dias) {
-                const res = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
-                
-                if (res && res.length > 0) {
-                    // Llamamos a la plantilla pasándole solo 1 día
-                   const docDef = generarPlantillaPresidenteDia(res, asamblea, config, dia, coloresSeries);
-                    
-                    // Guarda el documento con el nombre del día
-                    await generarYGuardarPdfMake(docDef, `Tablero_Presidente_${dia}_${asamblea.identificador || '000'}`);
-                    exportados++;
-                }
-            }
-            
-            if (exportados > 0) {
-                console.log(`Se exportaron ${exportados} documentos independientes exitosamente.`);
-            }
-
-        } catch (error) {
-            console.error("Error al generar PDF del Presidente:", error);
-            alert("Error al generar el PDF: " + error);
-        }
-    }
-
-  // 1. FUNCIÓN DE GUARDADO (La que me preguntaste)
-    async function manejarCambioConfiguracion() {
-        await DB.guardarConfiguracionPDF($configPDF);
-        console.log("Configuración guardada en la base de datos");
-    }
-
-    async function seleccionarImagen() {
-    try {
-      // 1. Abrir el explorador de archivos nativo
-      const seleccion = await open({
-        multiple: false,
-        filters: [{
-          name: 'Imagen',
-          extensions: ['png', 'jpg', 'jpeg', 'webp']
-        }]
-      });
-
-      if (seleccion && typeof seleccion === 'string') {
-        // 2. Leer el archivo como bytes
-        const contenido = await readFile(seleccion);
-        
-        // 3. Convertir bytes a Base64 para guardarlo en el Store/DB
-        const base64 = btoa(
-          new Uint8Array(contenido)
-            .reduce((data, byte) => data + String.fromCharCode(byte), '')
-        );
-        
-        const prefijo = `data:image/${seleccion.split('.').pop()};base64,`;
-        
-        // 4. Guardar en el store y en la DB
-        $configPDF.ajustesTablero.imagenEncabezado = prefijo + base64;
-        await manejarCambioConfiguracion();
-        
-        alert("✅ Imagen de encabezado cargada correctamente");
-      }
-    } catch (error) {
-      console.error("Error al cargar imagen:", error);
-      alert("❌ No se pudo cargar la imagen");
-    }
-  }
-
-  async function eliminarImagen() {
-    if (confirm("¿Deseas eliminar la imagen del encabezado?")) {
-      $configPDF.ajustesTablero.imagenEncabezado = null;
-      await manejarCambioConfiguracion();
-    }
-  }
 </script>
 
 <div class="contenedor-oficina">
@@ -738,109 +638,6 @@ async function manejarExportacionPresidente() {
                     </div>
                 {/if}
             </div>
-            
-
-            <div class="panel-configuracion-pdf">
-                
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border);">
-                    <div>
-                        <h3 style="margin: 0 0 5px 0; padding: 0; border: none;"><Settings size={18} /> Dimensiones y Encabezado del Tablero</h3>
-                        <p style="margin: 0; font-size: 13px; color: var(--text-sec);">Configure las especificaciones del tablero de la asamblea para la oficina de la presidencia.</p>
-                    </div>
-                    
-                    <button class="btn-primary" on:click={manejarExportacionPresidente}>
-                        <Printer size={16}/> Generar PDFs por día
-                    </button>
-                </div>
-                
-                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);">
-                    <div style="display: flex; gap: 12px;">
-                        <button class="btn-outline" on:click={seleccionarImagen}>
-                           <FileUp size={16} /> 
-                           {$configPDF.ajustesTablero.imagenEncabezado ? 'Cambiar imagen' : 'Agregar imagen de encabezado'}
-                        </button>
-
-                        {#if $configPDF.ajustesTablero.imagenEncabezado}
-                            <button class="btn-outline" on:click={eliminarImagen} style="border-color: var(--accent-danger); color: var(--accent-danger);">
-                                <Trash2 size={16} /> Eliminar imagen
-                            </button>
-                        {/if}
-                    </div>
-
-                    {#if $configPDF.ajustesTablero.imagenEncabezado}
-                        <div style="width: 200px; height: 60px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: #eee;">
-                            <img src={$configPDF.ajustesTablero.imagenEncabezado} alt="Preview" style="width: 100%; height: 100%; object-fit: cover;" />
-                        </div>
-                    {/if}
-                </div>
-                
-                <div class="config-grid">
-                    <div class="config-item">
-                        <label>Ancho (pulgadas)</label>
-                        <input type="number" step="0.1" bind:value={$configPDF.ajustesTablero.anchoPulgadas} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
-                    </div>
-
-                    <div class="config-item">
-                        <label>Alto (pulgadas)</label>
-                        <input type="number" step="0.1" bind:value={$configPDF.ajustesTablero.altoPulgadas} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
-                    </div>
-
-                    <div class="config-item">
-                        <label>Desplazamiento X</label>
-                        <input type="number" step="1" bind:value={$configPDF.ajustesTablero.desplazamientoX} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
-                    </div>
-
-                    <div class="config-item">
-                        <label>Desplazamiento Y</label>
-                        <input type="number" step="1" bind:value={$configPDF.ajustesTablero.desplazamientoY} on:change={manejarCambioConfiguracion} style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-body); color: var(--text-main);" />
-                    </div>
-
-                    <div class="config-item" style="grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; margin: 10px 0;">
-                        <input 
-                            type="checkbox" 
-                            id="checkAMPM" 
-                            bind:checked={$configPDF.mostrarAMPM} 
-                            on:change={manejarCambioConfiguracion} 
-                            style="-webkit-appearance: checkbox !important; appearance: checkbox !important; width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; display: inline-block; margin: 0;" 
-                        />
-                        <label for="checkAMPM" style="cursor: pointer; text-transform: none; font-size: 15px; font-weight: 600; color: var(--text-main); user-select: none;">
-                            Mostrar AM/PM en los horarios
-                        </label>
-                    </div>
-
-                    <div class="config-item color-picker-item">
-                        <label>Color Canción / Oración</label>
-                        <div class="input-color-wrapper">
-                            <input type="color" bind:value={$configPDF.ajustesTablero.colorCancionOracion} on:change={manejarCambioConfiguracion} />
-                            <span>{$configPDF.ajustesTablero.colorCancionOracion}</span>
-                        </div>
-                    </div>
-
-                    <div class="config-item color-picker-item">
-                        <label>Color Bloque Viernes</label>
-                        <div class="input-color-wrapper">
-                            <input type="color" bind:value={$configPDF.coloresPorDia.viernes} on:change={manejarCambioConfiguracion} />
-                            <span>{$configPDF.coloresPorDia.viernes}</span>
-                        </div>
-                    </div>
-
-                    <div class="config-item color-picker-item">
-                        <label>Color Bloque Sábado</label>
-                        <div class="input-color-wrapper">
-                            <input type="color" bind:value={$configPDF.coloresPorDia.sabado} on:change={manejarCambioConfiguracion} />
-                            <span>{$configPDF.coloresPorDia.sabado}</span>
-                        </div>
-                    </div>
-
-                    <div class="config-item color-picker-item">
-                        <label>Color Bloque Domingo</label>
-                        <div class="input-color-wrapper">
-                            <input type="color" bind:value={$configPDF.coloresPorDia.domingo} on:change={manejarCambioConfiguracion} />
-                            <span>{$configPDF.coloresPorDia.domingo}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     {/if}
 
@@ -854,7 +651,7 @@ async function manejarExportacionPresidente() {
 
 
 {#if mostrarModalAsignar}
-  <div class="modal-backdrop" on:click|self={cerrarModales}>
+  <div class="modal-backdrop" use:portalToBody on:click|self={cerrarModales}>
     <div class="modal modal-auxiliares">
       <div class="modal-header">
         <h3>
@@ -920,7 +717,7 @@ async function manejarExportacionPresidente() {
 {/if}
 
 {#if mostrarModalBloqueAsignacion}
-  <div class="modal-backdrop" on:click|self={cerrarModales}>
+  <div class="modal-backdrop" use:portalToBody on:click|self={cerrarModales}>
     <div class="modal modal-bloque">
       <div class="modal-header">
         <h3><Calendar size={20}/> Configurar Horario</h3>
@@ -1005,6 +802,7 @@ async function manejarExportacionPresidente() {
   gap: 20px;
   border-bottom: 2px solid var(--border);
   margin-bottom: 10px;
+  min-width: 0;
 }
 .tabs-navegacion button {
   background: none;
@@ -1639,6 +1437,26 @@ async function manejarExportacionPresidente() {
   .contenedor-oficina {
     padding: 20px;
   }
+  .tabs-navegacion {
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    gap: 12px;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs-navegacion::-webkit-scrollbar {
+    display: none;
+  }
+  .tabs-navegacion button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
   .header-seccion {
     flex-direction: column;
     gap: 15px;
@@ -1651,8 +1469,37 @@ async function manejarExportacionPresidente() {
   }
   .modal-auxiliares,
   .modal-bloque {
-    width: 95vw;
-    max-width: 95vw;
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    min-height: 0;
+  }
+  .modal-auxiliares {
+    overflow: hidden !important;
+  }
+  .modal-bloque {
+    overflow: hidden !important;
+  }
+  .modal-auxiliares > .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-bloque > .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-auxiliares > .modal-header,
+  .modal-bloque > .modal-header,
+  .modal-bloque > .modal-footer,
+  .modal-auxiliares > .modal-footer {
+    flex-shrink: 0;
   }
   .grid-checkboxes {
     grid-template-columns: 1fr;

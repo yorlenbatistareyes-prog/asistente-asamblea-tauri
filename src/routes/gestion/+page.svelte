@@ -33,6 +33,45 @@
   let asambleaActual: any = {};
   let mostrarMenuMas = false; // Controla el dropdown "Más"
 
+  function portalMenuMas(node: HTMLElement) {
+      document.body.appendChild(node);
+
+      const posicionarMenu = () => {
+          const boton = document.querySelector<HTMLElement>('.btn-mas');
+          if (!boton) return;
+
+          const rect = boton.getBoundingClientRect();
+          const ancho = node.offsetWidth;
+          const alto = node.offsetHeight;
+          const margen = 8;
+          const espacioAbajo = window.innerHeight - rect.bottom - margen;
+          const espacioArriba = rect.top - margen;
+          const abrirArriba = alto > espacioAbajo && espacioArriba > espacioAbajo;
+          const top = abrirArriba
+              ? Math.max(margen, rect.top - alto - 4)
+              : Math.min(rect.bottom + 4, window.innerHeight - alto - margen);
+          const left = Math.max(margen, Math.min(rect.right - ancho, window.innerWidth - ancho - margen));
+
+          node.style.position = 'fixed';
+          node.style.top = `${top}px`;
+          node.style.left = `${left}px`;
+          node.style.right = 'auto';
+          node.style.transform = 'none';
+      };
+
+      posicionarMenu();
+      window.addEventListener('resize', posicionarMenu);
+      window.addEventListener('scroll', posicionarMenu, true);
+
+      return {
+          destroy() {
+              window.removeEventListener('resize', posicionarMenu);
+              window.removeEventListener('scroll', posicionarMenu, true);
+              node.remove();
+          }
+      };
+  }
+
   $: if ($vistaActual && $vistaActual !== seccionActiva) {
       seccionActiva = $vistaActual;
   }
@@ -144,7 +183,7 @@
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'programa'} on:click={() => cambiarSeccion('programa')}>
-              <span class="txt-tab">Programa</span>
+              <span class="txt-tab">Programa/Discursos</span>
           </button>
 
           <button class="tab-btn" class:activo={seccionActiva === 'ensayos'} on:click={() => cambiarSeccion('ensayos')}>
@@ -161,7 +200,7 @@
               </button>
 
               {#if mostrarMenuMas}
-                  <div class="dropdown-mas" role="menu" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
+                  <div class="dropdown-mas" use:portalMenuMas role="menu" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
                       <button class="dropdown-item" class:activo={seccionActiva === 'congregaciones'} on:click={() => cambiarSeccion('congregaciones')}>
                           Congregaciones
                       </button>
@@ -212,7 +251,9 @@
       display: flex; 
       flex-direction: column; /* Cambiamos a columna para el nav superior */
       height: 100vh; 
+      height: 100dvh;
       width: 100vw;
+      min-height: 0;
       background-color: var(--bg-body); 
       color: var(--text-main);          
   }
@@ -310,16 +351,16 @@
   }
 
  .dropdown-mas {
-      position: absolute; /* 👈 Vuelve a ser absolute */
-      top: 60px;
-      right: 0;           /* 👈 Se alinea con el borde derecho del botón */
-      left: auto;         /* 👈 Quitamos el centrado */
-      transform: none;    /* 👈 Quitamos el centrado */
+      position: fixed;
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
       min-width: 200px;
+      max-width: calc(100vw - 16px);
+      max-height: calc(100dvh - 16px);
+      overflow-y: auto;
+      box-sizing: border-box;
       padding: 8px;
       display: flex;
       flex-direction: column;
@@ -386,6 +427,7 @@
      ======================================================== */
   .contenido { 
       flex: 1; 
+      min-height: 0;
       display: flex; 
       flex-direction: column; 
       background-color: var(--bg-body); 
@@ -394,8 +436,10 @@
   
   .area-trabajo { 
       padding: 0; /* Quité el padding global para que los componentes lo manejen a su gusto (ej. Comite.svelte ya tiene sus márgenes) */
-      flex: 1; 
+      flex: 1 1 0%; 
+      min-height: 0;
       overflow-y: auto; 
+      -webkit-overflow-scrolling: touch;
   }
 
 /* =========================================================
@@ -415,15 +459,6 @@
       }
       .nav-centro::-webkit-scrollbar { display: none; }
 
-      .dropdown-mas {
-          /* 👇 En móviles lo centramos fijo para que el scroll no lo corte */
-          position: fixed; 
-          top: 60px;
-          left: 50%;
-          right: auto;
-          transform: translateX(-50%);
-      }
-      
       .nav-der { width: auto; }
       .txt-salir { display: none; } 
       .btn-salir { padding: 8px; }

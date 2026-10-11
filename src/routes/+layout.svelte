@@ -14,6 +14,7 @@
   import { ask } from '@tauri-apps/plugin-dialog';
   import { verificarActualizacion, irA_Descarga } from '$lib/services/updater';
   import Cronometro from '$lib/components/ui/Cronometro.svelte'; 
+  import { monitorFlotanteVisible } from '$lib/stores/monitorStore';
 
   import NotasVersionModal from '$lib/components/ui/NotasVersionModal.svelte';
   import { historialCambios } from '$lib/data/historial_cambios';
@@ -33,6 +34,8 @@
 
   let versionApp = "";
   let temaActual = 'sistema';
+  let posicionMonitor: { left: number; top: number } | null = null;
+  let arrastreMonitor: { pointerId: number; offsetX: number; offsetY: number; width: number; height: number } | null = null;
 
   let esModoMonitor = false;
 
@@ -183,6 +186,40 @@
       // Te volverá a avisar solo si cierras y vuelves a abrir la app.
   }
 
+  function iniciarArrastreMonitor(event: PointerEvent) {
+      if (!(event.target instanceof Element) || !event.target.closest('.monitor-header')) return;
+      if (event.target.closest('button')) return;
+
+      const contenedor = event.currentTarget as HTMLElement;
+      const rect = contenedor.getBoundingClientRect();
+      arrastreMonitor = {
+          pointerId: event.pointerId,
+          offsetX: event.clientX - rect.left,
+          offsetY: event.clientY - rect.top,
+          width: rect.width,
+          height: rect.height
+      };
+      posicionMonitor = { left: rect.left, top: rect.top };
+      contenedor.setPointerCapture(event.pointerId);
+  }
+
+  function moverMonitor(event: PointerEvent) {
+      if (!arrastreMonitor || arrastreMonitor.pointerId !== event.pointerId) return;
+      const left = Math.min(
+          Math.max(0, event.clientX - arrastreMonitor.offsetX),
+          Math.max(0, window.innerWidth - arrastreMonitor.width)
+      );
+      const top = Math.min(
+          Math.max(0, event.clientY - arrastreMonitor.offsetY),
+          Math.max(0, window.innerHeight - arrastreMonitor.height)
+      );
+      posicionMonitor = { left, top };
+  }
+
+  function terminarArrastreMonitor(event: PointerEvent) {
+      if (arrastreMonitor?.pointerId === event.pointerId) arrastreMonitor = null;
+  }
+
 </script>
 
 {#if esModoMonitor}
@@ -280,6 +317,22 @@
 
         <Cronometro />
 
+        {#if $monitorFlotanteVisible}
+          <div
+              class="monitor-flotante-movil"
+              role="region"
+              aria-label="Monitor en vivo flotante"
+              class:posicionado={posicionMonitor !== null}
+              style={posicionMonitor ? `left: ${posicionMonitor.left}px; top: ${posicionMonitor.top}px;` : ''}
+              on:pointerdown={iniciarArrastreMonitor}
+              on:pointermove={moverMonitor}
+              on:pointerup={terminarArrastreMonitor}
+              on:pointercancel={terminarArrastreMonitor}
+          >
+              <Resumen modoMonitorFlotante={true} />
+          </div>
+        {/if}
+
     </div>
 {/if}
 
@@ -297,6 +350,34 @@
   /* LAYOUT */
   .app-layout { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
   .main-content { flex: 1; overflow-y: auto; padding-bottom: 40px; position: relative; z-index: 1; }
+  .monitor-flotante-movil {
+      position: fixed;
+      z-index: 200;
+      right: 10px;
+      bottom: calc(42px + env(safe-area-inset-bottom, 0px));
+      width: min(360px, calc(100vw - 20px));
+      max-height: min(55vh, 440px);
+      overflow: auto;
+      overscroll-behavior: contain;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+      touch-action: pan-y;
+  }
+  .monitor-flotante-movil.posicionado { right: auto; bottom: auto; }
+  .monitor-flotante-movil :global(.monitor-header) { touch-action: none; cursor: grab; position: sticky; top: 0; z-index: 1; }
+  .monitor-flotante-movil :global(.dashboard-container) {
+      height: auto;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      gap: 0;
+      overflow: visible;
+  }
+  .monitor-flotante-movil :global(.monitor-tab-layout) {
+      max-width: none;
+      margin: 0;
+      gap: 0;
+  }
 
  /* HEADER */
  .top-header { 

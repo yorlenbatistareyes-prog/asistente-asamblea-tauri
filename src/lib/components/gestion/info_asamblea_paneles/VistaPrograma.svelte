@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { FileUp } from 'lucide-svelte';
+  import PdfIcon from '$lib/components/ui/PdfIcon.svelte';
 
   // --- IMPORTACIONES PARA PDF ---
   import { save } from '@tauri-apps/plugin-dialog';
@@ -295,7 +295,9 @@ async function generarPDFPrograma() {
         <option value="domingo">Domingo</option>
       </select>
 
-      <button class="btn-pdf" on:click={generarPDFPrograma}>Generar PDF</button>
+      <button class="btn-pdf" on:click={generarPDFPrograma} aria-label="Generar PDF">
+        <PdfIcon /> <span>Generar PDF</span>
+      </button>
     </div>
   </div>
   <div class="contenido-programa">
@@ -378,11 +380,12 @@ async function generarPDFPrograma() {
   }
   .select-dias:focus { border-color: var(--primary); }
   .btn-pdf { 
-    background-color: var(--primary); color: #ffffff; border: none; 
+    background-color: #701c35; color: #ffffff; border: none; 
     padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; 
-    cursor: pointer; transition: background 0.2s; 
+    cursor: pointer; transition: background 0.2s; display: inline-flex;
+    align-items: center; justify-content: center; gap: 8px;
   }
-  .btn-pdf:hover { background-color: var(--primary-hover); }
+  .btn-pdf:hover { background-color: #571629; }
 
   /* =======================================
      LA LISTA CON SCROLL INDEPENDIENTE

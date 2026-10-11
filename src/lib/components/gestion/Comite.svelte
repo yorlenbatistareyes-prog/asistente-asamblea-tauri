@@ -24,6 +24,15 @@
   import { obtenerPlantillaWhatsAppPorId, cargarPlantillasWhatsApp } from '$lib/utils/plantillasWhatsApp';
   import { prepararContenidoWhatsApp } from '$lib/utils/contextoWhatsApp';
 
+  function portalToBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
+
   // --- ESTADO DE GUARDADO ---
   let estadoGuardado: 'idle' | 'guardando' | 'guardado' | 'error' = 'idle';
 
@@ -606,7 +615,7 @@ async function abrirWhatsApp(hermano: any) {
 </div> 
 
 {#if mostrarModal}
-<div class="modal-backdrop" on:click|self={() => mostrarModal = false}>
+<div class="modal-backdrop" use:portalToBody on:click|self={() => mostrarModal = false}>
   <div class="modal-creacion">
     <div class="modal-header">
         <h3>Agregar miembro - {definicionRoles[rolEditando]?.label || 'Miembro'}</h3>
@@ -1333,6 +1342,25 @@ async function abrirWhatsApp(hermano: any) {
 
 /* Responsive */
 @media (max-width: 768px) {
+  .modal-creacion {
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    overflow: hidden !important;
+  }
+  .modal-creacion > .modal-header,
+  .modal-creacion > .footer-modal {
+    flex-shrink: 0;
+  }
+  .modal-creacion > .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .header {
     flex-direction: column;
     align-items: stretch;

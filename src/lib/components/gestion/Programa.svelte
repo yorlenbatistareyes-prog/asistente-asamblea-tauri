@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { pushState } from '$app/navigation';
   import { open as openDialog } from '@tauri-apps/plugin-dialog';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { slide } from 'svelte/transition';
@@ -10,6 +11,7 @@
   import { generarContexto } from '$lib/utils/contexto_impresion';
   import { generarCartaPDF } from '$lib/utils/impresion';
   import { exportarProgramaPDF } from '$lib/utils/exportar';
+  import PdfIcon from '$lib/components/ui/PdfIcon.svelte';
   
   import { 
     UnfoldVertical, FoldVertical, Users, Video, Mic, Search, X, Plus, Trash2, FileUp, 
@@ -25,6 +27,15 @@
   import { oradoresPendientes } from '$lib/stores/gestion';
   import Panel from '$lib/components/ui/Panel.svelte';
   import { DB } from '$lib/services/db';
+
+  function portalToBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
   
   // ==================== ESTADO PRINCIPAL ====================
   let asambleaId = 0; 
@@ -672,6 +683,53 @@ async function cargarColoresSeriesBD() {
   let mostrarModalEliminar = false;
   let idParteAEliminar: number | null = null;
 
+  let hayCapaProgramaAbierta = false;
+  let entradaAtrasProgramaActiva = false;
+  let ignorarProximoPopstate = false;
+
+  $: {
+    const hayCapaAbierta =
+      mostrarModalAsignar ||
+      mostrarModalCrear ||
+      mostrarModalLimpiar ||
+      mostrarModalEliminar ||
+      mostrarPanelFiltros ||
+      partes.some(parte => parte._expanded);
+    hayCapaProgramaAbierta = hayCapaAbierta;
+
+    if (hayCapaAbierta && !entradaAtrasProgramaActiva) {
+      pushState(window.location.href, { programaOverlay: true });
+      entradaAtrasProgramaActiva = true;
+    } else if (!hayCapaAbierta && entradaAtrasProgramaActiva) {
+      entradaAtrasProgramaActiva = false;
+      ignorarProximoPopstate = true;
+      window.history.back();
+    }
+  }
+
+  function manejarAtrasPrograma() {
+    if (ignorarProximoPopstate) {
+      ignorarProximoPopstate = false;
+      return;
+    }
+    if (!hayCapaProgramaAbierta) return;
+
+    entradaAtrasProgramaActiva = false;
+
+    if (mostrarModalAsignar || mostrarModalCrear) {
+      cerrarModales();
+    } else if (mostrarModalEliminar) {
+      mostrarModalEliminar = false;
+      idParteAEliminar = null;
+    } else if (mostrarModalLimpiar) {
+      mostrarModalLimpiar = false;
+    } else if (mostrarPanelFiltros) {
+      mostrarPanelFiltros = false;
+    } else {
+      partes = partes.map(parte => ({ ...parte, _expanded: false }));
+    }
+  }
+
   async function confirmarEliminarParte() {
     if (!idParteAEliminar) return;
     mostrarModalEliminar = false;
@@ -810,6 +868,7 @@ async function cargarColoresSeriesBD() {
 
   // ==================== onMount ====================
 onMount(async () => {
+  window.addEventListener('popstate', manejarAtrasPrograma);
   const diasGuardados = localStorage.getItem('memoriaDias');
   if (diasGuardados) {
     diasSeleccionados = JSON.parse(diasGuardados);
@@ -832,6 +891,7 @@ onMount(async () => {
 
   onDestroy(() => {
     window.removeEventListener('click', handleClickOutside);
+    window.removeEventListener('popstate', manejarAtrasPrograma);
   });
 </script>
 
@@ -905,25 +965,25 @@ onMount(async () => {
   
   <div class="acciones-header">
 
-     <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV">
+     <button class="btn-header-csv" on:click={importarPrograma} title="Importar programa desde archivo CSV" aria-label="Importar programa desde archivo CSV">
       <FileSpreadsheet size={18}/> <span>Importar desde CSV</span>
     </button>
     
-    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Añadir nueva parte al programa">
+    <button class="btn-primary" on:click={() => mostrarModalCrear = true} title="Añadir nueva parte al programa" aria-label="Añadir parte">
       <Plus size={18}/> <span>Añadir parte</span>
     </button>
    
 
-    <button class="btn-header-pdf" title="Exportar lista de discursos a PDF" on:click={handleExportarPrograma}>
-      <FileUp size={18}/> <span>Generar PDF</span>
+    <button class="btn-header-pdf" title="Exportar lista de discursos a PDF" aria-label="Generar PDF" on:click={handleExportarPrograma}>
+      <PdfIcon /> <span>Generar PDF</span>
     </button>
 
-    <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día">
+    <button class="btn-header-delete" on:click={() => mostrarModalLimpiar = true} title="Borrar todo el programa del día" aria-label="Limpiar toda la lista">
       <Trash2 size={18}/> <span>Limpiar toda la lista</span>
     </button>
 
     <div class="selector-dia-container email-masivo-container">
-      <button class="btn-header-orange" on:click|stopPropagation={() => {mostrarMenuEmailTodos = !mostrarMenuEmailTodos; mostrarSelectorDia = false; mostrarSelectorOrdenar = false;}}>
+      <button class="btn-header-orange" title="Email a todos" aria-label="Email a todos" on:click|stopPropagation={() => {mostrarMenuEmailTodos = !mostrarMenuEmailTodos; mostrarSelectorDia = false; mostrarSelectorOrdenar = false;}}>
         <Mail size={18}/> <span>Email a todos</span>
       </button>
       
@@ -972,7 +1032,7 @@ onMount(async () => {
       {/if}
     </div>
 
-    <button class="btn-expandir-todos" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
+    <button class="btn-expandir-todos" on:click={toggleExpandirTodas} title={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"} aria-label={todasExpandidas ? "Contraer todas las tarjetas" : "Expandir todas las tarjetas"}>
       {#if todasExpandidas}
         <FoldVertical size={18}/> <span>Contraer</span>
       {:else}
@@ -1356,10 +1416,10 @@ onMount(async () => {
 
 <!-- ========== MODALES ========== -->
 {#if mostrarModalCrear}
-  <div class="modal-backdrop" role="button" tabindex="0" 
+  <div class="modal-backdrop" use:portalToBody role="button" tabindex="0" 
        on:click|self={cerrarModales} 
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
-    <div class="modal">
+    <div class="modal modal-nueva-parte">
       <div class="modal-header">
         <h3>Nueva Parte</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
@@ -1543,6 +1603,8 @@ onMount(async () => {
             </div>
           {/if}
         {/if}
+      </div>
+      <div class="modal-footer">
         <button class="btn-guardar" on:click={guardarNuevaParte}>Guardar Parte</button>
       </div>
     </div>
@@ -1550,10 +1612,10 @@ onMount(async () => {
 {/if}
 
 {#if mostrarModalAsignar && parteEditando}
-  <div class="modal-backdrop" role="button" tabindex="0" 
+  <div class="modal-backdrop" use:portalToBody role="button" tabindex="0" 
        on:click|self={cerrarModales} 
        on:keydown={(e) => e.key === 'Escape' && cerrarModales()}>
-    <div class="modal">
+    <div class="modal modal-editar-parte">
       <div class="modal-header">
         <h3>Editar Parte</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
@@ -1757,21 +1819,22 @@ onMount(async () => {
               </div>
           {/if}
 
-          <div style="display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--border); padding-top: 15px;">
-            <button 
-              class="btn-guardar" 
-              style="margin-top: 0;"
-              on:click={() => actualizarDetallesParte(parteEditando.id)}
-            >
-              Guardar Cambios
-            </button>
-            <small style="font-size: 10.5px; color: var(--text-secondary); font-style: italic; text-align: center; margin-top: 4px;">
-              * Estos datos se guardan independientemente de quién sea el orador asignado arriba.
-            </small>
-          </div>
-
         {/if}
       </div>
+      {#if parteEditando}
+        <div class="modal-footer modal-footer-editar">
+          <button
+            class="btn-guardar"
+            style="margin-top: 0;"
+            on:click={() => actualizarDetallesParte(parteEditando.id)}
+          >
+            Guardar Cambios
+          </button>
+          <small>
+            * Estos datos se guardan independientemente de quién sea el orador asignado arriba.
+          </small>
+        </div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -2107,7 +2170,7 @@ onMount(async () => {
   background: rgba(239, 68, 68, 0.1);
 }
 .btn-header-pdf {
-  background: #dc2626;
+  background: #701c35;
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
@@ -2121,7 +2184,7 @@ onMount(async () => {
   transition: all 0.2s;
 }
 .btn-header-pdf:hover {
-  background: #b91c1c;
+  background: #571629;
   transform: translateY(-1px);
 }
 .btn-primary {
@@ -2956,37 +3019,83 @@ onMount(async () => {
 /* --- RESPONSIVE (MÓVILES Y TABLETS) --- */
 @media (max-width: 768px) {
   .header-sesion {
-    flex-direction: column;
     align-items: stretch;
-    padding: 15px;
-    gap: 12px;
+    padding: 8px 10px;
+    gap: 8px;
   }
   .header-sesion-left {
-    flex-direction: column;
-    align-items: stretch;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     width: 100%;
+    gap: 6px;
   }
-  .header-sesion-left button span,
-  .acciones-header button span {
+  .header-sesion-left::-webkit-scrollbar,
+  .acciones-header::-webkit-scrollbar {
+    display: none;
+  }
+  .header-sesion-left h2 {
+    flex: 0 0 auto;
+    font-size: 16px;
+  }
+  .header-sesion-left > .selector-dia-container,
+  .header-sesion-left > .btn-header-filtros {
+    flex: 0 0 auto;
+    width: auto !important;
+  }
+  .header-sesion-left .btn-selector-dia,
+  .header-sesion-left .btn-header-filtros {
+    width: auto !important;
+    min-width: 0 !important;
+    height: 40px;
+    justify-content: center;
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+  .header-sesion-left .btn-selector-dia > div {
+    gap: 5px !important;
+  }
+  .header-sesion-left .btn-selector-dia span,
+  .header-sesion-left .btn-header-filtros span {
     display: inline !important;
   }
-  .selector-dia-container,
-  .btn-selector-dia {
-    width: 100% !important;
-    min-width: 100% !important;
-    height: 48px;
-  }
   .acciones-header {
-    flex-direction: column;
-    gap: 10px;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+    margin-top: 0;
+    padding: 1px 0 3px;
   }
   .acciones-header button,
-  .btn-header-filtros,
   .btn-expandir-todos {
-    width: 100%;
-    height: 48px;
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    height: 40px;
     justify-content: center;
     margin: 0 !important;
+    padding: 7px !important;
+    white-space: nowrap;
+  }
+  .acciones-header button span {
+    display: none !important;
+  }
+  .email-masivo-container {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+  }
+  .acciones-header .btn-expandir-todos {
+    margin-left: 0 !important;
   }
   .dropdown-dias {
     position: fixed;
@@ -3041,8 +3150,67 @@ onMount(async () => {
   .modal,
   .modal-filtros,
   .modal-confirm {
-    width: 95vw !important;
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    max-height: calc(100dvh - 32px) !important;
     padding: 0;
+  }
+  .modal-backdrop {
+    inset: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    padding:
+      calc(16px + env(safe-area-inset-top, 0px))
+      calc(16px + env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(16px + env(safe-area-inset-left, 0px)) !important;
+    align-items: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal,
+  .modal-filtros,
+  .modal-confirm {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .modal-backdrop > .modal {
+    overflow-y: hidden !important;
+  }
+  .modal-nueva-parte,
+  .modal-editar-parte {
+    height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: none !important;
+  }
+  .modal-footer-editar {
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 16px;
+  }
+  .modal-footer-editar small {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .modal-header,
+  .modal-footer,
+  .modal-footer-filtros {
+    flex-shrink: 0;
+  }
+  .modal-body,
+  .modal-body-filtros {
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-nueva-parte > .modal-body,
+  .modal-editar-parte > .modal-body {
+    flex: 1 1 0;
+    overscroll-behavior: contain;
   }
   .modal-body .fila {
     flex-direction: column;
@@ -3066,7 +3234,6 @@ onMount(async () => {
 }
 
 @media (max-width: 850px) {
-  .header-sesion-left button span,
   .acciones-header button span {
     display: none;
   }
@@ -3079,11 +3246,19 @@ onMount(async () => {
 
 @media (max-width: 900px) {
   .layout-programa {
+    height: auto;
+    min-height: 100%;
     overflow: visible;
-    padding-bottom: 20px;
+    padding-bottom: 12px;
+  }
+  :global(.panel-discursos-override) {
+    flex: initial !important;
+    min-height: 0;
+    overflow: visible !important;
   }
   .lista-partes {
     overflow: visible;
+    flex: initial;
   }
 }
 

@@ -6,7 +6,7 @@
   import { appStore, vistaActual } from '$lib/stores/appStore';
   import Configuracion from '$lib/components/gestion/Configuracion.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
-  import { MapPin, Plus, Calendar, Trash2, Lectern, X, Globe, Search, User, Upload, Clock } from 'lucide-svelte';
+  import { MapPin, Plus, Calendar, Trash2, Lectern, X, Globe, Search, User, Upload, Clock, SlidersHorizontal } from 'lucide-svelte';
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
   import { invoke } from '@tauri-apps/api/core';
   
@@ -31,6 +31,8 @@
 
   // ESTADOS DE BÚSQUEDA Y FILTRO
   let terminoBusqueda = "";
+  let mostrarBusquedaMovil = false;
+  let mostrarFiltrosMovil = false;
   let filtroCategoria = "todas"; 
   let ordenamiento = "inteligente";
 
@@ -413,6 +415,76 @@ $: asambleasFiltradas = listaAsambleas
                 </select>
             </div>
     </div>
+
+        <div class="controles-moviles" aria-label="Buscar, filtrar y ordenar asambleas">
+            <button
+                class="control-movil-btn"
+                class:seleccionado={mostrarBusquedaMovil || terminoBusqueda.length > 0}
+                aria-expanded={mostrarBusquedaMovil}
+                on:click={() => {
+                    mostrarBusquedaMovil = !mostrarBusquedaMovil;
+                    mostrarFiltrosMovil = false;
+                }}
+            >
+                {#if mostrarBusquedaMovil}<X size={18} />{:else}<Search size={18} />{/if}
+                <span>{mostrarBusquedaMovil ? 'Cerrar búsqueda' : 'Buscar'}</span>
+            </button>
+            <button
+                class="control-movil-btn"
+                class:seleccionado={mostrarFiltrosMovil || filtroCategoria !== 'todas' || ordenamiento !== 'inteligente'}
+                aria-expanded={mostrarFiltrosMovil}
+                on:click={() => {
+                    mostrarFiltrosMovil = !mostrarFiltrosMovil;
+                    mostrarBusquedaMovil = false;
+                }}
+            >
+                <SlidersHorizontal size={18} />
+                <span>Filtrar y ordenar</span>
+            </button>
+        </div>
+
+        {#if mostrarBusquedaMovil}
+            <div class="busqueda-movil-panel">
+                <div class="search-box">
+                    <Search size={18} class="icon-search"/>
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre, año o tema..."
+                        aria-label="Buscar asambleas"
+                        bind:value={terminoBusqueda}
+                    >
+                    {#if terminoBusqueda}
+                        <button class="limpiar-busqueda" aria-label="Limpiar búsqueda" on:click={() => terminoBusqueda = ''}>
+                            <X size={16} />
+                        </button>
+                    {/if}
+                </div>
+            </div>
+        {/if}
+
+        {#if mostrarFiltrosMovil}
+            <div class="filtros-moviles-panel">
+                <label>
+                    <span>Mostrar</span>
+                    <select class="filter-select" bind:value={filtroCategoria} aria-label="Filtrar asambleas por estado">
+                        <option value="todas">Todas</option>
+                        <option value="activas">Activas</option>
+                        <option value="proximas">Próximas</option>
+                        <option value="pasadas">Pasadas</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Ordenar por</span>
+                    <select class="filter-select" bind:value={ordenamiento} aria-label="Ordenar asambleas">
+                        <option value="inteligente">Recomendado</option>
+                        <option value="fecha_desc">Fecha: futuro a pasado</option>
+                        <option value="fecha_asc">Fecha: pasado a futuro</option>
+                        <option value="tema_az">Tema: A-Z</option>
+                        <option value="ciudad">Ciudad</option>
+                    </select>
+                </label>
+            </div>
+        {/if}
 
 {#if asambleasFiltradas.length === 0}
     <div class="empty">
@@ -802,6 +874,12 @@ $: asambleasFiltradas = listaAsambleas
     margin-bottom: 30px;
 }
 
+.controles-moviles,
+.busqueda-movil-panel,
+.filtros-moviles-panel {
+    display: none;
+}
+
 .search-box {
     flex: 1;
     min-width: 280px;
@@ -1025,31 +1103,102 @@ $: asambleasFiltradas = listaAsambleas
         height: 48px !important;
     }
 
-    /* 3. BUSCADOR Y FILTROS: APILADO TOTAL ANTIDESBORDES (¡AQUÍ ESTÁ LA MAGIA!) */
-    .controles-busqueda {
+    /* 3. BÚSQUEDA Y FILTROS DESPLEGABLES PARA RECUPERAR ESPACIO */
+    .controles-busqueda { display: none; }
+
+    .controles-moviles {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        width: 100%;
+        margin: 0 0 15px;
+    }
+
+    .control-movil-btn {
+        min-width: 0;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--bg-card);
+        color: var(--text-main);
+        font-size: 13px;
+        font-weight: 650;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .control-movil-btn.seleccionado {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 7%, var(--bg-card));
+    }
+
+    .busqueda-movil-panel,
+    .filtros-moviles-panel {
+        display: block;
+        width: 100%;
+        margin: -5px 0 15px;
+        animation: fadeIn 0.16s ease-out;
+    }
+
+    .busqueda-movil-panel .search-box {
+        min-width: 0;
+        width: 100%;
+        min-height: 46px;
+        border-radius: 12px;
+    }
+
+    .busqueda-movil-panel .search-box input {
+        min-width: 0;
+        padding: 10px 8px;
+    }
+
+    .limpiar-busqueda {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--text-sec);
+        padding: 6px;
+    }
+
+    .filtros-moviles-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--bg-card);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .filtros-moviles-panel label {
+        display: flex;
+        min-width: 0;
         flex-direction: column;
-        align-items: stretch;
-        gap: 15px;
-        width: 100%;
-    }
-    
-    .filtros-box {
-        flex-direction: column; /* Apilamos los selectores */
-        width: 100%;
-        gap: 12px;
+        gap: 6px;
+        color: var(--text-sec);
+        font-size: 11px;
+        font-weight: 700;
     }
 
-    .search-box {
-        min-width: 0 !important; /* Matamos los 280px fijos que rompían el teléfono */
+    .filtros-moviles-panel .filter-select {
         width: 100%;
-        height: 48px;
-    }
-
-    .filter-select {
-        width: 100%; /* Que ocupen exactamente el ancho disponible */
         max-width: 100%;
-        height: 48px;
-        text-overflow: ellipsis; /* Si el texto es largo, pone "..." */
+        min-width: 0;
+        height: 42px;
+        padding: 8px;
+        border-radius: 9px;
+        font-size: 12px;
+        text-overflow: ellipsis;
     }
 
     /* 4. LA CUADRÍCULA DE TARJETAS (ARREGLO DEL "DESASTRE") */

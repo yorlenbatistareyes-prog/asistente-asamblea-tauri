@@ -5,6 +5,7 @@
   import { DB } from '$lib/services/db'; // Importamos el embudo maestro
   
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import PdfIcon from '$lib/components/ui/PdfIcon.svelte';
   import { 
     Mail, AtSign, Globe, Phone, MessageSquare, MessageCircle, 
     Edit2, Calendar, CheckSquare, Square
@@ -287,7 +288,10 @@ async function guardarRecordatorio(orador: any) {
 
     <div class="controles-vista">
       <span class="conteo-oradores">{oradores.length} oradores en esta asamblea</span>
-      <button class="btn-pdf">Generar directorio PDF</button>
+      <button class="btn-pdf" aria-label="Generar directorio PDF">
+        <PdfIcon />
+        <span>Generar directorio PDF</span>
+      </button>
     </div>
   </div>
 
@@ -445,7 +449,8 @@ async function guardarRecordatorio(orador: any) {
 .btn-pdf { 
   background-color: var(--primary); color: #ffffff; border: none; 
   padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; 
-  cursor: pointer; transition: background 0.2s; 
+  cursor: pointer; transition: background 0.2s; display: inline-flex;
+  align-items: center; justify-content: center; gap: 8px;
 }
 .btn-pdf:hover { background-color: var(--primary-hover); }
 

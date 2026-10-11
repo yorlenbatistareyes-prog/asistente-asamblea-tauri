@@ -22,6 +22,15 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
+    version: "1.0.23'",
+    fecha: "11 de octubre, 2026",
+    cambios: [
+      { tipo: "🛠️", texto: "corregido varios errores que impedían funcionar bien la aplicación. También mejoras visaules de botones y modales" },
+      
+    ]
+  },
+
+{
     version: "1.0.20'",
     fecha: "02 de octubre, 2026",
     mensaje: "¡Hemos mejorado la restauración de datos!",

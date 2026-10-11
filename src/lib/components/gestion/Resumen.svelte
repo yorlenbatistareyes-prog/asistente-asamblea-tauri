@@ -5,6 +5,8 @@
 
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { DB } from '$lib/services/db';
+  import { platform } from '@tauri-apps/plugin-os';
+  import { monitorFlotanteVisible } from '$lib/stores/monitorStore';
 
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { Pin, PinOff, X } from 'lucide-svelte'; // Traemos los iconos de la chincheta y cerrar
@@ -16,6 +18,8 @@
 
   // Importamos el Store Global
   import { appStore, cargarDatosGlobales } from '$lib/stores/appStore';
+
+  export let modoMonitorFlotante = false;
 
   // --- VARIABLES DE ESTADO ---
   let horaActual = '';
@@ -102,7 +106,7 @@
 
     // 👇 DETECTAMOS SI SOMOS LA VENTANA FLOTANTE
       const win = getCurrentWindow();
-      if (win.label === 'monitor-pip') {
+      if (win.label === 'monitor-pip' || modoMonitorFlotante) {
           esVentanaFlotante = true;
           tabActual = 'monitor'; // Forzamos abrir directo en el monitor
       }
@@ -394,6 +398,12 @@
   }
 
 async function abrirMonitorFlotante() {
+  const plataforma = await platform();
+  if (plataforma === 'android' || plataforma === 'ios') {
+    monitorFlotanteVisible.set(true);
+    return;
+  }
+
   const monitorWindow = new WebviewWindow('monitor-pip', {
     url: '/',  // Pasamos el parámetro para identificarla
     title: 'Monitor en Vivo',
@@ -419,12 +429,17 @@ async function toggleFijarVentana() {
 }
 
 function cerrarMonitorFlotante() {
+  if (modoMonitorFlotante) {
+    monitorFlotanteVisible.set(false);
+    return;
+  }
+
   getCurrentWindow().close();
 }
 
 </script>
 
-<div class="dashboard-container" style={esVentanaFlotante ? "padding: 0; height: 100vh;" : ""}>
+<div class="dashboard-container" class:flotante-movil={modoMonitorFlotante} style={esVentanaFlotante && !modoMonitorFlotante ? "padding: 0; height: 100vh;" : ""}>
 
   {#if !esVentanaFlotante}
   <div class="tabs-container">
@@ -546,17 +561,19 @@ function cerrarMonitorFlotante() {
                   </div>
                   
                   <div style="display: flex; gap: 15px; align-items: center;">
-                      <button 
-                          on:click={toggleFijarVentana} 
-                          style="background: transparent; border: none; color: white; cursor: pointer; opacity: {fijadoEncima ? '1' : '0.5'}; transition: all 0.2s;"
-                          title={fijadoEncima ? "Desfijar de la pantalla" : "Fijar siempre encima"}
-                      >
-                          {#if fijadoEncima}
-                              <PinOff size={18} />
-                          {:else}
-                              <Pin size={18} />
-                          {/if}
-                      </button>
+                      {#if !modoMonitorFlotante}
+                        <button 
+                            on:click={toggleFijarVentana} 
+                            style="background: transparent; border: none; color: white; cursor: pointer; opacity: {fijadoEncima ? '1' : '0.5'}; transition: all 0.2s;"
+                            title={fijadoEncima ? "Desfijar de la pantalla" : "Fijar siempre encima"}
+                        >
+                            {#if fijadoEncima}
+                                <PinOff size={18} />
+                            {:else}
+                                <Pin size={18} />
+                            {/if}
+                        </button>
+                      {/if}
 
                       <div class="ajuste-tiempo">
                           <button class="btn-ajuste" on:click={() => ajustarDesfase(-1)} title="Atrasar 1 min">-</button>
