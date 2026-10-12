@@ -7,6 +7,9 @@
   import { cartasStore } from '$lib/stores/cartas'; 
   import { gruposMarcadoresPlantilla } from '$lib/utils/marcadoresPlantillas';
   
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile } from '@tauri-apps/plugin-fs';
+
   // --- TIPTAP ---
   import { Editor, Extension } from '@tiptap/core';
   import StarterKit from '@tiptap/starter-kit';
@@ -35,7 +38,8 @@
     Type, Scissors, Copy, ArrowUpDown,
     ArrowUpFromLine, ArrowDownToLine, ArrowLeftFromLine, ArrowRightToLine,
     ChevronDown, ChevronUp, Braces,
-    Check, Loader2, Cloud, ChevronsLeft, ChevronsRight, FileSignature
+    Check, Loader2, Cloud, ChevronsLeft, ChevronsRight, FileSignature,
+    Download, Upload
   } from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
@@ -383,12 +387,96 @@
     const url = window.prompt('URL:');
     if (url) editor.chain().focus().setLink({ href: url }).run();
   }
+
+  // --- FUNCIONES DE EXPORTAR / IMPORTAR CARTAS ---
+  async function exportarPlantilla(id: string, titulo: string) {
+      try {
+          // Buscamos el HTML actual guardado en el store
+          const storeData = $cartasStore.find(c => c.id === id);
+          const html = storeData ? storeData.html : '';
+
+          const data = {
+              tipo: 'carta',
+              id: id,
+              body: html
+          };
+          
+          const tituloLimpio = titulo
+              .normalize("NFD") 
+              .replace(/[\u0300-\u036f]/g, "") 
+              .replace(/[^a-zA-Z0-9]/g, "_")   
+              .replace(/_+/g, "_");            
+          
+          const nombreArchivo = `RAssembly_Plantilla_Carta_${tituloLimpio}.json`;
+          
+          const filePath = await save({
+              defaultPath: nombreArchivo,
+              filters: [{ name: 'Plantilla JSON', extensions: ['json'] }]
+          });
+
+          if (filePath) {
+              await writeTextFile(filePath, JSON.stringify(data, null, 2));
+              alert("Plantilla de carta exportada correctamente.");
+          }
+      } catch (error) {
+          console.error("Error al exportar:", error);
+          alert("Hubo un error al exportar la plantilla.");
+      }
+  }
+
+  async function importarPlantilla(event: Event, idDestino: string) {
+      const input = event.target as HTMLInputElement;
+      if (!input.files || input.files.length === 0) return;
+
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+          try {
+              const contenido = JSON.parse(e.target?.result as string);
+              if (contenido.tipo !== 'carta') {
+                  alert("Error: El archivo seleccionado no es una plantilla de Carta válida.");
+                  return;
+              }
+              
+              // 1. Guardamos en la base de datos local
+              await DB.guardarPlantillaCarta(idDestino, contenido.body);
+              
+              // 2. Actualizamos el store para que la UI reaccione
+              cartasStore.update(cartas => {
+                  const index = cartas.findIndex(c => c.id === idDestino);
+                  if (index !== -1) cartas[index].html = contenido.body;
+                  else cartas.push({ id: idDestino, html: contenido.body });
+                  return cartas;
+              });
+
+              alert("Plantilla de carta importada con éxito.");
+          } catch (error) {
+              alert("Error al leer el archivo de la plantilla.");
+          } finally {
+              input.value = ''; // Reseteamos el input
+          }
+      };
+      reader.readAsText(file);
+  }
 </script>
 
 {#if !modoEditor}
     <div class="cards-container">
-        <div class="cards-grid">
-            <Panel padding="0" clasesExtra="panel-tarjeta-hover">
+
+       <div class="cards-grid">
+            <!-- TARJETA ORADORES -->
+            <Panel padding="0" clasesExtra="panel-tarjeta-hover relative-panel">
+                <!-- Botones de Acción (Esquina superior derecha) -->
+                <div class="card-top-actions">
+                    <input type="file" id="import-carta-oradores" accept=".json" style="display: none;" on:change={(e) => importarPlantilla(e, 'oradores')} />
+                    <button class="mini-icon-btn" title="Importar plantilla" on:click|stopPropagation={() => document.getElementById('import-carta-oradores')?.click()}>
+                        <Download size={14} />
+                    </button>
+                    <button class="mini-icon-btn" title="Exportar plantilla" on:click|stopPropagation={() => exportarPlantilla('oradores', 'Oradores')}>
+                        <Upload size={14} />
+                    </button>
+                </div>
                 <button class="template-card-btn" on:click={() => abrirEditor('oradores')}>
                     <div class="card-icon blue"><Mic size={32} /></div>
                     <div class="card-content">
@@ -398,7 +486,17 @@
                 </button>
             </Panel>
 
-            <Panel padding="0" clasesExtra="panel-tarjeta-hover">
+            <!-- TARJETA PRESIDENTES -->
+            <Panel padding="0" clasesExtra="panel-tarjeta-hover relative-panel">
+                <div class="card-top-actions">
+                    <input type="file" id="import-carta-presidentes" accept=".json" style="display: none;" on:change={(e) => importarPlantilla(e, 'presidentes')} />
+                    <button class="mini-icon-btn" title="Importar plantilla" on:click|stopPropagation={() => document.getElementById('import-carta-presidentes')?.click()}>
+                        <Download size={14} />
+                    </button>
+                    <button class="mini-icon-btn" title="Exportar plantilla" on:click|stopPropagation={() => exportarPlantilla('presidentes', 'Presidentes')}>
+                        <Upload size={14} />
+                    </button>
+                </div>
                 <button class="template-card-btn" on:click={() => abrirEditor('presidentes')}>
                     <div class="card-icon green"><UserCheck size={32} /></div>
                     <div class="card-content">
@@ -408,7 +506,17 @@
                 </button>
             </Panel>
 
-            <Panel padding="0" clasesExtra="panel-tarjeta-hover">
+            <!-- TARJETA ORACIONES -->
+            <Panel padding="0" clasesExtra="panel-tarjeta-hover relative-panel">
+                <div class="card-top-actions">
+                    <input type="file" id="import-carta-oraciones" accept=".json" style="display: none;" on:change={(e) => importarPlantilla(e, 'oraciones')} />
+                    <button class="mini-icon-btn" title="Importar plantilla" on:click|stopPropagation={() => document.getElementById('import-carta-oraciones')?.click()}>
+                        <Download size={14} />
+                    </button>
+                    <button class="mini-icon-btn" title="Exportar plantilla" on:click|stopPropagation={() => exportarPlantilla('oraciones', 'Oraciones')}>
+                        <Upload size={14} />
+                    </button>
+                </div>
                 <button class="template-card-btn" on:click={() => abrirEditor('oraciones')}>
                     <div class="card-icon purple"><MessageSquare size={32} /></div>
                     <div class="card-content">
@@ -1572,5 +1680,38 @@ select:hover {
     text-align: center;
     padding: 15px;
   }
+}
+
+:global(.relative-panel) {
+  position: relative !important;
+}
+
+.card-top-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 2; /* Para que esté por encima del botón invisible que abre el editor */
+}
+
+.mini-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mini-icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--hover-bg);
 }
 </style>

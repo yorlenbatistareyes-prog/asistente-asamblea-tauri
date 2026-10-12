@@ -1,9 +1,20 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { Mail, MessageCircle, FileText, ChevronDown, ChevronUp } from 'lucide-svelte';
+ import { createEventDispatcher } from 'svelte';
+  import { get } from 'svelte/store';
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile } from '@tauri-apps/plugin-fs';
+  
+  import { Mail, MessageCircle, FileText, ChevronDown, ChevronUp, Download, Upload } from 'lucide-svelte';
+  
   import PlantillasCorreos from './PlantillasCorreos.svelte';
   import PlantillasWhatsapp from './PlantillasWhatsapp.svelte';
   import PlantillasCartas from './PlantillasCartas.svelte';
+
+  // --- STORES Y SERVICIOS PARA IMPORTACIÓN GLOBAL ---
+  import { emailTemplates, guardarPlantillaEmail } from '$lib/utils/plantillasEmail';
+  import { whatsAppTemplates, guardarPlantillaWhatsApp } from '$lib/utils/plantillasWhatsApp';
+  import { cartasStore } from '$lib/stores/cartas';
+  import { DB } from '$lib/services/db';
 
   const dispatch = createEventDispatcher();
   let canalActivo: 'correo' | 'whatsapp' | 'cartas' = 'correo';
@@ -18,13 +29,107 @@
   function reenviarCambioModo(event: CustomEvent<boolean>) {
     dispatch('cambioModo', event.detail);
   }
+
+  // --- FUNCIONES GLOBALES ---
+  async function exportarTodo() {
+      try {
+          // Recopilamos todos los datos actuales
+          const correos = get(emailTemplates).map(p => ({ id: p.id, subject: p.subject || '', body: p.body || '' }));
+          const whatsapp = get(whatsAppTemplates).map(p => ({ id: p.id, body: p.body || '' }));
+          const cartas = get(cartasStore).map(p => ({ id: p.id, body: p.html || '' }));
+
+          const data = {
+              tipo: 'comunicaciones_todas',
+              correos,
+              whatsapp,
+              cartas
+          };
+
+          const filePath = await save({
+              defaultPath: 'RAssembly_Comunicaciones_Completas.json',
+              filters: [{ name: 'Copia de Seguridad JSON', extensions: ['json'] }]
+          });
+
+          if (filePath) {
+              await writeTextFile(filePath, JSON.stringify(data, null, 2));
+              alert("Todas las plantillas se han exportado correctamente.");
+          }
+      } catch (error) {
+          console.error("Error al exportar todo:", error);
+          alert("Hubo un error al exportar las plantillas.");
+      }
+  }
+
+  async function importarTodo(event: Event) {
+      const input = event.target as HTMLInputElement;
+      if (!input.files || input.files.length === 0) return;
+
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+          try {
+              const contenido = JSON.parse(e.target?.result as string);
+              if (contenido.tipo !== 'comunicaciones_todas') {
+                  alert("Error: El archivo no es una copia de seguridad válida de comunicaciones.");
+                  return;
+              }
+
+              // 1. Restaurar Correos
+              if (contenido.correos) {
+                  for (const c of contenido.correos) {
+                      await guardarPlantillaEmail(c.id, c.subject, c.body);
+                  }
+              }
+              // 2. Restaurar WhatsApp
+              if (contenido.whatsapp) {
+                  for (const w of contenido.whatsapp) {
+                      await guardarPlantillaWhatsApp(w.id, w.body);
+                  }
+              }
+              // 3. Restaurar Cartas y sincronizar su store
+              if (contenido.cartas) {
+                  for (const c of contenido.cartas) {
+                      await DB.guardarPlantillaCarta(c.id, c.body);
+                  }
+                  cartasStore.update(store => {
+                      contenido.cartas.forEach((cn: any) => {
+                          const index = store.findIndex(item => item.id === cn.id);
+                          if (index !== -1) store[index].html = cn.body;
+                          else store.push({ id: cn.id, html: cn.body });
+                      });
+                      return store;
+                  });
+              }
+
+              alert("Todas las comunicaciones se han restaurado con éxito.");
+          } catch (error) {
+              console.error(error);
+              alert("Error al procesar el archivo de respaldo.");
+          } finally {
+              input.value = '';
+          }
+      };
+      reader.readAsText(file);
+  }
 </script>
 
 <div class="comunicaciones-page">
-  <header class="comunicaciones-heading">
-    <span class="eyebrow">CONFIGURACIÓN</span>
-    <h2>Comunicaciones</h2>
-    <p>La aplicación elige cada plantilla automáticamente. Edita solo los mensajes que quieras personalizar.</p>
+<header class="comunicaciones-heading">
+    <div class="heading-text">
+      <h2>Comunicaciones</h2>
+      <p>La aplicación elige cada plantilla automáticamente. Edita solo los mensajes que quieras personalizar.</p>
+    </div>
+    
+    <div class="global-actions">
+      <input type="file" id="import-all-comms" accept=".json" style="display: none;" on:change={importarTodo} />
+      <button class="btn-global" title="Restaurar copia de seguridad" on:click={() => document.getElementById('import-all-comms')?.click()}>
+        <Download size={16} /> Importar Todo
+      </button>
+      <button class="btn-global primary" title="Crear copia de seguridad" on:click={exportarTodo}>
+        <Upload size={16} /> Exportar Todo
+      </button>
+    </div>
   </header>
 
   <nav class="channel-tabs" aria-label="Tipo de plantilla">
@@ -204,6 +309,72 @@
       min-width: 0;
       padding: 0 7px;
       font-size: 11px;
+    }
+  }
+
+  .comunicaciones-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .heading-text h2 {
+    margin: 5px 0 6px;
+    color: var(--text-main);
+    font-size: 24px;
+  }
+
+  .global-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .btn-global {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-global:hover {
+    background: var(--hover-bg);
+    border-color: var(--text-sec);
+  }
+
+  .btn-global.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  .btn-global.primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  @media (max-width: 760px) {
+    .comunicaciones-heading {
+      flex-direction: column;
+    }
+    
+    .global-actions {
+      width: 100%;
+    }
+
+    .btn-global {
+      flex: 1;
+      justify-content: center;
     }
   }
 </style>

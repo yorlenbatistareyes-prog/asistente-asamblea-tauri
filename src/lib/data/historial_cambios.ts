@@ -22,11 +22,10 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
-    version: "1.0.27'",
+    version: "1.0.28'",
     fecha: "12 de octubre, 2026",
     cambios: [
-      { tipo: "🚀", texto: "Ahora también puedes arrastrar el botón flotante del cronómetro cuando está cerrado, en Windows y en pantallas táctiles. Arrástralo para moverlo; un toque o clic normal sigue abriendo el cronómetro." },  
-      { tipo: "🎨", texto: "Ahora la ventana flotante del monitor en vivo tiene un color rojizo degradado para distinguirlo bien visualmente. También se mejorado el modo oscuro" },   
+      { tipo: "🚀", texto: "Mejoras en las opciones de correo, WhatsApp, y cartas, la lógica de las plantillas se ha mejorado" },   
     ]
   },
 
