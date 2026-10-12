@@ -28,7 +28,8 @@ pub fn obtener_programa_dia(
         p.requiere_ensayo, p.fecha_ensayo, p.hora_ensayo, p.lugar_ensayo, p.notas_ensayo,
         p.check_viernes, p.check_dia, p.check_30m,
         per.notas,
-        p.color_destacado
+        p.color_destacado,
+        per.sexo
         FROM programa p
         LEFT JOIN personas per ON p.orador_id = per.id
         LEFT JOIN congregaciones c ON per.id_congregacion = c.id
@@ -73,6 +74,7 @@ pub fn obtener_programa_dia(
                 check_30m: row.get(29).unwrap_or(false),
                 notas_orador: row.get(30).ok(),
                 color_destacado: row.get(31).unwrap_or_else(|_| Some("".to_string())),
+                genero_orador: row.get(32).ok(),
             })
         })
         .map_err(|e| e.to_string())?;

@@ -13,6 +13,8 @@ export interface ContextoDocumento {
     tema_asignacion: string;
     tipo_asignacion: string;
     num_bosquejo: string;
+    duracion: string;
+    enlace_bosquejo: string;
     hora: string;
     fecha_asignacion: string;
     congregacion: string;
@@ -45,29 +47,31 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
     // Ahora busca exactamente la asamblea que tienes abierta, no la última.
     const infoAsamblea: any = await invoke('obtener_asamblea_por_id', { id: asambleaId }) || {};
     const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
+    const sexoPersona = String(objeto.sexo || objeto.genero_orador || objeto.genero || 'M').trim().toUpperCase();
 
     // 2. DETECCIÓN INTELIGENTE DEL NOMBRE
-    let nombreCompleto = (
+    const nombreCompletoBase = (
         objeto.nombre_orador || 
         objeto.nombre_completo || 
         objeto.nombre_presidente || 
-        objeto.nombre || 
+        objeto.nombre_completo_presidente ||
+        [objeto.nombre, objeto.segundo_nombre, objeto.apellido || objeto.apellidos, objeto.sufijo]
+            .filter(Boolean)
+            .join(' ') ||
+        objeto.nombre ||
         'Hermano'
     ).trim();
 
-    let nombrePila = '';
-    let apellidos = objeto.apellidos || '';
-    let segundoNombre = '';
+    let nombrePila = objeto.nombre_pila || '';
+    let apellidos = objeto.apellidos || objeto.apellido || '';
+    let segundoNombre = objeto.segundo_nombre || '';
+    let nombreCompleto = nombreCompletoBase;
 
     if (nombreCompleto && nombreCompleto !== 'Hermano') {
         const partes = nombreCompleto.replace(/\s+/g, ' ').split(' ');
-        if (partes.length > 0) {
-            nombrePila = partes[0];
-            if (partes.length > 1) {
-                if (!apellidos) apellidos = partes.slice(1).join(' '); 
-                if (partes.length > 2) segundoNombre = partes[1];
-            }
-        }
+        if (!nombrePila) nombrePila = partes[0] || '';
+        if (!apellidos && partes.length > 1) apellidos = partes.slice(1).join(' ');
+        nombreCompleto = nombreCompleto.replace(/\s+/g, ' ');
     }
 
     // 3. LÓGICA DE ASIGNACIÓN
@@ -140,31 +144,33 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
 
     return {
         // --- PERSONAL ---
-        saludo: (objeto.sexo === 'F' || objeto.genero === 'F') ? 'hermana' : 'hermano',
+        saludo: sexoPersona === 'F' ? 'hermana' : 'hermano',
         nombre_pila: nombrePila,
         segundo_nombre: segundoNombre,
         apellidos: apellidos,
         nombre_completo: nombreCompleto,
-        sexo: objeto.sexo || 'M',
-        circuito: infoAsamblea.circuito || 'HG-06',
+        sexo: sexoPersona,
+        circuito: objeto.circuito_orador || objeto.circuito || infoAsamblea.circuito || 'HG-06',
 
         // --- ASIGNACIÓN ---
         tema_asignacion: temaFinal,
         tipo_asignacion: tipoAsignacionFinal,
         num_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '', 
+        duracion: objeto.duracion ? String(objeto.duracion) : '',
+        enlace_bosquejo: objeto.enlace_bosquejo || objeto.url_bosquejo || objeto.enlace_bosquejo_url || '',
         hora: objeto.hora_inicio || objeto.hora || '---',
         fecha_asignacion: objeto.dia || objeto.fecha || infoAsamblea.fecha || '---',
         congregacion: congregacionFinal,
-        nota_asignacion: objeto.notas || objeto.nota || '',
+        nota_asignacion: objeto.notas || objeto.nota || objeto.notas_orador || '',
 
         // --- EVENTO ---
-        tema_evento: infoAsamblea.tema || 'Asamblea Regional',
-        tipo_evento: tipoEventoMejorado,
-        fecha_evento_texto: infoAsamblea.fecha || infoExtra.fecha_texto || 'Fecha por definir',
+        tema_evento: objeto.tema_evento || infoAsamblea.tema || 'Asamblea Regional',
+        tipo_evento: objeto.tipo_evento || tipoEventoMejorado,
+        fecha_evento_texto: objeto.fecha_evento || infoAsamblea.fecha || infoExtra.fecha_texto || 'Fecha por definir',
         
         // --- LUGAR ---
-        lugar_nombre: infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
-        lugar_direccion: infoExtra.direccion || infoAsamblea.local_direccion || '',
+        lugar_nombre: objeto.nombre_del_lugar || objeto.lugar_nombre || infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
+        lugar_direccion: objeto.direccion_del_lugar || objeto.lugar_direccion || infoExtra.direccion || infoAsamblea.local_direccion || '',
         ciudad: infoAsamblea.ciudad || '', 
         estado: infoAsamblea.estado || infoAsamblea.provincia || '', 
 

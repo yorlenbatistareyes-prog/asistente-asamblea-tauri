@@ -5,6 +5,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { DB } from '$lib/services/db';
   import { cartasStore } from '$lib/stores/cartas'; 
+  import { gruposMarcadoresPlantilla } from '$lib/utils/marcadoresPlantillas';
   
   // --- TIPTAP ---
   import { Editor, Extension } from '@tiptap/core';
@@ -83,45 +84,14 @@
   let marginLeft = 2.54;
   let marginRight = 2.54;
 
-  // --- DATOS DE MARCADORES (Tus grupos originales) ---
-  let markerGroups = [
-      {
-          title: "Lista rápida de Marcadores", isOpen: true,
-          items: [ { label: "Saludo según sexo", desc: "Ejemplo: Hermano, o Hermana", code: "[[Saludo según sexo]]", value: "Saludo según sexo" }, { label: "Designación del Circuito", desc: "Ejemplo: HG-06", code: "[[Designación del Circuito]]", value: "Designación del Circuito" } ]
-      },
-      {
-          title: "Marcadores de Fechas", isOpen: false,
-          items: [ { label: "Fecha Actual Mediana", desc: "Ejemplo: 7 feb 2026", code: "[[Fecha Actual Mediana]]", value: "Fecha Actual Mediana" }, { label: "Fecha Actual Completa", desc: "Ejemplo: 7 de febrero de 2026", code: "[[Fecha Actual Completa]]", value: "Fecha Actual Completa" } ]
-      },
-      {
-          title: "Marcadores de Asignación", isOpen: false,
-          items: [ { label: "Hora", desc: "Ejemplo: 10:10 AM", code: "[[Hora]]", value: "Hora" }, { label: "Duración", desc: "Total de minutos", code: "[[Duración]]", value: "Duración" }, { label: "Tema", desc: "Título del discurso", code: "[[Tema]]", value: "Tema" }, { label: "Número de Bosquejo", desc: "Ejemplo: 1", code: "[[Número de Bosquejo]]", value: "Número de Bosquejo" }, { label: "Tipo de asignación", desc: "Ejemplo: Discurso...", code: "[[Tipo de asignación]]", value: "Tipo de asignación" }, { label: "Enlace(s) del Bosquejo", desc: "Cualquier enlace", code: "[[Enlace(s) del Bosquejo]]", value: "Enlace(s) del Bosquejo" }, { label: "Notas", desc: "", code: "[[Notas]]", value: "Notas" } ]
-      },
-      {
-          title: "Marcadores de Orador", isOpen: false,
-          items: [ { label: "Nombre", desc: "Ejemplo: Roberto", code: "[[Nombre]]", value: "Nombre" }, { label: "Segundo nombre", desc: "Ejemplo: Adolfo", code: "[[Segundo nombre]]", value: "Segundo nombre" }, { label: "Apellidos", desc: "Ejemplo: Batista Peña", code: "[[Apellidos]]", value: "Apellidos" } ]
-      },
-      {
-          title: "Marcadores de Lugar", isOpen: false,
-          items: [ { label: "Nombre del lugar", desc: "Ejemplo: Salón", code: "[[Nombre del lugar]]", value: "Nombre del lugar" }, { label: "Dirección del lugar", desc: "Ejemplo: Av. Central", code: "[[Dirección]]", value: "Dirección" }, { label: "Ciudad", desc: "Ejemplo: Holguín", code: "[[Ciudad]]", value: "Ciudad" }, { label: "Provincia o Estado", desc: "Ejemplo: HG", code: "[[Estado o Provincia]]", value: "Estado o Provincia" } ]
-      },
-      {
-          title: "Marcadores de Evento", isOpen: false,
-          items: [ { label: "Fecha", desc: "Ejemplo: Fecha de la Asamblea", code: "[[Fecha]]", value: "Fecha" }, { label: "Tipo de evento", desc: "Ejemplo: CA-br", code: "[[Tipo de Evento]]", value: "Tipo de Evento" }, { label: "Tema del evento", desc: "Título del evento", code: "[[Tema del Evento]]", value: "Tema del Evento" } ]
-      },
-      {
-          title: "Marcadores de Ensayo", isOpen: false,
-          items: [ { label: "Información completa de los ensayos", desc: "Info completa", code: "[[Información completa de los ensayos]]", value: "Información completa de los ensayos" }, { label: "Nota para los ensayos", desc: "", code: "[[Notas para los ensayos]]", value: "Notas para los ensayos" }, { label: "Lugar de los ensayos", desc: "", code: "[[Lugar de los ensayos]]", value: "Lugar de los ensayos" }, { label: "Fecha y hora del ensayo", desc: "", code: "[[Fecha y hora del ensayo]]", value: "Fecha y hora del ensayo" }, { label: "Fecha de ensayos", desc: "", code: "[[Fecha de ensayos]]", value: "Fecha de ensayos" }, { label: "Hora de ensayos", desc: "", code: "[[Hora de ensayos]]", value: "Hora de ensayos" } ]
-      },
-      {
-          title: "Marcadores del Presidente", isOpen: false,
-          items: [ { label: "Correo electrónico del Presidente", desc: "Ejemplo: mail@jwpub.org", code: "[[correo electrónico jwpub del Presidente de la asamblea]]", value: "correo electrónico jwpub del Presidente de la asamblea" }, { label: "Teléfono del Presidente", desc: "", code: "[[Teléfono del Presidente de la asamblea]]", value: "Teléfono del Presidente de la asamblea" } ]
-      },
-      {
-          title: "Marcadores de Instrucciones", isOpen: false,
-          items: [ { label: "Información de orientaciones", desc: "Plataforma...", code: "[[Información de orientaciones]]", value: "Información de orientaciones" }, { label: "Instrucciones especiales", desc: "Sucursal", code: "[[Instrucciones Especiales]]", value: "Instrucciones Especiales" } ]
-      }
-  ];
+  let markerGroups = gruposMarcadoresPlantilla.map((group, index) => ({
+    title: group.category,
+    isOpen: index === 0,
+    items: group.items.map(item => ({
+      ...item,
+      value: item.code.slice(2, -2)
+    }))
+  }));
 
   // --- COLORES ---
   const themeColors = ['#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050', '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0', '#595959', '#A6A6A6', '#D9D9D9', '#FFFFFF', '#F2F2F2', '#D0CECE', '#B4C6E7', '#8EA9DB', '#5B9BD5', '#2E75B6', '#1F4E78', '#376092', '#5B9BD5', '#BDD7EE', '#DEEBF7', '#FCE4D6', '#F8CBAD', '#F4B183', '#ED7D31', '#C65911', '#834C11', '#7F6000', '#9CAB7B', '#C6E0B4', '#E2F0D9', '#D7E4BC', '#C5E0B3', '#A9D08E', '#70AD47', '#548235'];

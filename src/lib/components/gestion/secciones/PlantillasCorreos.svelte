@@ -17,7 +17,7 @@
 
   // --- ICONOS ---
   import { 
-    FileText, ChevronUp, ChevronDown, PenTool, Upload, Download, RefreshCw,
+    FileText, ChevronUp, ChevronDown, PenTool,
     X, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
     Check, Loader2, Cloud, Undo, Redo, Mail
@@ -26,6 +26,7 @@
   const dispatch = createEventDispatcher();
 
   // --- ESTADO ---
+  export let templateIds: string[] | undefined = undefined;
   let editando = false; 
   let plantillaActual: Plantilla | null = null;
 
@@ -43,8 +44,19 @@
   let canUndo = false;
   let canRedo = false;
 
-  function toggle(id: string) {
-      emailTemplates.update(items => items.map(p => p.id === id ? { ...p, isOpen: !p.isOpen } : p));
+  function descripcionPlantilla(id: string): string {
+      const descripciones: Record<string, string> = {
+          programa_individual: 'Se prepara al enviar una asignación a un orador desde el programa.',
+          programa_recordatorio: 'Se usa al enviar un recordatorio individual de una participación.',
+          contacto_orador: 'Mensaje de contacto iniciado desde la lista de oradores.',
+          registro_orador: 'Mensaje enviado desde el registro de oradores.',
+          masivo_general: 'Aviso general enviado a varios participantes a la vez.',
+          masivo_recordatorio: 'Recordatorio general enviado a varios participantes a la vez.',
+          oficina: 'Texto personalizado para los auxiliares de Oficina.',
+          comite: 'Texto personalizado para los integrantes del Comité.',
+          departamentos: 'Texto personalizado para los equipos de departamentos.'
+      };
+      return descripciones[id] || 'Plantilla utilizada por una acción de la aplicación.';
   }
 
   // --- COMUNICACIÓN CON PADRE ---
@@ -127,7 +139,7 @@
   const redo = () => editor?.chain().focus().redo().run();
 
   // Marcadores
-  let marcadoresUI = marcadoresEmail.map(grp => ({ ...grp }));
+  let marcadoresUI = marcadoresEmail.map((grp, index) => ({ ...grp, isOpen: index === 0 }));
   
   function toggleMarcadorGroup(i: number) {
       marcadoresUI[i].isOpen = !marcadoresUI[i].isOpen;
@@ -229,36 +241,17 @@
 
 {#if !editando}
     <Panel padding="25px" clasesExtra="panel-plantillas-override">
-        <div class="accordion-list">
-            {#each $emailTemplates as plantilla (plantilla.id)}
-                <div class="accordion-item">
-                    <button class="accordion-header" on:click={() => toggle(plantilla.id)}>
-                        <div class="acc-title"><Mail size={16}/> {plantilla.title}</div>
-                        {#if plantilla.isOpen}<ChevronUp size={16}/>{:else}<ChevronDown size={16}/>{/if}
+        <div class="template-card-list">
+            {#each $emailTemplates.filter(item => !templateIds || templateIds.includes(item.id)) as plantilla (plantilla.id)}
+                <article class="template-card">
+                    <div class="template-card-copy">
+                        <h4>{plantilla.title}</h4>
+                        <p>{descripcionPlantilla(plantilla.id)}</p>
+                    </div>
+                    <button class="template-card-edit" on:click={() => abrirEditor(plantilla)}>
+                        <PenTool size={14} /> Editar
                     </button>
-                    {#if plantilla.isOpen}
-                        <div class="accordion-body-template">
-                            <div class="preview-group">
-                                <label>Asunto</label>
-                                <input type="text" value={plantilla.subject || '(Sin asunto)'} readonly class="preview-input"/>
-                            </div>
-                            <div class="preview-group">
-                                <label>Cuerpo</label>
-                                <div class="preview-textarea">
-                                    {@html plantilla.body || '<span style="color:var(--text-secondary); font-style:italic;">(Sin contenido...)</span>'}
-                                </div>
-                            </div>
-                            <div class="template-actions">
-                                <button class="btn-template-action left" on:click={() => abrirEditor(plantilla)}><PenTool size={14}/> Editar</button>
-                                <div class="group-center">
-                                    <button class="btn-template-action"><Upload size={14}/> Exportar plantilla</button>
-                                    <button class="btn-template-action"><Download size={14}/> Importar plantilla</button>
-                                </div>
-                                <button class="btn-template-action right"><RefreshCw size={14}/> Restablecer valores </button>
-                            </div>
-                        </div>
-                    {/if}
-                </div>
+                </article>
             {/each}
         </div>
     </Panel>
@@ -373,6 +366,66 @@
   display: flex !important;
   flex-direction: column !important;
   margin-bottom: 30px !important;
+}
+
+.template-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.template-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 76px;
+  padding: 15px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+}
+
+.template-card-copy {
+  min-width: 0;
+}
+
+.template-card-copy h4 {
+  margin: 0 0 5px;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.template-card-copy p {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.template-card-edit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.template-card-edit:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .accordion-list {
@@ -897,6 +950,16 @@
 }
 
 @media (max-width: 768px) {
+  .template-card {
+    gap: 12px;
+    padding: 13px;
+  }
+  .template-card-copy p {
+    font-size: 12px;
+  }
+  .template-card-edit {
+    padding: 0 9px;
+  }
   .template-actions {
     flex-direction: column;
     gap: 10px;

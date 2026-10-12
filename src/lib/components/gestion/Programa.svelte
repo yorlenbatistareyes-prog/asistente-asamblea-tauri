@@ -410,29 +410,8 @@ async function cargarColoresSeriesBD() {
   }
 
   // --- WHATSAPP ---
-  async function abrirWhatsAppAsignacion(objeto: any) {
-    const urls = await obtenerUrlsWhatsApp(objeto, false);
-    if (urls) {
-      try {
-        await openUrl(urls.nativeUrl);
-        objeto.whatsapp_enviado = true;
-        partes = partes;
-      } catch (e) {
-        console.warn("App nativa no encontrada, usando fallback web:", e);
-        try {
-          await openUrl(urls.webUrl);
-          objeto.whatsapp_enviado = true;
-          partes = partes;
-        } catch (err) {
-          console.error("No se pudo abrir WhatsApp:", err);
-          alert("No se pudo abrir WhatsApp. Verifica tu navegador predeterminado.");
-        }
-      }
-    }
-  }
-
   async function abrirWhatsAppRecordatorio(objeto: any) {
-    const urls = await obtenerUrlsWhatsApp(objeto, true);
+    const urls = await obtenerUrlsWhatsApp(objeto);
     if (urls) {
       try {
         await openUrl(urls.nativeUrl);
@@ -499,13 +478,13 @@ async function cargarColoresSeriesBD() {
   }
 
   // --- WHATSAPP URL ---
-  async function obtenerUrlsWhatsApp(objeto: any, esRecordatorio: boolean = false): Promise<{ nativeUrl: string, webUrl: string } | null> {
+  async function obtenerUrlsWhatsApp(objeto: any): Promise<{ nativeUrl: string, webUrl: string } | null> {
     const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
     if (!telefono) {
       alert("⚠️ No hay teléfono registrado.");
       return null;
     }
-    let idPlantilla = esRecordatorio ? 'programa_recordatorio' : 'programa_individual';
+    let idPlantilla = 'programa_recordatorio';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
     if (rol.includes('oficina') || rol.includes('auxiliar')) {
       idPlantilla = 'oficina';
@@ -525,7 +504,20 @@ async function cargarColoresSeriesBD() {
     }
     if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla para WhatsApp.";
     const contexto = await generarContexto(objeto, asambleaId, true);
-    let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);
+    const marcadoresEnsayo = [
+      '[[Información completa de los ensayos]]',
+      '[[Lugar de los ensayos]]',
+      '[[Fecha y hora del ensayo]]',
+      '[[Fecha de ensayos]]',
+      '[[Hora de ensayos]]',
+      '[[Notas para los ensayos]]'
+    ];
+    const yaIncluyeInformacionEnsayo = marcadoresEnsayo.some(marcador => cuerpoBase.includes(marcador));
+    const requiereEnsayo = objeto.requiere_ensayo === true || objeto.requiere_ensayo === 1;
+    const cuerpoConEnsayo = idPlantilla === 'programa_recordatorio' && requiereEnsayo && !yaIncluyeInformacionEnsayo
+      ? `${cuerpoBase}<p>Información del ensayo: [[Información completa de los ensayos]]</p>`
+      : cuerpoBase;
+    let mensaje = prepararContenidoWhatsApp(cuerpoConEnsayo, contexto);
     mensaje = mensaje.substring(0, 4000);
     const numero = telefono.replace(/\D/g, '');
     return {

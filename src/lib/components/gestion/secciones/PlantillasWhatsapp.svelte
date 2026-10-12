@@ -24,7 +24,7 @@
   // --- ICONOS ---
   import { 
     X, MessageCircle, Bold, Italic, ChevronUp, ChevronDown, PenTool, Check, Loader2, Cloud,
-    Upload, Download, RefreshCw, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+    Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
     Undo, Redo
   } from 'lucide-svelte';
@@ -32,6 +32,7 @@
   const dispatch = createEventDispatcher();
 
   // --- ESTADO ---
+  export let templateIds: string[] | undefined = undefined;
   let editando = false;
   let plantillaActual: PlantillaWhatsApp | null = null;
   let editor: Editor | null = null;
@@ -47,7 +48,7 @@
   let canRedo = false;
 
   // --- MARCADORES (usamos los específicos de WhatsApp) ---
-  let marcadoresUI = marcadoresWhatsApp.map(grp => ({ ...grp }));
+  let marcadoresUI = marcadoresWhatsApp.map((grp, index) => ({ ...grp, isOpen: index === 0 }));
   function toggleMarcadorGroup(i: number) {
     marcadoresUI[i].isOpen = !marcadoresUI[i].isOpen;
     marcadoresUI = [...marcadoresUI];
@@ -57,6 +58,18 @@
   function setModoEdicion(estado: boolean) {
     editando = estado;
     dispatch('cambioModo', estado);
+  }
+
+  function descripcionPlantilla(id: string): string {
+    const descripciones: Record<string, string> = {
+      programa_recordatorio: 'La usa el botón de WhatsApp de Programa. Incluye la información del ensayo automáticamente cuando la parte lo requiere.',
+      contacto_orador: 'Mensaje de contacto iniciado desde la lista de oradores.',
+      registro_orador: 'Mensaje enviado desde el registro de oradores.',
+      oficina: 'Texto personalizado para los auxiliares de Oficina.',
+      comite: 'Texto personalizado para los integrantes del Comité.',
+      departamentos: 'Texto personalizado para los equipos de departamentos.'
+    };
+    return descripciones[id] || 'Plantilla utilizada por una acción de la aplicación.';
   }
 
   // --- ABRIR EDITOR ---
@@ -174,60 +187,22 @@
     if (editor) editor.destroy();
   });
 
-  // --- FUNCIÓN PARA ALTERNAR ACORDEÓN ---
-  function toggleAccordion(id: string) {
-    whatsAppTemplates.update(items =>
-      items.map(p => (p.id === id ? { ...p, isOpen: !p.isOpen } : p))
-    );
-  }
 </script>
 
 <!-- ========== MODO LISTA ========== -->
 {#if !editando}
   <Panel padding="25px" clasesExtra="panel-plantillas-override">
-    <label class="group-label">Plantillas de Mensajes Rápidos (WhatsApp)</label>
-    <div class="accordion-list">
-      {#each $whatsAppTemplates as plantilla (plantilla.id)}
-        <div class="accordion-item">
-          <button class="accordion-header" on:click={() => toggleAccordion(plantilla.id)}>
-            <div class="acc-title">
-              <MessageCircle size={16} />
-              <span>{plantilla.title}</span>
-            </div>
-            {#if plantilla.isOpen}
-              <ChevronUp size={16} />
-            {:else}
-              <ChevronDown size={16} />
-            {/if}
+    <div class="template-card-list">
+      {#each $whatsAppTemplates.filter(item => !templateIds || templateIds.includes(item.id)) as plantilla (plantilla.id)}
+        <article class="template-card">
+          <div class="template-card-copy">
+            <h4>{plantilla.title}</h4>
+            <p>{descripcionPlantilla(plantilla.id)}</p>
+          </div>
+          <button class="template-card-edit" on:click={() => abrirEditor(plantilla)}>
+            <PenTool size={14} /> Editar
           </button>
-          
-          {#if plantilla.isOpen}
-            <div class="accordion-body-template">
-              <div class="preview-group">
-                <label>Vista previa del mensaje</label>
-                <div class="preview-textarea">
-                  {@html plantilla.body || '<span style="color: var(--text-secondary); font-style: italic;">(Sin contenido...)</span>'}
-                </div>
-              </div>
-              <div class="template-actions">
-                <button class="btn-template-action left" on:click={() => abrirEditor(plantilla)}>
-                  <PenTool size={14} /> Editar
-                </button>
-                <div class="group-center">
-                  <button class="btn-template-action" title="Exportar plantilla">
-                    <Upload size={14} /> Exportar
-                  </button>
-                  <button class="btn-template-action" title="Importar plantilla">
-                    <Download size={14} /> Importar
-                  </button>
-                </div>
-                <button class="btn-template-action right" title="Restablecer a valores predeterminados">
-                  <RefreshCw size={14} /> Restablecer
-                </button>
-              </div>
-            </div>
-          {/if}
-        </div>
+        </article>
       {/each}
     </div>
   </Panel>
@@ -360,6 +335,66 @@
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
+}
+
+.template-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.template-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 76px;
+  padding: 15px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+}
+
+.template-card-copy {
+  min-width: 0;
+}
+
+.template-card-copy h4 {
+  margin: 0 0 5px;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.template-card-copy p {
+  margin: 0;
+  color: var(--text-sec);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.template-card-edit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.template-card-edit:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 /* Título de la sección */
@@ -829,6 +864,16 @@
 }
 
 @media (max-width: 768px) {
+  .template-card {
+    gap: 12px;
+    padding: 13px;
+  }
+  .template-card-copy p {
+    font-size: 12px;
+  }
+  .template-card-edit {
+    padding: 0 9px;
+  }
   .accordion-body-template {
     padding: 15px;
   }

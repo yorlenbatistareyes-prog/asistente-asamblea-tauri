@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
+import { reemplazarMarcadoresPlantilla } from './marcadoresPlantillas';
 
 // 1. IMPORTACIONES DE PDFMAKE (Estándar ES6 puro para Svelte/Vite)
 import pdfMake from 'pdfmake/build/pdfmake';
@@ -95,44 +96,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         }
 
         // 3. REEMPLAZO DE MARCADORES
-        const mapaReemplazo: Record<string, string> = {
-            '[[Saludo según sexo]]': datos.saludo,
-            '[[Designación del Circuito]]': datos.circuito,
-            '[[Fecha Actual Completa]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
-            '[[Fecha Actual Mediana]]': new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
-            '[[Hora]]': datos.hora,
-            '[[Tema]]': datos.tema_asignacion,
-            '[[Número de Bosquejo]]': datos.num_bosquejo,
-            '[[Tipo de asignación]]': datos.tipo_asignacion,
-            '[[Enlace(s) del Bosquejo]]': '',
-            '[[Notas]]': datos.nota_asignacion,
-            '[[Nombre]]': datos.nombre_pila,
-            '[[Segundo nombre]]': datos.segundo_nombre,
-            '[[Apellidos]]': datos.apellidos,
-            '[[Nombre Completo]]': datos.nombre_completo,
-            '[[Nombre del lugar]]': datos.lugar_nombre,
-            '[[Dirección]]': datos.lugar_direccion,
-            '[[Ciudad]]': datos.ciudad,
-            '[[Estado o Provincia]]': datos.estado || '', 
-            '[[Fecha]]': datos.fecha_evento_texto,
-            '[[Tipo de Evento]]': datos.tipo_evento,
-            '[[Tema del Evento]]': datos.tema_evento,
-            '[[Información completa de los ensayos]]': generarInfoEnsayos(datos),
-            '[[Lugar de los ensayos]]': construirLugarEnsayo(datos),
-            '[[Fecha y hora del ensayo]]': `${datos.ensayo_fecha} a las ${datos.ensayo_hora}`,
-            '[[Fecha de ensayos]]': datos.ensayo_fecha,
-            '[[Hora de ensayos]]': datos.ensayo_hora,
-            '[[Notas para los ensayos]]': datos.ensayo_notas,
-            '[[Información de orientaciones]]': datos.orientaciones || 'No hay orientaciones específicas.',
-            '[[Instrucciones Especiales]]': datos.instrucciones || 'Ninguna.',
-            '[[correo electrónico jwpub del Presidente de la asamblea]]': datos.email_presidente,
-            '[[Teléfono del Presidente de la asamblea]]': datos.tel_presidente
-        };
-
-        for (const [marcador, valor] of Object.entries(mapaReemplazo)) {
-            const regex = new RegExp(marcador.replace(/\[/g, '\\[').replace(/\]/g, '\\]'), 'g');
-            htmlContent = htmlContent.replace(regex, String(valor || ''));
-        }
+        htmlContent = reemplazarMarcadoresPlantilla(htmlContent, datos, true);
 
         // LIMPIEZA HTML BÁSICA PARA PDFMAKE
         // Dejamos los estilos intactos para que conserve el centrado y los colores del editor
@@ -225,19 +189,4 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         console.error("Error PDF:", error);
         alert("Error al generar PDF: " + error);
     }
-}
-
-// Helpers
-function generarInfoEnsayos(d: ContextoDocumento): string {
-    if (!d.ensayo_fecha || d.ensayo_fecha === '---') return "No se requiere ensayo.";
-    let lugar = construirLugarEnsayo(d);
-    return `Su ensayo está programado para el ${d.ensayo_fecha} a las ${d.ensayo_hora || ''} en ${lugar}.`;
-}
-
-function construirLugarEnsayo(d: ContextoDocumento): string {
-    let lugar = d.ensayo_lugar || 'Salón de Asambleas';
-    if (d.ensayo_direccion && d.ensayo_direccion.trim() !== '' && !lugar.includes(d.ensayo_direccion)) {
-        return `${lugar} (${d.ensayo_direccion})`;
-    }
-    return lugar;
 }

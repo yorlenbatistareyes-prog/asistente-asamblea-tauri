@@ -13,10 +13,8 @@
   import Datos from '$lib/components/gestion/Datos.svelte';
   import ActualizacionApp from './ActualizacionApp.svelte';
   import SincronizacionCarpeta from '$lib/components/gestion/SincronizacionCarpeta.svelte';
-  import PlantillasWhatsapp from './secciones/PlantillasWhatsapp.svelte';
-  import PlantillasCorreos from './secciones/PlantillasCorreos.svelte';
+  import PlantillasComunicaciones from './secciones/PlantillasComunicaciones.svelte';
   import SeccionAyuda from './secciones/SeccionAyuda.svelte';
-  import PlantillasCartas from './secciones/PlantillasCartas.svelte';
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
 
@@ -151,9 +149,7 @@
         <nav class="config-tabs">
             <button class:active={configSeccion === 'general'} on:click={() => configSeccion = 'general'}>General</button>
             <button class:active={configSeccion === 'datos'} on:click={() => configSeccion = 'datos'}>Datos</button>
-            <button class:active={configSeccion === 'cartas'} on:click={() => configSeccion = 'cartas'}>Plantillas de cartas</button>
-            <button class:active={configSeccion === 'correos'} on:click={() => configSeccion = 'correos'}>Plantillas de correo</button>
-            <button class:active={configSeccion === 'whatsapp'} on:click={() => configSeccion = 'whatsapp'}>Plantillas de WhatsApp</button>
+            <button class:active={configSeccion === 'comunicaciones'} on:click={() => configSeccion = 'comunicaciones'}>Comunicaciones</button>
             <button class:active={configSeccion === 'ayuda'} on:click={() => configSeccion = 'ayuda'}>Ayuda</button>
             <button class:active={configSeccion === 'actualizaciones'} on:click={() => configSeccion = 'actualizaciones'}>Acerca de</button>
         </nav>
@@ -210,18 +206,8 @@
                     <Datos />
                 </div>
 
-            {:else if configSeccion === 'whatsapp'}
-                <div class="config-grid" class:full-width={editorAbierto}>
-                    <div class="col-main">
-                        <PlantillasWhatsapp on:cambioModo={manejarCambioModo} />
-                    </div>                  
-                </div>
-
-            {:else if configSeccion === 'cartas'}
-                <PlantillasCartas on:cambioModo={manejarCambioModo} />
-                  
-            {:else if configSeccion === 'correos'}
-                <PlantillasCorreos on:cambioModo={manejarCambioModo}/>
+            {:else if configSeccion === 'comunicaciones'}
+                <PlantillasComunicaciones on:cambioModo={manejarCambioModo} />
 
             {:else if configSeccion === 'ayuda'} 
               <SeccionAyuda />
