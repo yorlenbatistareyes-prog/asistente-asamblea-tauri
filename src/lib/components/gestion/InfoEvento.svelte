@@ -24,6 +24,15 @@
   import CalendarioRango from '$lib/components/ui/CalendarioRango.svelte';
 
   import CompartirAsamblea from '$lib/components/gestion/CompartirAsamblea.svelte';
+
+  function portalToBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
   
   // --- ICONOS ---
   import { 
@@ -997,7 +1006,7 @@ async function guardarPresidente() {
   </div>
 
 </div> {#if mostrarModalDetalles}
-<div class="modal-backdrop" on:click|self={cerrarModalDetalles}>
+  <div class="modal-backdrop" use:portalToBody on:click|self={cerrarModalDetalles}>
   <div class="modal-detalles-asamblea animacion-entrada-modal">
     
     <div class="modal-header">
@@ -1269,8 +1278,55 @@ input:disabled { background: var(--bg-body); color: var(--text-sec); cursor: not
   .btn-azul { flex-grow: 1; justify-content: center; }
   
   /* Modal de detalles ajustado */
-  .modal-detalles-asamblea { width: 95vw; }
+  :global(.modal-backdrop) {
+    align-items: center !important;
+    padding:
+      calc(12px + env(safe-area-inset-top, 0px))
+      calc(12px + env(safe-area-inset-right, 0px))
+      calc(12px + env(safe-area-inset-bottom, 0px))
+      calc(12px + env(safe-area-inset-left, 0px)) !important;
+  }
+
+  :global(.modal-backdrop > .modal-detalles-asamblea) {
+    width: 100% !important;
+    max-width: 480px !important;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 0;
+    margin: auto !important;
+    overflow: hidden !important;
+  }
+
+  .modal-header,
+  .modal-footer {
+    flex: 0 0 auto;
+  }
+
+  .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .grid-2 { grid-template-columns: 1fr; gap: 10px; }
+
+  .contenedor-calendario-desplegado {
+    width: calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    max-width: 400px;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .contenedor-calendario-desplegado :global(.calendario-contenedor) {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+  }
   
   /* Ajuste de Toolbar en Editor (Evita que se rompa en pantallas muy chicas) */
   .toolbar { gap: 4px; padding: 8px; }

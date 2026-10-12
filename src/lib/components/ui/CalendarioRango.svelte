@@ -291,76 +291,81 @@
 @media (max-width: 768px) {
     /* 1. EL CONTENEDOR SE VUELVE FLEXIBLE */
     .calendario-contenedor {
-        width: 95vw !important;
+        width: 100%;
         max-width: 360px;
-        padding: 15px;
+        box-sizing: border-box;
+        padding: 12px;
         margin: 0 auto;
-        max-height: 90vh;
-        overflow-y: auto; /* Permitimos scroll si la pantalla es muy pequeña */
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        gap: 12px;
     }
 
     /* 2. HEADER DE NAVEGACIÓN */
     .header-nav {
-        margin-bottom: 10px;
+        margin-bottom: 0;
     }
 
-    /* 3. APILADO DE MESES (De horizontal a vertical) */
+    /* 3. En móvil se muestra un solo mes para mantener accesibles las acciones. */
     .meses-wrapper {
-        flex-direction: column; /* Un mes arriba del otro */
-        gap: 20px;
+        flex-direction: column;
+        gap: 0;
         align-items: center;
     }
 
     .mes {
-        width: 100%; /* El mes ocupa todo el ancho disponible */
+        width: 100%;
+        max-width: 260px;
     }
 
+    .mes + .separador + .mes,
     .separador {
-        width: 100%;
-        height: 1px; /* El separador ahora es una línea horizontal */
-        margin: 5px 0;
+        display: none;
     }
 
     /* 4. AJUSTE DE DÍAS (Más grandes para el dedo) */
     .grid-calendario {
-        gap: 6px 2px;
+        gap: 3px 2px;
     }
 
     .dia-btn {
-        height: 40px; /* Área de toque más cómoda */
+        height: 40px;
         font-size: 15px;
     }
 
     /* 5. FOOTER DE FECHAS SELECCIONADAS */
     .footer-fechas {
-        flex-direction: column; /* Inicio arriba, Fin abajo */
-        gap: 10px;
-        padding-top: 15px;
+        flex-direction: column;
+        gap: 6px;
+        padding-top: 10px;
     }
 
     .caja-fecha {
-        width: 100%; /* Ocupan todo el ancho */
-        padding: 8px 12px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px 10px;
     }
 
     .linea-conexion {
-        display: none; /* Quitamos la línea pequeña en móvil */
+        display: none;
     }
 
     /* 6. BOTONES DE ACCIÓN GIGANTES */
     .footer-acciones {
-        margin-top: 15px;
+        margin-top: 0;
     }
 
     .botones-accion {
-        flex-direction: column-reverse; /* "Seleccionar" arriba, "Cancelar" abajo */
+        flex-direction: column-reverse;
         width: 100%;
-        gap: 10px;
+        gap: 8px;
     }
 
     .btn-cancelar, .btn-seleccionar {
         width: 100%;
-        height: 48px; /* Altura estándar para dedos en Android */
+        height: 44px;
         font-size: 16px;
         justify-content: center;
     }

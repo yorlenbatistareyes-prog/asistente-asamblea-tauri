@@ -17,6 +17,15 @@
   let mostrarModal = false;
   let editandoFecha = false;
 
+  function portalToBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
+
   let form = { 
     tema: "", 
     fechaInicio: null as Date | null, 
@@ -580,7 +589,7 @@ $: asambleasFiltradas = listaAsambleas
         </div>
 
     {#if mostrarModal}
-        <div class="modal-bg" on:click|self={()=>mostrarModal=false}>
+        <div class="modal-bg" use:portalToBody on:click|self={()=>mostrarModal=false}>
             <Panel padding="25px" clasesExtra="modal-ancho">
                 <div class="modal-head">
                     <h3>Nueva Asamblea</h3>
@@ -1279,9 +1288,41 @@ $: asambleasFiltradas = listaAsambleas
     /* 7. MODAL DE NUEVA ASAMBLEA ADAPTADO AL TELÉFONO */
     :global(.modal-ancho) {
         width: 95vw !important; 
-        max-height: 85vh !important; /* 👈 Evita que se encaje, dejando aire arriba y abajo */
-        overflow-y: auto !important; /* 👈 Activa el scroll interno si la pantalla es muy pequeña */
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+        min-height: 0;
+        overflow: hidden !important;
         padding: 15px !important;
+    }
+
+    .modal-bg {
+        align-items: flex-start !important;
+        padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    :global(.modal-bg > .modal-ancho) {
+        margin: 0 auto !important;
+    }
+
+    .modal-head,
+    .modal-foot {
+        flex: 0 0 auto;
+    }
+
+    .modal-form {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .contenedor-calendario-desplegado {
+        max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
     }
 
     /* Hacemos que TODOS los campos (incluyendo los de ubicación) se apilen hacia abajo */
@@ -1291,6 +1332,9 @@ $: asambleasFiltradas = listaAsambleas
     }
 
     .modal-foot {
+        margin-top: 0;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
         flex-direction: column-reverse; /* El botón de crear arriba, cancelar abajo */
         gap: 10px;
     }
