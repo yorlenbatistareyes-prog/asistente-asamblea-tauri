@@ -2,13 +2,14 @@
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { confirm } from '@tauri-apps/plugin-dialog';
 
   import RegistroOradores from '$lib/components/gestion/info_asamblea_paneles/RegistroOradores.svelte';
 
   // Iconos
   import { 
     Users, Search, X, Trash2, Phone, Mail, UserPlus, UserCheck, 
-    ChevronRight, MessageCircle, ClipboardList,
+    ChevronRight, MessageSquare, ClipboardList,
     Briefcase, Calendar, Clock, Edit2, FileUp, User
   } from 'lucide-svelte';
 
@@ -35,6 +36,20 @@
   let asambleaId = 0; 
   let tabPrincipal = 'auxiliares'; 
   let diaSeleccionado = 'Viernes';
+  const rolesHorario = [
+      { label: 'Presidente de sesión', keyBase: 'presidente' },
+      { label: 'Mesa de registro', keyBase: 'registro' },
+      { label: 'Ensayos y sonido', keyBase: 'ensayos' },
+      { label: 'Orientaciones', keyBase: 'orientaciones' },
+      { label: 'Acompañante de plataforma', keyBase: 'plataforma' }
+  ];
+  const responsabilidadesAuxiliar = [
+      { label: 'Registro', key: 'registro' },
+      { label: 'Ensayos y sonido', key: 'ensayos' },
+      { label: 'Orientaciones', key: 'orientaciones' },
+      { label: 'Presidencia', key: 'presidentes' },
+      { label: 'Plataforma', key: 'acompañar_plataforma' }
+  ];
   
   let oficina: { [key: string]: any } = {
       personal: [] as any[],
@@ -250,7 +265,8 @@
   }
 
   async function vaciarBloque(seccion: string) {
-      if (!confirm(`¿Borrar todo el horario de la ${seccion}?`)) return;
+      const nombreSesion = seccion === 'manana' ? 'mañana' : 'tarde';
+      if (!confirm(`¿Vaciar todas las asignaciones del ${diaSeleccionado} por la ${nombreSesion}? Esta acción no se puede deshacer.`)) return;
       const roles = ['presidente', 'registro', 'ensayos', 'orientaciones', 'plataforma'];
       try {
           for (const rol of roles) {
@@ -332,7 +348,11 @@
   }
 
   async function eliminarAsignacion(id: number) {
-      if (!confirm("¿Quitar a este hermano permanentemente de la oficina?")) return;
+      const confirmado = await confirm(
+          "¿Quitar a este auxiliar de la oficina? Esta acción no eliminará a la persona de la asamblea.",
+          { title: 'Confirmar eliminación', kind: 'warning' }
+      );
+      if (!confirmado) return;
       try {
           // 🔥 USAMOS EL EMBUDO
           await DB.eliminarAsignacionEspecial({ id });
@@ -341,7 +361,14 @@
   }
 
   const nombreTxt = (obj: any) => obj && obj.nombre_completo ? obj.nombre_completo : "Sin asignar";
-  const iniciales = (obj: any) => obj && obj.nombre_completo ? obj.nombre_completo.substring(0, 2).toUpperCase() : "-";
+  const iniciales = (obj: any) => {
+      const partesNombre = String(obj?.nombre_completo || '').trim().split(/\s+/).filter(Boolean);
+      return partesNombre.length
+          ? `${partesNombre[0][0]}${partesNombre[1]?.[0] || ''}`.toLocaleUpperCase('es')
+          : '-';
+  };
+  const cantidadAsignada = (seccion: string) =>
+      rolesHorario.filter(({ keyBase }) => oficina.asignaciones[`${keyBase}_${seccion}`]?.nombre_completo).length;
   
   $: hermanosFiltrados = terminoBusqueda.trim() === "" 
       ? listaHermanos 
@@ -516,34 +543,51 @@
                 {#each oficina.personal as p}
                     <div class="tarjeta-personal">
                         <div class="tp-top">
-                            <div class="tp-avatar">{p?.nombre_completo ? p.nombre_completo.charAt(0) : '?'}</div>
+                            <div class="tp-identidad">
+                                <div class="tp-avatar"><User size={27}/></div>
+                            </div>
                             <div class="tp-acciones">
-                                <button class="btn-icon" title="Editar configuraciones" on:click={() => abrirModalEditar(p)}><Edit2 size={14}/></button>
-                                <button class="btn-icon delete" title="Quitar de la oficina" on:click={() => eliminarAsignacion(p.id)}><Trash2 size={14}/></button>
+                                <button class="btn-icon" aria-label={`Editar a ${p.nombre_completo}`} title="Editar configuraciones" on:click={() => abrirModalEditar(p)}><Edit2 size={14}/></button>
+                                <button class="btn-icon delete" aria-label={`Quitar a ${p.nombre_completo} de la oficina`} title="Quitar de la oficina" on:click={() => eliminarAsignacion(p.id)}><Trash2 size={14}/></button>
                             </div>
                         </div>
                         <div class="tp-info">
                             <h4 title={p.nombre_completo}>{p?.nombre_completo || 'Sin nombre'}</h4>
-                            <span class="tp-email">{p.email || 'Sin correo registrado'}</span>
-                            <div class="tp-badges">
-                                {#if p.nombre_congregacion}
-                                    <span class="badge gray">{p.nombre_congregacion}</span>
+                            <div class="tp-contactos-principales">
+                                {#if p.email}
+                                    <span class="tp-contacto-principal"><Mail size={13}/><span>{p.email}</span></span>
+                                {/if}
+                                {#if p.telefono}
+                                    <span class="tp-contacto-principal"><Phone size={13}/><span>{p.telefono}</span></span>
+                                {/if}
+                            </div>
+                            {#if p.nombre_congregacion}
+                                <span class="tp-congregacion">{p.nombre_congregacion}</span>
+                            {/if}
+                            <div class="tp-responsabilidades" aria-label="Responsabilidades">
+                                {#each responsabilidadesAuxiliar as responsabilidad}
+                                    {#if p.resp_obj?.[responsabilidad.key]}
+                                        <span class="tp-etiqueta-rol">{responsabilidad.label}</span>
+                                    {/if}
+                                {/each}
+                                {#if !responsabilidadesAuxiliar.some(({ key }) => p.resp_obj?.[key])}
+                                    <span class="tp-sin-responsabilidades">Sin responsabilidades indicadas</span>
                                 {/if}
                             </div>
                         </div>
 
                         <div class="tp-footer-botones">
 
-                            <button class="btn-contacto" on:click={() => p.telefono ? openUrl(`tel:${p.telefono.replace(/[\s\-\(\)]/g, '')}`) : alert('Sin teléfono')}>
-                                <Phone size={14}/> Teléfono
+                            <button class="btn-contacto contacto-telefono" aria-label={`Llamar a ${p.nombre_completo}`} title="Llamar" on:click={() => p.telefono ? openUrl(`tel:${p.telefono.replace(/[\s\-\(\)]/g, '')}`) : alert('Sin teléfono')}>
+                                <Phone size={16}/>
                             </button>
 
-                            <button class="btn-contacto" on:click={() => enviarWhatsAppAuxiliar(p)}>
-                                <MessageCircle size={14}/> WhatsApp
+                            <button class="btn-contacto contacto-whatsapp" aria-label={`Enviar WhatsApp a ${p.nombre_completo}`} title="WhatsApp" on:click={() => enviarWhatsAppAuxiliar(p)}>
+                                <MessageSquare size={16}/>
                             </button>
 
-                            <button class="btn-contacto" on:click={() => enviarCorreoAuxiliar(p)}>
-                                <Mail size={14}/> JW Email
+                            <button class="btn-contacto contacto-correo" aria-label={`Enviar correo a ${p.nombre_completo}`} title="JW Email" on:click={() => enviarCorreoAuxiliar(p)}>
+                                <Mail size={16}/>
                             </button>
 
                         </div>
@@ -579,80 +623,92 @@
                     </button>
 
                     <button class="btn-primary" on:click={abrirModalBloqueAsignacion}>
-                        <Edit2 size={16}/> Agregar horario
+                        <UserPlus size={16}/> Asignar equipo
                     </button>
 
                 </div>
             </div>
 
             <div class="grid-horarios">
-                <div class="card-horario-bloque">
+                <div class="card-horario-bloque sesion-manana">
                     <div class="ch-header">
-                        <div class="ch-title">
-                            <Clock size={18} color="#3b82f6"/>
-                            <h3>{diaSeleccionado} por la Mañana</h3>
+                        <div class="ch-heading">
+                            <div class="ch-title">
+                                <Clock size={18}/>
+                                <h3>{diaSeleccionado} por la mañana</h3>
+                            </div>
+                            <span class="ch-resumen" class:completo={cantidadAsignada('manana') === rolesHorario.length}>
+                                {cantidadAsignada('manana')} de {rolesHorario.length} asignados
+                                {#if cantidadAsignada('manana') < rolesHorario.length}
+                                    <span>· {rolesHorario.length - cantidadAsignada('manana')} pendientes</span>
+                                {/if}
+                            </span>
                         </div>
                         <div class="ch-actions">
-                            <button class="btn-icon" title="Editar este horario" on:click={() => abrirModalEditarBloque('manana')}>
+                            <button class="btn-icon" aria-label={`Editar asignaciones del ${diaSeleccionado} por la mañana`} title="Editar equipo" on:click={() => abrirModalEditarBloque('manana')}>
                                 <Edit2 size={16}/>
                             </button>
-                            <button class="btn-icon delete" title="Vaciar sesión" on:click={() => vaciarBloque('manana')}>
+                            <button class="btn-icon delete" aria-label={`Vaciar asignaciones del ${diaSeleccionado} por la mañana`} title="Vaciar sesión" on:click={() => vaciarBloque('manana')}>
                                 <Trash2 size={16}/>
                             </button>
                         </div>
                     </div>
                     <div class="ch-grid">
-                        {#each [
-                            { label: 'Presidente de sesión', keyBase: 'presidente' }, 
-                            { label: 'Mesa de Registro', keyBase: 'registro' }, 
-                            { label: 'Ensayos y Sonido', keyBase: 'ensayos' }, 
-                            { label: 'Orientaciones', keyBase: 'orientaciones' }, 
-                            { label: 'Acompañante Plataforma', keyBase: 'plataforma' }
-                        ] as item}
-                            <div class="chip-rol">
-                                <div class="chip-avatar">{iniciales(oficina.asignaciones[`${item.keyBase}_manana`])}</div>
+                        {#each rolesHorario as item}
+                            {@const asignacion = oficina.asignaciones[`${item.keyBase}_manana`]}
+                            <div class="chip-rol" class:pendiente={!asignacion}>
+                                <div class="chip-avatar" class:avatar-pendiente={!asignacion}>{iniciales(asignacion)}</div>
                                 <div class="chip-info">
                                     <span class="chip-label">{item.label}</span>
-                                    <span class="chip-nombre" class:vacio={!oficina.asignaciones[`${item.keyBase}_manana`]}>
-                                        {nombreTxt(oficina.asignaciones[`${item.keyBase}_manana`])}
+                                    <span class="chip-nombre" class:vacio={!asignacion}>
+                                        {nombreTxt(asignacion)}
                                     </span>
                                 </div>
+                                {#if !asignacion}
+                                    <button class="btn-asignar-pendiente" on:click={() => abrirModalEditarBloque('manana')}>Asignar</button>
+                                {/if}
                             </div>
                         {/each}
                     </div>
                 </div>
 
-                <div class="card-horario-bloque">
+                <div class="card-horario-bloque sesion-tarde">
                     <div class="ch-header">
-                        <div class="ch-title">
-                            <Clock size={18} color="#f59e0b"/>
-                            <h3>{diaSeleccionado} por la Tarde</h3>
+                        <div class="ch-heading">
+                            <div class="ch-title">
+                                <Clock size={18}/>
+                                <h3>{diaSeleccionado} por la tarde</h3>
+                            </div>
+                            <span class="ch-resumen" class:completo={cantidadAsignada('tarde') === rolesHorario.length}>
+                                {cantidadAsignada('tarde')} de {rolesHorario.length} asignados
+                                {#if cantidadAsignada('tarde') < rolesHorario.length}
+                                    <span>· {rolesHorario.length - cantidadAsignada('tarde')} pendientes</span>
+                                {/if}
+                            </span>
                         </div>
                         <div class="ch-actions">
-                            <button class="btn-icon" title="Editar este horario" on:click={() => abrirModalEditarBloque('tarde')}>
+                            <button class="btn-icon" aria-label={`Editar asignaciones del ${diaSeleccionado} por la tarde`} title="Editar equipo" on:click={() => abrirModalEditarBloque('tarde')}>
                                 <Edit2 size={16}/>
                             </button>
-                            <button class="btn-icon delete" title="Vaciar sesión" on:click={() => vaciarBloque('tarde')}>
+                            <button class="btn-icon delete" aria-label={`Vaciar asignaciones del ${diaSeleccionado} por la tarde`} title="Vaciar sesión" on:click={() => vaciarBloque('tarde')}>
                                 <Trash2 size={16}/>
                             </button>
                         </div>
                     </div>
                     <div class="ch-grid">
-                        {#each [
-                            { label: 'Presidente de sesión', keyBase: 'presidente' }, 
-                            { label: 'Mesa de Registro', keyBase: 'registro' }, 
-                            { label: 'Ensayos y Sonido', keyBase: 'ensayos' }, 
-                            { label: 'Orientaciones', keyBase: 'orientaciones' }, 
-                            { label: 'Acompañante Plataforma', keyBase: 'plataforma' }
-                        ] as item}
-                            <div class="chip-rol">
-                                <div class="chip-avatar">{iniciales(oficina.asignaciones[`${item.keyBase}_tarde`])}</div>
+                        {#each rolesHorario as item}
+                            {@const asignacion = oficina.asignaciones[`${item.keyBase}_tarde`]}
+                            <div class="chip-rol" class:pendiente={!asignacion}>
+                                <div class="chip-avatar" class:avatar-pendiente={!asignacion}>{iniciales(asignacion)}</div>
                                 <div class="chip-info">
                                     <span class="chip-label">{item.label}</span>
-                                    <span class="chip-nombre" class:vacio={!oficina.asignaciones[`${item.keyBase}_tarde`]}>
-                                        {nombreTxt(oficina.asignaciones[`${item.keyBase}_tarde`])}
+                                    <span class="chip-nombre" class:vacio={!asignacion}>
+                                        {nombreTxt(asignacion)}
                                     </span>
                                 </div>
+                                {#if !asignacion}
+                                    <button class="btn-asignar-pendiente" on:click={() => abrirModalEditarBloque('tarde')}>Asignar</button>
+                                {/if}
                             </div>
                         {/each}
                     </div>
@@ -791,7 +847,7 @@
   <div class="modal-backdrop" use:portalToBody on:click|self={cerrarModales}>
     <div class="modal modal-bloque">
       <div class="modal-header">
-        <h3><Calendar size={20}/> Configurar Horario</h3>
+        <h3><Calendar size={20}/> Asignar equipo</h3>
         <button class="btn-close" on:click={cerrarModales}><X size={18}/></button>
       </div>
       
@@ -843,7 +899,7 @@
         <button class="btn-cancelar" on:click={cerrarModales}>Cancelar</button>
         <button class="btn-primary"
                 disabled={Boolean(formAsignacion.presidente && (cargandoPartePresidente || partePresidenteExiste === null || (partePresidenteExiste === false && !horaNuevaPartePresidente.trim())))}
-                on:click={guardarBloqueAsignaciones}>Guardar Horario</button>
+                on:click={guardarBloqueAsignaciones}>Guardar asignaciones</button>
       </div>
     </div>
   </div>
@@ -1046,95 +1102,183 @@
 .grid-tarjetas-auxiliares {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 18px;
 }
 .tarjeta-personal {
+  position: relative;
+  min-width: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
+  border-top: 3px solid var(--primary);
+  border-radius: 12px;
+  padding: 18px;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.tarjeta-personal:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-premium);
+  border-color: rgba(37, 99, 235, 0.28);
+  border-top-color: var(--primary);
 }
 .tp-top {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  justify-content: center;
+  align-items: center;
+  min-height: 64px;
 }
-.tp-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(var(--primary-rgb), 0.1);
-  color: var(--primary);
+.tp-identidad {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  font-weight: bold;
+}
+.tp-avatar {
+  width: 64px;
+  height: 64px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tp-avatar :global(svg) {
+  stroke-width: 2;
 }
 .tp-acciones {
   display: flex;
   gap: 5px;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.tp-acciones .btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+.tp-acciones .btn-icon:hover {
+  background: rgba(37, 99, 235, 0.07);
 }
 .tp-info h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.35;
   color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
-.tp-email {
-  font-size: 13px;
-  color: var(--text-sec);
-  display: block;
-  margin-top: 2px;
-}
-.tp-badges {
+.tp-contactos-principales {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px 12px;
+  margin-top: 6px;
+}
+.tp-contacto-principal {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
   gap: 5px;
-  margin-top: 10px;
-}
-.badge {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-.badge.gray {
-  background: var(--bg-body);
   color: var(--text-sec);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.tp-contacto-principal :global(svg) {
+  flex: 0 0 auto;
+}
+.tp-contacto-principal span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tp-congregacion {
+  display: block;
+  max-width: 100%;
+  margin-top: 9px;
+  color: var(--text-sec);
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.tp-responsabilidades {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 7px;
+}
+.tp-etiqueta-rol {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.055);
+  color: var(--primary);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.tp-sin-responsabilidades {
+  color: var(--text-sec);
+  font-size: 11px;
+  font-style: italic;
 }
 .tp-footer-botones {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 15px;
-  border-top: 1px solid var(--border);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-items: center;
+  gap: 10px;
+  margin-top: 0;
+  padding-top: 0;
 }
 .btn-contacto {
+  width: 38px;
+  height: 38px;
+  padding: 0;
   background: transparent;
-  border: none;
-  padding: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  border: 1px solid var(--border);
   color: var(--text-sec);
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  border-radius: 6px;
+  justify-content: center;
+  border-radius: 50%;
   transition: 0.2s;
 }
 .btn-contacto:hover {
-  background: rgba(var(--primary-rgb), 0.1);
+  background: rgba(37, 99, 235, 0.07);
+  border-color: var(--primary);
   color: var(--primary);
+}
+.btn-contacto.contacto-telefono:hover {
+  background: rgba(37, 99, 235, 0.07);
+  border-color: #2563eb;
+  color: #2563eb;
+}
+.btn-contacto.contacto-whatsapp:hover {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: #16a34a;
+  color: #16a34a;
+}
+.btn-contacto.contacto-correo:hover {
+  background: rgba(234, 88, 12, 0.08);
+  border-color: #ea580c;
+  color: #ea580c;
+}
+.btn-contacto :global(svg) {
+  width: 17px;
+  height: 17px;
 }
 .vacio-absoluto {
   grid-column: 1/-1;
@@ -1154,63 +1298,104 @@
 .grid-horarios {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
   align-items: start;
 }
 .card-horario-bloque {
   background: var(--bg-card);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
   border-radius: 10px;
   box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
+.card-horario-bloque.sesion-manana {
+  border-top-color: #3b82f6;
+}
+.card-horario-bloque.sesion-tarde {
+  border-top-color: #f59e0b;
+}
 .ch-header {
-  padding: 15px 20px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   background: var(--bg-body);
+}
+.ch-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 .ch-title {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+.sesion-manana .ch-title > :global(svg) {
+  color: #3b82f6;
+}
+.sesion-tarde .ch-title > :global(svg) {
+  color: #f59e0b;
+}
 .ch-title h3 {
   margin: 0;
   font-size: 16px;
   color: var(--text-main);
 }
+.ch-resumen {
+  padding-left: 28px;
+  color: var(--text-sec);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ch-resumen span {
+  font-weight: 400;
+}
+.ch-resumen.completo {
+  color: var(--accent-success, #15803d);
+}
 .ch-actions {
   display: flex;
-  gap: 5px;
+  gap: 3px;
+  flex-shrink: 0;
 }
 .ch-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 15px;
+  gap: 7px;
+  padding: 12px;
 }
 .chip-rol {
-  background: var(--bg-body);
+  min-width: 0;
+  min-height: 58px;
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 15px;
+  padding: 8px 11px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  transition: 0.2s;
+  gap: 11px;
+  transition: border-color 0.2s, background 0.2s;
 }
 .chip-rol:hover {
   border-color: var(--primary);
-  background: var(--bg-card);
+  background: rgba(var(--primary-rgb), 0.025);
+}
+.chip-rol.pendiente {
+  border-style: dashed;
+  background: var(--bg-body);
 }
 .chip-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
   border-radius: 50%;
-  background: rgba(var(--primary-rgb), 0.1);
+  border: 1px solid rgba(var(--primary-rgb, 37, 99, 235), 0.3);
+  background: rgba(var(--primary-rgb, 37, 99, 235), 0.08);
   color: var(--primary);
   display: flex;
   align-items: center;
@@ -1219,10 +1404,17 @@
   font-weight: bold;
   flex-shrink: 0;
 }
+.chip-avatar.avatar-pendiente {
+  border-color: var(--border);
+  background: var(--bg-card);
+  color: var(--text-sec);
+}
 .chip-info {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 .chip-label {
   font-size: 11px;
@@ -1243,6 +1435,22 @@
   color: var(--text-sec);
   font-weight: 400;
   font-style: italic;
+}
+.btn-asignar-pendiente {
+  flex: 0 0 auto;
+  border: 1px solid rgba(var(--primary-rgb), 0.25);
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: rgba(var(--primary-rgb), 0.07);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.btn-asignar-pendiente:hover {
+  background: rgba(var(--primary-rgb), 0.13);
+  border-color: var(--primary);
 }
 
 /* ===== MODALES ===== */
@@ -1565,6 +1773,45 @@
   }
   .grid-horarios {
     grid-template-columns: 1fr;
+  }
+  .header-seccion .acciones-derecha {
+    width: 100%;
+    gap: 8px;
+  }
+  .header-seccion .acciones-derecha > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .filtro-dias {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .filtro-dias button {
+    flex: 1 1 0;
+    padding-inline: 9px;
+  }
+  .ch-header {
+    padding: 12px;
+  }
+  .ch-title {
+    gap: 7px;
+  }
+  .ch-title h3 {
+    font-size: 15px;
+  }
+  .ch-resumen {
+    padding-left: 24px;
+    font-size: 11px;
+  }
+  .chip-rol {
+    gap: 9px;
+    padding: 8px;
+  }
+  .chip-label {
+    font-size: 10px;
+  }
+  .chip-nombre {
+    font-size: 13px;
   }
   .modal-auxiliares,
   .modal-bloque {
