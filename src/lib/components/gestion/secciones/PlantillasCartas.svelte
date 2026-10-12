@@ -1382,7 +1382,7 @@ select:hover {
   justify-content: center;
 }
 
-/* --- HOJA DE PAPEL: SIEMPRE BLANCA CON TEXTO NEGRO --- */
+/* --- HOJA DE EDICIÓN --- */
 .paper-sheet {
   width: 21.59cm;
   min-height: 27.94cm;
@@ -1392,7 +1392,7 @@ select:hover {
   margin-bottom: 20px;
 }
 
-/* Forzar que todo el contenido del editor sea blanco y negro */
+/* En modo claro, conservar la hoja blanca para editar e imprimir. */
 .editor-content,
 .editor-content *,
 .ProseMirror,
@@ -1412,6 +1412,17 @@ select:hover {
 .ProseMirror a {
   color: #0066cc !important;
   text-decoration: underline;
+}
+
+:global(:root.dark-theme) .paper-sheet,
+:global(:root.dark-theme) .paper-sheet * {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  caret-color: var(--text-main) !important;
+}
+
+:global(:root.dark-theme) .ProseMirror-cursor {
+  border-left-color: var(--text-main) !important;
 }
 
 /* Tipografía base */

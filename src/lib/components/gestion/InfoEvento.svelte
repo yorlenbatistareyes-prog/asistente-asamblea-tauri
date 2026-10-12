@@ -108,7 +108,8 @@
   // --- PRESIDENTE ---
   let presidente: any = null;
   let editandoPresidente = false;
-  let tempPresidente: any = { nombre: '', apellido: '', segundo_nombre: '', sufijo: '', correo_jw: '', correo_normal: '', telefono: '' };
+  let presidenteSeleccionadoDelDirectorio = false;
+  let tempPresidente: any = { nombre: '', apellido: '', segundo_nombre: '', sufijo: '', correo_jw: '', correo_normal: '', telefono: '', circuito: '' };
 
   // Variables para el buscador del directorio
   let personasDirectorio: any[] = [];
@@ -140,14 +141,17 @@
       tempPresidente = {
           ...tempPresidente,
           persona_id: persona.id, // ¡Clave! Esto evita que se cree duplicado al guardar
+          origen_directorio: 'directorio',
           nombre: nombre,
           segundo_nombre: '',
           apellido: apellido,
           sufijo: '',
           correo_jw: persona.email || '',
           correo_normal: '',
-          telefono: persona.telefono || ''
+          telefono: persona.telefono || '',
+          circuito: persona.circuito || ''
       };
+      presidenteSeleccionadoDelDirectorio = true;
 
       // Cerramos el buscador y mostramos a quién seleccionamos
       busquedaPersona = persona.nombre_completo;
@@ -200,12 +204,23 @@
  
   // --- FUNCIONES PRESIDENTE ---
   function iniciarEdicionPresidente() {
-    if (presidente) { tempPresidente = { ...presidente }; } 
-    else { tempPresidente = { nombre: '', apellido: '', segundo_nombre: '', sufijo: '', correo_jw: '', correo_normal: '', telefono: '' }; }
+    if (presidente) {
+      tempPresidente = { ...presidente };
+      presidenteSeleccionadoDelDirectorio = Number.isInteger(presidente.persona_id);
+      tempPresidente.origen_directorio = presidente.origen_directorio || 'manual';
+    } else {
+      tempPresidente = { nombre: '', apellido: '', segundo_nombre: '', sufijo: '', correo_jw: '', correo_normal: '', telefono: '', circuito: '' };
+      presidenteSeleccionadoDelDirectorio = false;
+    }
     editandoPresidente = true;
   }
 
   function cancelarEdicionPresidente() { editandoPresidente = false; }
+
+  function editarPresidenteManualmente() {
+    tempPresidente.persona_id = null;
+    presidenteSeleccionadoDelDirectorio = false;
+  }
 
 async function guardarPresidente() {
     if (!tempPresidente.nombre || !tempPresidente.apellido) {
@@ -213,16 +228,26 @@ async function guardarPresidente() {
     }
 
     try {
-        if (!tempPresidente.id && !tempPresidente.persona_id) {
+        if (!tempPresidente.id && !Number.isInteger(tempPresidente.persona_id)) {
             const nombreCompleto = `${tempPresidente.nombre} ${tempPresidente.segundo_nombre || ''} ${tempPresidente.apellido} ${tempPresidente.sufijo || ''}`.replace(/\s+/g, ' ').trim();
 
-            // 👇 NUEVO: Buscamos en la base de datos si ya existe alguien con ese nombre
+            const normalizarNombre = (nombre: string) => nombre
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLocaleLowerCase()
+                .trim()
+                .replace(/\s+/g, ' ');
             const personasExistentes = await invoke('obtener_personas', { asambleaId }) as any[];
-            const personaDuplicada = personasExistentes.find(p => p.nombre_completo.toLowerCase() === nombreCompleto.toLowerCase());
+            const claveNombre = normalizarNombre(nombreCompleto);
+            const personaDuplicada = personasExistentes.find(p => normalizarNombre(p.nombre_completo) === claveNombre);
 
             if (personaDuplicada) {
                 // Si el hermano ya está en el directorio, lo reciclamos vinculando su ID
                 tempPresidente.persona_id = personaDuplicada.id;
+                tempPresidente.origen_directorio = 'manual';
+                tempPresidente.circuito = tempPresidente.circuito?.trim()
+                    ? tempPresidente.circuito
+                    : personaDuplicada.circuito || '';
                 console.log("El presidente ya existía en el directorio. Reutilizando ID:", personaDuplicada.id);
             } else {
                 // Si realmente no existe, entonces sí lo creamos
@@ -234,19 +259,37 @@ async function guardarPresidente() {
                     email: tempPresidente.correo_jw || tempPresidente.correo_normal || '', 
                     telefono: tempPresidente.telefono || '',
                     sexo: "M",
-                    privilegios: "ANCIANO"
+                    privilegios: "ANCIANO",
+                    circuito: tempPresidente.circuito || null
                 };
 
-                // 🔥 AHORA SÍ PASA POR TU EMBUDO EXACTO 🔥
-                const personaCreadaId = await DB.registrarPersona(nuevaPersona);
-                tempPresidente.persona_id = personaCreadaId;
+                await DB.registrarPersona(nuevaPersona);
+                const personasActualizadas = await invoke('obtener_personas', { asambleaId }) as any[];
+                const personaGuardada = personasActualizadas.find(p => normalizarNombre(p.nombre_completo) === claveNombre);
+                if (!personaGuardada) {
+                    throw new Error("No se encontró al presidente en el directorio después de guardarlo.");
+                }
+                tempPresidente.persona_id = personaGuardada.id;
+                tempPresidente.origen_directorio = 'manual';
             }
         }
 
-        // Actualizamos la vista y guardamos en la asamblea
+        if (Number.isInteger(tempPresidente.persona_id) && tempPresidente.circuito?.trim()) {
+            await DB.actualizarCircuitoPersona({
+                id: tempPresidente.persona_id,
+                circuito: tempPresidente.circuito.trim()
+            });
+        }
+
+        // Persist the provenance so removal only deletes manually entered directory records.
+        tempPresidente.origen_directorio ||= 'directorio';
+        const presidenteAnterior = presidente;
         presidente = { ...tempPresidente };
-        editandoPresidente = false;
-        await guardar(); 
+        if (await guardar()) {
+            editandoPresidente = false;
+        } else {
+            presidente = presidenteAnterior;
+        }
 
     } catch (error) {
         console.error("Error al vincular el presidente:", error);
@@ -267,10 +310,21 @@ async function guardarPresidente() {
       // 2. Si el usuario cancela, detenemos la función
       if (!estaSeguro) return;
 
-      // 3. Tu código actual de eliminación va aquí abajo
-      // (Probablemente tienes algo como esto:)
+      const presidenteQuitado = presidente;
       presidente = null;
-      await guardar(); // O la función que uses para guardar los cambios
+      if (!await guardar()) {
+          presidente = presidenteQuitado;
+          return;
+      }
+
+      if (presidenteQuitado?.origen_directorio !== 'directorio' && Number.isInteger(presidenteQuitado?.persona_id)) {
+          try {
+              await DB.eliminarPersona({ id: presidenteQuitado.persona_id });
+          } catch (error) {
+              console.error("No se pudo eliminar la ficha manual del presidente:", error);
+              alert("Se quitó al presidente de la asamblea, pero no se pudo eliminar su ficha de Personas: " + error);
+          }
+      }
   }
 
   // --- FUNCIONES DEL MODAL GENERAL ---
@@ -564,7 +618,7 @@ async function guardarPresidente() {
     editorNotas?.destroy();
   });
 
-  async function guardar() {
+  async function guardar(): Promise<boolean> {
     try {
       // 🔥 CONEXIÓN EXCLUSIVA CON EL EMBUDO DE LA BASE DE DATOS
       await DB.guardarInfoEvento({
@@ -585,8 +639,10 @@ async function guardarPresidente() {
         presidente: presidente ? JSON.stringify(presidente) : null 
       });
       alert("✅ Configuración guardada correctamente");
+      return true;
     } catch (e) { 
       alert("❌ Error al guardar: " + e); 
+      return false;
     }
   }
   
@@ -726,7 +782,8 @@ async function guardarPresidente() {
                          type="text" 
                          placeholder="Buscar en el directorio..." 
                          bind:value={busquedaPersona}
-                         on:focus={() => { mostrarSugerencias = true; cargarDirectorioPersonas(); }}
+                             on:input={editarPresidenteManualmente}
+                             on:focus={() => { mostrarSugerencias = true; cargarDirectorioPersonas(); }}
                          on:blur={() => setTimeout(() => mostrarSugerencias = false, 200)}
                     />
                 </div>
@@ -752,12 +809,21 @@ async function guardarPresidente() {
             <div class="divider-text"><span>O ingresar manualmente</span></div>
 
             <div class="grid-2 mb-15">
-                <div class="campo"><label>Nombre <span style="color:red">*</span></label><input type="text" bind:value={tempPresidente.nombre} /></div>
-                <div class="campo"><label>Apellido <span style="color:red">*</span></label><input type="text" bind:value={tempPresidente.apellido} /></div>
+                <div class="campo"><label>Nombre <span style="color:red">*</span></label><input type="text" bind:value={tempPresidente.nombre} on:input={editarPresidenteManualmente} /></div>
+                <div class="campo"><label>Apellido <span style="color:red">*</span></label><input type="text" bind:value={tempPresidente.apellido} on:input={editarPresidenteManualmente} /></div>
             </div>
             <div class="grid-2 mb-15">
-                <div class="campo"><label>Segundo nombre</label><input type="text" bind:value={tempPresidente.segundo_nombre} /></div>
-                <div class="campo"><label>Sufijo</label><input type="text" bind:value={tempPresidente.sufijo} /></div>
+                <div class="campo"><label>Segundo nombre</label><input type="text" bind:value={tempPresidente.segundo_nombre} on:input={editarPresidenteManualmente} /></div>
+                <div class="campo"><label>Sufijo</label><input type="text" bind:value={tempPresidente.sufijo} on:input={editarPresidenteManualmente} /></div>
+            </div>
+            <div class="campo mb-15">
+                <label for="presidente-circuito">Circuito al que pertenece</label>
+                        <input
+                            id="presidente-circuito"
+                            type="text"
+                            bind:value={tempPresidente.circuito}
+                            placeholder="Ej. Circuito 5"
+                        />
             </div>
             <div class="campo mb-15">
                 <label>Correo electrónico JW.org <span style="font-weight: 400; color: var(--text-sec);">— Se usa para evitar duplicados de oradores</span></label>

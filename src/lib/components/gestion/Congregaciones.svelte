@@ -60,17 +60,28 @@
   });
 
   // --- GUARDAR MANUALMENTE ---
-  async function guardar() {
-    if (!nombre) return alert("Escribe el nombre");
+  async function guardar(): Promise<boolean> {
+    if (!nombre.trim()) {
+      alert("Escribe el nombre");
+      return false;
+    }
     try {
       // 🔥 USAMOS EL EMBUDO
-      await DB.crearCongregacion({ 
+      const resultado = String(await DB.crearCongregacion({ 
         asambleaId, nombre, circuito, numero 
-      });
+      }));
+      if (resultado.includes("no se añadió un duplicado")) {
+        alert(resultado);
+        return false;
+      }
       
       nombre = ""; circuito = ""; numero = "";
-      cargar();
-    } catch (e) { alert("Error: " + e); }
+      await cargar();
+      return true;
+    } catch (e) {
+      alert("Error: " + e);
+      return false;
+    }
   }
 
   // --- IMPORTAR CSV ---
@@ -135,7 +146,7 @@
 }
 
 async function guardarYcerrar() {
-  await guardar();  // guardar ya existe y al final recarga la lista
+  if (!await guardar()) return;
   mostrarModal = false;
 }
 </script>

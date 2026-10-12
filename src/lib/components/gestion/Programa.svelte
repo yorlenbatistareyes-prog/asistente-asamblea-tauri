@@ -132,6 +132,19 @@
     return true;
   }
 
+  function estiloTarjetaParte(parte: any): string {
+    const coloresPorDia: Record<string, string> = {
+      Viernes: '#0284c7',
+      'Sábado': '#d66aa6',
+      Domingo: '#f59e0b'
+    };
+    const colorDia = coloresPorDia[parte.dia] || 'var(--border)';
+    const colorDestacado = parte.color_destacado
+      ? `--color-parte: ${getColorValue(parte.color_destacado)};`
+      : '';
+    return `--color-dia: ${colorDia}; ${colorDestacado}`;
+  }
+
   // ==================== FUNCIONES DE FILTRADO Y ORDENAMIENTO ====================
   function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, orden: string) {
     let resultado = [...listaPartes];
@@ -742,12 +755,26 @@ async function cargarColoresSeriesBD() {
   
   async function importarPrograma() { 
     try { 
-      const f = await openDialog({ filters: [{ name: 'CSV', extensions: ['csv'] }] }); 
-      if(f) { 
-        await DB.importarProgramaJw({ asambleaId, rutaArchivo: f }); 
-        await cargarTodosDias(); 
-        await cargarHermanos(); 
-      } 
+      const archivo = await openDialog({
+        multiple: false,
+        filters: [{ name: 'Archivo CSV', extensions: ['csv'] }]
+      });
+      if (!archivo) return;
+
+      if (archivo.startsWith('content://')) {
+        const { contenidoBase64 } = await invoke<{ contenidoBase64: string }>(
+          'plugin:sincronizacion-nativo|leerContenidoBase64',
+          { uriArchivo: archivo }
+        );
+        const bytes = Uint8Array.from(atob(contenidoBase64), caracter => caracter.charCodeAt(0));
+        const contenido = new TextDecoder('utf-8').decode(bytes).replace(/^\uFEFF/, '');
+        await DB.importarProgramaJwDesdeContenido({ asambleaId, contenido });
+      } else {
+        await DB.importarProgramaJw({ asambleaId, rutaArchivo: archivo });
+      }
+
+      await cargarTodosDias();
+      await cargarHermanos();
     } catch(e) { alert("Error al importar: " + e); }
   }
 
@@ -1131,7 +1158,7 @@ onMount(async () => {
         class:estado-presente={parte.esta_presente}
         class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
         class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}
-        style={parte.color_destacado ? `--color-parte: ${getColorValue(parte.color_destacado)};` : ''}>
+        style={estiloTarjetaParte(parte)}>
 
         {#if parte.color_destacado}
           <div class="franja-color" style="background: {getColorValue(parte.color_destacado)};"></div>
@@ -1276,7 +1303,7 @@ onMount(async () => {
           class:estado-presente={parte.esta_presente}
           class:estado-confirmado={parte.recibido_manual && !parte.esta_presente}
           class:estado-ensayo={parte.ensayo_terminado && !parte.esta_presente && !parte.recibido_manual}
-          style={parte.color_destacado ? `--color-parte: ${getColorValue(parte.color_destacado)};` : ''}>
+          style={estiloTarjetaParte(parte)}>
 
           {#if parte.color_destacado}
             <div class="franja-color" style="background: {getColorValue(parte.color_destacado)};"></div>
@@ -2042,6 +2069,7 @@ onMount(async () => {
   background: var(--bg-card);
   border-radius: 10px;
   border: 1.5px solid var(--border);
+  border-left: 5px solid var(--color-dia, var(--border));
   margin-bottom: 14px;
   overflow: hidden;
   transition: all 0.2s ease;
@@ -2052,9 +2080,11 @@ onMount(async () => {
   box-shadow: var(--shadow-premium);
   transform: translateY(-2px);
   border-color: var(--primary);
+  border-left-color: var(--color-dia, var(--border));
 }
 .tarjeta-acordeon.expanded {
   border-color: var(--primary);
+  border-left-color: var(--color-dia, var(--border));
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
 }
 .header-parte {
@@ -3314,11 +3344,6 @@ onMount(async () => {
 .tarjeta-acordeon:has(.franja-color) .tema-txt {
   color: var(--color-parte, var(--text-main));
   font-weight: 700;
-}
-
-/* Borde izquierdo de acento */
-.tarjeta-acordeon:has(.franja-color) {
-  border-left: 3px solid var(--color-parte, var(--border));
 }
 
 /* Hora también toma el color */

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-obtenerNombreArchivo"
+description = "Enables the obtenerNombreArchivo command without any pre-configured scope."
+commands.allow = ["obtenerNombreArchivo"]
+
+[[permission]]
+identifier = "deny-obtenerNombreArchivo"
+description = "Denies the obtenerNombreArchivo command without any pre-configured scope."
+commands.deny = ["obtenerNombreArchivo"]

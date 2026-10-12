@@ -114,6 +114,58 @@ Denies the leerArchivo command without any pre-configured scope.
 <tr>
 <td>
 
+`sincronizacion-nativo:allow-leerContenidoBase64`
+
+</td>
+<td>
+
+Enables the leerContenidoBase64 command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-leerContenidoBase64`
+
+</td>
+<td>
+
+Denies the leerContenidoBase64 command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:allow-obtenerNombreArchivo`
+
+</td>
+<td>
+
+Enables the obtenerNombreArchivo command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-obtenerNombreArchivo`
+
+</td>
+<td>
+
+Denies the obtenerNombreArchivo command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `sincronizacion-nativo:allow-validarCarpeta`
 
 </td>

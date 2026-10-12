@@ -126,13 +126,13 @@
     <Panel padding="25px" clasesExtra="method-panel panel-green">
         <div class="method-header">
             <div class="icon-box dark-green"><Save size={20} /></div>
-            <h4>3. Respaldo Manual Local (.sqlite)</h4>
+            <h4>3. Respaldo Manual Local (.rassembly)</h4>
         </div>
         <div class="method-body">
             <p>En la sección <strong>'Datos'</strong> encontrará las herramientas tradicionales para proteger su información de forma totalmente desconectada (offline).</p>
             <ul class="method-list">
-                <li><strong>Respaldar datos:</strong> Genera y guarda una copia de seguridad completa de su base de datos actual (formato <code>.sqlite</code>) en cualquier lugar de su computadora.</li>
-                <li><strong>Restaurar datos:</strong> Le permite cargar un archivo <code>.sqlite</code> previo. Tenga en cuenta que esta acción reemplazará permanentemente los datos actuales de la aplicación.</li>
+                <li><strong>Respaldar datos:</strong> Genera y guarda una copia de seguridad completa de su base de datos actual como archivo <code>.rassembly</code>. El archivo conserva el formato SQLite y la extensión no lo cifra.</li>
+                <li><strong>Restaurar datos:</strong> Le permite cargar un archivo <code>.rassembly</code> o respaldos anteriores <code>.sqlite</code> y <code>.db</code>. Tenga en cuenta que esta acción reemplazará permanentemente los datos actuales de la aplicación.</li>
                 <li><strong>Limpiar todo:</strong> Elimina toda la información registrada en la aplicación para comenzar desde cero (restablecimiento de fábrica).</li>
             </ul>
         </div>

@@ -170,6 +170,12 @@ export const DB = {
         return resultado;
     },
 
+    async guardarPresidenteSesion(datos: any) {
+        const resultado = await invoke('guardar_presidente_sesion', datos);
+        notificarCambioLocal();
+        return resultado;
+    },
+
     async eliminarAsignacionEspecial(datos: any) {
         const resultado = await invoke('eliminar_asignacion_especial', datos);
         notificarCambioLocal(); // 📢 Grita al sistema que se eliminó o vació una asignación
@@ -187,6 +193,12 @@ export const DB = {
     async registrarPersona(datos: any) {
         const resultado = await invoke('crear_persona', datos);
         notificarCambioLocal(); // 📢 Despierta al radar
+        return resultado;
+    },
+
+    async actualizarCircuitoPersona(datos: { id: number; circuito: string }) {
+        const resultado = await invoke('actualizar_circuito_persona', datos);
+        notificarCambioLocal();
         return resultado;
     },
 
@@ -242,6 +254,15 @@ export const DB = {
     async importarProgramaJw(datos: any) {
         const resultado = await invoke('importar_programa_jw', datos);
         notificarCambioLocal(); 
+        return resultado;
+    },
+
+    async importarProgramaJwDesdeContenido(datos: { asambleaId: number; contenido: string }) {
+        const resultado = await invoke('importar_programa_jw_contenido', {
+            asambleaId: datos.asambleaId,
+            contenido: datos.contenido
+        });
+        notificarCambioLocal();
         return resultado;
     },
 

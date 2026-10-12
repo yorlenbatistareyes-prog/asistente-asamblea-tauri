@@ -5,8 +5,33 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
+use unicode_normalization::{char::is_combining_mark, UnicodeNormalization};
 
 pub const DB_NAME: &str = "asamblea_db_v7.sqlite";
+
+pub fn normalizar_clave(texto: &str) -> String {
+    texto
+        .nfkd()
+        .flat_map(char::to_lowercase)
+        .filter(|caracter| !is_combining_mark(*caracter))
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalizar_clave;
+
+    #[test]
+    fn normalizar_clave_ignora_mayusculas_tildes_y_espacios_repetidos() {
+        assert_eq!(
+            normalizar_clave("  ÁNGEL   Pérez "),
+            normalizar_clave("angel perez")
+        );
+    }
+}
 
 pub fn validar_archivo_db(path: &Path) -> Result<(), String> {
     let mut file = fs::File::open(path).map_err(|e| format!("No se pudo abrir la BD: {}", e))?;

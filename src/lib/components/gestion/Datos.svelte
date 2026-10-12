@@ -2,22 +2,41 @@
     import { invoke } from '@tauri-apps/api/core';
     import { save, open, confirm, message } from '@tauri-apps/plugin-dialog';
     import { relaunch } from '@tauri-apps/plugin-process';
-    import { Upload, Download, Trash2, Cloud, Info } from 'lucide-svelte';
+    import { Upload, Download, Trash2, Cloud, Info, Check } from 'lucide-svelte';
     import Panel from '$lib/components/ui/Panel.svelte';
 
     import Sincronizacion from '$lib/components/Sincronizacion.svelte';
-    import { readFile } from '@tauri-apps/plugin-fs';
+    import { lastDeviceName } from '$lib/stores/autoSyncStore';
     
     let respaldando = false;
+    let mostrarRestauracionCompleta = false;
+    type RespaldoPendiente = {
+        ruta: string;
+        nombreArchivo: string;
+        dispositivoOrigen: string;
+        fecha: string | null;
+    };
+    let respaldoPendiente: RespaldoPendiente | null = null;
+    let restaurando = false;
     
     // --- 1. RESPALDAR DATOS (Exportar) ---
     async function respaldarDatos() {
         if (respaldando) return;
         respaldando = true;
         try {
+            const ahora = new Date();
+            const fechaRespaldo = [
+                ahora.getFullYear(),
+                String(ahora.getMonth() + 1).padStart(2, '0'),
+                String(ahora.getDate()).padStart(2, '0')
+            ].join('-');
+            const nombreDispositivo = ($lastDeviceName || 'Dispositivo')
+                .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+                .trim()
+                .replace(/[. ]+$/g, '') || 'Dispositivo';
             const ruta = await save({
-                filters: [{ name: 'Respaldo SQLite', extensions: ['sqlite'] }],
-                defaultPath: 'Respaldo_Asamblea.sqlite',
+                filters: [{ name: 'Respaldo RAssembly', extensions: ['rassembly'] }],
+                defaultPath: `Respaldo_Asamblea_${nombreDispositivo}_${fechaRespaldo}.rassembly`,
             });
 
             if (!ruta) return; // Usuario canceló
@@ -41,65 +60,27 @@
 
     // --- 2. RESTAURAR DATOS (Importar) ---
     async function restaurarDatos() {
-        const confirmado = await confirm(
-            'Al restaurar un respaldo, se reemplazarán todos los datos actuales y la aplicación se reiniciará. ¿Deseas continuar?',
-            { title: 'Restaurar Base de Datos', kind: 'warning' }
-        );
-
-        if (!confirmado) return;
-
         try {
             const ruta = await open({
                 multiple: false,
                 directory: false,
-                filters: [{ name: 'Base de Datos SQLite', extensions: ['sqlite', 'db'] }]
+                filters: [{ name: 'Respaldos RAssembly y SQLite', extensions: ['rassembly', 'sqlite', 'db'] }]
             });
 
             if (!ruta) return;
 
-            // 🔥 NUEVA LÓGICA PARA LEER ARCHIVOS EN ANDROID VS PC
-            if (ruta.startsWith('content://')) {
-                // 1. Leemos los bytes del archivo directamente con Tauri
-                const bytes = await readFile(ruta);
-                
-                // 2. Convertimos a Base64 de forma segura para no saturar la memoria
-                const contenidoBase64 = await new Promise<string>((resolve, reject) => {
-                    const blob = new Blob([bytes]);
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        if (typeof reader.result === 'string') {
-                            resolve(reader.result.split(',')[1]); // Quitamos el encabezado "data:..."
-                        } else {
-                            reject(new Error("No se pudo procesar el archivo."));
-                        }
-                    };
-                    reader.onerror = () => reject(new Error("Error de lectura nativa."));
-                    reader.readAsDataURL(blob);
-                });
+            const nombreArchivo = ruta.startsWith('content://')
+                ? (await invoke<{ nombreArchivo: string }>(
+                    'plugin:sincronizacion-nativo|obtenerNombreArchivo',
+                    { uriArchivo: ruta }
+                )).nombreArchivo
+                : ruta.split(/[\\/]/).pop() || 'Respaldo seleccionado';
+            const nombreSinExtension = nombreArchivo.replace(/\.(rassembly|sqlite|db)$/i, '');
+            const formatoRespaldo = nombreSinExtension.match(/^Respaldo_Asamblea_(.+)_(\d{4}-\d{2}-\d{2})$/i);
+            const fecha = formatoRespaldo?.[2] ?? null;
+            const dispositivoOrigen = formatoRespaldo?.[1] ?? 'Dispositivo no identificado';
 
-                // 3. Enviamos el texto en Base64 a Rust
-                await invoke('importar_base_datos_base64', { contenidoBase64 });
-            } else {
-                await invoke('importar_base_datos', { rutaOrigen: ruta });
-            }
-
-            // Mensaje de éxito y limpieza
-            await message('Datos restaurados correctamente. La aplicación se reiniciará ahora.', { title: 'Éxito' });
-            localStorage.clear();
-
-            // Opcional: Cambiar el cursor a "esperando"
-            document.body.style.cursor = 'wait';
-
-            // Esperamos 5 segundos (es seguro) para que Rust cierre bien la conexión
-            await new Promise(resolve => setTimeout(resolve, 5000));
-
-            // 🔥 REINICIO INTELIGENTE SEGÚN LA PLATAFORMA
-            const esAndroid = /android/i.test(navigator.userAgent);
-            if (esAndroid) {
-                window.location.reload(); // En móviles recargamos la interfaz
-            } else {
-                await relaunch(); // En PC reiniciamos el proceso completo
-            }
+            respaldoPendiente = { ruta, nombreArchivo, dispositivoOrigen, fecha };
 
         } catch (error) {
             // Extractor de errores reales
@@ -110,6 +91,62 @@
                 detalle = JSON.stringify(error, null, 2);
             }
             await message(`Error detallado:\n${detalle}`, { title: 'Error', kind: 'error' });
+        }
+    }
+
+    function cancelarRestauracion() {
+        if (!restaurando) respaldoPendiente = null;
+    }
+
+    async function confirmarRestauracion() {
+        if (!respaldoPendiente || restaurando) return;
+        restaurando = true;
+
+        try {
+            if (respaldoPendiente.ruta.startsWith('content://')) {
+                const { contenidoBase64 } = await invoke<{ contenidoBase64: string }>(
+                    'plugin:sincronizacion-nativo|leerContenidoBase64',
+                    { uriArchivo: respaldoPendiente.ruta }
+                );
+                await invoke('importar_base_datos_base64', { contenidoBase64 });
+                await invoke('aplicar_restauracion_binaria_pendiente');
+            } else {
+                await invoke('importar_base_datos', { rutaOrigen: respaldoPendiente.ruta });
+            }
+
+            respaldoPendiente = null;
+            mostrarRestauracionCompleta = true;
+        } catch (error) {
+            let detalle = error;
+            if (error instanceof Error) {
+                detalle = error.message;
+            } else if (typeof error === 'object') {
+                detalle = JSON.stringify(error, null, 2);
+            }
+            await message(`Error detallado:\n${detalle}`, { title: 'Error', kind: 'error' });
+        } finally {
+            restaurando = false;
+        }
+    }
+
+    async function cerrarAvisoRestauracion() {
+        mostrarRestauracionCompleta = false;
+        localStorage.clear();
+        document.body.style.cursor = 'wait';
+
+        try {
+            if (!/android/i.test(navigator.userAgent)) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+
+            if (/android/i.test(navigator.userAgent)) {
+                window.location.reload();
+            } else {
+                await relaunch();
+            }
+        } catch (error) {
+            document.body.style.cursor = '';
+            await message(`No se pudo reiniciar la aplicación: ${error}`, { title: 'Error', kind: 'error' });
         }
     }
 
@@ -194,6 +231,45 @@
 
 </div>
 
+{#if respaldoPendiente}
+    <div class="restauracion-confirmacion-backdrop" role="presentation" on:click|self={cancelarRestauracion}>
+        <div class="restauracion-confirmacion-modal" role="dialog" aria-modal="true" aria-labelledby="restauracion-confirmacion-titulo" tabindex="-1">
+            <h2 id="restauracion-confirmacion-titulo">Restaurar copia de seguridad</h2>
+            <p>Esta acción reemplazará la base de datos de este dispositivo por el contenido de la copia seleccionada.</p>
+
+            <div class="restauracion-origenes">
+                <div class="restauracion-origen">
+                    <strong title={respaldoPendiente.dispositivoOrigen}>{respaldoPendiente.dispositivoOrigen}</strong>
+                    <span title={respaldoPendiente.nombreArchivo}>{respaldoPendiente.nombreArchivo}</span>
+                    <span>{respaldoPendiente.fecha ? `Fecha del respaldo: ${respaldoPendiente.fecha}` : 'Fecha no disponible'}</span>
+                </div>
+                <span class="restauracion-flecha" aria-hidden="true">→</span>
+                <div class="restauracion-origen">
+                    <strong>{$lastDeviceName}</strong>
+                    <span>Este dispositivo</span>
+                </div>
+            </div>
+
+            <div class="restauracion-confirmacion-botones">
+                <button class="restauracion-boton" on:click={confirmarRestauracion} disabled={restaurando}>
+                    {restaurando ? 'Restaurando...' : 'Restaurar'}
+                </button>
+                <button class="restauracion-boton" on:click={cancelarRestauracion} disabled={restaurando}>Cancelar</button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if mostrarRestauracionCompleta}
+    <div class="restauracion-exito-backdrop" role="presentation">
+        <div class="restauracion-exito-modal" role="dialog" aria-modal="true" aria-labelledby="restauracion-exito-titulo" tabindex="-1">
+            <h2 id="restauracion-exito-titulo">Se ha restaurado correctamente</h2>
+            <Check size={100} class="restauracion-exito-check" aria-hidden="true" />
+            <button class="restauracion-exito-cerrar" on:click={cerrarAvisoRestauracion}>Cerrar</button>
+        </div>
+    </div>
+{/if}
+
 <style>.data-management-container {
         display: flex;
         flex-direction: column;
@@ -259,6 +335,151 @@
     }
 
     .btn-data-action:hover { transform: translateY(-1px); }
+
+    .restauracion-confirmacion-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .restauracion-confirmacion-modal {
+        width: min(540px, 100%);
+        padding: 24px;
+        border-radius: 10px;
+        background: var(--bg-card, #fff);
+        color: var(--text-main, #222);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .restauracion-confirmacion-modal h2 {
+        margin: 0 0 14px;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .restauracion-confirmacion-modal > p {
+        margin: 0 0 20px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    .restauracion-origenes {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        margin: 20px 0 24px;
+    }
+
+    .restauracion-origen {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        text-align: center;
+    }
+
+    .restauracion-origen strong,
+    .restauracion-origen span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .restauracion-origen span {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+
+    .restauracion-flecha {
+        color: var(--text-main);
+        font-size: 1.7rem;
+    }
+
+    .restauracion-confirmacion-botones {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .restauracion-boton {
+        min-height: 42px;
+        padding: 9px 14px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg-card);
+        color: var(--text-main);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .restauracion-boton:disabled {
+        opacity: 0.6;
+        cursor: wait;
+    }
+
+    .restauracion-exito-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(2px);
+    }
+
+    .restauracion-exito-modal {
+        display: flex;
+        width: min(360px, 100%);
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+        padding: 28px 24px;
+        border-radius: 10px;
+        background: var(--bg-card, #fff);
+        color: var(--text-main, #222);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+        text-align: center;
+    }
+
+    .restauracion-exito-modal h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 500;
+    }
+
+    .restauracion-exito-check {
+        color: #65439a;
+        stroke-width: 2.6;
+    }
+
+    .restauracion-exito-cerrar {
+        width: min(180px, 100%);
+        min-height: 42px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-app);
+        color: var(--text-main);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    @media (max-width: 480px) {
+        .restauracion-confirmacion-modal { padding: 20px 16px; }
+        .restauracion-origenes { gap: 7px; }
+        .restauracion-origen { font-size: 0.88rem; }
+        .restauracion-confirmacion-botones { grid-template-columns: 1fr; }
+    }
 
     .primary { background: var(--primary); color: white; }
     .primary:hover { opacity: 0.9; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }

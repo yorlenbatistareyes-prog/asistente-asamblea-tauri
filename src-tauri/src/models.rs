@@ -32,6 +32,7 @@ pub struct Persona {
     pub telefono: Option<String>,
     pub email: Option<String>,
     pub nombre_congregacion: Option<String>,
+    pub circuito: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

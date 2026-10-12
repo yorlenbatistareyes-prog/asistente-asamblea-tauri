@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CloudUpload, CloudDownload, Server, AlertCircle, CheckCircle2, Loader2, Mail, KeyRound } from 'lucide-svelte';
+  import { CloudUpload, CloudDownload, Server, AlertCircle, CheckCircle2, Loader2, Mail, KeyRound, ArrowRight } from 'lucide-svelte';
   
   import { DbSyncHelper } from '$lib/services/dbSyncHelper';
   import { SyncService } from '$lib/services/syncService';
@@ -46,6 +46,13 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   // --- CONTROL DE ESTADO MANUAL ---
   let estado: 'inactivo' | 'cargando' | 'exito' | 'error' = 'inactivo'; 
   let mensaje = '';
+  type RespaldoNube = {
+    backup_data: string;
+    last_device?: string | null;
+    last_synced_at?: string | null;
+  };
+  let respaldoPendiente: RespaldoNube | null = null;
+  let restauracionCompleta = false;
   
   let pasoLogin = 1; 
   $: paso = $sesionApp.isLoggedIn ? 3 : pasoLogin;
@@ -59,6 +66,33 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
     estado = 'error';
     mensaje = texto;
     setTimeout(() => { if (estado === 'error') estado = 'inactivo'; }, 4500);
+  }
+
+  function formatearAntiguedad(fechaISO?: string | null): string {
+    if (!fechaISO) return 'Fecha no disponible';
+
+    const timestamp = Date.parse(fechaISO);
+    if (Number.isNaN(timestamp)) return 'Fecha no disponible';
+
+    const diferenciaSegundos = (timestamp - Date.now()) / 1000;
+    const antiguedad = Math.abs(diferenciaSegundos);
+    const formato = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
+
+    if (antiguedad < 60) return formato.format(Math.round(diferenciaSegundos), 'second');
+    if (antiguedad < 3600) return formato.format(Math.round(diferenciaSegundos / 60), 'minute');
+    if (antiguedad < 86400) return formato.format(Math.round(diferenciaSegundos / 3600), 'hour');
+    if (antiguedad < 2592000) return formato.format(Math.round(diferenciaSegundos / 86400), 'day');
+    if (antiguedad < 31536000) return formato.format(Math.round(diferenciaSegundos / 2592000), 'month');
+    return formato.format(Math.round(diferenciaSegundos / 31536000), 'year');
+  }
+
+  function cancelarRestauracion() {
+    if (estado !== 'cargando') respaldoPendiente = null;
+  }
+
+  function cerrarAvisoRestauracion() {
+    restauracionCompleta = false;
+    window.location.reload();
   }
 
   // --- ARRANQUE DE LA APP ---
@@ -141,35 +175,45 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
 
   // --- PASO 3B: Descarga Manual ---
   async function handleDescargar() {
-    const confirmar = confirm("⚠️ ATENCIÓN: Esto borrará todas las asambleas locales de este dispositivo. ¿Estás seguro?");
-    if (!confirmar) return;
-
     estado = 'cargando';
     mensaje = 'Buscando datos en la nube...';
 
     try {
-      const res = await SyncService.descargarRespaldo();
-      mensaje = 'Restaurando base de datos local...';
-      await DbSyncHelper.aplicarRespaldoNube(res.backup_data);
-      await DbSyncHelper.actualizarFechaSincronizacion(res.last_synced_at);
-
-      estado = 'exito';
-      const fechaSinc = new Date(res.last_synced_at).toLocaleString();
-      mensaje = `¡Datos restaurados con éxito! (De: ${fechaSinc})`;
-      
-      // CAMBIO AQUÍ: Actualizamos a al_dia y luego a inactivo para la TopBar
-      syncStatus.update(s => ({ ...s, estado: 'al_dia', mensaje: '¡Descarga exitosa!' }));
-      
-      setTimeout(() => {
-          estado = 'inactivo';
-          syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' }));
-          // Opcional pero recomendado: Recargar la página para que la UI lea los datos nuevos
-          window.location.reload(); 
-      }, 3000);
+      const res = await SyncService.descargarRespaldo() as RespaldoNube;
+      if (!res || typeof res.backup_data !== 'string' || !res.backup_data) {
+        throw new Error('El respaldo descargado no contiene datos válidos.');
+      }
+      respaldoPendiente = res;
+      estado = 'inactivo';
+      mensaje = '';
 
     } catch (error) {
       mostrarError(getErrorMessage(error));
       syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al descargar' }));
+      setTimeout(() => syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' })), 4000);
+    }
+  }
+
+  async function confirmarRestauracion() {
+    if (!respaldoPendiente || estado === 'cargando') return;
+
+    estado = 'cargando';
+    mensaje = 'Restaurando base de datos local...';
+
+    try {
+      await DbSyncHelper.aplicarRespaldoNube(respaldoPendiente.backup_data);
+      if (respaldoPendiente.last_synced_at) {
+        await DbSyncHelper.actualizarFechaSincronizacion(respaldoPendiente.last_synced_at);
+      }
+
+      respaldoPendiente = null;
+      estado = 'inactivo';
+      mensaje = '';
+      restauracionCompleta = true;
+      syncStatus.update(s => ({ ...s, estado: 'al_dia', mensaje: '¡Descarga exitosa!' }));
+    } catch (error) {
+      mostrarError(getErrorMessage(error));
+      syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al restaurar' }));
       setTimeout(() => syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' })), 4000);
     }
   }
@@ -300,6 +344,48 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   {/if}
 </div>
 
+{#if respaldoPendiente}
+  <div class="modal-backdrop" role="presentation" on:click|self={cancelarRestauracion}>
+    <div class="restore-modal" role="dialog" aria-modal="true" aria-labelledby="restore-title" tabindex="-1">
+      <h2 id="restore-title">Restaurar copia de seguridad</h2>
+      <p class="restore-warning">
+        Esta acción reemplazará los datos de este dispositivo por los incluidos en la copia de seguridad.
+      </p>
+
+      <div class="restore-devices">
+        <div class="restore-device">
+          <strong>{respaldoPendiente.last_device || 'Dispositivo desconocido'}</strong>
+          <span>{formatearAntiguedad(respaldoPendiente.last_synced_at)}</span>
+        </div>
+        <ArrowRight size={25} aria-hidden="true" />
+        <div class="restore-device">
+          <strong>{$lastDeviceName}</strong>
+          <span>Este dispositivo</span>
+        </div>
+      </div>
+
+      <div class="restore-buttons">
+        <button class="restore-button confirm" on:click={confirmarRestauracion} disabled={estado === 'cargando'}>
+          {#if estado === 'cargando'}<Loader2 size={16} class="spin" />{:else}Restaurar{/if}
+        </button>
+        <button class="restore-button" on:click={cancelarRestauracion} disabled={estado === 'cargando'}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if restauracionCompleta}
+  <div class="modal-backdrop" role="presentation">
+    <div class="restore-modal success-modal" role="dialog" aria-modal="true" aria-labelledby="restore-success-title" tabindex="-1">
+      <h2 id="restore-success-title">Se ha restaurado correctamente</h2>
+      <CheckCircle2 size={76} class="success-icon" aria-hidden="true" />
+      <button class="restore-button success-close" on:click={cerrarAvisoRestauracion}>Cerrar</button>
+    </div>
+  </div>
+{/if}
+
 <style>
   .mt-2 { margin-top: 10px; }
   .sync-container { width: 100%; }
@@ -362,6 +448,27 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   }
 
   .otp-input:disabled { opacity: 0.6; cursor: not-allowed; background: var(--bg-panel); }
+  .modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
+  .restore-modal { width: min(540px, 100%); padding: 24px; border-radius: 10px; background: var(--bg-panel, #fff); color: var(--text-main, #222); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3); animation: fadeIn 0.2s ease; }
+  .restore-modal h2 { margin: 0 0 14px; font-size: 1.25rem; font-weight: 600; }
+  .restore-warning { margin: 0 0 20px; color: var(--text-muted); line-height: 1.5; }
+  .restore-devices { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 20px 0 24px; }
+  .restore-devices > :global(svg) { color: var(--primary); }
+  .restore-device { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 5px; text-align: center; overflow-wrap: anywhere; }
+  .restore-device span { color: var(--text-muted); font-size: 0.9rem; }
+  .restore-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .restore-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-app); color: var(--text-main); font: inherit; cursor: pointer; }
+  .restore-button.confirm { background: var(--primary); border-color: var(--primary); color: white; }
+  .restore-button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .success-modal { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 28px 24px; }
+  .success-modal h2 { margin: 0; text-align: center; font-weight: 500; }
+  .success-icon { color: #65439a; stroke-width: 1.8; }
+  .success-close { width: min(180px, 100%); }
+  @media (max-width: 480px) {
+    .restore-modal { padding: 20px 16px; }
+    .restore-devices { gap: 7px; }
+    .restore-device { font-size: 0.9rem; }
+  }
  /* Para móviles, que sean un poco más pequeñas */
   @media (max-width: 480px) { 
     .otp-container { gap: 5px; } 

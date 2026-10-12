@@ -1319,10 +1319,13 @@ $: asambleasFiltradas = listaAsambleas
     }
 
     .contenedor-calendario-desplegado {
-        max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-        overflow-y: auto;
-        overscroll-behavior: contain;
-        -webkit-overflow-scrolling: touch;
+        max-height: none;
+        overflow: visible;
+    }
+
+    :global(.modal-ancho .calendario-contenedor) {
+        max-height: none;
+        overflow: visible;
     }
 
     /* Hacemos que TODOS los campos (incluyendo los de ubicación) se apilen hacia abajo */

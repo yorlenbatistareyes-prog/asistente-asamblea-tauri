@@ -281,6 +281,7 @@ pub fn run() {
             commands::personas::crear_persona,
             commands::personas::obtener_personas,
             commands::personas::actualizar_persona,
+            commands::personas::actualizar_circuito_persona,
             commands::personas::eliminar_persona,
             commands::personas::limpiar_personas,
             commands::personas::guardar_recordatorio_orador,
@@ -304,6 +305,7 @@ pub fn run() {
             commands::importar::importar_personas_csv,
             commands::importar::importar_congregaciones_csv,
             commands::importar::importar_programa_jw,
+            commands::importar::importar_programa_jw_contenido,
             // PROGRAMA
             commands::programa::obtener_programa_dia,
             commands::programa::asignar_parte,
@@ -317,6 +319,7 @@ pub fn run() {
             // --- OFICINA (Aquí estaba el problema antes) ---
             commands::oficina::obtener_asignaciones_especiales,
             commands::oficina::guardar_asignacion_especial, // <--- ¡ESTE ES EL QUE FALTABA!
+            commands::oficina::guardar_presidente_sesion,
             commands::oficina::guardar_detalles_oficina,
             commands::oficina::eliminar_asignacion_especial,
             commands::oficina::alternar_estado_oficina,

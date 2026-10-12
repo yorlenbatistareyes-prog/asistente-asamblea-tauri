@@ -3,6 +3,7 @@ package com.rassembly.app
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Base64
 import androidx.activity.result.ActivityResult
 import androidx.documentfile.provider.DocumentFile
@@ -173,6 +174,58 @@ class PluginSincronizacionNativo(private val activity: Activity) : Plugin(activi
             invoke.reject("Error guardando el respaldo: ${e.message}")
         }
     }
+
+    @Command
+    fun leerContenidoBase64(invoke: Invoke) {
+        try {
+            val parametros = invoke.parseArgs(ParametrosLecturaArchivo::class.java)
+            val uri = Uri.parse(parametros.uriArchivo)
+            if (uri.scheme != "content") {
+                return invoke.reject("El archivo seleccionado no es una ubicación SAF válida")
+            }
+
+            val bytes = activity.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: return invoke.reject("No se pudo abrir el archivo seleccionado para lectura")
+            val contenidoBase64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            val obj = JSObject()
+            obj.put("contenidoBase64", contenidoBase64)
+            invoke.resolve(obj)
+        } catch (e: Exception) {
+            invoke.reject("Error leyendo el archivo seleccionado: ${e.message}")
+        }
+    }
+
+    @Command
+    fun obtenerNombreArchivo(invoke: Invoke) {
+        try {
+            val parametros = invoke.parseArgs(ParametrosLecturaArchivo::class.java)
+            val uri = Uri.parse(parametros.uriArchivo)
+            if (uri.scheme != "content") {
+                return invoke.reject("El archivo seleccionado no es una ubicación SAF válida")
+            }
+
+            val nombre = activity.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                } else {
+                    null
+                }
+            } ?: uri.lastPathSegment
+                ?: return invoke.reject("No se pudo obtener el nombre del archivo seleccionado")
+
+            val obj = JSObject()
+            obj.put("nombreArchivo", nombre)
+            invoke.resolve(obj)
+        } catch (e: Exception) {
+            invoke.reject("Error al obtener el nombre del archivo: ${e.message}")
+        }
+    }
 }
 
 @InvokeArg
@@ -192,4 +245,9 @@ class ParametrosEscritura {
 class ParametrosRespaldo {
     lateinit var uriDestino: String
     lateinit var contenidoBase64: String
+}
+
+@InvokeArg
+class ParametrosLecturaArchivo {
+    lateinit var uriArchivo: String
 }

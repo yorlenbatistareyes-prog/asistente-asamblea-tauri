@@ -107,17 +107,17 @@
 </div>
 
 <style>
-    .panel-exportar { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .header-exp { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
-    .header-exp h3 { margin: 0; font-size: 16px; color: #0f172a; font-weight: 700; }
+    .panel-exportar { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow-premium); }
+    .header-exp { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .header-exp h3 { margin: 0; font-size: 16px; color: var(--text-main); font-weight: 700; }
     
-    .desc { margin: 0; font-size: 13px; color: #64748b; line-height: 1.5; }
+    .desc { margin: 0; font-size: 13px; color: var(--text-sec); line-height: 1.5; }
     
-    .input-clave { display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px 6px 12px; }
-    .input-clave input { border: none; outline: none; flex: 1; font-family: monospace; font-size: 15px; font-weight: bold; color: #2563eb; background: transparent; }
+    .input-clave { display: flex; align-items: center; gap: 10px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px 6px 12px; }
+    .input-clave input { border: none; outline: none; flex: 1; font-family: monospace; font-size: 15px; font-weight: bold; color: var(--primary); background: transparent; }
     
-    .btn-generar { background: #e2e8f0; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer; color: #475569; transition: 0.2s; }
-    .btn-generar:hover { background: #cbd5e1; color: #0f172a; }
+    .btn-generar { background: var(--border); border: none; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text-main); transition: 0.2s; }
+    .btn-generar:hover { filter: brightness(0.95); }
     
     .btn-accion { background: #0f172a; color: white; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; margin-top: 5px; }
     .btn-accion:hover:not(:disabled) { background: #000000; transform: translateY(-1px); }
@@ -125,25 +125,26 @@
 
     /* ESTILOS NUEVOS PARA MULTI-EMAIL */
     .export-box { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
-    .label-email { font-size: 12px; color: #475569; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .label-email { font-size: 12px; color: var(--text-sec); font-weight: 600; display: flex; align-items: center; gap: 6px; }
     
     .input-group { display: flex; gap: 8px; }
     .input-email { 
         flex: 1; padding: 8px 12px; border-radius: 6px; 
-        border: 1px solid #cbd5e1; background: #f8fafc;
-        font-size: 14px; outline: none; transition: border 0.2s;
+        border: 1px solid var(--border); background: var(--input-bg);
+        color: var(--text-main); font-size: 14px; outline: none; transition: border 0.2s;
     }
-    .input-email:focus { border-color: #2563eb; }
+    .input-email::placeholder { color: var(--text-sec); opacity: 0.8; }
+    .input-email:focus { border-color: var(--primary); }
     
     .btn-add { background: #2563eb; color: white; border: none; padding: 0 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
     .btn-add:hover { background: #1d4ed8; }
 
     .tags-container { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; max-height: 90px; overflow-y: auto; }
     .tag { 
-        background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; 
+        background: color-mix(in srgb, var(--primary) 12%, var(--bg-card)); color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
         padding: 4px 8px; border-radius: 100px; font-size: 12px; font-weight: 500;
         display: flex; align-items: center; gap: 6px;
     }
-    .btn-remove-tag { border: none; background: transparent; cursor: pointer; color: #1e40af; padding: 2px; display: flex; align-items: center; border-radius: 50%; transition: 0.2s; }
-    .btn-remove-tag:hover { background: #dbeafe; color: #1e3a8a; }
+    .btn-remove-tag { border: none; background: transparent; cursor: pointer; color: var(--primary); padding: 2px; display: flex; align-items: center; border-radius: 50%; transition: 0.2s; }
+    .btn-remove-tag:hover { background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--text-main); }
 </style>

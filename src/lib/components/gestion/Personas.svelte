@@ -22,7 +22,12 @@
   let congregaciones: any[] = [];
   let terminoBusqueda = "";
 
-  onMount(() => { 
+  onMount(() => {
+    const actualizarDirectorio = () => {
+      if (asambleaId) void cargarDatos();
+    };
+    window.addEventListener('db_local_cambiada', actualizarDirectorio);
+
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
         const asamblea = JSON.parse(datosGuardados);
@@ -32,6 +37,8 @@
     } else {
         alert("⚠️ No hay asamblea seleccionada.");
     }
+
+    return () => window.removeEventListener('db_local_cambiada', actualizarDirectorio);
   });
 
   async function cargarDatos() {
@@ -51,30 +58,41 @@
     const nombreC = p.nombre_congregacion || "";
     return (
       p.nombre_completo.toLowerCase().includes(t) || 
-      nombreC.toLowerCase().includes(t)
+      nombreC.toLowerCase().includes(t) ||
+      (p.circuito || "").toLowerCase().includes(t)
     );
   });
 
   // --- GUARDAR MANUALMENTE ---
- async function guardar() {
-    if (!nombre) return alert("Escribe el nombre completo");
+ async function guardar(): Promise<boolean> {
+    if (!nombre.trim()) {
+      alert("Escribe el nombre completo");
+      return false;
+    }
     const idCong = idCongregacion ? idCongregacion : 0; 
   
     try {
       // 🔥 USAMOS EL NOMBRE EXCLUSIVO
-      await DB.registrarPersona({ 
+      const resultado = String(await DB.registrarPersona({ 
         asambleaId, 
         nombreCompleto: nombre, 
         sexo: "M",
         privilegios: privilegio,
         idCongregacion: idCong, 
+        circuito: null,
         telefono, 
         email 
-      });
+      }));
+      if (resultado.includes("no se añadió un duplicado")) {
+        alert(resultado);
+        return false;
+      }
       
       resetFormulario();
       await cargarDatos();
+      return true;
     } catch (e) { alert("Error: " + e); }
+    return false;
   }
 
   function resetFormulario() {
@@ -86,7 +104,7 @@
 }
 
 async function guardarYcerrar() {
-  await guardar();
+  if (!await guardar()) return;
   mostrarModal = false;
   }
 
@@ -176,7 +194,7 @@ async function guardarYcerrar() {
     
     <div class="tabla-header">
       <span>Nombre</span>
-      <span>Congregación</span>
+      <span>Congregación / Circuito</span>
       <span>Privilegio</span>
       <span style="text-align: center;">Acción</span>
     </div>
@@ -196,7 +214,10 @@ async function guardarYcerrar() {
               </span>
             </div>
 
-           <span class="tag-cong">{p.nombre_congregacion || 'Sin Asignar'}</span>
+           <div class="tag-cong">
+             <span>{p.nombre_congregacion || (p.circuito ? `Circuito: ${p.circuito}` : 'Sin congregación asignada')}</span>
+             {#if p.nombre_congregacion && p.circuito}<small class="circuito-persona">Circuito: {p.circuito}</small>{/if}
+           </div>
           <span class="tag-priv">{p.privilegios || 'Publicador'}</span>
           
           <div class="acciones">
@@ -619,6 +640,14 @@ input:focus, select:focus {
   color: var(--text-secondary); 
   font-weight: 500;
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.circuito-persona {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 /* Tag de privilegio mejorado */

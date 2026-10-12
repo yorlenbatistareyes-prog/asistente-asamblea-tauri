@@ -536,7 +536,7 @@ function cerrarMonitorFlotante() {
       </Panel>
 
     {:else if tabActual === 'monitor'}
-      <div class="monitor-tab-layout">
+      <div class="monitor-tab-layout" class:ventana-monitor-flotante={esVentanaFlotante}>
           <Panel padding="0" clasesExtra="live-monitor-container">
               <div class="monitor-header" data-tauri-drag-region>
                   <div class="header-left" data-tauri-drag-region>
@@ -994,6 +994,10 @@ function cerrarMonitorFlotante() {
     align-items: center;
     color: white;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ventana-monitor-flotante .monitor-header {
+    background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%);
 }
 
 .btn-acceso:hover {

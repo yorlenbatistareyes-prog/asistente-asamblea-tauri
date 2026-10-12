@@ -62,6 +62,11 @@
       orientaciones: null as number | null,
       plataforma: null as number | null
   };
+  let partePresidenteExiste: boolean | null = null;
+  let cargandoPartePresidente = false;
+  let horaNuevaPartePresidente = '';
+  let consultaPartePresidente = 0;
+  let presidenteDelPrograma: { persona_id: number; nombre_completo: string } | null = null;
   
   let personaSeleccionadaId: number | null = null;
   let responsabilidades = {
@@ -132,7 +137,38 @@
   // --- LÓGICA ASIGNACIONES (BLOQUE) ---
   function abrirModalBloqueAsignacion() {
       formAsignacion = { dia: diaSeleccionado, seccion: 'manana', presidente: null, registro: null, ensayos: null, orientaciones: null, plataforma: null };
+      horaNuevaPartePresidente = '';
+      void revisarPartePresidente();
       mostrarModalBloqueAsignacion = true;
+  }
+
+  async function revisarPartePresidente() {
+      const consulta = ++consultaPartePresidente;
+      const { dia, seccion } = formAsignacion;
+      partePresidenteExiste = null;
+      cargandoPartePresidente = true;
+      horaNuevaPartePresidente = '';
+
+      try {
+          const programa = await invoke('obtener_programa_dia', { asambleaId, dia }) as any[];
+          if (consulta !== consultaPartePresidente) return;
+          const sesion = seccion === 'manana' ? 'mañana' : 'tarde';
+          const parte = programa.find(p =>
+              String(p.tipo || '').trim().toLowerCase() === 'presidente' &&
+              String(p.sesion || '').trim().toLowerCase() === sesion
+          );
+          partePresidenteExiste = Boolean(parte);
+          presidenteDelPrograma = parte?.orador_id
+              ? { persona_id: Number(parte.orador_id), nombre_completo: parte.nombre_orador || '' }
+              : null;
+      } catch (e) {
+          if (consulta === consultaPartePresidente) {
+              partePresidenteExiste = null;
+              alert('No se pudo comprobar si ya existe la parte del presidente en el programa: ' + e);
+          }
+      } finally {
+          if (consulta === consultaPartePresidente) cargandoPartePresidente = false;
+      }
   }
 
   // 👇 NUEVA FUNCIÓN: CARGAR DATOS EXISTENTES EN EL MODAL 👇
@@ -147,18 +183,53 @@
           formAsignacion[rol] = asignacion ? asignacion.persona_id : null;
       });
 
+      horaNuevaPartePresidente = '';
+      void revisarPartePresidente();
       mostrarModalBloqueAsignacion = true;
   }
 
   function getCandidatosPorRol(rolClave: string) {
       let clave = rolClave === 'plataforma' ? 'acompañar_plataforma' : rolClave;
       if (clave === 'presidente') clave = 'presidentes';
-      return oficina.personal.filter((p: any) => p.resp_obj && p.resp_obj[clave] === true);
+      const candidatos = oficina.personal.filter((p: any) => p.resp_obj && p.resp_obj[clave] === true);
+      if (rolClave === 'presidente') {
+          const idsIncluidos = new Set(candidatos.map((p: any) => Number(p.persona_id)));
+          const personasVinculadas = [
+              presidenteDelPrograma,
+              ...listaHermanos
+                  .filter(p => Number(p.id) === Number(formAsignacion.presidente))
+                  .map(p => ({ persona_id: Number(p.id), nombre_completo: p.nombre_completo }))
+          ].filter((p): p is { persona_id: number; nombre_completo: string } => Boolean(p));
+          for (const persona of personasVinculadas) {
+              if (!idsIncluidos.has(Number(persona.persona_id))) {
+                  candidatos.push(persona);
+                  idsIncluidos.add(Number(persona.persona_id));
+              }
+          }
+      }
+      return candidatos;
   }
 
   async function guardarBloqueAsignaciones() {
       try {
-          const roles = ['presidente', 'registro', 'ensayos', 'orientaciones', 'plataforma'];
+          const presidenteId = formAsignacion.presidente;
+          if (presidenteId && (partePresidenteExiste === null || cargandoPartePresidente)) {
+              alert('Espera a que se compruebe el programa antes de guardar el presidente.');
+              return;
+          }
+          if (presidenteId && !partePresidenteExiste && !horaNuevaPartePresidente.trim()) {
+              alert('Indica la hora para añadir al presidente al programa.');
+              return;
+          }
+          await DB.guardarPresidenteSesion({
+              asambleaId,
+              dia: formAsignacion.dia,
+              sesion: formAsignacion.seccion,
+              personaId: presidenteId ? Number(presidenteId) : null,
+              hora: presidenteId && !partePresidenteExiste ? horaNuevaPartePresidente : null
+          });
+
+          const roles = ['registro', 'ensayos', 'orientaciones', 'plataforma'];
           for (const rol of roles) {
               const personaId = formAsignacion[rol as keyof typeof formAsignacion];
               if (personaId) {
@@ -728,7 +799,7 @@
         <div class="form-row-doble">
             <div class="form-grupo">
                 <label>Día de la Asamblea</label>
-                <select bind:value={formAsignacion.dia}>
+                <select bind:value={formAsignacion.dia} on:change={revisarPartePresidente}>
                     <option value="Viernes">Viernes</option>
                     <option value="Sábado">Sábado</option>
                     <option value="Domingo">Domingo</option>
@@ -736,7 +807,7 @@
             </div>
             <div class="form-grupo">
                 <label>Sesión</label>
-                <select bind:value={formAsignacion.seccion}>
+                <select bind:value={formAsignacion.seccion} on:change={revisarPartePresidente}>
                     <option value="manana">Sesión de Mañana</option>
                     <option value="tarde">Sesión de Tarde</option>
                 </select>
@@ -758,11 +829,21 @@
                 </div>
             {/each}
         </div>
+        {#if formAsignacion.presidente && cargandoPartePresidente}
+            <p class="nota-hora-presidente">Comprobando si ya existe la parte en Programa / Discursos…</p>
+        {:else if formAsignacion.presidente && partePresidenteExiste === false}
+            <div class="form-grupo">
+                <label for="hora-parte-presidente">Hora de la parte en Programa / Discursos</label>
+                <input id="hora-parte-presidente" type="time" bind:value={horaNuevaPartePresidente} />
+            </div>
+        {/if}
       </div>
 
       <div class="modal-footer">
         <button class="btn-cancelar" on:click={cerrarModales}>Cancelar</button>
-        <button class="btn-primary" on:click={guardarBloqueAsignaciones}>Guardar Horario</button>
+        <button class="btn-primary"
+                disabled={Boolean(formAsignacion.presidente && (cargandoPartePresidente || partePresidenteExiste === null || (partePresidenteExiste === false && !horaNuevaPartePresidente.trim())))}
+                on:click={guardarBloqueAsignaciones}>Guardar Horario</button>
       </div>
     </div>
   </div>
@@ -789,6 +870,12 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.nota-hora-presidente {
+  margin: 12px 0 0;
+  color: var(--text-sec);
+  font-size: 13px;
 }
 
 @keyframes fadeIn {

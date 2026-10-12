@@ -44,7 +44,13 @@
         segundosTranscurridos = 0; 
     }
 
-    function togglePanel() { abierto = !abierto; }
+    function togglePanel() {
+        if (suprimirSiguienteClick) {
+            suprimirSiguienteClick = false;
+            return;
+        }
+        abierto = !abierto;
+    }
     
     // Matemática corregida
     function setTiempo(min: number) { minutosAsignados = Number(min); }
@@ -63,47 +69,86 @@
     $: sePaso = segundosTranscurridos > tiempoLimite;
 
     // --- LÓGICA DE ARRASTRE (DRAG & DROP) ---
-    let posicionX = 0;
-    let posicionY = 0;
+    let posicionManual: { left: number; top: number } | null = null;
     let moviendo = false;
-    let inicioX = 0;
-    let inicioY = 0;
+    let suprimirSiguienteClick = false;
+    let arrastre: {
+        pointerId: number;
+        startX: number;
+        startY: number;
+        offsetX: number;
+        offsetY: number;
+        width: number;
+        height: number;
+        movio: boolean;
+        esBoton: boolean;
+    } | null = null;
 
-    function iniciarArrastre(e: MouseEvent) {
-        moviendo = true;
-        // Calculamos la diferencia entre donde hacemos clic y dónde está la barra
-        inicioX = e.clientX - posicionX;
-        inicioY = e.clientY - posicionY;
-        
-        window.addEventListener('mousemove', arrastrar);
-        window.addEventListener('mouseup', detenerArrastre);
+    $: estiloPosicionManual = posicionManual
+        ? `left: ${posicionManual.left}px; top: ${posicionManual.top}px; right: auto; bottom: auto; transform: none;`
+        : '';
+
+    function iniciarArrastre(e: PointerEvent) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const elemento = e.currentTarget as HTMLElement;
+        const rect = elemento.getBoundingClientRect();
+        arrastre = {
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            offsetX: e.clientX - rect.left,
+            offsetY: e.clientY - rect.top,
+            width: rect.width,
+            height: rect.height,
+            movio: false,
+            esBoton: elemento.classList.contains('btn-flotante')
+        };
+        elemento.setPointerCapture(e.pointerId);
     }
 
-    function arrastrar(e: MouseEvent) {
-        if (moviendo) {
-            posicionX = e.clientX - inicioX;
-            posicionY = e.clientY - inicioY;
+    function moverArrastre(e: PointerEvent) {
+        if (!arrastre || arrastre.pointerId !== e.pointerId) return;
+        if (!arrastre.movio) {
+            const distancia = Math.hypot(e.clientX - arrastre.startX, e.clientY - arrastre.startY);
+            if (distancia < 6) return;
+            arrastre.movio = true;
+            moviendo = true;
         }
+
+        posicionManual = {
+            left: Math.max(0, Math.min(e.clientX - arrastre.offsetX, window.innerWidth - arrastre.width)),
+            top: Math.max(0, Math.min(e.clientY - arrastre.offsetY, window.innerHeight - arrastre.height))
+        };
     }
 
-    function detenerArrastre() {
+    function terminarArrastre(e: PointerEvent) {
+        if (!arrastre || arrastre.pointerId !== e.pointerId) return;
+        if (arrastre.esBoton && arrastre.movio) suprimirSiguienteClick = true;
+        arrastre = null;
         moviendo = false;
-        window.removeEventListener('mousemove', arrastrar);
-        window.removeEventListener('mouseup', detenerArrastre);
     }
 
 </script>
 
-<div class="cronometro-wrapper {abierto ? 'modo-barra-top' : 'modo-boton-esquina'} {moviendo ? 'arrastrando' : ''}"
-     style={abierto ? `transform: translate(calc(-50% + ${posicionX}px), ${posicionY}px);` : ''}>
+<div class="cronometro-wrapper {abierto ? 'modo-barra-top' : 'modo-boton-esquina'} {posicionManual ? 'posicion-personalizada' : ''} {moviendo ? 'arrastrando' : ''}"
+     style={estiloPosicionManual || (abierto ? 'transform: translateX(-50%);' : '')}>
     
     {#if abierto}
         <div class="top-bar-panel {clasesTamano[nivelTamano]} {sePaso ? 'peligro-glow' : ''}" transition:slide|local={{ duration: 300, axis: 'y' }}>
             
             <div class="left-section">
-                <div class="drag-handle" on:mousedown={iniciarArrastre} title="Arrastrar barra">
+                <button
+                    type="button"
+                    class="drag-handle"
+                    on:pointerdown={iniciarArrastre}
+                    on:pointermove={moverArrastre}
+                    on:pointerup={terminarArrastre}
+                    on:pointercancel={terminarArrastre}
+                    title="Arrastrar barra"
+                    aria-label="Arrastrar cronómetro"
+                >
                     <Timer size={18} />
-                </div>
+                </button>
                 <span class="bar-title">Cronómetro</span>
                 
                 <button class="btn-size" on:click={cambiarTamano} title="Cambiar tamaño de la barra">
@@ -150,7 +195,15 @@
             </div>
         </div>
     {:else}
-        <button class="btn-flotante {corriendo ? 'animando' : ''} {sePaso ? 'peligro' : ''}" on:click={togglePanel}>
+        <button
+            class="btn-flotante {corriendo ? 'animando' : ''} {sePaso ? 'peligro' : ''}"
+            on:pointerdown={iniciarArrastre}
+            on:pointermove={moverArrastre}
+            on:pointerup={terminarArrastre}
+            on:pointercancel={terminarArrastre}
+            on:click={togglePanel}
+            title="Arrastra para mover; toca para abrir"
+        >
             <Timer size={26}/> {#if corriendo}
                 <span class="mini-tiempo">{tiempoFormateado}</span>
             {/if}
@@ -299,6 +352,7 @@
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         box-shadow: 0 6px 20px rgba(30, 58, 138, 0.4); 
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        touch-action: none;
     }
     .btn-flotante:hover { transform: scale(1.1) translateY(-5px); }
     .btn-flotante.peligro { background: linear-gradient(145deg, #991b1b, #ef4444); box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5); }
@@ -318,6 +372,9 @@
 
     /* Estilo para la "manija" de arrastre (el icono del cronómetro) */
     .drag-handle {
+        border: 0;
+        color: inherit;
+        font: inherit;
         cursor: grab; /* Cursor de mano abierta */
         display: flex;
         align-items: center;
@@ -326,6 +383,7 @@
         border-radius: 6px;
         background: rgba(255, 255, 255, 0.05);
         transition: background 0.2s;
+        touch-action: none;
     }
     
     .drag-handle:hover {
@@ -350,6 +408,10 @@
         transform: translateX(-50%) !important; /* Desactivamos el arrastre manual en móvil para evitar bugs */
     }
 
+    .modo-barra-top.posicion-personalizada {
+        transform: none !important;
+    }
+
     /* 2. TRANSFORMACIÓN DE BARRA A PANEL VERTICAL COMPACTO */
     .top-bar-panel {
         flex-direction: column; /* De horizontal a vertical */
@@ -369,10 +431,6 @@
         padding-right: 0;
         padding-bottom: 10px;
         justify-content: space-between;
-    }
-
-    .drag-handle {
-        display: none; /* El arrastre manual con mouse no sirve en táctil, lo ocultamos */
     }
 
     .center-section {

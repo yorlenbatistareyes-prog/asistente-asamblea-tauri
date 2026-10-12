@@ -15,14 +15,39 @@ pub fn crear_congregacion(
     circuito: String,
     numero: String,
 ) -> Result<String, String> {
-    let conn = conectar_db(&app);
-    match conn.execute(
+    let mut conn = conectar_db(&app);
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let nombre = nombre.split_whitespace().collect::<Vec<_>>().join(" ");
+    let clave_nombre = crate::database::normalizar_clave(&nombre);
+    if clave_nombre.is_empty() {
+        return Err("El nombre de la congregación no puede estar vacío.".to_string());
+    }
+
+    let nombres_existentes = {
+        let mut stmt = tx
+            .prepare("SELECT nombre FROM congregaciones WHERE asamblea_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![asamblea_id], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        rows
+    };
+    if nombres_existentes
+        .iter()
+        .any(|existente| crate::database::normalizar_clave(existente) == clave_nombre)
+    {
+        return Ok("La congregación ya existe en esta asamblea; no se añadió un duplicado.".to_string());
+    }
+
+    tx.execute(
         "INSERT INTO congregaciones (asamblea_id, nombre, circuito, numero_congregacion) VALUES (?1, ?2, ?3, ?4)",
         params![asamblea_id, nombre, circuito, numero],
-    ) {
-        Ok(_) => Ok("Congregación guardada".to_string()),
-        Err(e) => Err(format!("Error: {}", e)),
-    }
+    )
+    .map_err(|e| format!("Error: {}", e))?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok("Congregación guardada".to_string())
 }
 
 #[command]

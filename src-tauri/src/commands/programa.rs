@@ -92,23 +92,46 @@ pub fn asignar_parte(
     es_video: bool,
     numero_bosquejo: Option<String>,
 ) -> Result<String, String> {
-    let conn = conectar_db(&app);
+    let mut conn = conectar_db(&app);
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let metadata: Option<(i32, String, String, String)> = tx
+        .query_row(
+            "SELECT asamblea_id, dia, sesion, COALESCE(tipo, '')
+             FROM programa WHERE id = ?1",
+            params![id_parte],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
 
     let bosquejo_actual = if es_video { None } else { numero_bosquejo };
 
-    let params = params![
+    tx.execute(
+        "UPDATE programa SET orador_id = ?1, es_video = ?2, estado = ?3, numero_bosquejo = ?4 WHERE id = ?5",
+        params![
         orador_id,
         es_video,
         "Confirmado",
         bosquejo_actual.as_deref(),
         id_parte
-    ];
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
-    conn.execute(
-        "UPDATE programa SET orador_id = ?1, es_video = ?2, estado = ?3, numero_bosquejo = ?4 WHERE id = ?5", 
-        params
-    ).map_err(|e| e.to_string())?;
+    if let Some((asamblea_id, dia, sesion, tipo)) = metadata {
+        if tipo.trim().eq_ignore_ascii_case("presidente") {
+            crate::commands::oficina::sincronizar_asignacion_presidente(
+                &tx,
+                asamblea_id,
+                &dia,
+                &sesion,
+                if es_video { None } else { orador_id },
+            )?;
+        }
+    }
 
+    tx.commit().map_err(|e| e.to_string())?;
     Ok("Ok".to_string())
 }
 
@@ -230,6 +253,18 @@ pub fn crear_parte(
     )
     .map_err(|e| e.to_string())?;
 
+    if tipo.trim().eq_ignore_ascii_case("presidente") {
+        if let Some(persona_id) = orador_id_final {
+            crate::commands::oficina::sincronizar_asignacion_presidente(
+                &tx,
+                asamblea_id,
+                &dia,
+                &sesion,
+                Some(persona_id),
+            )?;
+        }
+    }
+
     tx.commit().map_err(|e| e.to_string())?;
     Ok("Creado".to_string())
 }
@@ -336,9 +371,46 @@ pub fn alternar_estado_parte(
 
 #[command]
 pub fn eliminar_parte(app: AppHandle, id: i32) -> Result<String, String> {
-    conectar_db(&app)
-        .execute("DELETE FROM programa WHERE id = ?1", params![id])
+    let mut conn = conectar_db(&app);
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let parte: Option<(i32, String, String, String)> = tx
+        .query_row(
+            "SELECT asamblea_id, dia, sesion, COALESCE(tipo, '')
+             FROM programa WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
         .map_err(|e| e.to_string())?;
+
+    tx.execute("DELETE FROM programa WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+
+    if let Some((asamblea_id, dia, sesion, tipo)) = parte {
+        if tipo.trim().eq_ignore_ascii_case("presidente") {
+            let siguiente_presidente: Option<i32> = tx
+                .query_row(
+                    "SELECT orador_id FROM programa
+                     WHERE asamblea_id = ?1 AND dia = ?2 AND sesion = ?3
+                       AND lower(trim(tipo)) = 'presidente'
+                     ORDER BY hora_inicio ASC LIMIT 1",
+                    params![asamblea_id, dia, sesion],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?
+                .flatten();
+            crate::commands::oficina::sincronizar_asignacion_presidente(
+                &tx,
+                asamblea_id,
+                &dia,
+                &sesion,
+                siguiente_presidente,
+            )?;
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
     Ok("Eliminado".to_string())
 }
 

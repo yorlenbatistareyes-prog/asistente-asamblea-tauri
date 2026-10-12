@@ -5,6 +5,8 @@
         "leerArchivo",
         "validarCarpeta",
         "guardarContenidoBase64",
+        "leerContenidoBase64",
+        "obtenerNombreArchivo",
     ])
         .android_path("android")
         .try_build()

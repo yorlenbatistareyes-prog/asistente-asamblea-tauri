@@ -551,7 +551,7 @@ async function abrirWhatsApp(hermano: any) {
 
             {#each grupo.roles as rolId}
                 {@const def = definicionRoles[rolId]}
-                <div class="tarjeta-miembro">
+                <div class="tarjeta-miembro tarjeta-{def.color}">
                     <div class="tarjeta-header">
                         <span class="badge-rol badge-{def.color}">{def.label}</span>
                         {#if getDetalles(c[rolId])}
@@ -909,6 +909,7 @@ async function abrirWhatsApp(hermano: any) {
 .tarjeta-miembro {
   background: var(--bg-card);
   border: 1px solid var(--border);
+  border-top: 4px solid var(--color-responsabilidad, var(--border));
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -916,6 +917,12 @@ async function abrirWhatsApp(hermano: any) {
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
+.tarjeta-coord { --color-responsabilidad: #be185d; }
+.tarjeta-prog { --color-responsabilidad: #0369a1; }
+.tarjeta-aloj { --color-responsabilidad: #b45309; }
+.tarjeta-av { --color-responsabilidad: #15803d; }
+.tarjeta-baut { --color-responsabilidad: #0f766e; }
 
 .tarjeta-miembro:hover {
   transform: translateY(-3px);

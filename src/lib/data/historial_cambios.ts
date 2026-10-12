@@ -22,6 +22,26 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
+    version: "1.0.27'",
+    fecha: "12 de octubre, 2026",
+    cambios: [
+      { tipo: "🚀", texto: "Ahora también puedes arrastrar el botón flotante del cronómetro cuando está cerrado, en Windows y en pantallas táctiles. Arrástralo para moverlo; un toque o clic normal sigue abriendo el cronómetro." },  
+      { tipo: "🎨", texto: "Ahora la ventana flotante del monitor en vivo tiene un color rojizo degradado para distinguirlo bien visualmente. También se mejorado el modo oscuro" },   
+    ]
+  },
+
+{
+    version: "1.0.25'",
+    fecha: "12 de octubre, 2026",
+    cambios: [
+      { tipo: "🛠️", texto: "Se corrigieron errores en el registro de personas. Ahora si añades una lista nueva de personas, no se duplican los registros si ya existía uno" },
+      { tipo: "🛠️", texto: "Ahora los modales y calendarios para seleccionar fechas se visualizan mejor en pantallas móviles" },
+      { tipo: "🛠️", texto: "Se corrigió un error que impedía la restauración de datos en dispositivos android" },
+      { tipo: "🛠️", texto: "Ahora el monitor en tiempo real se puede mover a cualquier parte de la pantalla en dispositivos android, y permite desplazarse en cualquier pagina sin obstaculizar la visibilidad" },
+    ]
+  },
+
+{
     version: "1.0.24'",
     fecha: "11 de octubre, 2026",
     cambios: [

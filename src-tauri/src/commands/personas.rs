@@ -15,24 +15,54 @@ pub fn crear_persona(
     sexo: String, // <--- CORREGIDO: de genero a sexo
     privilegios: String,
     id_congregacion: i32,
+    circuito: Option<String>,
     telefono: String,
     email: String,
 ) -> Result<String, String> {
-    let conn = conectar_db(&app);
+    let mut conn = conectar_db(&app);
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let nombre_completo = nombre_completo
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let clave_nombre = crate::database::normalizar_clave(&nombre_completo);
+    if clave_nombre.is_empty() {
+        return Err("El nombre de la persona no puede estar vacío.".to_string());
+    }
+
+    let nombres_existentes = {
+        let mut stmt = tx
+            .prepare("SELECT nombre_completo FROM personas WHERE asamblea_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![asamblea_id], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        rows
+    };
+    if nombres_existentes.iter().any(|existente| {
+        crate::database::normalizar_clave(existente) == clave_nombre
+    }) {
+        return Ok("La persona ya existe en esta asamblea; no se añadió un duplicado.".to_string());
+    }
 
     let id_cong_final = if id_congregacion == 0 {
         None
     } else {
         Some(id_congregacion)
     };
+    let circuito = circuito
+        .map(|valor| valor.trim().to_string())
+        .filter(|valor| !valor.is_empty());
 
-    match conn.execute(
-        "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![asamblea_id, nombre_completo, sexo, privilegios, id_cong_final, telefono, email],
-    ) {
-        Ok(_) => Ok("Persona creada exitosamente".to_string()),
-        Err(e) => Err(format!("Error al crear persona: {}", e)),
-    }
+    tx.execute(
+        "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, circuito, telefono, email) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![asamblea_id, nombre_completo, sexo, privilegios, id_cong_final, circuito, telefono, email],
+    )
+    .map_err(|e| format!("Error al crear persona: {}", e))?;
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok("Persona creada exitosamente".to_string())
 }
 
 #[command]
@@ -41,7 +71,7 @@ pub fn obtener_personas(app: AppHandle, asamblea_id: i32) -> Result<Vec<Persona>
 
     // 👇 CORREGIDO: Seleccionamos 'sexo' en lugar de 'genero'
     let mut stmt = conn.prepare(
-        "SELECT p.id, p.nombre_completo, p.sexo, p.privilegios, p.id_congregacion, p.telefono, p.email, c.nombre 
+        "SELECT p.id, p.nombre_completo, p.sexo, p.privilegios, p.id_congregacion, p.telefono, p.email, c.nombre, p.circuito
          FROM personas p 
          LEFT JOIN congregaciones c ON p.id_congregacion = c.id
          WHERE p.asamblea_id = ?1
@@ -59,6 +89,7 @@ pub fn obtener_personas(app: AppHandle, asamblea_id: i32) -> Result<Vec<Persona>
                 telefono: row.get(5).ok(),
                 email: row.get(6).ok(),
                 nombre_congregacion: row.get(7).ok(),
+                circuito: row.get(8).ok(),
             })
         })
         .map_err(|e| e.to_string())?;
@@ -96,6 +127,32 @@ pub fn actualizar_persona(
         Ok(_) => Ok("Persona actualizada correctamente".to_string()),
         Err(e) => Err(format!("Error al actualizar: {}", e)),
     }
+}
+
+#[command]
+pub fn actualizar_circuito_persona(
+    app: AppHandle,
+    id: i32,
+    circuito: String,
+) -> Result<(), String> {
+    let circuito = circuito.trim();
+    if circuito.is_empty() {
+        return Err("El circuito no puede estar vacío.".to_string());
+    }
+
+    let conn = conectar_db(&app);
+    let actualizadas = conn
+        .execute(
+            "UPDATE personas SET circuito = ?1 WHERE id = ?2",
+            params![circuito, id],
+        )
+        .map_err(|e| format!("Error al actualizar el circuito de la persona: {}", e))?;
+
+    if actualizadas == 0 {
+        return Err("No se encontró la persona para actualizar su circuito.".to_string());
+    }
+
+    Ok(())
 }
 
 // --- EL RESTO DEL ARCHIVO (eliminar y limpiar) SE MANTIENE IGUAL ---

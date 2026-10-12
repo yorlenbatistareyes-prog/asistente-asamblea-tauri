@@ -1,12 +1,114 @@
 // src-tauri/src/commands/oficina.rs
 
 use crate::models::AsignacionEspecialDTO;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, OptionalExtension, Result};
 use tauri::{command, AppHandle};
 
 fn conectar_db(app: &AppHandle) -> Connection {
     let db_path = crate::database::obtener_ruta_db(app);
     Connection::open(db_path).unwrap()
+}
+
+pub(crate) fn sincronizar_asignacion_presidente(
+    conn: &Connection,
+    asamblea_id: i32,
+    dia: &str,
+    sesion: &str,
+    persona_id: Option<i32>,
+) -> Result<(), String> {
+    let sufijo = match sesion.trim().to_lowercase().as_str() {
+        "manana" | "mañana" => "manana",
+        "tarde" => "tarde",
+        _ => return Err(format!("Sesión no válida para presidente: {sesion}")),
+    };
+    let tipo_asignacion = format!("presidente_{sufijo}");
+
+    conn.execute(
+        "DELETE FROM asignaciones_especiales
+         WHERE asamblea_id = ?1 AND dia = ?2 AND tipo_asignacion = ?3",
+        params![asamblea_id, dia, tipo_asignacion],
+    )
+    .map_err(|e| e.to_string())?;
+
+    if let Some(persona_id) = persona_id {
+        conn.execute(
+            "INSERT INTO asignaciones_especiales
+             (asamblea_id, dia, tipo_asignacion, persona_id)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![asamblea_id, dia, tipo_asignacion, persona_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[command]
+pub fn guardar_presidente_sesion(
+    app: AppHandle,
+    asamblea_id: i32,
+    dia: String,
+    sesion: String,
+    persona_id: Option<i32>,
+    hora: Option<String>,
+) -> Result<String, String> {
+    let mut conn = conectar_db(&app);
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let sesion_programa = match sesion.trim().to_lowercase().as_str() {
+        "manana" | "mañana" => "Mañana",
+        "tarde" => "Tarde",
+        _ => return Err(format!("Sesión no válida para presidente: {sesion}")),
+    };
+
+    let parte_existente: Option<(i32, Option<String>)> = tx
+        .query_row(
+            "SELECT id, hora_inicio FROM programa
+             WHERE asamblea_id = ?1 AND dia = ?2 AND sesion = ?3
+               AND lower(trim(tipo)) = 'presidente'
+             ORDER BY hora_inicio ASC LIMIT 1",
+            params![asamblea_id, dia, sesion_programa],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    if persona_id.is_some()
+        && parte_existente.is_none()
+        && hora.as_deref().unwrap_or_default().trim().is_empty()
+    {
+        return Err(
+            "Indica la hora para crear la parte del presidente en el programa.".to_string(),
+        );
+    }
+
+    sincronizar_asignacion_presidente(&tx, asamblea_id, &dia, sesion_programa, persona_id)?;
+
+    if let Some((id, _)) = parte_existente {
+        tx.execute(
+            "UPDATE programa SET orador_id = ?1,
+                estado = CASE WHEN ?1 IS NULL THEN 'Pendiente' ELSE 'Confirmado' END
+             WHERE id = ?2",
+            params![persona_id, id],
+        )
+        .map_err(|e| e.to_string())?;
+    } else if let Some(persona_id) = persona_id {
+        tx.execute(
+            "INSERT INTO programa
+             (asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, orador_id, fuente)
+             VALUES (?1, ?2, ?3, ?4, 'Presidente de sesión', 'Presidente', 0, 'Confirmado', ?5, 'en_persona')",
+            params![
+                asamblea_id,
+                dia,
+                sesion_programa,
+                hora.unwrap_or_default(),
+                persona_id
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok("Presidente de sesión guardado".to_string())
 }
 
 // --- LECTURA: Obtener asignaciones de un día PARA UNA ASAMBLEA ESPECÍFICA ---
@@ -100,13 +202,72 @@ pub fn guardar_asignacion_especial(
 // --- BORRADO: Eliminar una asignación (por ID único, no necesita cambios) ---
 #[command]
 pub fn eliminar_asignacion_especial(app: AppHandle, id: i32) -> Result<String, String> {
-    let conn = conectar_db(&app);
-    // El ID es único globalmente, así que es seguro borrarlo directo
-    conn.execute(
+    let mut conn = conectar_db(&app);
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    let asignacion: Option<(i32, String, String)> = tx
+        .query_row(
+            "SELECT asamblea_id, dia, tipo_asignacion
+             FROM asignaciones_especiales WHERE id = ?1",
+            params![id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    tx.execute(
         "DELETE FROM asignaciones_especiales WHERE id = ?1",
         params![id],
     )
     .map_err(|e| e.to_string())?;
+
+    if let Some((asamblea_id, dia, tipo_asignacion)) = asignacion {
+        let sesion = match tipo_asignacion.as_str() {
+            "presidente_manana" => Some("Mañana"),
+            "presidente_tarde" => Some("Tarde"),
+            _ => None,
+        };
+        if let Some(sesion) = sesion {
+            let siguiente_presidente: Option<i32> = tx
+                .query_row(
+                    "SELECT persona_id FROM asignaciones_especiales
+                     WHERE asamblea_id = ?1 AND dia = ?2 AND tipo_asignacion = ?3
+                     ORDER BY id DESC LIMIT 1",
+                    params![asamblea_id, dia, tipo_asignacion],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?;
+            sincronizar_asignacion_presidente(
+                &tx,
+                asamblea_id,
+                &dia,
+                sesion,
+                siguiente_presidente,
+            )?;
+            let parte_presidente: Option<i32> = tx
+                .query_row(
+                    "SELECT id FROM programa
+                     WHERE asamblea_id = ?1 AND dia = ?2 AND sesion = ?3
+                       AND lower(trim(tipo)) = 'presidente'
+                     ORDER BY hora_inicio ASC LIMIT 1",
+                    params![asamblea_id, dia, sesion],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?;
+            if let Some(parte_id) = parte_presidente {
+                tx.execute(
+                    "UPDATE programa SET orador_id = ?1,
+                    estado = CASE WHEN ?1 IS NULL THEN 'Pendiente' ELSE 'Confirmado' END
+                     WHERE id = ?2",
+                    params![siguiente_presidente, parte_id],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
     Ok("Asignación eliminada".to_string())
 }
 

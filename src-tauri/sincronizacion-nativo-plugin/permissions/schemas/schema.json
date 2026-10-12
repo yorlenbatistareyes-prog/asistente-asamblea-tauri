@@ -343,6 +343,30 @@
           "markdownDescription": "Denies the leerArchivo command without any pre-configured scope."
         },
         {
+          "description": "Enables the leerContenidoBase64 command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-leerContenidoBase64",
+          "markdownDescription": "Enables the leerContenidoBase64 command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the leerContenidoBase64 command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-leerContenidoBase64",
+          "markdownDescription": "Denies the leerContenidoBase64 command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the obtenerNombreArchivo command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-obtenerNombreArchivo",
+          "markdownDescription": "Enables the obtenerNombreArchivo command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the obtenerNombreArchivo command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-obtenerNombreArchivo",
+          "markdownDescription": "Denies the obtenerNombreArchivo command without any pre-configured scope."
+        },
+        {
           "description": "Enables the validarCarpeta command without any pre-configured scope.",
           "type": "string",
           "const": "allow-validarCarpeta",
