@@ -378,7 +378,7 @@ pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, Strin
     let conn = conectar_db(&app);
     let mut stmt = conn
         .prepare(
-            "SELECT id, tema, fecha, identificador, lugar, idioma FROM asambleas ORDER BY id DESC",
+            "SELECT id, tema, fecha, identificador, lugar, idioma, presidente FROM asambleas ORDER BY id DESC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -389,7 +389,8 @@ pub fn obtener_asambleas(app: AppHandle) -> Result<Vec<serde_json::Value>, Strin
                 "fecha": row.get::<_, String>(2)?,
                 "identificador": row.get::<_, Option<String>>(3)?,
                 "lugar": row.get::<_, Option<String>>(4)?, // 👈 Índice 4 ahora
-                "idioma": row.get::<_, Option<String>>(5)? // 👈 Índice 5 ahora
+                "idioma": row.get::<_, Option<String>>(5)?,
+                "presidente": row.get::<_, Option<String>>(6)?
             }))
         })
         .map_err(|e| e.to_string())?;

@@ -129,6 +129,25 @@
     return `${formatear(inicio)} - ${formatear(fin)}`;
   }
 
+  function obtenerNombrePresidente(valor: unknown): string {
+    if (!valor) return 'Presidente pendiente';
+
+    try {
+      const presidente = typeof valor === 'string' ? JSON.parse(valor) : valor;
+      if (!presidente || typeof presidente !== 'object') return 'Presidente pendiente';
+
+      const datos = presidente as Record<string, unknown>;
+      const nombre = [datos.nombre, datos.segundo_nombre, datos.apellido, datos.sufijo]
+        .filter((parte): parte is string => typeof parte === 'string' && parte.trim().length > 0)
+        .join(' ');
+
+      return nombre || 'Presidente pendiente';
+    } catch (error) {
+      console.error('No se pudo leer el presidente de la asamblea:', error);
+      return 'Presidente pendiente';
+    }
+  }
+
     onMount(() => { 
       cargarTodo(); 
       cargarNombreUsuario();
@@ -529,6 +548,16 @@ $: asambleasFiltradas = listaAsambleas
                                 <span>Idioma</span>
                             </div>
                         </div>
+
+                        <div class="info-line">
+                            <User size={16} class="ico-dark"/>
+                            <div class="info-col">
+                                <b class:etiqueta-pendiente={obtenerNombrePresidente(item.presidente) === 'Presidente pendiente'}>
+                                    {obtenerNombrePresidente(item.presidente)}
+                                </b>
+                                <span>Presidente</span>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="icon-section">
@@ -750,6 +779,17 @@ $: asambleasFiltradas = listaAsambleas
     .info-col { display: flex; flex-direction: column; }
     .info-col b { font-size: 14px; font-weight: 700; color: var(--text-main); } 
     .info-col span { font-size: 11px; color: var(--text-sec); font-weight: 600; }
+    .info-col b.etiqueta-pendiente {
+        align-self: flex-start;
+        padding: 4px 9px;
+        border: 1px solid #f3d58a;
+        border-radius: 999px;
+        background: #fff7df;
+        color: #805b12;
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.25;
+    }
 
     .icon-section {
         color: var(--primary); 

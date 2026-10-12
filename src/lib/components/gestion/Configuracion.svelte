@@ -20,6 +20,15 @@
   import MembreteConfig from '$lib/components/gestion/MembreteConfig.svelte';
   import Panel from '$lib/components/ui/Panel.svelte';
 
+  function portalToBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return {
+      destroy() {
+        node.remove();
+      }
+    };
+  }
+
   // --- ICONOS ---
   import { 
     DownloadCloud, ArrowLeft, Sliders, Mail, Shield, Database, CircleHelp, HelpCircle,
@@ -166,7 +175,6 @@
                             <div class="ui-item"><label>Correo electrónico</label><span>{usuario.email}</span></div>
                             <div class="ui-item"><label>Móvil</label><span>{usuario.movil}</span></div>
                             <div class="ui-item"><label>Correo electrónico JWPub</label><span>{usuario.emailJw}</span></div>
-                            <div class="ui-item"><label>Número de identificación</label><span>{usuario.id}</span></div>
                             <div class="ui-item"><label>Fecha de creación</label><span>{usuario.fechaCreacion}</span></div>
                         </div>
                     </Panel>
@@ -224,7 +232,7 @@
     </main>
 
     {#if mostrarModalUsuario}
-        <div class="modal-backdrop" on:click|self={() => mostrarModalUsuario = false}>
+        <div class="modal-backdrop" use:portalToBody on:click|self={() => mostrarModalUsuario = false}>
             <div class="modal-content-user">
                 <div class="modal-header-user">
                     <h3>Editar información de usuario</h3>
@@ -239,7 +247,6 @@
                         <div class="input-group"><label>Correo electrónico</label><input type="email" bind:value={usuarioEditando.email} /></div>
                         <div class="input-group"><label>Correo electrónico JWPub</label><input type="email" bind:value={usuarioEditando.emailJw} /></div>
                         <div class="input-group"><label>Móvil</label><input type="text" bind:value={usuarioEditando.movil} /></div>
-                        <div class="input-group"><label>Número de identificación</label><input type="text" bind:value={usuarioEditando.id} /></div>
                     </div>
                 </div>
                 <div class="modal-footer-user">
@@ -683,8 +690,23 @@
     min-height: 48px; 
   }
   .modal-content-user {
-    width: 95vw !important;
-    max-height: 90vh;
+    width: calc(100vw - 32px);
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: 0;
+    overflow: hidden !important;
+  }
+  .modal-content-user > .modal-header-user,
+  .modal-content-user > .modal-footer-user {
+    flex-shrink: 0;
+  }
+  .modal-content-user > .modal-body-user {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .modal-header-user, 
   .modal-body-user, 

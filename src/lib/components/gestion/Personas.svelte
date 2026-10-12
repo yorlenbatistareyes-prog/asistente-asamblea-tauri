@@ -153,17 +153,19 @@ async function guardarYcerrar() {
       <input type="text" bind:value={terminoBusqueda} placeholder="Buscar persona..." />
     </div>
 
-    <button class="btn-primary" on:click={() => mostrarModal = true} title="Añadir nueva persona">
-     <Plus size={16}/> Añadir Persona
-    </button>
+    <div class="toolbar-acciones">
+      <button class="btn-primary" on:click={() => mostrarModal = true} title="Añadir nueva persona" aria-label="Añadir nueva persona">
+       <Plus size={16}/><span class="toolbar-action-label">Añadir Persona</span>
+      </button>
 
-    <button class="btn-importar" on:click={importarPersonas}>
-      <Upload size={16}/> Importar CSV
-    </button>
+      <button class="btn-importar" on:click={importarPersonas} title="Importar personas desde CSV" aria-label="Importar personas desde CSV">
+        <Upload size={16}/><span class="toolbar-action-label">Importar CSV</span>
+      </button>
 
-    <button class="btn-danger" on:click={limpiarTodo} title="Borrar todas las personas">
-        <Trash2 size={16}/> Limpiar Lista
-    </button>
+      <button class="btn-danger" on:click={limpiarTodo} title="Borrar todas las personas" aria-label="Borrar todas las personas">
+          <Trash2 size={16}/><span class="toolbar-action-label">Limpiar Lista</span>
+      </button>
+    </div>
 
   </Panel>
 
@@ -295,6 +297,15 @@ async function guardarYcerrar() {
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 20px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.toolbar-acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 /* BARRA DE BÚSQUEDA - Más ancha y fina con lupa visible */
@@ -507,11 +518,16 @@ input:focus, select:focus {
 }
 
 /* ===== LISTA DE PERSONAS - MÁS DEFINIDA Y ELEVADA ===== */
-:global(.lista-panel) { 
-  flex: 1; 
+.contenedor :global(.lista-panel) { 
+  flex: 1 1 auto;
+  width: calc(100% - 32px);
+  min-width: 0;
+  min-height: 0;
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
+  margin-inline: 16px;
+  box-sizing: border-box;
 }
 
 .header-lista { 
@@ -808,19 +824,37 @@ input:focus, select:focus {
         flex-direction: column;
         align-items: stretch;
         padding: 12px !important;
-        gap: 12px;
+        gap: 10px;
     }
     
     .busqueda {
         min-width: 0 !important; /* Matamos los 300px fijos */
         width: 100%;
-        height: 48px; /* Altura ideal para el pulgar */
+        flex: 0 0 44px;
+        height: 44px;
+        border-radius: 8px;
+    }
+
+    .toolbar-acciones {
+        display: flex;
+        width: 100%;
+        justify-content: flex-end;
+        gap: 8px;
     }
     
     .btn-primary, .btn-importar, .btn-danger {
-        width: 100%;
-        height: 48px;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+        padding: 0;
         justify-content: center;
+        border-radius: 8px;
+    }
+    .btn-primary:hover, .btn-importar:hover, .btn-danger:hover {
+        transform: none;
+    }
+    .toolbar-action-label {
+        display: none;
     }
 
     /* 2. ADIÓS A LA TABLA, HOLA TARJETAS APILADAS */

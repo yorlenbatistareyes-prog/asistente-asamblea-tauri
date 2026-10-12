@@ -503,8 +503,8 @@
                         {/each}
                     </div>
 
-                    <button class="btn-outline" on:click={manejarExportacionTotal}>
-                        <FileUp size={16}/> Exportar PDF
+                    <button class="btn-outline btn-exportar-pdf" on:click={manejarExportacionTotal}>
+                        <FileUp size={16}/> Generar PDF
                     </button>
 
                     <button class="btn-primary" on:click={abrirModalBloqueAsignacion}>
@@ -868,6 +868,15 @@
 .btn-outline:hover {
   background: var(--bg-body);
 }
+.btn-exportar-pdf {
+  background: #7f1d1d;
+  border-color: #7f1d1d;
+  color: #fff;
+}
+.btn-exportar-pdf:hover {
+  background: #641717;
+  border-color: #641717;
+}
 
 .btn-icon {
   background: transparent;
@@ -938,9 +947,12 @@
   transition: 0.2s;
 }
 .filtro-dias button.active {
-  background: var(--bg-card);
-  color: var(--text-main);
-  box-shadow: var(--shadow-sm);
+  background: #facc15;
+  color: #422006;
+  box-shadow: 0 2px 8px rgba(202, 138, 4, 0.3);
+}
+.filtro-dias button.active:hover {
+  background: #eab308;
 }
 
 /* ===== PESTAÑA: AUXILIARES ===== */
