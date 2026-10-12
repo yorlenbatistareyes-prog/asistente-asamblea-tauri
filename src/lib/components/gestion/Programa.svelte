@@ -1266,23 +1266,23 @@ onMount(async () => {
                 <button class="btn-pildora btn-print" on:click={() => procesarImpresion(parte, true)}>
                   <div class="icono-pildora"><Printer size={20}/></div>
                   <span class="texto-accion-completo">Imprimir Carta</span>
-                  <span class="texto-accion-movil">Imprimir<br/>carta</span>
+                  <span class="texto-accion-movil">Imprimir carta</span>
                 </button>
                 <button class="btn-pildora btn-jwpub" on:click={() => abrirJWPUBCarta(parte)}>
                   <div class="icono-pildora"><Mail size={20}/></div>
                   <span class="texto-accion-completo">Enviar Carta</span>
-                  <span class="texto-accion-movil">Enviar<br/>carta</span>
+                  <span class="texto-accion-movil">Enviar carta</span>
                   <span class="jw-badge">JW</span>
                 </button>
                 <button class="btn-pildora btn-whatsapp" on:click={() => abrirWhatsAppRecordatorio(parte)}>
                   <div class="icono-pildora"><MessageCircle size={20}/></div>
                   <span class="texto-accion-completo">WhatsApp, recordatorio</span>
-                  <span class="texto-accion-movil">WhatsApp<br/>recordatorio</span>
+                  <span class="texto-accion-movil">Recordatorio por WhatsApp</span>
                 </button>
                 <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
                   <div class="icono-pildora"><Mail size={20}/></div>
                   <span class="texto-accion-completo">Asignación, recordatorio</span>
-                  <span class="texto-accion-movil">Asignación<br/>recordatorio</span>
+                  <span class="texto-accion-movil">Recordatorio por correo</span>
                   <span class="jw-badge">JW</span>
                 </button>
                 </div>
@@ -1418,23 +1418,23 @@ onMount(async () => {
                   <button class="btn-pildora btn-print" on:click={() => procesarImpresion(parte, true)}>
                     <div class="icono-pildora"><Printer size={20}/></div>
                     <span class="texto-accion-completo">Imprimir Carta</span>
-                    <span class="texto-accion-movil">Imprimir<br/>carta</span>
+                    <span class="texto-accion-movil">Imprimir carta</span>
                   </button>
                   <button class="btn-pildora btn-jwpub" on:click={() => abrirJWPUBCarta(parte)}>
                     <div class="icono-pildora"><Mail size={20}/></div>
                     <span class="texto-accion-completo">Enviar Carta</span>
-                    <span class="texto-accion-movil">Enviar<br/>carta</span>
+                    <span class="texto-accion-movil">Enviar carta</span>
                     <span class="jw-badge">JW</span>
                   </button>
                   <button class="btn-pildora btn-whatsapp" on:click={() => abrirWhatsAppRecordatorio(parte)}>
                     <div class="icono-pildora"><MessageCircle size={20}/></div>
                     <span class="texto-accion-completo">WhatsApp, recordatorio</span>
-                    <span class="texto-accion-movil">WhatsApp<br/>recordatorio</span>
+                    <span class="texto-accion-movil">Recordatorio por WhatsApp</span>
                   </button>
                   <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
                     <div class="icono-pildora"><Mail size={20}/></div>
                     <span class="texto-accion-completo">Asignación, recordatorio</span>
-                    <span class="texto-accion-movil">Asignación<br/>recordatorio</span>
+                    <span class="texto-accion-movil">Recordatorio por correo</span>
                     <span class="jw-badge">JW</span>
                   </button>
                   </div>
@@ -3298,21 +3298,22 @@ onMount(async () => {
     margin-bottom: 6px;
   }
   .grid-acciones {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
   .btn-pildora {
-    min-height: 64px;
+    min-width: 0;
+    min-height: 42px;
     height: auto;
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-    padding: 8px 5px;
-    font-size: 11px;
-    line-height: 1.25;
-    text-align: center;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 8px 11px;
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: left;
     white-space: normal;
-    border-radius: 9px;
+    border-radius: 10px;
   }
   .icono-pildora {
     flex: 0 0 18px;
@@ -3325,11 +3326,13 @@ onMount(async () => {
   }
   .texto-accion-movil {
     display: block;
+    flex: 1;
+    min-width: 0;
   }
   .jw-badge {
-    position: absolute;
-    top: 4px;
-    right: 4px;
+    position: static;
+    flex: 0 0 auto;
+    margin-left: auto;
     padding: 1px 4px;
     font-size: 8px;
   }
