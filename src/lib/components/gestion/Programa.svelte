@@ -1170,10 +1170,8 @@ onMount(async () => {
           <div class="col-main-info">
             <div class="meta-programacion">
               <span class="dia-badge">{parte.dia}</span>
-              <span class="separador-dot">•</span>
               <span class="hora-inicio">{parte.hora_inicio}</span>
               {#if parte.duracion && parte.duracion > 0}
-                <span class="separador-dot">•</span>
                 <span class="minutos-duracion">{parte.duracion} min</span>
               {/if}
             </div>
@@ -1185,7 +1183,7 @@ onMount(async () => {
                 {#if parte.tipo === 'Canción'}
                   Canción {parte.tema} y oración
                 {:else}
-                  {parte.tema}
+                  {parte.tema || 'Sin tema'}
                 {/if}
               </span>
               <div class="badges-row">
@@ -1207,28 +1205,30 @@ onMount(async () => {
 
           <div class="col-orador-mini">
             {#if tieneOrador(parte)}
-              <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
-              <div class="orador-meta">
-                <span class="cong-mini">
-                  {#if parte.circuito_orador}
-                    <strong style="color: var(--primary);">[{parte.circuito_orador}]</strong> 
+              {#if parte.nombre_orador?.trim()}
+                <span class="orador-nombre">{parte.nombre_orador}</span>
+                <div class="orador-meta">
+                  <span class="cong-mini">
+                    {#if parte.circuito_orador}<strong style="color: var(--primary);">[{parte.circuito_orador}]</strong>{/if}
+                    {#if parte.congregacion_orador}
+                      {parte.congregacion_orador}
+                    {/if}
+                  </span>
+                </div>
+                <div class="traits-container">
+                  {#if parte.es_betelita}
+                    <span class="trait-badge betelita">Betelita</span>
                   {/if}
-                  {#if parte.congregacion_orador}
-                    {parte.congregacion_orador}
+                  {#if parte.es_interprete}
+                    <span class="trait-badge interprete">Intérprete</span>
                   {/if}
-                </span>
-              </div>
-              <div class="traits-container">
-                {#if parte.es_betelita}
-                  <span class="trait-badge betelita">Betelita</span>
-                {/if}
-                {#if parte.es_interprete}
-                  <span class="trait-badge interprete">Intérprete</span>
-                {/if}
-                {#if parte.es_visitante}
-                  <span class="trait-badge visitante">Visitante</span>
-                {/if}
-              </div>
+                  {#if parte.es_visitante}
+                    <span class="trait-badge visitante">Visitante</span>
+                  {/if}
+                </div>
+              {:else}
+                <span class="orador-pendiente">Orador pendiente</span>
+              {/if}
             {/if}
           </div>
 
@@ -1260,28 +1260,36 @@ onMount(async () => {
                   </div>
                 </div>
               </div>
-              <div class="grid-acciones">
+              <section class="acciones-parte">
+                <span class="acciones-parte-titulo">Acciones para el orador</span>
+                <div class="grid-acciones">
                 <button class="btn-pildora btn-print" on:click={() => procesarImpresion(parte, true)}>
                   <div class="icono-pildora"><Printer size={20}/></div>
-                  <span>Imprimir Carta</span>
+                  <span class="texto-accion-completo">Imprimir Carta</span>
+                  <span class="texto-accion-movil">Imprimir<br/>carta</span>
                 </button>
                 <button class="btn-pildora btn-jwpub" on:click={() => abrirJWPUBCarta(parte)}>
                   <div class="icono-pildora"><Mail size={20}/></div>
-                  <span>Enviar Carta</span>
+                  <span class="texto-accion-completo">Enviar Carta</span>
+                  <span class="texto-accion-movil">Enviar<br/>carta</span>
                   <span class="jw-badge">JW</span>
                 </button>
                 <button class="btn-pildora btn-whatsapp" on:click={() => abrirWhatsAppRecordatorio(parte)}>
                   <div class="icono-pildora"><MessageCircle size={20}/></div>
-                  <span>WhatsApp, recordatorio</span>
+                  <span class="texto-accion-completo">WhatsApp, recordatorio</span>
+                  <span class="texto-accion-movil">WhatsApp<br/>recordatorio</span>
                 </button>
                 <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
                   <div class="icono-pildora"><Mail size={20}/></div>
-                  <span>Asignación, recordatorio</span>
+                  <span class="texto-accion-completo">Asignación, recordatorio</span>
+                  <span class="texto-accion-movil">Asignación<br/>recordatorio</span>
                   <span class="jw-badge">JW</span>
                 </button>
-              </div>
+                </div>
+              </section>
             {/if}
             <div class="footer-tools">
+              <span class="footer-tools-label">Administrar parte</span>
               <button class="btn-icon-square edit" title="Editar Datos / Asignar" on:click={() => abrirModalPrograma(parte)}>
                 <Edit size={20} strokeWidth={2}/>
               </button>
@@ -1315,21 +1323,19 @@ onMount(async () => {
             
             <div class="col-main-info">
               <div class="meta-programacion">
-                <span class="dia-badge">{parte.dia}</span>
-                <span class="separador-dot">•</span>
-                <span class="hora-inicio">{parte.hora_inicio}</span>
-                {#if parte.duracion && parte.duracion > 0}
-                  <span class="separador-dot">•</span>
-                  <span class="minutos-duracion">{parte.duracion} min</span>
-                {/if}
-              </div>
-              <div class="col-tema-bloque">
-                <span class="tema-txt">
-                  {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                    <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
+                  <span class="dia-badge">{parte.dia}</span>
+                  <span class="hora-inicio">{parte.hora_inicio}</span>
+                  {#if parte.duracion && parte.duracion > 0}
+                    <span class="minutos-duracion">{parte.duracion} min</span>
                   {/if}
-                  {parte.tema}
-                </span>
+                </div>
+                <div class="col-tema-bloque">
+                  <span class="tema-txt">
+                    {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
+                      <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
+                    {/if}
+                    {parte.tema || 'Sin tema'}
+                  </span>
                 <div class="badges-row">
                   {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
                     <span class="badge-fuente video"><Video size={10}/> Video</span>
@@ -1349,28 +1355,32 @@ onMount(async () => {
 
             <div class="col-orador-mini">
               {#if tieneOrador(parte)}
-                <span class="orador-nombre">{parte.nombre_orador || "Sin asignar"}</span>
-                <div class="orador-meta">
-                  <span class="cong-mini">
-                    {#if parte.circuito_orador}
-                      <strong style="color: var(--primary);">[{parte.circuito_orador}]</strong> 
-                    {/if}
-                    {#if parte.congregacion_orador}
-                      {parte.congregacion_orador}
-                    {/if}
-                  </span>
-                </div>
-                <div class="traits-container">
-                  {#if parte.es_betelita}
-                    <span class="trait-badge betelita">Betelita</span>
+                  {#if parte.nombre_orador?.trim()}
+                    <span class="orador-nombre">{parte.nombre_orador}</span>
+                    <div class="orador-meta">
+                      <span class="cong-mini">
+                        {#if parte.circuito_orador}
+                          <strong style="color: var(--primary);">[{parte.circuito_orador}]</strong>
+                        {/if}
+                        {#if parte.congregacion_orador}
+                          {parte.congregacion_orador}
+                        {/if}
+                      </span>
+                    </div>
+                    <div class="traits-container">
+                      {#if parte.es_betelita}
+                        <span class="trait-badge betelita">Betelita</span>
+                      {/if}
+                      {#if parte.es_interprete}
+                        <span class="trait-badge interprete">Intérprete</span>
+                      {/if}
+                      {#if parte.es_visitante}
+                        <span class="trait-badge visitante">Visitante</span>
+                      {/if}
+                    </div>
+                  {:else}
+                    <span class="orador-pendiente">Orador pendiente</span>
                   {/if}
-                  {#if parte.es_interprete}
-                    <span class="trait-badge interprete">Intérprete</span>
-                  {/if}
-                  {#if parte.es_visitante}
-                    <span class="trait-badge visitante">Visitante</span>
-                  {/if}
-                </div>
               {/if}
             </div>
 
@@ -1402,28 +1412,36 @@ onMount(async () => {
                     </div>
                   </div>
                 </div>
-                <div class="grid-acciones">
+                <section class="acciones-parte">
+                  <span class="acciones-parte-titulo">Acciones para el orador</span>
+                  <div class="grid-acciones">
                   <button class="btn-pildora btn-print" on:click={() => procesarImpresion(parte, true)}>
                     <div class="icono-pildora"><Printer size={20}/></div>
-                    <span>Imprimir Carta</span>
+                    <span class="texto-accion-completo">Imprimir Carta</span>
+                    <span class="texto-accion-movil">Imprimir<br/>carta</span>
                   </button>
                   <button class="btn-pildora btn-jwpub" on:click={() => abrirJWPUBCarta(parte)}>
                     <div class="icono-pildora"><Mail size={20}/></div>
-                    <span>Enviar Carta</span>
+                    <span class="texto-accion-completo">Enviar Carta</span>
+                    <span class="texto-accion-movil">Enviar<br/>carta</span>
                     <span class="jw-badge">JW</span>
                   </button>
                   <button class="btn-pildora btn-whatsapp" on:click={() => abrirWhatsAppRecordatorio(parte)}>
                     <div class="icono-pildora"><MessageCircle size={20}/></div>
-                    <span>WhatsApp, recordatorio</span>
+                    <span class="texto-accion-completo">WhatsApp, recordatorio</span>
+                    <span class="texto-accion-movil">WhatsApp<br/>recordatorio</span>
                   </button>
                   <button class="btn-pildora btn-teal" on:click={() => abrirJWPUBRecordatorio(parte)}>
                     <div class="icono-pildora"><Mail size={20}/></div>
-                    <span>Asignación, recordatorio</span>
+                    <span class="texto-accion-completo">Asignación, recordatorio</span>
+                    <span class="texto-accion-movil">Asignación<br/>recordatorio</span>
                     <span class="jw-badge">JW</span>
                   </button>
-                </div>
+                  </div>
+                </section>
               {/if}
               <div class="footer-tools">
+                <span class="footer-tools-label">Administrar parte</span>
                 <button class="btn-icon-square edit" title="Editar Datos / Asignar" on:click={() => abrirModalPrograma(parte)}>
                   <Edit size={20} strokeWidth={2}/>
                 </button>
@@ -2118,22 +2136,32 @@ onMount(async () => {
 
 /* --- TEXTO Y ELEMENTOS COMUNES --- */
 .tema-txt {
-  font-weight: 600;
+  min-width: 0;
+  font-weight: 700;
   color: var(--text-main);
-  font-size: 15px;
-  line-height: 1.3;
+  font-size: 16px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .orador-nombre {
   font-weight: 600;
   color: var(--text-main);
   font-size: 13px;
-  text-transform: uppercase;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
-.bosquejo-parentesis {
-  color: var(--text-sec);
-  font-weight: 600;
-  font-size: 0.9em;
-  margin-left: 5px;
+.orador-pendiente {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: 23px;
+  padding: 3px 9px;
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.08);
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 /* --- CONTROLES DE CABECERA (BOTONES) --- */
@@ -2364,37 +2392,66 @@ onMount(async () => {
 .meta-programacion {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  flex-wrap: wrap;
   font-size: 11px;
 }
 .dia-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-body);
+  border: 1px solid var(--border);
   font-weight: 800;
   text-transform: uppercase;
   color: var(--text-sec);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.5px;
 }
 .hora-inicio {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 2px 9px;
+  border-radius: 7px;
+  background: rgba(37, 99, 235, 0.09);
   font-weight: 700;
   color: var(--primary);
-  font-size: 12px;
-}
-.separador-dot {
-  color: var(--border);
-  font-size: 12px;
+  font-size: 13px;
 }
 .minutos-duracion {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--bg-body);
+  border: 1px solid var(--border);
   color: var(--text-sec);
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
 }
 .col-tema-bloque {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.bosquejo-parentesis {
+  color: var(--text-sec);
+  font-weight: 600;
+  font-size: 0.9em;
+  margin-left: 5px;
 }
 .col-orador-mini {
   width: 180px;
+  flex: 0 0 180px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  min-width: 0;
 }
 .col-toggle {
   color: var(--text-sec);
@@ -2425,11 +2482,11 @@ onMount(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700; /* Subimos el grosor de la fuente para que resalte más */
-  letter-spacing: 0.2px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
 }
 
 /* 🔵 BETELITA: Azul Índigo */
@@ -2478,14 +2535,14 @@ onMount(async () => {
   flex-wrap: wrap;
 }
 .badge-fuente {
-  font-size: 9px;
-  padding: 3px 7px;
+  font-size: 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 600;
+  line-height: 1.2;
   border: 1px solid transparent;
 }
 .badge-fuente.video {
@@ -2571,108 +2628,149 @@ onMount(async () => {
   color: var(--text-sec);
 }
 
-/* --- GRID DE BOTONES PÍLDORA --- */
+/* --- ACCIONES DE LA PARTE --- */
+.acciones-parte {
+  margin: 12px 0;
+}
+.acciones-parte-titulo {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-sec);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .grid-acciones {
-  display: flex;
-  justify-content: flex-start;
-  gap: 12px;
-  margin-top: 15px;
-  margin-bottom: 15px;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, max-content));
+  gap: 7px;
   width: 100%;
 }
 .btn-pildora {
+  min-width: 0;
+  width: auto;
+  min-height: 36px;
   display: flex;
   align-items: center;
-  border-radius: 50px;
-  border: none;
-  padding: 5px 18px 5px 5px;
-  color: white;
-  font-weight: 600;
-  font-size: 12.5px;
-  letter-spacing: 0.2px;
+  gap: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 7px 11px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-weight: 500;
+  font-size: 12px;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
+  box-shadow: none;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
   position: relative;
-  height: 40px;
 }
 .btn-pildora:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: none;
+  box-shadow: none;
 }
 .icono-pildora {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.2);
-  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  background: transparent;
+  margin: 0;
 }
 .icono-pildora :global(svg) {
-  width: 15px !important;
-  height: 15px !important;
+  width: 16px !important;
+  height: 16px !important;
 }
 .btn-print {
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #2563eb;
 }
 .btn-jwpub {
-  background: linear-gradient(135deg, #0f766e, #0e7490);
+  color: #0f766e;
 }
 .btn-whatsapp {
-  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #15803d;
 }
 .btn-teal {
-  background: linear-gradient(135deg, #0891b2, #06b6d4);
+  color: #0e7490;
+}
+.btn-print:hover {
+  background: rgba(37, 99, 235, 0.06);
+  border-color: rgba(37, 99, 235, 0.24);
+}
+.btn-jwpub:hover {
+  background: rgba(15, 118, 110, 0.06);
+  border-color: rgba(15, 118, 110, 0.24);
+}
+.btn-whatsapp:hover {
+  background: rgba(22, 163, 74, 0.06);
+  border-color: rgba(22, 163, 74, 0.24);
+}
+.btn-teal:hover {
+  background: rgba(8, 145, 178, 0.06);
+  border-color: rgba(8, 145, 178, 0.24);
 }
 .jw-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  background-color: #0f172a;
-  color: white;
+  position: static;
+  background: rgba(15, 118, 110, 0.08);
+  color: #0f766e;
   font-size: 9px;
-  font-weight: 800;
-  padding: 3px 6px;
-  border-radius: 10px;
-  border: 1.5px solid var(--bg-card);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  box-shadow: none;
+  letter-spacing: 0.3px;
+}
+.texto-accion-movil {
+  display: none;
 }
 
 /* --- BOTONES CUADRADOS EDITAR/ELIMINAR --- */
 .footer-tools {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   border-top: 1px solid var(--border);
-  padding-top: 15px;
+  padding-top: 12px;
+}
+.footer-tools-label {
+  margin-right: auto;
+  color: var(--text-sec);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .btn-icon-square {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #ffffff;
+  color: var(--text-sec);
   transition: transform 0.2s ease, filter 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 .btn-icon-square:hover {
   transform: translateY(-2px);
-  filter: brightness(1.15);
+  filter: brightness(0.97);
 }
 .btn-icon-square.edit {
-  background-color: #5c1424;
+  background: rgba(37, 99, 235, 0.07);
+  border-color: rgba(37, 99, 235, 0.16);
+  color: var(--primary);
 }
 .btn-icon-square.delete {
-  background-color: #ff2b3d;
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.16);
+  color: var(--accent-danger);
 }
 
 /* --- MODALES COMUNES --- */
@@ -3140,17 +3238,36 @@ onMount(async () => {
     flex-direction: column;
     align-items: flex-start;
     position: relative;
-    padding: 15px;
+    padding: 12px;
+    gap: 10px;
   }
   .col-main-info {
     width: 100%;
-    padding-right: 30px;
+    padding-right: 26px;
   }
   .col-orador-mini {
     width: 100%;
+    flex: 1 1 auto;
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px dashed var(--border);
+  }
+  .tema-txt {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  .meta-programacion {
+    gap: 6px;
+  }
+  .dia-badge,
+  .minutos-duracion {
+    font-size: 9px;
+  }
+  .hora-inicio {
+    font-size: 12px;
+  }
+  .col-main-info {
+    overflow: visible;
   }
   .col-toggle {
     position: absolute;
@@ -3159,23 +3276,73 @@ onMount(async () => {
     margin: 0;
   }
   .body-parte {
-    padding: 15px;
+    padding: 12px;
   }
   .fila-superior-control {
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .detalles-contacto-panel {
+    gap: 6px;
+  }
+  .contact-pill,
+  .cong-tag {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .acciones-parte {
+    margin: 10px 0;
+  }
+  .acciones-parte-titulo {
+    margin-bottom: 6px;
   }
   .grid-acciones {
-    flex-wrap: wrap;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
   }
   .btn-pildora {
-    width: 100%;
-    justify-content: flex-start;
+    min-height: 64px;
+    height: auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 5px;
+    font-size: 11px;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+    border-radius: 9px;
+  }
+  .icono-pildora {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+  }
+  .texto-accion-completo {
+    display: none;
+  }
+  .texto-accion-movil {
+    display: block;
+  }
+  .jw-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 1px 4px;
+    font-size: 8px;
+  }
+  .acciones-parte-titulo,
+  .footer-tools-label {
+    font-size: 10px;
   }
   .footer-tools {
-    flex-direction: row;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 8px;
+  }
+  .footer-tools-label {
+    margin-right: auto;
   }
   .modal,
   .modal-filtros,
