@@ -4,6 +4,9 @@
   // --- STORE DE DATOS Y UTILIDADES PARA EMAIL ---
   import { emailTemplates, marcadoresEmail, cargarPlantillasEmail, guardarPlantillaEmail, type PlantillaEmail as Plantilla } from '$lib/utils/plantillasEmail';
 
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile } from '@tauri-apps/plugin-fs';
+
   // --- TIPTAP ---
   import Panel from '$lib/components/ui/Panel.svelte';
   import { Editor } from '@tiptap/core';
@@ -16,12 +19,12 @@
   import Highlight from '@tiptap/extension-highlight';
 
   // --- ICONOS ---
-  import { 
-    FileText, ChevronUp, ChevronDown, PenTool,
-    X, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-    List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
-    Check, Loader2, Cloud, Undo, Redo, Mail
-  } from 'lucide-svelte';
+ import { 
+  FileText, ChevronUp, ChevronDown, PenTool, Download, Upload,
+  X, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
+  Check, Loader2, Cloud, Undo, Redo, Mail
+} from 'lucide-svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -229,6 +232,70 @@
       setModoEdicion(false);
   }
 
+  // --- FUNCIONES DE EXPORTAR / IMPORTAR ---
+  async function exportarPlantilla(plantilla: Plantilla) {
+      try {
+          const data = {
+              tipo: 'correo',
+              id: plantilla.id,
+              subject: plantilla.subject || '',
+              body: plantilla.body || ''
+          };
+          
+          // 1. Limpiamos el título para que sea un nombre de archivo seguro
+          // Ejemplo: "Asignación individual al orador" -> "Asignacion_individual_al_orador"
+          const tituloLimpio = plantilla.title
+              .normalize("NFD") // Separa las letras de sus tildes
+              .replace(/[\u0300-\u036f]/g, "") // Elimina las tildes
+              .replace(/[^a-zA-Z0-9]/g, "_")   // Cambia espacios y símbolos por guiones bajos
+              .replace(/_+/g, "_");            // Evita guiones bajos repetidos
+          
+          // 2. Armamos el nuevo nombre del archivo
+          const nombreArchivo = `RAssembly_Plantilla_Correo_${tituloLimpio}.json`;
+          
+          // 3. Abre la ventana nativa de "Guardar como..."
+          const filePath = await save({
+              defaultPath: nombreArchivo,
+              filters: [{ name: 'Plantilla JSON', extensions: ['json'] }]
+          });
+
+          // Si el usuario elige una ruta y no cancela, guardamos el archivo
+          if (filePath) {
+              await writeTextFile(filePath, JSON.stringify(data, null, 2));
+              alert("Plantilla exportada correctamente.");
+          }
+      } catch (error) {
+          console.error("Error al exportar:", error);
+          alert("Hubo un error al exportar la plantilla.");
+      }
+  }
+
+  async function importarPlantilla(event: Event, idDestino: string) {
+      const input = event.target as HTMLInputElement;
+      if (!input.files || input.files.length === 0) return;
+
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+          try {
+              const contenido = JSON.parse(e.target?.result as string);
+              if (contenido.tipo !== 'correo') {
+                  alert("Error: El archivo seleccionado no es una plantilla de correo válida.");
+                  return;
+              }
+              // Guardamos usando tu función centralizada
+              await guardarPlantillaEmail(idDestino, contenido.subject, contenido.body);
+              alert("Plantilla importada con éxito.");
+          } catch (error) {
+              alert("Error al leer el archivo de la plantilla.");
+          } finally {
+              input.value = ''; // Reseteamos el input para permitir importar el mismo archivo de nuevo
+          }
+      };
+      reader.readAsText(file);
+  }
+
     // --- CARGA INICIAL (RECUPERAR DATOS AL ABRIR LA APP) ---
   onMount(async () => {
       await cargarPlantillasEmail();
@@ -248,9 +315,22 @@
                         <h4>{plantilla.title}</h4>
                         <p>{descripcionPlantilla(plantilla.id)}</p>
                     </div>
-                    <button class="template-card-edit" on:click={() => abrirEditor(plantilla)}>
-                        <PenTool size={14} /> Editar
-                    </button>
+
+                    <div class="template-card-actions-group">
+                        <!-- Input oculto para cargar el archivo -->
+                        <input type="file" id="import-correo-{plantilla.id}" accept=".json" style="display: none;" on:change={(e) => importarPlantilla(e, plantilla.id)} />
+            
+                        <button class="template-card-icon-btn" title="Importar plantilla" on:click={() => document.getElementById(`import-correo-${plantilla.id}`)?.click()}>
+                           <Download size={14} /> <!-- Flecha hacia abajo para Importar -->
+                        </button>
+                        <button class="template-card-icon-btn" title="Exportar plantilla" on:click={() => exportarPlantilla(plantilla)}>
+                           <Upload size={14} /> <!-- Flecha hacia arriba para Exportar -->
+                        </button>
+                        <button class="template-card-edit" on:click={() => abrirEditor(plantilla)}>
+                            <PenTool size={14} /> Editar
+                        </button>
+                    </div>
+
                 </article>
             {/each}
         </div>
@@ -1010,5 +1090,32 @@
     font-size: 12px;
     padding: 6px 10px;
   }
+}
+
+.template-card-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.template-card-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-card-icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--hover-bg);
 }
 </style>

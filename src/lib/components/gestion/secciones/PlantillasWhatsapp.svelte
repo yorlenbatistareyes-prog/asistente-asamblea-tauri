@@ -1,5 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+  import { save } from '@tauri-apps/plugin-dialog';
+  import { writeTextFile } from '@tauri-apps/plugin-fs';
   
   // --- IMPORTACIONES CORRECTAS DESDE NUESTRO ARCHIVO CENTRAL ---
   import { 
@@ -24,6 +26,7 @@
   // --- ICONOS ---
   import { 
     X, MessageCircle, Bold, Italic, ChevronUp, ChevronDown, PenTool, Check, Loader2, Cloud,
+    Download, Upload,
     Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight, AlignJustify,
     List, ListOrdered, IndentDecrease, IndentIncrease, Highlighter, Link as LinkIcon, Unlink, Minus,
     Undo, Redo
@@ -178,6 +181,67 @@
     setModoEdicion(false);
   }
 
+  // --- FUNCIONES DE EXPORTAR / IMPORTAR ---
+  async function exportarPlantilla(plantilla: PlantillaWhatsApp) {
+      try {
+          const data = {
+              tipo: 'whatsapp',
+              id: plantilla.id,
+              body: plantilla.body || ''
+          };
+          
+          // 1. Limpiamos el título
+          const tituloLimpio = plantilla.title
+              .normalize("NFD") 
+              .replace(/[\u0300-\u036f]/g, "") 
+              .replace(/[^a-zA-Z0-9]/g, "_")   
+              .replace(/_+/g, "_");            
+          
+          // 2. Armamos el nuevo nombre del archivo
+          const nombreArchivo = `RAssembly_Plantilla_WhatsApp_${tituloLimpio}.json`;
+          
+          // 3. Abre la ventana nativa de "Guardar como..."
+          const filePath = await save({
+              defaultPath: nombreArchivo,
+              filters: [{ name: 'Plantilla JSON', extensions: ['json'] }]
+          });
+
+          if (filePath) {
+              await writeTextFile(filePath, JSON.stringify(data, null, 2));
+              alert("Plantilla exportada correctamente.");
+          }
+      } catch (error) {
+          console.error("Error al exportar:", error);
+          alert("Hubo un error al exportar la plantilla.");
+      }
+  }
+
+  async function importarPlantilla(event: Event, idDestino: string) {
+      const input = event.target as HTMLInputElement;
+      if (!input.files || input.files.length === 0) return;
+
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+          try {
+              const contenido = JSON.parse(e.target?.result as string);
+              if (contenido.tipo !== 'whatsapp') {
+                  alert("Error: El archivo seleccionado no es una plantilla de WhatsApp válida.");
+                  return;
+              }
+              // Usamos tu función específica de WhatsApp
+              await guardarPlantillaWhatsApp(idDestino, contenido.body);
+              alert("Plantilla importada con éxito.");
+          } catch (error) {
+              alert("Error al leer el archivo de la plantilla.");
+          } finally {
+              input.value = ''; // Reseteamos el input
+          }
+      };
+      reader.readAsText(file);
+  }
+
   // --- CARGA INICIAL: OBTENER TODAS LAS PLANTILLAS DESDE LA BD ---
   onMount(async () => {
     await cargarPlantillasWhatsApp();
@@ -199,9 +263,22 @@
             <h4>{plantilla.title}</h4>
             <p>{descripcionPlantilla(plantilla.id)}</p>
           </div>
-          <button class="template-card-edit" on:click={() => abrirEditor(plantilla)}>
-            <PenTool size={14} /> Editar
-          </button>
+
+          <div class="template-card-actions-group">
+            <!-- Input oculto para cargar el archivo -->
+            <input type="file" id="import-wa-{plantilla.id}" accept=".json" style="display: none;" on:change={(e) => importarPlantilla(e, plantilla.id)} />
+            
+            <button class="template-card-icon-btn" title="Importar plantilla" on:click={() => document.getElementById(`import-wa-${plantilla.id}`)?.click()}>
+                <Download size={14} />
+            </button>
+            <button class="template-card-icon-btn" title="Exportar plantilla" on:click={() => exportarPlantilla(plantilla)}>
+                <Upload size={14} />
+            </button>
+            <button class="template-card-edit" on:click={() => abrirEditor(plantilla)}>
+                <PenTool size={14} /> Editar
+            </button>
+          </div>
+
         </article>
       {/each}
     </div>
@@ -926,5 +1003,32 @@
     white-space: pre-wrap !important;
     word-break: break-word !important;
   }
+}
+
+.template-card-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.template-card-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-card-icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--hover-bg);
 }
 </style>
