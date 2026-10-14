@@ -152,68 +152,75 @@ pub fn crear_parte(
     email: Option<String>,
     telefono: Option<String>,
     numero_bosquejo: Option<String>,
-    // ✅ NUEVOS CAMPOS AÑADIDOS
     fuente: String,
     es_betelita: bool,
     es_interprete: bool,
     es_visitante: bool,
     color_destacado: Option<String>,
+    orador_id: Option<i32>,
 ) -> Result<String, String> {
     let mut conn = conectar_db(&app);
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    let mut orador_id_final: Option<i32> = None;
-    let estado = "Pendiente".to_string();
+    let mut orador_id_final: Option<i32> = orador_id;
 
     if tipo != "Video" {
-        if let Some(nombre) = nombre_orador {
-            if !nombre.trim().is_empty() {
-                let existe: Option<i32> = tx
-                    .query_row(
-                        "SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2",
-                        params![asamblea_id, nombre.trim()],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .map_err(|e| e.to_string())?;
+        if orador_id_final.is_none() {
+            if let Some(nombre) = nombre_orador {
+                if !nombre.trim().is_empty() {
+                    let existe: Option<i32> = tx
+                        .query_row(
+                            "SELECT id FROM personas WHERE asamblea_id = ?1 AND nombre_completo = ?2",
+                            params![asamblea_id, nombre.trim()],
+                            |row| row.get(0),
+                        )
+                        .optional()
+                        .map_err(|e| e.to_string())?;
 
-                if let Some(id) = existe {
-                    orador_id_final = Some(id);
-                } else {
-                    let mut id_cong = 0;
-                    if let Some(c) = congregacion {
-                        let c_id: Option<i32> = tx.query_row(
-                            "SELECT id FROM congregaciones WHERE asamblea_id = ?1 AND nombre = ?2", 
-                            params![asamblea_id, c], 
-                            |row| row.get(0)
-                        ).optional().unwrap_or(None);
+                    if let Some(id) = existe {
+                        orador_id_final = Some(id);
+                    } else {
+                        let mut id_cong = 0;
+                        if let Some(c) = congregacion {
+                            let c_id: Option<i32> = tx.query_row(
+                                "SELECT id FROM congregaciones WHERE asamblea_id = ?1 AND nombre = ?2", 
+                                params![asamblea_id, c], 
+                                |row| row.get(0)
+                            ).optional().unwrap_or(None);
 
-                        if let Some(id) = c_id {
-                            id_cong = id;
-                        } else {
-                            tx.execute(
-                                "INSERT INTO congregaciones (asamblea_id, nombre, numero_congregacion) VALUES (?1, ?2, '')", 
-                                params![asamblea_id, c]
-                            ).map_err(|e| e.to_string())?;
-                            id_cong = tx.last_insert_rowid() as i32;
+                            if let Some(id) = c_id {
+                                id_cong = id;
+                            } else {
+                                tx.execute(
+                                    "INSERT INTO congregaciones (asamblea_id, nombre, numero_congregacion) VALUES (?1, ?2, '')", 
+                                    params![asamblea_id, c]
+                                ).map_err(|e| e.to_string())?;
+                                id_cong = tx.last_insert_rowid() as i32;
+                            }
                         }
+
+                        tx.execute(
+                            "INSERT INTO personas (asamblea_id, nombre_completo, sexo, id_congregacion, email, telefono) VALUES (?1, ?2, 'M', ?3, ?4, ?5)", 
+                            params![
+                                asamblea_id, 
+                                nombre.trim(), 
+                                id_cong, 
+                                email.unwrap_or_default(), 
+                                telefono.unwrap_or_default()
+                            ]
+                        ).map_err(|e| e.to_string())?;
+
+                        orador_id_final = Some(tx.last_insert_rowid() as i32);
                     }
-
-                    tx.execute(
-                        "INSERT INTO personas (asamblea_id, nombre_completo, sexo, id_congregacion, email, telefono) VALUES (?1, ?2, 'M', ?3, ?4, ?5)", 
-                        params![
-                            asamblea_id, 
-                            nombre.trim(), 
-                            id_cong, 
-                            email.unwrap_or_default(), 
-                            telefono.unwrap_or_default()
-                        ]
-                    ).map_err(|e| e.to_string())?;
-
-                    orador_id_final = Some(tx.last_insert_rowid() as i32);
                 }
             }
         }
     }
+
+    let estado = if orador_id_final.is_some() {
+        "Confirmado".to_string()
+    } else {
+        "Pendiente".to_string()
+    };
 
     let bosquejo_final = if tipo == "Video" {
         None
@@ -226,7 +233,6 @@ pub fn crear_parte(
         fuente
     };
 
-    // ✅ INSERCIÓN ACTUALIZADA CON LOS NUEVOS VALORES
     tx.execute(
         "INSERT INTO programa (
         asamblea_id, dia, sesion, hora_inicio, tema, tipo, duracion, estado, 
@@ -250,7 +256,7 @@ pub fn crear_parte(
             es_betelita,
             es_interprete,
             es_visitante,
-            color_destacado.unwrap_or_default() // ← NUEVO
+            color_destacado.unwrap_or_default()
         ],
     )
     .map_err(|e| e.to_string())?;

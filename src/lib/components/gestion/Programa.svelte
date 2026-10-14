@@ -54,7 +54,7 @@
     dia: 'Viernes', hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', 
     nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '',
     fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false,
-    color_destacado: ''
+    color_destacado: '', orador_id: null as number | null
   };
 
   let sugerenciasOradores: any[] = [];
@@ -666,7 +666,7 @@ async function cargarColoresSeriesBD() {
         idParte: parteId, 
         tema: parteEditando.tipo === 'Canción' ? String(parteEditando.tema) : parteEditando.tema,
         colorDestacado: parteEditando.color_destacado || null,
-        numeroBosquejo: parteEditando.numero_bosquejo?.trim() || null,
+        numeroBosquejo: String(parteEditando.numero_bosquejo || '').trim() || null,
         fuente: parteEditando.fuente || 'en_persona',
         esBetelita: parteEditando.es_betelita || false,
         esInterprete: parteEditando.es_interprete || false,
@@ -688,7 +688,7 @@ async function cargarColoresSeriesBD() {
 
   async function asignarOrador(oradorId: number | null, esVideo: boolean) {
     if (parteEditando) {
-      const bsq = parteEditando?.numero_bosquejo?.trim() || "";
+      const bsq = String(parteEditando?.numero_bosquejo || '').trim();
       try {
         await DB.actualizarDetallesParte({ 
           idParte: parteEditando.id, 
@@ -728,17 +728,14 @@ async function cargarColoresSeriesBD() {
       return alert("Falta el tema.");
     }
 
-    // --- AUTO-ETIQUETADO INTELIGENTE PARA EL PRESIDENTE ---
     let temaFinal = nuevaParte.tipo === 'Canción' ? String(nuevaParte.tema) : nuevaParte.tema;
     
     if (nuevaParte.tipo === 'Presidente') {
       const temaLower = temaFinal.toLowerCase();
-      // Si el usuario no le puso paréntesis de sesión manualmente, se lo añadimos nosotros
       if (!temaLower.includes('mañana') && !temaLower.includes('tarde')) {
         temaFinal = `${temaFinal} (${nuevaParte.sesion})`;
       }
     }
-    // -----------------------------------------------------
 
     try {
       await DB.crearParte({ 
@@ -749,19 +746,20 @@ async function cargarColoresSeriesBD() {
         tema: temaFinal, 
         tipo: nuevaParte.tipo, 
         duracion: Number(nuevaParte.duracion), 
-        nombre_orador: nuevaParte.nombre_orador.trim() || null, 
+        nombreOrador: nuevaParte.nombre_orador.trim() || null, 
         congregacion: nuevaParte.congregacion.trim() || null, 
         email: nuevaParte.email.trim() || null, 
         telefono: nuevaParte.telefono.trim() || null,
-        numero_bosquejo: nuevaParte.numero_bosquejo.trim() || null,
+        numeroBosquejo: String(nuevaParte.numero_bosquejo || '').trim() || null,
         fuente: nuevaParte.fuente,
         esBetelita: nuevaParte.es_betelita,
         esInterprete: nuevaParte.es_interprete,
         esVisitante: nuevaParte.es_visitante,
-        colorDestacado: nuevaParte.color_destacado || null
+        colorDestacado: nuevaParte.color_destacado || null,
+        oradorId: nuevaParte.orador_id || null
       });
       mostrarModalCrear = false; 
-      nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false, color_destacado: '' };
+      nuevaParte = { dia: diaSeleccionado, hora: '', tema: '', tipo: 'Discurso', duracion: 0, sesion: 'Mañana', nombre_orador: '', congregacion: '', email: '', telefono: '', numero_bosquejo: '', fuente: 'en_persona', es_betelita: false, es_interprete: false, es_visitante: false, color_destacado: '', orador_id: null };
       await cargarTodosDias(); 
     } catch (e) { 
       alert("Error al crear parte: " + e); 
@@ -909,10 +907,10 @@ async function cargarColoresSeriesBD() {
   }
 
   // --- FILTRADO PARA SUGERENCIAS EN CREACIÓN ---
-  function filtrarOradores() { 
+ function filtrarOradores() { 
     const t = nuevaParte.nombre_orador.toLowerCase().trim(); 
+    nuevaParte.orador_id = null; // <- Desvincula el ID si el usuario escribe a mano
     if (t === '') {
-      // Si el campo está vacío, muestra la lista completa
       sugerenciasOradores = [...listaHermanos];
     } else {
       sugerenciasOradores = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t)); 
@@ -922,6 +920,7 @@ async function cargarColoresSeriesBD() {
 
   function selectSugerencia(h: any) { 
     nuevaParte.nombre_orador = h.nombre_completo; 
+    nuevaParte.orador_id = h.id; // <- Captura el ID oficial de la base de datos
     nuevaParte.congregacion = h.nombre_congregacion || ''; 
     nuevaParte.telefono = h.telefono || ''; 
     nuevaParte.email = h.email || ''; 
@@ -1260,24 +1259,21 @@ onMount(async () => {
                 <span class="minutos-duracion">{parte.duracion} min</span>
               {/if}
             </div>
+
             <div class="col-tema-bloque">
               <span class="tema-txt">
-                {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                  <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
-                {/if}
+                    {#if parte.tipo === 'Canción'}
+                      <!-- Si es canción, arma la frase incrustando el número (que guardamos en numero_bosquejo) -->
+                      Canción {parte.numero_bosquejo && String(parte.numero_bosquejo).trim() !== '' ? parte.numero_bosquejo + ' ' : ''}y oración
+                    {:else}
+                      <!-- Si NO es canción, muestra el número de bosquejo normal en paréntesis y luego el tema -->
+                      {#if parte.numero_bosquejo && String(parte.numero_bosquejo).trim() !== ''}
+                        <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
+                      {/if}
+                      {parte.tema || 'Sin tema'}
+                    {/if}
+                  </span>
 
-                {#if parte.tipo === 'Canción'}
-                  <!-- Si el tema ya incluye la palabra canción (ej. "Canción y oración"), lo muestra tal cual. Si solo es un número (ej. "135"), le añade el texto. -->
-                  {#if parte.tema && String(parte.tema).toLowerCase().includes('canción')}
-                    {parte.tema}
-                  {:else}
-                    Canción {parte.tema} y oración
-                  {/if}
-                {:else}
-                  {parte.tema || 'Sin tema'}
-                {/if}
-
-              </span>
               <div class="badges-row">
                 {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
                   <span class="badge-fuente video"><Video size={10}/> Video</span>
@@ -1421,24 +1417,22 @@ onMount(async () => {
                     <span class="minutos-duracion">{parte.duracion} min</span>
                   {/if}
                 </div>
-                <div class="col-tema-bloque">
 
-                 <span class="tema-txt">
-                    {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
-                      <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
-                    {/if}
-                    {#if parte.tipo === 'Canción'}
-                      {#if parte.tema && String(parte.tema).toLowerCase().includes('canción')}
-                        {parte.tema}
-                      {:else}
-                        Canción {parte.tema} y oración
-                      {/if}
-                    {:else}
-                      {parte.tema || 'Sin tema'}
-                    {/if}
-                  </span>
+              <div class="col-tema-bloque">
+              <span class="tema-txt">
+                {#if parte.tipo === 'Canción'}
+                  <!-- Si es canción, arma la frase incrustando el número (que guardamos en numero_bosquejo) -->
+                  Canción {parte.numero_bosquejo && String(parte.numero_bosquejo).trim() !== '' ? parte.numero_bosquejo + ' ' : ''}y oración
+                {:else}
+                  <!-- Si NO es canción, muestra el número de bosquejo normal en paréntesis y luego el tema -->
+                  {#if parte.numero_bosquejo && String(parte.numero_bosquejo).trim() !== ''}
+                    <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
+                  {/if}
+                  {parte.tema || 'Sin tema'}
+                {/if}
+              </span>
 
-                <div class="badges-row">
+              <div class="badges-row">
                   {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
                     <span class="badge-fuente video"><Video size={10}/> Video</span>
                   {:else if parte.fuente === 'jw_stream' || parte.fuente === 'Descarga de JW Stream'}
@@ -1684,10 +1678,18 @@ onMount(async () => {
           </datalist>
         </div>
         
-        <div class="campo">
-          <label for="bosquejo_input">Número de Bosquejo</label>
-          <input id="bosquejo_input" type="text" placeholder="Ej: 145" bind:value={nuevaParte.numero_bosquejo} />
-        </div>
+        <!-- CAMPO ESPECÍFICO Y SEMÁNTICO PARA LA CANCIÓN -->
+        {#if nuevaParte.tipo === 'Canción'}
+          <div class="campo">
+            <label for="cancion_input">Número de Canción</label>
+            <input id="cancion_input" type="number" placeholder="Ej: 135" bind:value={nuevaParte.numero_bosquejo} />
+          </div>
+        {:else if !['Oración', 'Video Musical', 'Anuncio', 'Serie'].includes(nuevaParte.tipo)}
+          <div class="campo">
+            <label for="bosquejo_input">Número de Bosquejo</label>
+            <input id="bosquejo_input" type="text" placeholder="Ej: 145" bind:value={nuevaParte.numero_bosquejo} />
+          </div>
+        {/if}
 
         <!-- SELECTOR DE COLOR DESTACADO -->
 <div class="campo">
@@ -1721,7 +1723,16 @@ onMount(async () => {
           <div class="separator-line"></div>
           <h4 class="form-title">Asignación Rápida</h4>
           <div class="campo autocomplete-container">
-            <label for="orador_input">Orador</label>
+            <!-- Título dinámico según el rol -->
+            <label for="orador_input">
+              {#if nuevaParte.tipo === 'Oración'}
+                Hermano que hará la oración
+              {:else if nuevaParte.tipo === 'Presidente'}
+                Presidente de sesión
+              {:else}
+                Orador
+              {/if}
+            </label>
 
              <div class="input-icon">
               <Mic size={14}/>
@@ -1883,7 +1894,8 @@ onMount(async () => {
               </div>
             </div>
 
-            {#if !['Canción', 'Video Musical', 'Anuncio', 'Serie'].includes(parteEditando.tipo)}
+            <!-- Se quitó 'Canción' de la lista de arriba para que la fila de minutos y fuente sí aparezca -->
+            {#if !['Video Musical', 'Anuncio', 'Serie'].includes(parteEditando.tipo)}
                 <div class="fila" style="margin-bottom: 15px; margin-top: 15px;">
                   <div class="campo" style="margin-bottom: 0; max-width: 90px;">
                     <label>Minutos</label>
@@ -1893,13 +1905,24 @@ onMount(async () => {
                     </div>
                   </div>
                   
-                  <div class="campo" style="margin-bottom: 0;">
-                    <label>Núm. Bosquejo</label>
-                    <div class="input-icon">
-                      <FileText size={16}/>
-                      <input id="edit_bosquejo" type="text" placeholder="Ej: 178" bind:value={parteEditando.numero_bosquejo} />
+                  <!-- AQUÍ ESTÁ LA MAGIA DEL NÚMERO DE CANCIÓN PARA EL MODAL DE EDITAR -->
+                  {#if parteEditando.tipo === 'Canción'}
+                    <div class="campo" style="margin-bottom: 0;">
+                      <label>Núm. Canción</label>
+                      <div class="input-icon">
+                        <FileText size={16}/>
+                        <input id="edit_cancion" type="number" placeholder="Ej: 135" bind:value={parteEditando.numero_bosquejo} />
+                      </div>
                     </div>
-                  </div>
+                  {:else if parteEditando.tipo !== 'Oración'}
+                    <div class="campo" style="margin-bottom: 0;">
+                      <label>Núm. Bosquejo</label>
+                      <div class="input-icon">
+                        <FileText size={16}/>
+                        <input id="edit_bosquejo" type="text" placeholder="Ej: 178" bind:value={parteEditando.numero_bosquejo} />
+                      </div>
+                    </div>
+                  {/if}
                   
                   <div class="campo" style="margin-bottom: 0;">
                     <label>Fuente</label>
@@ -1915,6 +1938,7 @@ onMount(async () => {
                 {#if !parteEditando.es_video}
                   <div class="campo" style="margin-bottom: 0;">
                     <label>Características del Orador</label>
+
                     <div style="display: flex; gap: 15px; margin-top: 8px;">
                       <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_betelita}> Betelita</label>
                       <label class="checkbox-label" style="font-size: 13px;"><input type="checkbox" bind:checked={parteEditando.es_interprete}> Intérprete</label>
