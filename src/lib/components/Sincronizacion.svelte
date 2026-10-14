@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CloudUpload, CloudDownload, Server, AlertCircle, CheckCircle2, Loader2, Mail, KeyRound, ArrowRight } from 'lucide-svelte';
+  import { CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Loader2, Mail, KeyRound, Lock, ShieldCheck } from 'lucide-svelte';
   
   import { DbSyncHelper } from '$lib/services/dbSyncHelper';
   import { SyncService } from '$lib/services/syncService';
@@ -8,12 +8,27 @@
   // Importamos la STORE REACTIVA y sus funciones
   import { sesionApp, inicializarSesion, guardarSesion, cerrarSesion } from '$lib/stores/authStore';
   // Importamos el cerebro de auto-sincronización y el nombre del dispositivo
-  // Cambia la importación por esta:
-import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
+  import { syncStatus, lastDeviceName, iniciarRadarNube } from '$lib/stores/autoSyncStore';
+  // Importamos las funciones de Cifrado Extremo a Extremo (Zero-Knowledge)
+  import { guardarPasswordCifrado, tienePasswordCifrado, borrarPasswordCifrado } from '$lib/utils/seguridad';
 
   let inputEmail = ''; 
   let codigoOtp = '';
   
+  // --- ESTADO DE CLAVE E2EE (ZERO-KNOWLEDGE) ---
+  let inputPin = '';
+  let tienePinConfigurado = false;
+  let editandoPin = false;
+
+ // Forzar la comprobación E2EE apenas el usuario inicie sesión
+  $: if ($sesionApp.isLoggedIn) {
+    tienePasswordCifrado()
+      .then((res) => { tienePinConfigurado = res; })
+      .catch(() => { tienePinConfigurado = false; });
+      
+    iniciarRadarNube(); // <--- ESTO ENCIENDE LA VIGILANCIA AUTOMÁTICA
+  }
+
   // --- LÓGICA DEL OTP (6 DÍGITOS) ---
   let otpArray = ['', '', '', '', '', ''];
   let inputRefs: HTMLInputElement[] = [];
@@ -51,54 +66,49 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
     last_device?: string | null;
     last_synced_at?: string | null;
   };
-  let respaldoPendiente: RespaldoNube | null = null;
-  let restauracionCompleta = false;
   
   let pasoLogin = 1; 
   $: paso = $sesionApp.isLoggedIn ? 3 : pasoLogin;
 
   function getErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message;
-    return String(error);
+    const raw = error instanceof Error ? error.message : String(error);
+    // Traducimos errores criptográficos de Rust a un mensaje claro para el usuario
+    if (raw.toLowerCase().includes('llave') || raw.toLowerCase().includes('decrypt') || raw.toLowerCase().includes('key') || raw.toLowerCase().includes('aead')) {
+      return 'Clave de cifrado incorrecta. Asegúrate de usar la misma clave con la que subiste el respaldo.';
+    }
+    return raw;
   }
 
   function mostrarError(texto: string) {
     estado = 'error';
     mensaje = texto;
-    setTimeout(() => { if (estado === 'error') estado = 'inactivo'; }, 4500);
-  }
-
-  function formatearAntiguedad(fechaISO?: string | null): string {
-    if (!fechaISO) return 'Fecha no disponible';
-
-    const timestamp = Date.parse(fechaISO);
-    if (Number.isNaN(timestamp)) return 'Fecha no disponible';
-
-    const diferenciaSegundos = (timestamp - Date.now()) / 1000;
-    const antiguedad = Math.abs(diferenciaSegundos);
-    const formato = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
-
-    if (antiguedad < 60) return formato.format(Math.round(diferenciaSegundos), 'second');
-    if (antiguedad < 3600) return formato.format(Math.round(diferenciaSegundos / 60), 'minute');
-    if (antiguedad < 86400) return formato.format(Math.round(diferenciaSegundos / 3600), 'hour');
-    if (antiguedad < 2592000) return formato.format(Math.round(diferenciaSegundos / 86400), 'day');
-    if (antiguedad < 31536000) return formato.format(Math.round(diferenciaSegundos / 2592000), 'month');
-    return formato.format(Math.round(diferenciaSegundos / 31536000), 'year');
-  }
-
-  function cancelarRestauracion() {
-    if (estado !== 'cargando') respaldoPendiente = null;
-  }
-
-  function cerrarAvisoRestauracion() {
-    restauracionCompleta = false;
-    window.location.reload();
+    setTimeout(() => { if (estado === 'error') estado = 'inactivo'; }, 5500);
   }
 
   // --- ARRANQUE DE LA APP ---
   onMount(async () => {
     await inicializarSesion();
+    tienePinConfigurado = await tienePasswordCifrado();
   });
+
+  // --- GUARDAR CLAVE SECRETA E2EE ---
+  async function handleGuardarPin() {
+    if (!inputPin || inputPin.trim().length < 4) {
+      mostrarError('La clave de cifrado debe tener al menos 4 caracteres.');
+      return;
+    }
+    try {
+      await guardarPasswordCifrado(inputPin.trim());
+      tienePinConfigurado = true;
+      editandoPin = false;
+      inputPin = '';
+      estado = 'exito';
+      mensaje = 'Clave de cifrado guardada en este dispositivo.';
+      setTimeout(() => { if (estado === 'exito') estado = 'inactivo'; }, 2500);
+    } catch (error) {
+      mostrarError(getErrorMessage(error));
+    }
+  }
 
   // --- PASO 1: Pedir Código ---
   async function handleSolicitarCodigo() {
@@ -135,6 +145,7 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
       
       // GUARDAMOS EN LA BÓVEDA (Tauri Store)
       await guardarSesion(inputEmail, res.token);
+      tienePinConfigurado = await tienePasswordCifrado();
 
       estado = 'exito';
       mensaje = '¡Autenticado con éxito!';
@@ -144,10 +155,15 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
     }
   }
 
-// --- PASO 3A: Subida Manual ---
+  // --- PASO 3A: Subida Manual ---
   async function handleSubir() {
+    if (!tienePinConfigurado) {
+      mostrarError('Primero configura tu clave de cifrado secreto.');
+      return;
+    }
+
     estado = 'cargando';
-    mensaje = 'Preparando datos...';
+    mensaje = 'Cifrando datos localmente...';
     try {
       const backupJson = await DbSyncHelper.prepararRespaldoLocal();
       mensaje = 'Subiendo a la nube...';
@@ -156,9 +172,8 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
       await DbSyncHelper.actualizarFechaSincronizacion(fechaLocalISO);
       
       estado = 'exito';
-      mensaje = '¡Respaldo subido correctamente!';
+      mensaje = '¡Respaldo cifrado y subido correctamente!';
       
-      // CAMBIO AQUÍ: Actualizamos a al_dia y luego a inactivo para la TopBar
       syncStatus.update(s => ({ ...s, estado: 'al_dia', mensaje: '¡Subida manual exitosa!' }));
       
       setTimeout(() => {
@@ -173,44 +188,36 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
     }
   }
 
-  // --- PASO 3B: Descarga Manual ---
+  // --- PASO 3B: Descarga Directa desde la Nube ---
   async function handleDescargar() {
+    if (!tienePinConfigurado) {
+      mostrarError('Primero ingresa tu clave de cifrado para poder desencriptar el respaldo.');
+      return;
+    }
+
     estado = 'cargando';
-    mensaje = 'Buscando datos en la nube...';
+    mensaje = 'Descargando y desencriptando datos...';
 
     try {
       const res = await SyncService.descargarRespaldo() as RespaldoNube;
       if (!res || typeof res.backup_data !== 'string' || !res.backup_data) {
         throw new Error('El respaldo descargado no contiene datos válidos.');
       }
-      respaldoPendiente = res;
-      estado = 'inactivo';
-      mensaje = '';
-
-    } catch (error) {
-      mostrarError(getErrorMessage(error));
-      syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al descargar' }));
-      setTimeout(() => syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' })), 4000);
-    }
-  }
-
-  async function confirmarRestauracion() {
-    if (!respaldoPendiente || estado === 'cargando') return;
-
-    estado = 'cargando';
-    mensaje = 'Restaurando base de datos local...';
-
-    try {
-      await DbSyncHelper.aplicarRespaldoNube(respaldoPendiente.backup_data);
-      if (respaldoPendiente.last_synced_at) {
-        await DbSyncHelper.actualizarFechaSincronizacion(respaldoPendiente.last_synced_at);
+      
+      // Aplicamos el respaldo directamente a la base de datos
+      await DbSyncHelper.aplicarRespaldoNube(res.backup_data);
+      if (res.last_synced_at) {
+        await DbSyncHelper.actualizarFechaSincronizacion(res.last_synced_at);
       }
 
-      respaldoPendiente = null;
-      estado = 'inactivo';
-      mensaje = '';
-      restauracionCompleta = true;
+      estado = 'exito';
+      mensaje = '¡Datos desencriptados y restaurados con éxito!';
       syncStatus.update(s => ({ ...s, estado: 'al_dia', mensaje: '¡Descarga exitosa!' }));
+      
+      setTimeout(() => {
+        window.location.reload(); 
+      }, 1500);
+
     } catch (error) {
       mostrarError(getErrorMessage(error));
       syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al restaurar' }));
@@ -224,11 +231,15 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
       estado = 'cargando';
       mensaje = 'Cerrando sesión...';
       await cerrarSesion(); 
+      await borrarPasswordCifrado();
     } catch (error) {
       console.error("Error al borrar la sesión:", error);
     } finally {
       inputEmail = '';
       codigoOtp = '';
+      inputPin = '';
+      tienePinConfigurado = false;
+      editandoPin = false;
       otpArray = ['', '', '', '', '', ''];
       pasoLogin = 1;
       estado = 'inactivo';
@@ -310,6 +321,46 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
         <button class="btn-cerrar-sesion" on:click={handleCerrarSesion}>Cambiar cuenta</button>
       </div>
 
+      <!-- BLOQUE DE CIFRADO EXTREMO A EXTREMO (ZERO-KNOWLEDGE) -->
+      {#if !tienePinConfigurado || editandoPin}
+        <form on:submit|preventDefault={handleGuardarPin} class="e2ee-setup-box">
+          <div class="e2ee-header">
+            <Lock size={16} />
+            <span>Clave de Cifrado Extremo a Extremo</span>
+          </div>
+          <p class="e2ee-desc">
+            Crea o ingresa tu clave secreta (PIN o contraseña). <strong>Nunca se envía al servidor</strong>; sin ella nadie podrá leer tus respaldos. Usa exactamente la misma en todos tus dispositivos.
+          </p>
+          <div class="e2ee-input-row">
+            <div class="input-with-icon" style="flex: 1;">
+              <KeyRound size={16} class="icon-input" />
+              <input 
+                type="password" 
+                bind:value={inputPin} 
+                placeholder="Mínimo 4 caracteres..." 
+                disabled={estado === 'cargando'}
+              />
+            </div>
+            <button type="submit" class="btn-sync btn-upload" disabled={estado === 'cargando' || inputPin.trim().length < 4}>
+              Guardar Clave
+            </button>
+            {#if tienePinConfigurado}
+              <button type="button" class="btn-sync btn-download" on:click={() => { editandoPin = false; inputPin = ''; }}>
+                Cancelar
+              </button>
+            {/if}
+          </div>
+        </form>
+      {:else}
+        <div class="e2ee-active-bar">
+          <div class="e2ee-status">
+            <ShieldCheck size={16} class="shield-ok" />
+            <span>Cifrado extremo a extremo activo</span>
+          </div>
+          <button class="btn-cerrar-sesion" on:click={() => editandoPin = true}>Cambiar clave</button>
+        </div>
+      {/if}
+
       {#if $syncStatus.estado === 'esperando' || $syncStatus.estado === 'sincronizando'}
          <div class="status-box cargando" style="font-size: 0.8rem; padding: 8px;">
             <Loader2 size={14} class="spin" /> Sincronización automática en curso...
@@ -318,12 +369,12 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
 
       <div class="sync-actions">
         <button class="btn-sync btn-upload" on:click={handleSubir} 
-          disabled={estado === 'cargando' || $syncStatus.estado === 'sincronizando'}>
+          disabled={!tienePinConfigurado || editandoPin || estado === 'cargando' || $syncStatus.estado === 'sincronizando'}>
           <CloudUpload size={18} /> Subir a la Nube
         </button>
         
         <button class="btn-sync btn-download" on:click={handleDescargar} 
-          disabled={estado === 'cargando' || $syncStatus.estado === 'sincronizando'}>
+          disabled={!tienePinConfigurado || editandoPin || estado === 'cargando' || $syncStatus.estado === 'sincronizando'}>
           <CloudDownload size={18} /> Restaurar Datos
         </button>
       </div>
@@ -344,48 +395,6 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   {/if}
 </div>
 
-{#if respaldoPendiente}
-  <div class="modal-backdrop" role="presentation" on:click|self={cancelarRestauracion}>
-    <div class="restore-modal" role="dialog" aria-modal="true" aria-labelledby="restore-title" tabindex="-1">
-      <h2 id="restore-title">Restaurar copia de seguridad</h2>
-      <p class="restore-warning">
-        Esta acción reemplazará los datos de este dispositivo por los incluidos en la copia de seguridad.
-      </p>
-
-      <div class="restore-devices">
-        <div class="restore-device">
-          <strong>{respaldoPendiente.last_device || 'Dispositivo desconocido'}</strong>
-          <span>{formatearAntiguedad(respaldoPendiente.last_synced_at)}</span>
-        </div>
-        <ArrowRight size={25} aria-hidden="true" />
-        <div class="restore-device">
-          <strong>{$lastDeviceName}</strong>
-          <span>Este dispositivo</span>
-        </div>
-      </div>
-
-      <div class="restore-buttons">
-        <button class="restore-button confirm" on:click={confirmarRestauracion} disabled={estado === 'cargando'}>
-          {#if estado === 'cargando'}<Loader2 size={16} class="spin" />{:else}Restaurar{/if}
-        </button>
-        <button class="restore-button" on:click={cancelarRestauracion} disabled={estado === 'cargando'}>
-          Cancelar
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-{#if restauracionCompleta}
-  <div class="modal-backdrop" role="presentation">
-    <div class="restore-modal success-modal" role="dialog" aria-modal="true" aria-labelledby="restore-success-title" tabindex="-1">
-      <h2 id="restore-success-title">Se ha restaurado correctamente</h2>
-      <CheckCircle2 size={76} class="success-icon" aria-hidden="true" />
-      <button class="restore-button success-close" on:click={cerrarAvisoRestauracion}>Cerrar</button>
-    </div>
-  </div>
-{/if}
-
 <style>
   .mt-2 { margin-top: 10px; }
   .sync-container { width: 100%; }
@@ -399,10 +408,19 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   .input-with-icon input:disabled { opacity: 0.6; cursor: not-allowed; }
   .ayuda-texto { font-size: 0.75rem; color: var(--text-muted); margin-top: -5px; }
   .botones-paso2 { display: flex; gap: 10px; }
-  .sesion-activa { display: flex; justify-content: space-between; align-items: center; background: var(--bg-app); padding: 12px 15px; border-radius: var(--radius-sm); margin-bottom: 15px; border: 1px solid var(--border-color); }
+  .sesion-activa { display: flex; justify-content: space-between; align-items: center; background: var(--bg-app); padding: 12px 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
   .usuario-conectado { font-size: 0.85rem; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
   .bola-verde { width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; }
   .btn-cerrar-sesion { background: transparent; border: none; font-size: 0.8rem; color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0; }
+  
+  /* Estilos E2EE */
+  .e2ee-setup-box { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: var(--radius-sm); background: rgba(37, 99, 235, 0.06); border: 1px solid rgba(37, 99, 235, 0.25); }
+  .e2ee-header { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 700; color: var(--primary); }
+  .e2ee-desc { margin: 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; }
+  .e2ee-input-row { display: flex; gap: 8px; align-items: center; }
+  .e2ee-active-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); font-size: 0.82rem; }
+  .e2ee-status { display: flex; align-items: center; gap: 8px; color: #059669; font-weight: 600; }
+
   .status-box { display: flex; align-items: center; gap: 10px; padding: 12px 15px; border-radius: var(--radius-sm); margin-bottom: 20px; font-size: 0.9rem; font-weight: 600; animation: fadeIn 0.3s ease; }
   .status-box.cargando { background: rgba(37, 99, 235, 0.1); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.2); }
   .status-box.exito { background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2); }
@@ -417,7 +435,12 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   .spin { animation: spin 1s linear infinite; }
   @keyframes spin { 100% { transform: rotate(360deg); } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-  @media (max-width: 480px) { .sync-actions { flex-direction: column; } .botones-paso2 { flex-direction: column-reverse; } }
+  @media (max-width: 480px) { 
+    .sync-actions { flex-direction: column; } 
+    .botones-paso2 { flex-direction: column-reverse; } 
+    .e2ee-input-row { flex-direction: column; align-items: stretch; }
+  }
+  
   .otp-container { 
     display: flex; 
     justify-content: center; 
@@ -427,8 +450,8 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   }
 
   .otp-input { 
-    width: 45px !important; /* Forzamos el ancho */
-    height: 55px !important; /* Forzamos el alto */
+    width: 45px !important;
+    height: 55px !important;
     text-align: center; 
     font-size: 1.5rem; 
     font-weight: bold; 
@@ -438,7 +461,7 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
     color: var(--text-main, black); 
     transition: all 0.2s ease;
     padding: 0;
-    display: block !important; /* Aseguramos que no se oculte */
+    display: block !important;
   }
 
   .otp-input:focus { 
@@ -448,28 +471,7 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
   }
 
   .otp-input:disabled { opacity: 0.6; cursor: not-allowed; background: var(--bg-panel); }
-  .modal-backdrop { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); }
-  .restore-modal { width: min(540px, 100%); padding: 24px; border-radius: 10px; background: var(--bg-panel, #fff); color: var(--text-main, #222); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3); animation: fadeIn 0.2s ease; }
-  .restore-modal h2 { margin: 0 0 14px; font-size: 1.25rem; font-weight: 600; }
-  .restore-warning { margin: 0 0 20px; color: var(--text-muted); line-height: 1.5; }
-  .restore-devices { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 20px 0 24px; }
-  .restore-devices > :global(svg) { color: var(--primary); }
-  .restore-device { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 5px; text-align: center; overflow-wrap: anywhere; }
-  .restore-device span { color: var(--text-muted); font-size: 0.9rem; }
-  .restore-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .restore-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 9px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-app); color: var(--text-main); font: inherit; cursor: pointer; }
-  .restore-button.confirm { background: var(--primary); border-color: var(--primary); color: white; }
-  .restore-button:disabled { opacity: 0.6; cursor: not-allowed; }
-  .success-modal { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 28px 24px; }
-  .success-modal h2 { margin: 0; text-align: center; font-weight: 500; }
-  .success-icon { color: #65439a; stroke-width: 1.8; }
-  .success-close { width: min(180px, 100%); }
-  @media (max-width: 480px) {
-    .restore-modal { padding: 20px 16px; }
-    .restore-devices { gap: 7px; }
-    .restore-device { font-size: 0.9rem; }
-  }
- /* Para móviles, que sean un poco más pequeñas */
+
   @media (max-width: 480px) { 
     .otp-container { gap: 5px; } 
     .otp-input { 
@@ -477,5 +479,5 @@ import { syncStatus, lastDeviceName } from '$lib/stores/autoSyncStore';
       height: 45px !important; 
       font-size: 1.2rem; 
     }
-}
+  }
 </style>

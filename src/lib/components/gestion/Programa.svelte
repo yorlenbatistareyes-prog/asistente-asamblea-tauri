@@ -63,8 +63,8 @@
   // ==================== FILTROS Y ORDENAMIENTO ====================
   let mostrarPanelFiltros = false;
   let mostrarSelectorDia = false;
-  let mostrarSelectorOrdenar = false;          // ← DECLARADA AQUÍ (faltaba)
-  let mostrarMenuEmailTodos = false;           // ← también la declaro aquí
+  let mostrarSelectorOrdenar = false;           // ← DECLARADA AQUÍ (faltaba)
+  let mostrarMenuEmailTodos = false;            // ← también la declaro aquí
 
   let diasSeleccionados: string[] = ['Viernes', 'Sábado', 'Domingo'];
   let filtroEstado = 'todos';
@@ -79,27 +79,32 @@
     transmision_remota: false,
     video: false
   };
+  let filtrosTipos = {
+    presidente: false,
+    oracion: false
+  };
   let ordenarPor = 'secuencia';
 
   // --- FILTROS TEMPORALES (MODAL) ---
   let tempFiltroEstado = 'todos';
   let tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
   let tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+  let tempFiltrosTipos = { presidente: false, oracion: false };
 
   // --- BUSCADOR DEL MODAL DE EDICIÓN ---
   let busquedaEdit = "";
   let sugerenciasEdit: any[] = [];
   let mostrarSugerenciasEdit = false;
 
-  // ==================== FUNCIONES AUXILIARES (NO USAN VARIABLES REACTIVAS) ====================
+  // --- BUSCADOR DEL MODAL DE EDICIÓN ---
   function filtrarOradoresEdit() {
-    const t = busquedaEdit.toLowerCase();
-    if (t.length < 2) {
-      sugerenciasEdit = [];
-      mostrarSugerenciasEdit = false;
-      return;
+    const t = busquedaEdit.toLowerCase().trim();
+    if (t === '') {
+      // Si el campo está vacío, muestra la lista completa de hermanos
+      sugerenciasEdit = [...listaHermanos];
+    } else {
+      sugerenciasEdit = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t));
     }
-    sugerenciasEdit = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t));
     mostrarSugerenciasEdit = true;
   }
   
@@ -107,6 +112,7 @@
     tempFiltroEstado = filtroEstado;
     tempFiltrosCaracteristicas = { ...filtrosCaracteristicas };
     tempFiltrosFuente = { ...filtrosFuente };
+    tempFiltrosTipos = { ...filtrosTipos };
     mostrarPanelFiltros = true;
   }
 
@@ -114,6 +120,7 @@
     filtroEstado = tempFiltroEstado;
     filtrosCaracteristicas = { ...tempFiltrosCaracteristicas };
     filtrosFuente = { ...tempFiltrosFuente };
+    filtrosTipos = { ...tempFiltrosTipos };
     mostrarPanelFiltros = false;
   }
 
@@ -121,6 +128,7 @@
     tempFiltroEstado = 'todos';
     tempFiltrosCaracteristicas = { betelita: false, interprete: false, visitante: false };
     tempFiltrosFuente = { en_persona: false, jw_stream: false, transmision_remota: false, video: false };
+    tempFiltrosTipos = { presidente: false, oracion: false };
   }
 
   function tieneOrador(parte: any): boolean {
@@ -146,7 +154,7 @@
   }
 
   // ==================== FUNCIONES DE FILTRADO Y ORDENAMIENTO ====================
-  function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, orden: string) {
+  function aplicarFiltros(listaPartes: any[], dias: string[], estado: string, caracteristicas: any, fuente: any, tipos: any, orden: string) {
     let resultado = [...listaPartes];
     if (dias.length > 0) {
       resultado = resultado.filter(p => dias.includes(p.dia));
@@ -156,33 +164,54 @@
     if (estado === 'asignada') {
       resultado = resultado.filter(p => p.nombre_orador && p.nombre_orador.trim() !== '');
     } else if (estado === 'sin_asignar') {
-      resultado = resultado.filter(p => !p.nombre_orador || p.nombre_orador.trim() === '');
+      resultado = resultado.filter(p => !p.nombre_orador || p.nombre_orador.trim() !== '');
     }
+    
     let filtroCaracActivo = caracteristicas.betelita || caracteristicas.interprete || caracteristicas.visitante;
     let filtroFuenteActivo = fuente.video || fuente.en_persona || fuente.jw_stream || fuente.transmision_remota;
-    if (filtroCaracActivo || filtroFuenteActivo) {
+    let filtroTiposActivo = tipos.presidente || tipos.oracion;
+
+    if (filtroCaracActivo || filtroFuenteActivo || filtroTiposActivo) {
       resultado = resultado.filter(p => {
         let f = p.fuente || '';
         let isVid = p.es_video === true || f.toLowerCase().includes('video') || f.toLowerCase().includes('vídeo');
         let isStr = f === 'jw_stream' || f === 'Descarga de JW Stream';
         let isRem = f === 'transmision_remota' || f === 'Transmisión remota en directo';
         let isPer = !isVid && !isStr && !isRem;
+        
         let coincideCarac = (caracteristicas.betelita && p.es_betelita) ||
                             (caracteristicas.interprete && p.es_interprete) ||
                             (caracteristicas.visitante && p.es_visitante);
+                            
         let coincideFuente = (fuente.video && isVid) ||
                              (fuente.jw_stream && isStr) ||
                              (fuente.transmision_remota && isRem) ||
                              (fuente.en_persona && isPer);
-        if (filtroCaracActivo && !filtroFuenteActivo) return coincideCarac;
-        if (!filtroCaracActivo && filtroFuenteActivo) return coincideFuente;
-        return coincideCarac || coincideFuente;
+
+        // --- FILTRADO INTELIGENTE DE TIPOS (PRESIDENTE Y ORACIÓN) ---
+        let temaLower = (p.tema || '').toLowerCase();
+        let tipoLower = (p.tipo || '').toLowerCase();
+        
+        let esPresidente = tipoLower.includes('presidente') || temaLower.includes('presidente de sesión');
+        // Detecta si es oración por el tipo Canción/Oración o si el texto del tema dice "oración"
+        let esOracion = tipoLower.includes('canción') || tipoLower.includes('oración') || temaLower.includes('oración');
+
+        let coincideTipos = (tipos.presidente && esPresidente) || (tipos.oracion && esOracion);
+        // -------------------------------------------------------------
+
+        // Comprobación cruzada de los filtros activos
+        let cumple = true;
+        if (filtroCaracActivo && !coincideCarac) cumple = false;
+        if (filtroFuenteActivo && !coincideFuente) cumple = false;
+        if (filtroTiposActivo && !coincideTipos) cumple = false;
+
+        return cumple;
       });
     }
     return resultado;
   }
 
-  function ordenarPartes(partesAOrdenar: any[]) {
+ function ordenarPartes(partesAOrdenar: any[]) {
     if (ordenarPor === 'orador') {
       return [...partesAOrdenar].sort((a, b) => {
         const nombreA = a.nombre_orador || 'ZZZ';
@@ -190,11 +219,57 @@
         return nombreA.localeCompare(nombreB);
       });
     }
+    
     return [...partesAOrdenar].sort((a, b) => {
+      // 1. ORDENAR POR DÍA
       const orden = { 'Viernes': 1, 'Sábado': 2, 'Domingo': 3 };
       const ordenDia = orden[a.dia as keyof typeof orden] - orden[b.dia as keyof typeof orden];
       if (ordenDia !== 0) return ordenDia;
-      return (a.hora_inicio || '').localeCompare(b.hora_inicio || '');
+
+      // FUNCIÓN AUXILIAR: Convertir hora a minutos matemáticos (ej. 13:30 = 810)
+      const getMinutos = (horaStr: string) => {
+          if (!horaStr || horaStr.trim() === '') return 0;
+          const partes = horaStr.split(':');
+          const h = parseInt(partes[0].replace(/\D/g, ''), 10) || 0;
+          const m = parseInt(partes[1]?.replace(/\D/g, ''), 10) || 0;
+          return (h * 60) + m;
+      };
+
+      const minA = getMinutos(a.hora_inicio);
+      const minB = getMinutos(b.hora_inicio);
+      
+      // 2. ORDENAR POR SESIÓN INTELIGENTE (Corrige errores humanos)
+      const getSesion = (parte: any, minutos: number) => {
+          // Si le pusiste una hora de las 12:00 en adelante (720 min), es TARDE obligatoriamente.
+          if (minutos >= 720) return 2;
+          // Si le pusiste hora menor a 12:00, es MAÑANA obligatoriamente.
+          if (minutos > 0 && minutos < 720) return 1;
+          // Si dejaste la hora en blanco, entonces sí le hacemos caso al selector del modal.
+          return parte.sesion === 'Tarde' ? 2 : 1;
+      };
+
+      const pesoSesionA = getSesion(a, minA);
+      const pesoSesionB = getSesion(b, minB);
+      if (pesoSesionA !== pesoSesionB) return pesoSesionA - pesoSesionB;
+
+      // 3. ORDEN CRONOLÓGICO Y GRAVEDAD DENTRO DE LA SESIÓN
+      const getGravedad = (parte: any, minutos: number) => {
+          // REGLA 1: El Presidente siempre flota al tope absoluto de la sesión (Mañana o Tarde)
+          if (parte.tipo === 'Presidente') {
+              // Le restamos 10,000 para asegurarnos de que quede más arriba que cualquier hora
+              return -10000; 
+          }
+
+          // REGLA 2: Si es una parte normal y se te olvidó ponerle hora, va al fondo temporalmente
+          if (minutos === 0) {
+              return 99999;
+          }
+
+          // REGLA 3: Orden cronológico perfecto basado en sus minutos
+          return minutos;
+      };
+
+      return getGravedad(a, minA) - getGravedad(b, minB);
     });
   }
 
@@ -217,7 +292,7 @@
   }
 
   // ==================== DECLARACIONES REACTIVAS ====================
-  $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, filtroEstado, filtrosCaracteristicas, filtrosFuente, ordenarPor));
+  $: partesFiltradas = ordenarPartes(aplicarFiltros(partes, diasSeleccionados, filtroEstado, filtrosCaracteristicas, filtrosFuente, filtrosTipos, ordenarPor));
   $: todasExpandidas = partesFiltradas.length > 0 && partesFiltradas.every(p => p._expanded);
   $: labelDia = (() => {
     if (diasSeleccionados.length === 0) return 'Seleccionar día';
@@ -646,14 +721,32 @@ async function cargarColoresSeriesBD() {
   }
 
   async function guardarNuevaParte() {
-    if(!nuevaParte.hora || !nuevaParte.tema) return alert("Faltan datos");
+    if (nuevaParte.tipo !== 'Presidente' && !nuevaParte.hora) {
+      return alert("Falta la hora.");
+    }
+    if (!nuevaParte.tema) {
+      return alert("Falta el tema.");
+    }
+
+    // --- AUTO-ETIQUETADO INTELIGENTE PARA EL PRESIDENTE ---
+    let temaFinal = nuevaParte.tipo === 'Canción' ? String(nuevaParte.tema) : nuevaParte.tema;
+    
+    if (nuevaParte.tipo === 'Presidente') {
+      const temaLower = temaFinal.toLowerCase();
+      // Si el usuario no le puso paréntesis de sesión manualmente, se lo añadimos nosotros
+      if (!temaLower.includes('mañana') && !temaLower.includes('tarde')) {
+        temaFinal = `${temaFinal} (${nuevaParte.sesion})`;
+      }
+    }
+    // -----------------------------------------------------
+
     try {
       await DB.crearParte({ 
         asambleaId, 
         dia: nuevaParte.dia, 
         sesion: nuevaParte.sesion, 
-        hora: nuevaParte.hora, 
-        tema: nuevaParte.tipo === 'Canción' ? String(nuevaParte.tema) : nuevaParte.tema, 
+        hora: nuevaParte.hora || '', 
+        tema: temaFinal, 
         tipo: nuevaParte.tipo, 
         duracion: Number(nuevaParte.duracion), 
         nombre_orador: nuevaParte.nombre_orador.trim() || null, 
@@ -817,14 +910,14 @@ async function cargarColoresSeriesBD() {
 
   // --- FILTRADO PARA SUGERENCIAS EN CREACIÓN ---
   function filtrarOradores() { 
-    const t = nuevaParte.nombre_orador.toLowerCase(); 
-    if (t.length < 2) {
-      sugerenciasOradores = [];
-      mostrarSugerencias = false;
-      return;
-    } 
-    sugerenciasOradores = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t)); 
-    mostrarSugerencias = sugerenciasOradores.length > 0; 
+    const t = nuevaParte.nombre_orador.toLowerCase().trim(); 
+    if (t === '') {
+      // Si el campo está vacío, muestra la lista completa
+      sugerenciasOradores = [...listaHermanos];
+    } else {
+      sugerenciasOradores = listaHermanos.filter(h => h.nombre_completo.toLowerCase().includes(t)); 
+    }
+    mostrarSugerencias = true; 
   }
 
   function selectSugerencia(h: any) { 
@@ -1172,11 +1265,18 @@ onMount(async () => {
                 {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
                   <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
                 {/if}
+
                 {#if parte.tipo === 'Canción'}
-                  Canción {parte.tema} y oración
+                  <!-- Si el tema ya incluye la palabra canción (ej. "Canción y oración"), lo muestra tal cual. Si solo es un número (ej. "135"), le añade el texto. -->
+                  {#if parte.tema && String(parte.tema).toLowerCase().includes('canción')}
+                    {parte.tema}
+                  {:else}
+                    Canción {parte.tema} y oración
+                  {/if}
                 {:else}
                   {parte.tema || 'Sin tema'}
                 {/if}
+
               </span>
               <div class="badges-row">
                 {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
@@ -1322,12 +1422,22 @@ onMount(async () => {
                   {/if}
                 </div>
                 <div class="col-tema-bloque">
-                  <span class="tema-txt">
+
+                 <span class="tema-txt">
                     {#if parte.numero_bosquejo && parte.numero_bosquejo.trim() !== ''}
                       <span class="bosquejo-parentesis">({parte.numero_bosquejo})</span>
                     {/if}
-                    {parte.tema || 'Sin tema'}
+                    {#if parte.tipo === 'Canción'}
+                      {#if parte.tema && String(parte.tema).toLowerCase().includes('canción')}
+                        {parte.tema}
+                      {:else}
+                        Canción {parte.tema} y oración
+                      {/if}
+                    {:else}
+                      {parte.tema || 'Sin tema'}
+                    {/if}
                   </span>
+
                 <div class="badges-row">
                   {#if parte.es_video || parte.fuente === 'video' || parte.fuente === 'Video'}
                     <span class="badge-fuente video"><Video size={10}/> Video</span>
@@ -1473,13 +1583,19 @@ onMount(async () => {
               <option value="Domingo">Domingo</option>
             </select>
           </div>
+
           <div class="campo">
             <label for="sesion_select">Sesión</label>
-            <select id="sesion_select" bind:value={nuevaParte.sesion}>
+            <select id="sesion_select" bind:value={nuevaParte.sesion} on:change={() => {
+              if (nuevaParte.tipo === 'Presidente') {
+                nuevaParte.tema = `Presidente de sesión (${nuevaParte.sesion})`;
+              }
+            }}>
               <option>Mañana</option>
               <option>Tarde</option>
             </select>
           </div>
+
         </div>
 
         <div class="fila">
@@ -1494,25 +1610,36 @@ onMount(async () => {
         </div>
 
         <div class="fila">
-          <div class="campo">
+
+       <div class="campo">
             <label for="tipo_select">Tipo</label>
-
-           <select id="tipo_select" bind:value={nuevaParte.tipo}>
-  <optgroup label="── Partes especiales ──">
-    <option value="Video Musical">Video Musical</option>
-    <option value="Canción">Canción y oración</option>
-    <option value="Oración">Oración</option>
-    <option value="Anuncio">Anuncio</option>
-    <option value="Serie">Serie de Discursos</option>
-  </optgroup>
-  <optgroup label="── Partes regulares ──">
-    <option value="Presidente">Presidente</option>
-    <option value="Discurso">Discurso</option>
-    <option value="Video">Video</option>
-  </optgroup>
-</select>
-
+            <select id="tipo_select" bind:value={nuevaParte.tipo} on:change={() => {
+              // --- AUTOCOMPLETADO INTELIGENTE ---
+              if (nuevaParte.tipo === 'Presidente') {
+                nuevaParte.tema = `Presidente de sesión (${nuevaParte.sesion})`;
+              } else if (nuevaParte.tipo === 'Canción') {
+                nuevaParte.tema = 'Canción y oración';
+              } else if (nuevaParte.tipo === 'Oración') {
+                nuevaParte.tema = 'Oración';
+              } else {
+                nuevaParte.tema = ''; // Deja en blanco para discursos y otros
+              }
+            }}>
+              <optgroup label="── Partes especiales ──">
+                <option value="Video Musical">Video Musical</option>
+                <option value="Canción">Canción y oración</option>
+                <option value="Oración">Oración</option>
+                <option value="Anuncio">Anuncio</option>
+                <option value="Serie">Serie de Discursos</option>
+              </optgroup>
+              <optgroup label="── Partes regulares ──">
+                <option value="Presidente">Presidente</option>
+                <option value="Discurso">Discurso</option>
+                <option value="Video">Video</option>
+              </optgroup>
+            </select>
           </div>
+
           <div class="campo">
             <label for="fuente_select">Fuente</label>
             <select id="fuente_select" bind:value={nuevaParte.fuente} disabled={nuevaParte.tipo === 'Video'}>
@@ -1525,29 +1652,37 @@ onMount(async () => {
         </div>
 
         <div class="campo">
-  <label for="tema_input">
-    {#if nuevaParte.tipo === 'Canción'}
-      Número de canción
-    {:else if nuevaParte.tipo === 'Serie'}
-      Título de la serie
-    {:else if nuevaParte.tipo === 'Video Musical'}
-      Descripción (opcional)
-    {:else}
-      Tema
-    {/if}
-  </label>
-  <input 
-    id="tema_input" 
-    type={nuevaParte.tipo === 'Canción' ? 'number' : 'text'}
-    placeholder={
-      nuevaParte.tipo === 'Canción' ? 'Ej: 135' :
-      nuevaParte.tipo === 'Serie' ? 'Título de la serie de discursos...' :
-      nuevaParte.tipo === 'Video Musical' ? 'Video musical de apertura...' :
-      'Tema...'
-    }
-    bind:value={nuevaParte.tema} 
-  />
-</div>
+          <label for="tema_input">
+            {#if nuevaParte.tipo === 'Canción'}
+              Tema / Número de canción
+            {:else if nuevaParte.tipo === 'Serie'}
+              Título de la serie
+            {:else if nuevaParte.tipo === 'Video Musical'}
+              Descripción (opcional)
+            {:else}
+              Tema
+            {/if}
+          </label>
+          <!-- Se eliminó la restricción de 'number'. Ahora siempre es 'text' para permitir escritura libre -->
+          <input 
+            id="tema_input" 
+            type="text"
+            placeholder={
+              nuevaParte.tipo === 'Canción' ? 'Ej: Canción 135 y oración' :
+              nuevaParte.tipo === 'Serie' ? 'Título de la serie de discursos...' :
+              nuevaParte.tipo === 'Video Musical' ? 'Video musical de apertura...' :
+              'Tema...'
+            }
+            bind:value={nuevaParte.tema} 
+            list="opciones_tema"
+          />
+          <!-- Datalist para sugerir opciones rápidas en el tema sin bloquear la escritura manual -->
+          <datalist id="opciones_tema">
+            <option value="Canción y oración"></option>
+            <option value="Oración"></option>
+            <option value={`Presidente de sesión (${nuevaParte.sesion})`}></option>
+          </datalist>
+        </div>
         
         <div class="campo">
           <label for="bosquejo_input">Número de Bosquejo</label>
@@ -1587,13 +1722,16 @@ onMount(async () => {
           <h4 class="form-title">Asignación Rápida</h4>
           <div class="campo autocomplete-container">
             <label for="orador_input">Orador</label>
-            <div class="input-icon">
+
+             <div class="input-icon">
               <Mic size={14}/>
-              <input id="orador_input" type="text" placeholder="Nombre..." 
+              <input id="orador_input" type="text" placeholder="Escribe o haz clic para ver lista..." 
                      bind:value={nuevaParte.nombre_orador} 
                      on:input={filtrarOradores} 
+                     on:focus={filtrarOradores}
                      on:blur={() => setTimeout(()=>mostrarSugerencias=false, 200)}/>
-            </div>
+             </div>
+
             {#if mostrarSugerencias}
               <div class="sugerencias-lista">
                 {#each sugerenciasOradores as s}
@@ -1832,11 +1970,13 @@ onMount(async () => {
                   Orador actual: <strong style="color: var(--primary);">{parteEditando.nombre_orador || 'Sin asignar'}</strong>
                 </label>
                 <label>Buscar y Asignar Nuevo Orador</label>
+
                 <div class="input-icon">
                   <Search size={16} />
-                  <input type="text" placeholder="Escribe para buscar hermano..." 
+                  <input type="text" placeholder="Escribe o haz clic para ver lista..." 
                          bind:value={busquedaEdit} 
                          on:input={filtrarOradoresEdit}
+                         on:focus={filtrarOradoresEdit}
                          on:blur={() => setTimeout(() => mostrarSugerenciasEdit = false, 200)} />
                 </div>
                 
@@ -2008,6 +2148,27 @@ onMount(async () => {
             </label>
           </div>
         </div>
+
+        <div class="grupo-filtro">
+          <button class="filtro-header">
+            <span>Tipos de asignación</span>
+            <ChevronDown size={16}/>
+          </button>
+          <div class="filtro-contenido">
+            <button class="btn-eliminar-filtro" on:click={() => tempFiltrosTipos = {presidente: false, oracion: false}}>
+              Eliminar
+            </button>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosTipos.presidente}>
+              <span>Presidentes</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={tempFiltrosTipos.oracion}>
+              <span>Oraciones</span>
+            </label>
+          </div>
+        </div>
+
       </div>
 
       <div class="modal-footer-filtros">

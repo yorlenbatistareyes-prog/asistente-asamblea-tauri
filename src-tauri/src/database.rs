@@ -503,5 +503,10 @@ pub fn initialize_database(app: &AppHandle) -> Result<Connection, Box<dyn std::e
         [],
     )?;
 
+    // --- ÍNDICES ÚNICOS PARA EVITAR DUPLICADOS (UPSERT) ---
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_cong_asamblea_nombre ON congregaciones(asamblea_id, nombre)", [])?;
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_pers_asamblea_nombre ON personas(asamblea_id, nombre_completo)", [])?;
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_prog_asamblea_dia_hora_tema ON programa(asamblea_id, dia, hora_inicio, tema)", [])?;
+    
     Ok(conn)
 }

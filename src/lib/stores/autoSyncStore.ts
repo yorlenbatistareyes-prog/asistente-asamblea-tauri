@@ -27,8 +27,20 @@ export const syncStatus = writable({
     nubeFecha: ''       
 });
 
-// Nombre de este dispositivo (para que otros sepan quién subió qué)
-export const lastDeviceName = writable(typeof window !== 'undefined' ? localStorage.getItem('rassembly_device_name') || 'PC Local' : 'PC Local');
+// Nombre ÚNICO de este dispositivo
+function generarNombreUnico() {
+    if (typeof window === 'undefined') return 'PC Local';
+    let nombre = localStorage.getItem('rassembly_device_name');
+    if (!nombre) {
+        const esAndroid = /android/i.test(navigator.userAgent);
+        const prefijo = esAndroid ? 'Android' : 'PC';
+        nombre = `${prefijo}-${Math.floor(Math.random() * 10000)}`;
+        localStorage.setItem('rassembly_device_name', nombre);
+    }
+    return nombre;
+}
+
+export const lastDeviceName = writable(generarNombreUnico());
 
 // ⏱️ Dos temporizadores independientes para que no interfieran entre sí
 let debounceServidorTimer: ReturnType<typeof setTimeout>;
