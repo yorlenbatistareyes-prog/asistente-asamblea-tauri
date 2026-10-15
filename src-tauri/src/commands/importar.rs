@@ -102,6 +102,39 @@ fn preparar_lector(ruta: &str) -> Result<csv::Reader<File>, String> {
     Ok(rdr)
 }
 
+// --- FUNCIÓN INTELIGENTE PARA LIMPIAR TELÉFONOS (v2 corregida) ---
+fn limpiar_telefono(tel: Option<String>) -> String {
+    let t = match tel {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => return "".to_string(),
+    };
+
+    // 1. Quitar el indicativo de Cuba (+53) explícitamente
+    let t_clean = t.replace("+53 ", "").replace("+53", "");
+
+    // 2. Extraer ÚNICAMENTE los números
+    let mut digits: String = t_clean.chars().filter(|c| c.is_ascii_digit()).collect();
+
+    // 3. Colapsar el prefijo "05" de los móviles cubanos.
+    //    Un móvil cubano normal es "5XXXXXXX" (8 dígitos), pero JWHub lo exporta como "05XXXXXXX".
+    //    Si vemos "05" al inicio seguido de 7 dígitos más (total 9), quitamos SOLO el '0'.
+    if digits.len() == 9 && digits.starts_with("05") {
+        digits = digits[1..].to_string(); // Quita solo el '0', deja "5XXXXXXX" (8 dígitos)
+    }
+
+    // 4. Si después de quitar el '+53' aún quedan 10 dígitos empezando por "53", quitamos ese "53"
+    if digits.len() == 10 && digits.starts_with("53") {
+        digits = digits[2..].to_string();
+    }
+
+    // 5. Asegurarnos de que no queden '0' sueltos al inicio (basura residual)
+    while digits.starts_with('0') && digits.len() > 8 {
+        digits = digits[1..].to_string();
+    }
+
+    digits
+}
+
 // --- COMANDOS ---
 
 #[command]
@@ -139,13 +172,14 @@ pub fn importar_personas_csv(
         ).map_err(|e| e.to_string())?;
         
         // UPSERT Inteligente: Actualiza sin borrar datos previos si el CSV viene vacío en algunos campos
-        let mut stmt_ins_pers = tx.prepare(
-            "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email) 
-             VALUES (?1, ?2, 'M', ?3, ?4, ?5, ?6)
+                let mut stmt_ins_pers = tx.prepare(
+            "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, telefono_fijo, email) 
+             VALUES (?1, ?2, 'M', ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(asamblea_id, nombre_completo) DO UPDATE SET
                  privilegios = COALESCE(NULLIF(excluded.privilegios, ''), personas.privilegios),
                  id_congregacion = COALESCE(excluded.id_congregacion, personas.id_congregacion),
                  telefono = COALESCE(NULLIF(excluded.telefono, ''), personas.telefono),
+                 telefono_fijo = COALESCE(NULLIF(excluded.telefono_fijo, ''), personas.telefono_fijo),
                  email = COALESCE(NULLIF(excluded.email, ''), personas.email)"
         ).map_err(|e| e.to_string())?;
 
@@ -184,9 +218,19 @@ pub fn importar_personas_csv(
                 }
             }
 
-            let tel = fila.celular.or(fila.fijo).unwrap_or_default();
+                        let movil_limpio = limpiar_telefono(fila.celular);
+            let fijo_limpio = limpiar_telefono(fila.fijo);
             let email = fila.email.unwrap_or_default();
             let privi = fila.privilegio.unwrap_or_default();
+
+            // 🔥 Si el móvil y el fijo son el mismo número, dejamos solo el móvil.
+            // Si el móvil viene vacío, NO movemos el fijo al campo principal.
+            let (telefono_final, telefono_fijo_final) =
+                if !movil_limpio.is_empty() && movil_limpio == fijo_limpio {
+                    (movil_limpio, String::new())
+                } else {
+                    (movil_limpio, fijo_limpio)
+                };
 
             stmt_ins_pers
                 .execute(params![
@@ -194,7 +238,8 @@ pub fn importar_personas_csv(
                     nombre_final,
                     privi,
                     id_cong,
-                    tel,
+                    telefono_final,
+                    telefono_fijo_final,
                     email
                 ])
                 .map_err(|e| format!("Error al importar/actualizar persona: {}", e))?;
@@ -300,14 +345,14 @@ fn importar_programa_jw_desde_lector<R: std::io::Read>(
             .map_err(|e| e.to_string())?;
 
         let mut stmt_ins_pers = tx.prepare(
-            "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, email, circuito, telefono_fijo) 
-             VALUES (?1, ?2, 'M', 'Orador', ?3, ?4, ?5, ?6, ?7)
+            "INSERT INTO personas (asamblea_id, nombre_completo, sexo, privilegios, id_congregacion, telefono, telefono_fijo, email) 
+             VALUES (?1, ?2, 'M', ?3, ?4, ?5, ?6, ?7)
              ON CONFLICT(asamblea_id, nombre_completo) DO UPDATE SET
+                 privilegios = COALESCE(NULLIF(excluded.privilegios, ''), personas.privilegios),
                  id_congregacion = COALESCE(excluded.id_congregacion, personas.id_congregacion),
                  telefono = COALESCE(NULLIF(excluded.telefono, ''), personas.telefono),
-                 email = COALESCE(NULLIF(excluded.email, ''), personas.email),
-                 circuito = COALESCE(NULLIF(excluded.circuito, ''), personas.circuito),
-                 telefono_fijo = COALESCE(NULLIF(excluded.telefono_fijo, ''), personas.telefono_fijo)"
+                 telefono_fijo = COALESCE(NULLIF(excluded.telefono_fijo, ''), personas.telefono_fijo),
+                 email = COALESCE(NULLIF(excluded.email, ''), personas.email)"
         ).map_err(|e| e.to_string())?;
 
         // UPSERT Inteligente para el programa: Mantiene el orador actual si el CSV viene sin orador
@@ -385,11 +430,10 @@ fn importar_programa_jw_desde_lector<R: std::io::Read>(
             
             if !es_video {
                 if let Some(raw_orador) = fila.orador {
-                    let nombre_final = if let Some((ap, nom)) = raw_orador.split_once(',') {
-                        format!("{} {}", nom.trim(), ap.trim())
-                    } else {
-                        raw_orador.clone()
-                    };
+                    let mut nombre_final = raw_orador.clone();
+                    if let Some((ap, nom)) = raw_orador.split_once(',') {
+                        nombre_final = format!("{} {}", nom.trim(), ap.trim());
+                    }
                     
                     let existe_p: Option<i32> = stmt_find_pers
                         .query_row(params![asamblea_id, &nombre_final], |row| row.get(0))
@@ -400,14 +444,28 @@ fn importar_programa_jw_desde_lector<R: std::io::Read>(
                         orador_id = Some(pid);
 
                         // Actualización inteligente para el orador existente
+                                                let movil_limpio_upd = limpiar_telefono(fila.movil.clone());
+                        let fijo_limpio_upd = limpiar_telefono(fila.fijo.clone());
+
+                        // 🔥 Si son iguales, no sobreescribimos el fijo (dejamos el que ya había o vacío)
+                        let (tel_update, fijo_update) = if !movil_limpio_upd.is_empty()
+                            && movil_limpio_upd == fijo_limpio_upd
+                        {
+                            (movil_limpio_upd.clone(), String::new())
+                        } else {
+                            (movil_limpio_upd.clone(), fijo_limpio_upd.clone())
+                        };
+
                         let _ = tx.execute(
                             "UPDATE personas SET 
                                 circuito = COALESCE(NULLIF(?1, ''), circuito), 
-                                telefono_fijo = COALESCE(NULLIF(?2, ''), telefono_fijo) 
-                             WHERE id = ?3",
+                                telefono = COALESCE(NULLIF(?2, ''), telefono),
+                                telefono_fijo = ?3
+                             WHERE id = ?4",
                             params![
                                 fila.circuito.clone().unwrap_or_default(),
-                                fila.fijo.clone().unwrap_or_default(),
+                                tel_update,
+                                fijo_update,
                                 pid
                             ],
                         );
@@ -433,15 +491,28 @@ fn importar_programa_jw_desde_lector<R: std::io::Read>(
                             }
                         }
 
+                        let movil_limpio = limpiar_telefono(fila.movil);
+                        let fijo_limpio = limpiar_telefono(fila.fijo);
+
+                        // 🔥 Si el móvil y el fijo son el mismo número (tras normalizar),
+                        // dejamos solo el móvil y vaciamos el fijo. Si el móvil viene vacío,
+                        // NO movemos el fijo al campo principal: cada uno va a su columna.
+                        let (telefono_final, telefono_fijo_final) =
+                            if !movil_limpio.is_empty() && movil_limpio == fijo_limpio {
+                                (movil_limpio, String::new())
+                            } else {
+                                (movil_limpio, fijo_limpio)
+                            };
+
                         stmt_ins_pers
                             .execute(params![
-                                asamblea_id,
-                                nombre_final,
-                                id_cong, 
-                                fila.movil.unwrap_or_default(),
-                                fila.email.unwrap_or_default(),
-                                fila.circuito.unwrap_or_default(), 
-                                fila.fijo.unwrap_or_default()      
+                                asamblea_id,                              // ?1
+                                nombre_final,                             // ?2
+                                String::new(),                            // ?3 privilegios (vacío)
+                                id_cong,                                  // ?4 id_congregacion
+                                telefono_final,                           // ?5 telefono
+                                telefono_fijo_final,                      // ?6 telefono_fijo
+                                fila.email.clone().unwrap_or_default()    // ?7 email
                             ])
                             .unwrap_or(0);
                         orador_id = Some(tx.last_insert_rowid() as i32);

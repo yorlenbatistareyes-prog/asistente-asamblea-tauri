@@ -202,17 +202,25 @@ async function guardarYcerrar() {
     <div class="tabla-scroll">
       {#each listaFiltrada as p}
         <div class="fila">
+
            <div class="col-nombre">
-              <span class="txt-nombre">{p.nombre_completo}</span>
-              <span class="txt-sub">
-                {p.telefono || '-'}
-                {#if p.email}
-                    • {p.email}
-                {:else}
-                    • <i style="opacity: 0.6;">Sin correo</i>
-                {/if}
-              </span>
-            </div>
+             <span class="txt-nombre">{p.nombre_completo}</span>
+             <span class="txt-sub">
+               {#if p.telefono}
+                 📱 {p.telefono}
+               {:else}
+      -
+               {/if}
+               {#if p.telefono_fijo}
+                 &nbsp;•&nbsp; ☎ {p.telefono_fijo}
+               {/if}
+               {#if p.email}
+                 &nbsp;•&nbsp; {p.email}
+               {:else}
+                 &nbsp;•&nbsp; <i style="opacity: 0.6;">Sin correo</i>
+               {/if}
+             </span>
+           </div>
 
            <div class="tag-cong">
              <span>{p.nombre_congregacion || (p.circuito ? `Circuito: ${p.circuito}` : 'Sin congregación asignada')}</span>

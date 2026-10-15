@@ -53,6 +53,7 @@
                 congregacion: parte.congregacion_orador || '---',
                 circuito: parte.circuito_orador || '---', 
                 telefono: parte.telefono_orador || '',
+                telefono_fijo: parte.telefono_fijo_orador || '',
                 email: parte.email_orador || '',
                 es_betelita: parte.es_betelita || false,  
                 es_interprete: parte.es_interprete || false,
@@ -398,10 +399,12 @@ async function guardarRecordatorio(orador: any) {
               <span class="dato-lbl">Mobile</span>
               <span class="dato-val highlight">{orador.telefono || '---'}</span>
             </div>
+
             <div class="dato-bloque">
               <span class="dato-lbl">Home Phone</span>
-              <span class="dato-val">---</span>
+              <span class="dato-val highlight">{orador.telefono_fijo || '---'}</span>
             </div>
+
           </div>
 
           <div class="recordatorio-zona">

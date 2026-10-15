@@ -20,7 +20,7 @@ pub fn obtener_programa_dia(
     SELECT 
         p.id, p.dia, p.sesion, p.hora_inicio, p.tema, p.tipo, p.duracion,
         p.orador_id, per.nombre_completo, c.nombre,
-        per.email, per.telefono, 
+        per.email, per.telefono, per.telefono_fijo,
         p.es_video, p.estado, p.esta_presente,
         p.numero_bosquejo, p.ensayo_terminado,
         p.fuente, p.es_betelita, p.es_interprete, p.es_visitante,
@@ -38,7 +38,7 @@ pub fn obtener_programa_dia(
     ";
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
     let partes = stmt
-        .query_map(params![asamblea_id, dia], |row| {
+                .query_map(params![asamblea_id, dia], |row| {
             Ok(PartePrograma {
                 id: row.get(0)?,
                 dia: row.get(1)?,
@@ -52,29 +52,30 @@ pub fn obtener_programa_dia(
                 congregacion_orador: row.get(9).ok(),
                 email_orador: row.get(10).ok(),
                 telefono_orador: row.get(11).ok(),
-                es_video: row.get(12).unwrap_or(false),
-                estado: row.get(13).ok(),
-                esta_presente: row.get(14).unwrap_or(false),
-                numero_bosquejo: row.get(15).ok(),
-                ensayo_terminado: row.get(16).unwrap_or(false),
+                telefono_fijo_orador: row.get(12).ok(),
+                es_video: row.get(13).unwrap_or(false),
+                estado: row.get(14).ok(),
+                esta_presente: row.get(15).unwrap_or(false),
+                numero_bosquejo: row.get(16).ok(),
+                ensayo_terminado: row.get(17).unwrap_or(false),
                 fuente: row
-                    .get(17)
+                    .get(18)
                     .unwrap_or_else(|_| Some("en_persona".to_string())),
-                es_betelita: row.get(18).unwrap_or(false),
-                es_interprete: row.get(19).unwrap_or(false),
-                es_visitante: row.get(20).unwrap_or(false),
-                circuito_orador: row.get(21).ok(),
-                requiere_ensayo: row.get(22).unwrap_or(false),
-                fecha_ensayo: row.get(23).ok(),
-                hora_ensayo: row.get(24).ok(),
-                lugar_ensayo: row.get(25).ok(),
-                notas_ensayo: row.get(26).ok(),
-                check_viernes: row.get(27).unwrap_or(false),
-                check_dia: row.get(28).unwrap_or(false),
-                check_30m: row.get(29).unwrap_or(false),
-                notas_orador: row.get(30).ok(),
-                color_destacado: row.get(31).unwrap_or_else(|_| Some("".to_string())),
-                genero_orador: row.get(32).ok(),
+                es_betelita: row.get(19).unwrap_or(false),
+                es_interprete: row.get(20).unwrap_or(false),
+                es_visitante: row.get(21).unwrap_or(false),
+                circuito_orador: row.get(22).ok(),
+                requiere_ensayo: row.get(23).unwrap_or(false),
+                fecha_ensayo: row.get(24).ok(),
+                hora_ensayo: row.get(25).ok(),
+                lugar_ensayo: row.get(26).ok(),
+                notas_ensayo: row.get(27).ok(),
+                check_viernes: row.get(28).unwrap_or(false),
+                check_dia: row.get(29).unwrap_or(false),
+                check_30m: row.get(30).unwrap_or(false),
+                notas_orador: row.get(31).ok(),
+                color_destacado: row.get(32).unwrap_or_else(|_| Some("".to_string())),
+                genero_orador: row.get(33).ok(),
             })
         })
         .map_err(|e| e.to_string())?;

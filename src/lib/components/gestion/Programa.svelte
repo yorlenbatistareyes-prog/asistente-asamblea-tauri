@@ -554,10 +554,23 @@ async function cargarColoresSeriesBD() {
 
   // --- WHATSAPP URL ---
   async function obtenerUrlsWhatsApp(objeto: any): Promise<{ nativeUrl: string, webUrl: string } | null> {
-    const telefono = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
-    if (!telefono) {
+    const telefonoOriginal = (objeto.telefono_visual || objeto.telefono_orador || objeto.telefono || "").trim();
+    if (!telefonoOriginal) {
       alert("⚠️ No hay teléfono registrado.");
       return null;
+    }
+
+    // Tomamos SOLO el primer fragmento (el celular) y extraemos los números
+    let numero = telefonoOriginal.split(/[\s,/-]+/)[0].replace(/\D/g, '');
+
+    // Por si acaso quedó un '0' residual de la base de datos vieja
+    if (numero.startsWith('0')) {
+      numero = numero.substring(1);
+    }
+    
+    // Si el número tiene 8 dígitos y empieza con 5 (número cubano normal), le forzamos el '53'
+    if (numero.length === 8 && numero.startsWith('5')) {
+      numero = '53' + numero;
     }
     let idPlantilla = 'programa_recordatorio';
     const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
@@ -594,7 +607,7 @@ async function cargarColoresSeriesBD() {
       : cuerpoBase;
     let mensaje = prepararContenidoWhatsApp(cuerpoConEnsayo, contexto);
     mensaje = mensaje.substring(0, 4000);
-    const numero = telefono.replace(/\D/g, '');
+    
     return {
       nativeUrl: `whatsapp://send?phone=${numero}&text=${encodeURIComponent(mensaje)}`,
       webUrl: `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`
@@ -1315,7 +1328,7 @@ onMount(async () => {
                   {/if}
                 </div>
               {:else}
-                <span class="orador-pendiente">Orador pendiente</span>
+                <span class="orador-pendiente">Orador sin asignar</span>
               {/if}
             {/if}
           </div>
@@ -1339,9 +1352,18 @@ onMount(async () => {
                     {#if parte.congregacion_orador}
                       <span class="cong-tag">{parte.congregacion_orador}</span>
                     {/if}
+
                     {#if parte.telefono_orador}
-                      <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
+                      <span class="contact-pill" title="Móvil">
+                         <Phone size={11}/> {parte.telefono_orador}
+                      </span>
                     {/if}
+                    {#if parte.telefono_fijo_orador}
+                      <span class="contact-pill" title="Teléfono fijo">
+                         <Phone size={11}/> {parte.telefono_fijo_orador}
+                      </span>
+                    {/if}
+
                     {#if parte.email_orador}
                       <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
                     {/if}
@@ -1475,7 +1497,7 @@ onMount(async () => {
                       {/if}
                     </div>
                   {:else}
-                    <span class="orador-pendiente">Orador pendiente</span>
+                    <span class="orador-pendiente">Orador sin asignar</span>
                   {/if}
               {/if}
             </div>
@@ -1499,9 +1521,18 @@ onMount(async () => {
                       {#if parte.congregacion_orador}
                         <span class="cong-tag">{parte.congregacion_orador}</span>
                       {/if}
+
                       {#if parte.telefono_orador}
-                        <span class="contact-pill"><Phone size={11}/> {parte.telefono_orador}</span>
+                        <span class="contact-pill" title="Móvil">
+                          <Phone size={11}/> {parte.telefono_orador}
+                        </span>
                       {/if}
+                      {#if parte.telefono_fijo_orador}
+                        <span class="contact-pill" title="Teléfono fijo">
+                          <Phone size={11}/> {parte.telefono_fijo_orador}
+                        </span>
+                      {/if}
+
                       {#if parte.email_orador}
                         <span class="contact-pill"><Mail size={11}/> {parte.email_orador}</span>
                       {/if}

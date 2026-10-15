@@ -22,6 +22,14 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
+    version: "1.0.30'",
+    fecha: "14 de octubre, 2026",
+    cambios: [
+      { tipo: "🚀", texto: "Mejoras en el programa de los discursos" },   
+    ]
+  },
+
+{
     version: "1.0.28'",
     fecha: "12 de octubre, 2026",
     cambios: [

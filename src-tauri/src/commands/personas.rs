@@ -70,26 +70,27 @@ pub fn obtener_personas(app: AppHandle, asamblea_id: i32) -> Result<Vec<Persona>
     let conn = conectar_db(&app);
 
     // 👇 CORREGIDO: Seleccionamos 'sexo' en lugar de 'genero'
-    let mut stmt = conn.prepare(
-        "SELECT p.id, p.nombre_completo, p.sexo, p.privilegios, p.id_congregacion, p.telefono, p.email, c.nombre, p.circuito
+        let mut stmt = conn.prepare(
+        "SELECT p.id, p.nombre_completo, p.sexo, p.privilegios, p.id_congregacion, p.telefono, p.telefono_fijo, p.email, c.nombre, p.circuito
          FROM personas p 
          LEFT JOIN congregaciones c ON p.id_congregacion = c.id
          WHERE p.asamblea_id = ?1
          ORDER BY p.nombre_completo ASC"
     ).map_err(|e| e.to_string())?;
 
-    let personas_iter = stmt
+       let personas_iter = stmt
         .query_map(params![asamblea_id], |row| {
             Ok(Persona {
                 id: row.get(0)?,
                 nombre_completo: row.get(1)?,
-                genero: row.get(2)?, // Aquí mantenemos el nombre del campo del MODELO (struct)
+                genero: row.get(2)?,
                 privilegios: row.get(3).ok(),
                 id_congregacion: row.get(4).ok(),
                 telefono: row.get(5).ok(),
-                email: row.get(6).ok(),
-                nombre_congregacion: row.get(7).ok(),
-                circuito: row.get(8).ok(),
+                telefono_fijo: row.get(6).ok(),        // ⬅️ NUEVO
+                email: row.get(7).ok(),                // ⬅️ desplazado +1
+                nombre_congregacion: row.get(8).ok(),  // ⬅️ desplazado +1
+                circuito: row.get(9).ok(),             // ⬅️ desplazado +1
             })
         })
         .map_err(|e| e.to_string())?;
