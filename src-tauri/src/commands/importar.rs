@@ -102,37 +102,89 @@ fn preparar_lector(ruta: &str) -> Result<csv::Reader<File>, String> {
     Ok(rdr)
 }
 
-// --- FUNCIÓN INTELIGENTE PARA LIMPIAR TELÉFONOS (v2 corregida) ---
+// --- FUNCIÓN INTELIGENTE PARA LIMPIAR TELÉFONOS (v3) ---
+// Regla clave: WhatsApp NO acepta el "0" ANTES del 5 inicial.
+// Los ceros internos SÍ son válidos (ej: 50702857).
 fn limpiar_telefono(tel: Option<String>) -> String {
     let t = match tel {
         Some(s) if !s.trim().is_empty() => s,
         _ => return "".to_string(),
     };
 
-    // 1. Quitar el indicativo de Cuba (+53) explícitamente
-    let t_clean = t.replace("+53 ", "").replace("+53", "");
+    // 1. Quitar el indicativo de Cuba (+53) con o sin espacio, y (53)
+    let t_clean = t
+        .replace("+53 ", "")
+        .replace("+53", "")
+        .replace("(53)", "");
 
-    // 2. Extraer ÚNICAMENTE los números
+    // 2. Detectar si traía "05 " (con espacio) → el 5 hay que reconstruirlo
+    let traia_05_con_espacio =
+        t_clean.contains("05 ") || t_clean.contains("05\t") || t_clean.contains("05-");
+
+    // 3. Extraer ÚNICAMENTE los números
     let mut digits: String = t_clean.chars().filter(|c| c.is_ascii_digit()).collect();
 
-    // 3. Colapsar el prefijo "05" de los móviles cubanos.
-    //    Un móvil cubano normal es "5XXXXXXX" (8 dígitos), pero JWHub lo exporta como "05XXXXXXX".
-    //    Si vemos "05" al inicio seguido de 7 dígitos más (total 9), quitamos SOLO el '0'.
-    if digits.len() == 9 && digits.starts_with("05") {
-        digits = digits[1..].to_string(); // Quita solo el '0', deja "5XXXXXXX" (8 dígitos)
+    // 4. Regla del 05 inicial
+    if traia_05_con_espacio && digits.starts_with("05") {
+        // "05 6763845" → "6763845" → anteponer "5" → "56763845"
+        let resto = &digits[2..];
+        digits = format!("5{}", resto);
+    } else if digits.len() == 9 && digits.starts_with("05") {
+        // "056763845" → "56763845" (quita solo el 0)
+        digits = digits[1..].to_string();
     }
 
-    // 4. Si después de quitar el '+53' aún quedan 10 dígitos empezando por "53", quitamos ese "53"
+    // 5. Quitar "53" residual al inicio (si quedó de un +53 mal formateado)
     if digits.len() == 10 && digits.starts_with("53") {
         digits = digits[2..].to_string();
     }
 
-    // 5. Asegurarnos de que no queden '0' sueltos al inicio (basura residual)
+    // 6. Quitar 0s residuales al inicio (pero NUNCA si ya son 8 dígitos válidos)
     while digits.starts_with('0') && digits.len() > 8 {
         digits = digits[1..].to_string();
     }
 
     digits
+}
+
+// --- Divide una celda en múltiples números (por saltos de línea o ";") ---
+fn extraer_telefonos(celda: Option<String>) -> Vec<String> {
+    let s = match celda {
+        Some(x) if !x.trim().is_empty() => x,
+        _ => return vec![],
+    };
+    s.lines()
+        .flat_map(|l| l.split(';'))
+        .filter_map(|p| {
+            let t = limpiar_telefono(Some(p.to_string()));
+            if t.is_empty() { None } else { Some(t) }
+        })
+        .collect()
+}
+
+// --- Devuelve (movil, fijo) desde las dos listas ---
+//   Móvil = primer número de 8 dígitos que empieza por 5.
+//   Fijo  = primer número que NO sea el móvil y NO sea un móvil válido.
+fn clasificar_telefonos(moviles: Vec<String>, fijos: Vec<String>) -> (String, String) {
+    let todos: Vec<String> = moviles.iter().chain(fijos.iter()).cloned().collect();
+
+    let movil = todos
+        .iter()
+        .find(|t| t.len() == 8 && t.starts_with('5'))
+        .cloned()
+        .unwrap_or_default();
+
+    let fijo = todos
+        .iter()
+        .find(|t| {
+            !t.is_empty()
+                && **t != movil
+                && !(t.len() == 8 && t.starts_with('5'))
+        })
+        .cloned()
+        .unwrap_or_default();
+
+    (movil, fijo)
 }
 
 // --- COMANDOS ---
@@ -218,19 +270,12 @@ pub fn importar_personas_csv(
                 }
             }
 
-                        let movil_limpio = limpiar_telefono(fila.celular);
-            let fijo_limpio = limpiar_telefono(fila.fijo);
+            let moviles = extraer_telefonos(fila.celular);
+            let fijos = extraer_telefonos(fila.fijo);
             let email = fila.email.unwrap_or_default();
             let privi = fila.privilegio.unwrap_or_default();
 
-            // 🔥 Si el móvil y el fijo son el mismo número, dejamos solo el móvil.
-            // Si el móvil viene vacío, NO movemos el fijo al campo principal.
-            let (telefono_final, telefono_fijo_final) =
-                if !movil_limpio.is_empty() && movil_limpio == fijo_limpio {
-                    (movil_limpio, String::new())
-                } else {
-                    (movil_limpio, fijo_limpio)
-                };
+            let (telefono_final, telefono_fijo_final) = clasificar_telefonos(moviles, fijos);
 
             stmt_ins_pers
                 .execute(params![
