@@ -38,7 +38,7 @@ export const gruposMarcadoresPlantilla: GrupoMarcadoresPlantilla[] = [
       { code: '[[Duración]]', label: 'Duración', desc: 'En minutos' },
       { code: '[[Tema]]', label: 'Tema del discurso/rol' },
       { code: '[[Número de Bosquejo]]', label: 'Número de bosquejo' },
-      { code: '[[Enlace(s) del Bosquejo]]', label: 'Enlace del bosquejo', desc: 'Si está disponible para la asignación' },
+      { code: '[[Enlace(s) del Bosquejo]]', label: 'Enlace del bosquejo', desc: 'Si está disponible' },
       { code: '[[Tipo de asignación]]', label: 'Tipo de asignación' },
       { code: '[[Notas]]', label: 'Notas de la asignación' }
     ]
@@ -94,10 +94,11 @@ function construirLugarEnsayo(contexto: ContextoDocumento): string {
   }
   if (!contexto.ensayo_lugar) return 'Por definir';
   return contexto.ensayo_direccion
-    ? `${contexto.ensayo_lugar} - ${contexto.ensayo_direccion}`
+    ? `${contexto.ensayo_lugar}\n${contexto.ensayo_direccion}`
     : contexto.ensayo_lugar;
 }
 
+// 🆕 Diccionario de reemplazos (AHORA INCLUYE ALIAS COMUNES PARA EVITAR ERRORES)
 const reemplazos: Record<string, (contexto: ContextoDocumento) => string> = {
   '[[Saludo según sexo]]': (ctx) => ctx.saludo,
   '[[Nombre]]': (ctx) => ctx.nombre_pila,
@@ -111,7 +112,12 @@ const reemplazos: Record<string, (contexto: ContextoDocumento) => string> = {
   '[[Hora]]': (ctx) => ctx.hora,
   '[[Duración]]': (ctx) => ctx.duracion ? `${ctx.duracion} minutos` : '',
   '[[Tema]]': (ctx) => ctx.tema_asignacion,
+  
+  // BOSQUEJO (Original y Alias sin acento)
   '[[Número de Bosquejo]]': (ctx) => ctx.num_bosquejo,
+  '[[Numero de bosquejo]]': (ctx) => ctx.num_bosquejo,
+  '[[Bosquejo]]': (ctx) => ctx.num_bosquejo,
+
   '[[Tipo de asignación]]': (ctx) => ctx.tipo_asignacion,
   '[[Enlace(s) del Bosquejo]]': (ctx) => ctx.enlace_bosquejo,
   '[[Notas]]': (ctx) => ctx.nota_asignacion,
@@ -119,7 +125,12 @@ const reemplazos: Record<string, (contexto: ContextoDocumento) => string> = {
   '[[Dirección]]': (ctx) => ctx.lugar_direccion,
   '[[Ciudad]]': (ctx) => ctx.ciudad,
   '[[Estado o Provincia]]': (ctx) => ctx.estado,
+  
+  // FECHA DEL EVENTO (Original y Alias comunes)
   '[[Fecha]]': (ctx) => ctx.fecha_evento_texto,
+  '[[Fecha del evento]]': (ctx) => ctx.fecha_evento_texto,
+  '[[Fecha de la asamblea]]': (ctx) => ctx.fecha_evento_texto,
+
   '[[Tipo de Evento]]': (ctx) => ctx.tipo_evento,
   '[[Tema del Evento]]': (ctx) => ctx.tema_evento,
   '[[Información completa de los ensayos]]': generarInfoEnsayos,
@@ -133,8 +144,13 @@ const reemplazos: Record<string, (contexto: ContextoDocumento) => string> = {
   '[[Notas para los ensayos]]': (ctx) => ctx.ensayo_notas,
   '[[Información de orientaciones]]': (ctx) => ctx.orientaciones || 'No hay orientaciones específicas.',
   '[[Instrucciones Especiales]]': (ctx) => ctx.instrucciones || 'Ninguna.',
+  
+  // CONTACTO DEL PRESIDENTE (Originales y Alias más fáciles)
   '[[correo electrónico jwpub del Presidente de la asamblea]]': (ctx) => ctx.email_presidente,
-  '[[Teléfono del Presidente de la asamblea]]': (ctx) => ctx.tel_presidente
+  '[[Email del presidente]]': (ctx) => ctx.email_presidente,
+  '[[Correo del presidente]]': (ctx) => ctx.email_presidente,
+  '[[Teléfono del Presidente de la asamblea]]': (ctx) => ctx.tel_presidente,
+  '[[Telefono del presidente]]': (ctx) => ctx.tel_presidente
 };
 
 function decodificarEntidades(texto: string): string {
@@ -157,13 +173,24 @@ export function reemplazarMarcadoresPlantilla(
   paraHtml = false
 ): string {
   let resultado = contenido;
+  
   for (const [marcador, obtenerValor] of Object.entries(reemplazos)) {
-    const valor = obtenerValor(contexto) || '';
+    const valorBruto = obtenerValor(contexto);
+    const valorStr = (valorBruto === null || valorBruto === undefined) ? '' : String(valorBruto);
+    
     const valorSeguro = paraHtml
-      ? valor.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      : valor;
-    const marcadorEscapado = marcador.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    resultado = resultado.replace(new RegExp(marcadorEscapado, 'g'), () => valorSeguro);
+      ? valorStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+      : valorStr;
+    
+    // 1. Extraemos el texto interior limpio del marcador (ej: "Número de Bosquejo")
+    const textoInterior = marcador.replace(/^\[\[/, '').replace(/\]\]$/, '').trim();
+    // 2. Escapamos caracteres especiales para la expresión regular
+    const textoEscapado = textoInterior.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    // 3. 🆕 MAGIA: RegExp "gi" (ignora mayúsculas/minúsculas y perdona espacios extra dentro de los corchetes)
+    const regex = new RegExp('\\[\\[\\s*' + textoEscapado + '\\s*\\]\\]', 'gi');
+    
+    resultado = resultado.replace(regex, () => valorSeguro);
   }
   return resultado;
 }
@@ -172,10 +199,24 @@ export function prepararTextoPlantilla(contenido: string, contexto: ContextoDocu
   if (!contenido) return '';
   const texto = decodificarEntidades(
     contenido
-      .replace(/<\/p>/gi, '\n\n')
+      // 1. Traducir negritas de HTML a formato WhatsApp (asteriscos)
+      .replace(/<(strong|b)[^>]*>/gi, '*')
+      .replace(/<\/(strong|b)>/gi, '*')
+      
+      // 2. Traducir cursivas de HTML a formato WhatsApp (guiones bajos)
+      .replace(/<(em|i)[^>]*>/gi, '_')
+      .replace(/<\/(em|i)>/gi, '_')
+
+      // 3. Manejo de saltos de línea y párrafos
+      .replace(/<\/p>/gi, '\n')
       .replace(/<p>/gi, '')
       .replace(/<br\s*\/?>/gi, '\n')
+      
+      // 4. Limpiar cualquier otra etiqueta HTML sobrante
       .replace(/<[^>]+>/g, '')
   );
-  return reemplazarMarcadoresPlantilla(texto, contexto).trim();
+
+  const textoCompacto = texto.replace(/\n{3,}/g, '\n\n');
+
+  return reemplazarMarcadoresPlantilla(textoCompacto, contexto).trim();
 }

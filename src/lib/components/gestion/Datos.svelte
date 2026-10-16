@@ -83,7 +83,6 @@
             respaldoPendiente = { ruta, nombreArchivo, dispositivoOrigen, fecha };
 
         } catch (error) {
-            // Extractor de errores reales
             let detalle = error;
             if (error instanceof Error) {
                 detalle = error.message;
@@ -104,18 +103,39 @@
 
         try {
             if (respaldoPendiente.ruta.startsWith('content://')) {
+                // === ANDROID ===
                 const { contenidoBase64 } = await invoke<{ contenidoBase64: string }>(
                     'plugin:sincronizacion-nativo|leerContenidoBase64',
                     { uriArchivo: respaldoPendiente.ruta }
                 );
                 await invoke('importar_base_datos_base64', { contenidoBase64 });
+                // 🔥 Aplicar AHORA MISMO (en caliente)
                 await invoke('aplicar_restauracion_binaria_pendiente');
             } else {
+                // === WINDOWS ===
+                // Solo deja el archivo pendiente. `setup` lo aplicará al reiniciar.
                 await invoke('importar_base_datos', { rutaOrigen: respaldoPendiente.ruta });
             }
 
             respaldoPendiente = null;
             mostrarRestauracionCompleta = true;
+
+            // 🔥 Reiniciar la app para reconectar la DB desde cero.
+            // Esto funciona tanto en Windows como en Android:
+            //   - Cierra el proceso actual.
+            //   - Al reabrir, `setup()` corre de nuevo.
+            //   - En Windows aplica `restaurar_pendiente.sqlite`.
+            //   - En Android ya se aplicó en caliente, solo reconecta.
+            setTimeout(async () => {
+                try {
+                    localStorage.clear();
+                    await relaunch();
+                } catch (e) {
+                    console.error('relaunch() falló, intentando reload:', e);
+                    window.location.reload();
+                }
+            }, 2500);
+
         } catch (error) {
             let detalle = error;
             if (error instanceof Error) {
@@ -129,21 +149,14 @@
         }
     }
 
+    // 🧹 Ya no se usa: la app se reinicia sola tras restaurar.
+    // Lo dejamos por si el modal de éxito se cierra antes del timeout.
     async function cerrarAvisoRestauracion() {
         mostrarRestauracionCompleta = false;
         localStorage.clear();
         document.body.style.cursor = 'wait';
-
         try {
-            if (!/android/i.test(navigator.userAgent)) {
-                await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-
-            if (/android/i.test(navigator.userAgent)) {
-                window.location.reload();
-            } else {
-                await relaunch();
-            }
+            await relaunch();
         } catch (error) {
             document.body.style.cursor = '';
             await message(`No se pudo reiniciar la aplicación: ${error}`, { title: 'Error', kind: 'error' });

@@ -27,7 +27,7 @@ use crate::database::DbState;
 use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
-use tauri::{Manager, State}; // Necesario para mover archivos
+use tauri::{Manager};
 
 fn aplicar_restauracion_pendiente(
     app_dir: &Path,
@@ -81,10 +81,7 @@ fn aplicar_restauracion_pendiente(
 }
 
 #[tauri::command]
-fn aplicar_restauracion_binaria_pendiente(
-    app: tauri::AppHandle,
-    db_state: State<'_, DbState>,
-) -> Result<(), String> {
+fn aplicar_restauracion_binaria_pendiente(app: tauri::AppHandle) -> Result<(), String> {
     let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let ruta_db = app_dir.join(database::DB_NAME);
     let ruta_pendiente = app_dir.join("asamblea_db_restore.sqlite");
@@ -104,69 +101,43 @@ fn aplicar_restauracion_binaria_pendiente(
         marca_tiempo
     ));
 
-    let mut conexion = db_state
-        .conn
-        .lock()
-        .map_err(|e| format!("No se pudo bloquear la base de datos: {}", e))?;
-    let conexion_temporal = rusqlite::Connection::open_in_memory()
-        .map_err(|e| format!("No se pudo preparar la conexión: {}", e))?;
-    let conexion_anterior = std::mem::replace(&mut *conexion, conexion_temporal);
-    if let Err((conexion_anterior, error)) = conexion_anterior.close() {
-        *conexion = conexion_anterior;
-        return Err(format!("No se pudo cerrar la base de datos actual: {}", error));
-    }
-
+    // Respaldar la DB actual
     if ruta_db.exists() {
-        if let Err(error) = fs::copy(&ruta_db, &ruta_respaldo) {
-            let reapertura = database::initialize_database(&app)
-                .map_err(|e| format!("No se pudo reabrir la base de datos: {}", e));
-            if let Ok(reapertura) = reapertura {
-                *conexion = reapertura;
-            }
-            return Err(format!("No se pudo proteger la base de datos actual: {}", error));
-        }
+        fs::copy(&ruta_db, &ruta_respaldo)
+            .map_err(|e| format!("No se pudo proteger la BD actual: {}", e))?;
     }
 
+    // Aplicar la restauración (reemplaza el archivo)
     if let Err(error) = aplicar_restauracion_pendiente(
         &app_dir,
         database::DB_NAME,
         &ruta_pendiente,
     ) {
         if ruta_respaldo.exists() {
-            fs::copy(&ruta_respaldo, &ruta_db)
-                .map_err(|e| format!("{} Además, falló la recuperación de la base anterior: {}", error, e))?;
+            let _ = fs::copy(&ruta_respaldo, &ruta_db);
         }
-        let reapertura = database::initialize_database(&app)
-            .map_err(|e| format!("{} No se pudo reabrir la base anterior: {}", error, e))?;
-        *conexion = reapertura;
         return Err(error);
     }
 
-    match database::initialize_database(&app) {
-        Ok(conexion_restaurada) => {
-            *conexion = conexion_restaurada;
-            let _ = fs::remove_file(&ruta_respaldo);
-            Ok(())
-        }
-        Err(error) => {
-            if ruta_respaldo.exists() {
-                fs::copy(&ruta_respaldo, &ruta_db).map_err(|e| {
-                    format!(
-                        "No se pudo abrir la base restaurada ({}) ni recuperar la anterior: {}",
-                        error, e
-                    )
-                })?;
-            }
-            for sufijo in ["-wal", "-shm"] {
-                let ruta_auxiliar = app_dir.join(format!("{}{}", database::DB_NAME, sufijo));
-                let _ = fs::remove_file(ruta_auxiliar);
-            }
-            let conexion_anterior = database::initialize_database(&app)
-                .map_err(|e| format!("No se pudo reabrir la base anterior: {}", e))?;
-            *conexion = conexion_anterior;
-            Err(format!("No se pudo abrir la base restaurada: {}", error))
-        }
+    // Limpiar WAL/SHM auxiliares
+    for sufijo in ["-wal", "-shm"] {
+        let ruta_auxiliar = app_dir.join(format!("{}{}", database::DB_NAME, sufijo));
+        let _ = fs::remove_file(ruta_auxiliar);
     }
+
+    // Verificar que la nueva DB es válida
+    if let Err(error) = database::validar_archivo_db(&ruta_db) {
+        if ruta_respaldo.exists() {
+            let _ = fs::copy(&ruta_respaldo, &ruta_db);
+        }
+        return Err(format!(
+            "La BD restaurada no es válida ({}). Se restauró la anterior.",
+            error
+        ));
+    }
+
+    let _ = fs::remove_file(&ruta_respaldo);
+    Ok(())
 }
 
 // ==========================================

@@ -25,8 +25,9 @@
     const datosGuardados = localStorage.getItem('asambleaActiva');
     if (datosGuardados) {
       const asamblea = JSON.parse(datosGuardados);
+      asambleaId = asamblea.id;   // ⬅️ NUEVA LÍNEA
       asambleaActiva = await invoke('obtener_asamblea_por_id', { id: asamblea.id });
-      await cargarOradoresDesdePrograma(asamblea.id);
+      await cargarOradoresDesdePrograma(asamblea.id);  
 
       await cargarPlantillasEmail();  
       await cargarPlantillasWhatsApp();
@@ -117,21 +118,23 @@
 
     // 👇 AQUÍ ES DONDE AGREGAMOS LA FECHA Y MÁS DATOS
     const objetoSimulado = {
-        nombre_orador: orador.nombre,
-        email_orador: orador.email,
-        telefono_orador: orador.telefono,
-        congregacion_orador: orador.congregacion,
-        circuito_orador: orador.circuito,
-        es_betelita: orador.es_betelita,
-        es_interprete: orador.es_interprete,
-        es_visitante: orador.es_visitante,
-        tema: 'Participación en el Programa', 
-        tipo_asignacion: 'General',
-        // Inyectamos datos de la asamblea global
-        fecha: asambleaActiva?.fecha || 'Fecha por definir',
-        nombre_del_lugar: asambleaActiva?.lugar || 'Lugar por definir',
-        tipo_de_evento: asambleaActiva?.tema || 'Asamblea'
-    };
+    nombre_orador: orador.nombre,
+    email_orador: orador.email,
+    telefono_orador: orador.telefono,
+    congregacion_orador: orador.congregacion,
+    circuito_orador: orador.circuito,
+    es_betelita: orador.es_betelita,
+    es_interprete: orador.es_interprete,
+    es_visitante: orador.es_visitante,
+    tema: 'Participación en el Programa', 
+    tipo_asignacion: 'General',
+    // 👇 CAMBIO: usar los nombres correctos
+    fecha_evento: asambleaActiva?.fecha || '',
+    nombre_del_lugar: asambleaActiva?.lugar || '',
+    tipo_evento: 'Asamblea Regional',
+    // 👇 NUEVO: número de bosquejo (si el orador tiene discursos)
+    numero_bosquejo: orador.discursos?.map((d: any) => d.numero).filter((n: any) => n && n !== '--').join(', ') || ''
+};
 
     const contexto = await generarContexto(objetoSimulado, asambleaId, false);
     let asuntoFinal = prepararAsuntoEmail(asuntoBase, contexto);
@@ -165,20 +168,22 @@
 
     if (!cuerpoBase) cuerpoBase = "⚠️ No se ha definido una plantilla de contacto general.";
 
-    const objetoSimulado = {
-        nombre_orador: orador.nombre,
-        telefono_orador: orador.telefono,
-        congregacion_orador: orador.congregacion,
-        circuito_orador: orador.circuito,
-        es_betelita: orador.es_betelita,
-        es_interprete: orador.es_interprete,
-        es_visitante: orador.es_visitante,
-        tema: 'Participación en el Programa', 
-        tipo_asignacion: 'General',
-        fecha: asambleaActiva?.fecha || 'Fecha por definir',
-        nombre_del_lugar: asambleaActiva?.lugar || 'Lugar por definir',
-        tipo_de_evento: asambleaActiva?.tema || 'Asamblea'
-    };
+   const objetoSimulado = {
+    nombre_orador: orador.nombre,
+    email_orador: orador.email,
+    telefono_orador: orador.telefono,
+    congregacion_orador: orador.congregacion,
+    circuito_orador: orador.circuito,
+    es_betelita: orador.es_betelita,
+    es_interprete: orador.es_interprete,
+    es_visitante: orador.es_visitante,
+    tema: 'Participación en el Programa', 
+    tipo_asignacion: 'General',
+    fecha_evento: asambleaActiva?.fecha || '',
+    nombre_del_lugar: asambleaActiva?.lugar || '',
+    tipo_evento: 'Asamblea Regional',
+    numero_bosquejo: orador.discursos?.map((d: any) => d.numero).filter((n: any) => n && n !== '--').join(', ') || ''
+};
 
     const contexto = await generarContexto(objetoSimulado, asambleaId, false);
     let mensaje = prepararContenidoWhatsApp(cuerpoBase, contexto);

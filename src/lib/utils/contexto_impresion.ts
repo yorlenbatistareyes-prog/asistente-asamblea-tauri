@@ -1,5 +1,48 @@
 import { invoke } from '@tauri-apps/api/core';
 
+function formatearFechaEvento(fechaISO: string | undefined): string {
+    if (!fechaISO) return 'Fecha por definir';
+
+    // "Pesca" todas las fechas con formato AAAA-MM-DD que haya en el texto
+    const fechasExtraidas = fechaISO.match(/\d{4}-\d{2}-\d{2}/g);
+
+    // Si encontró exactamente dos fechas (es un rango)
+    if (fechasExtraidas && fechasExtraidas.length === 2) {
+        const f1 = new Date(fechasExtraidas[0] + 'T12:00:00');
+        const f2 = new Date(fechasExtraidas[1] + 'T12:00:00');
+        
+        const mes1 = f1.toLocaleDateString('es-ES', { month: 'long' });
+        const mes2 = f2.toLocaleDateString('es-ES', { month: 'long' });
+        const año1 = f1.getFullYear();
+        const año2 = f2.getFullYear();
+
+        // Mismo mes y año: "1 al 3 de enero de 2027"
+        if (mes1 === mes2 && año1 === año2) {
+            return `${f1.getDate()} al ${f2.getDate()} de ${mes1} de ${año1}`;
+        }
+        // Mismo año pero distinto mes: "30 de enero al 2 de febrero de 2027"
+        if (año1 === año2) {
+            return `${f1.getDate()} de ${mes1} al ${f2.getDate()} de ${mes2} de ${año1}`;
+        }
+        // Distinto año: "30 de diciembre de 2026 al 2 de enero de 2027"
+        return `${f1.getDate()} de ${mes1} de ${año1} al ${f2.getDate()} de ${mes2} de ${año2}`;
+    }
+
+    // Si solo hay una fecha individual
+    if (fechasExtraidas && fechasExtraidas.length === 1) {
+        const fecha = new Date(fechasExtraidas[0] + 'T12:00:00');
+        return fecha.toLocaleDateString('es-ES', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+
+    // Si es un texto libre que no tiene fechas ISO, lo devuelve tal cual
+    return fechaISO.trim();
+}
+
+
 // INTERFAZ MAESTRA
 export interface ContextoDocumento {
     saludo: string;
@@ -47,6 +90,18 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
     // Ahora busca exactamente la asamblea que tienes abierta, no la última.
     const infoAsamblea: any = await invoke('obtener_asamblea_por_id', { id: asambleaId }) || {};
     const infoExtra: any = await invoke('obtener_info_extra_evento', { asambleaId }) || {};
+    
+     // 🆕 DATOS DEL USUARIO (Presidente)
+    let emailPresidente = '';
+    let telPresidente = '';
+    try {
+        const config: any = await invoke('obtener_configuracion_general') || {};
+        emailPresidente = config.email_jwpub || config.email || '';
+        telPresidente = config.movil || '';
+    } catch (e) {
+        console.warn('No se pudo cargar configuración general:', e);
+    }
+    
     const sexoPersona = String(objeto.sexo || objeto.genero_orador || objeto.genero || 'M').trim().toUpperCase();
 
     // 2. DETECCIÓN INTELIGENTE DEL NOMBRE
@@ -166,7 +221,7 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         // --- EVENTO ---
         tema_evento: objeto.tema_evento || infoAsamblea.tema || 'Asamblea Regional',
         tipo_evento: objeto.tipo_evento || tipoEventoMejorado,
-        fecha_evento_texto: objeto.fecha_evento || infoAsamblea.fecha || infoExtra.fecha_texto || 'Fecha por definir',
+        fecha_evento_texto: formatearFechaEvento(objeto.fecha_evento || infoAsamblea.fecha || infoExtra.fecha_texto),
         
         // --- LUGAR ---
         lugar_nombre: objeto.nombre_del_lugar || objeto.lugar_nombre || infoExtra.lugar || infoAsamblea.local_nombre || 'Salón de Asambleas',
@@ -186,7 +241,7 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         instrucciones: infoAsamblea.instrucciones_esp || '',
 
         // --- PRESIDENTE ---
-        email_presidente: infoAsamblea.email_presidente || '',
-        tel_presidente: infoAsamblea.telefono_presidente || ''
+        email_presidente: emailPresidente || '',
+        tel_presidente: telPresidente || ''
     };
 }
