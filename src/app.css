@@ -1,0 +1,148 @@
+/* --- 1. RESET BÁSICO Y CANDADO MÓVIL --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Candado estricto para Android/iOS */
+html, body {
+  width: 100vw;
+  max-width: 100%;
+  overflow-x: hidden; /* Prohibido terminantemente el scroll horizontal fantasma */
+  -webkit-tap-highlight-color: transparent; 
+}
+
+/* Evita que el usuario pueda seleccionar texto por accidente */
+body {
+  -webkit-user-select: none; 
+  user-select: none;         
+  overflow: hidden; 
+}
+
+input, textarea {
+  -webkit-user-select: auto;
+  user-select: auto;
+}
+
+/* --- 2. VARIABLES DE DISEÑO (Dashboard Premium + Colores) --- */
+:root {
+  /* Tipografía Global */
+  --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* Modo Claro */
+  --bg-body: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #1e293b;
+  --text-sec: #64748b;
+  --border: #e2e8f0;
+  --primary: #0078d4;
+  --input-bg: #ffffff;
+  --status-bg: #EBEBEB;
+  --status-text: #000000;
+  
+  /* Colores de Acento (Botones, iconos) */
+  --primary-hover: #005a9e; 
+  --accent-danger: #9f0d46;  /* El magenta oscuro de tus botones */
+  --accent-danger-hover: #7a0935;
+  --accent-success: #16a34a; /* Verde WhatsApp */
+  --accent-success-hover: #15803d;
+  
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-premium: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Modo Oscuro */
+:root.dark-theme {
+  --bg-body: #0f172a;
+  --bg-card: #1e293b;
+  --text-main: #f8fafc;
+  --text-sec: #cbd5e1;
+  --border: #334155;
+  --primary: #3b82f6;
+  --input-bg: #0f172a;
+  --status-bg: #1e293b;
+  --status-text: #f1f5f9;
+  
+  /* Colores de Acento Oscuros */
+  --primary-hover: #60a5fa;
+  --accent-danger: #be1254;
+  --accent-danger-hover: #fb7185;
+  --accent-success: #22c55e;
+  --accent-success-hover: #4ade80;
+  
+  /* Sombras Modo Oscuro */
+  --shadow-premium: 0 0 0 1px var(--border), 0 10px 15px -3px rgb(0 0 0 / 0.4); 
+}
+
+/* --- 3. APLICAR VARIABLES AL BODY --- */
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+/* Forzar a que botones, inputs y títulos usen siempre la misma fuente */
+input, button, textarea, select, h1, h2, h3, h4, h5, h6, p, span {
+  font-family: inherit;
+}
+
+/* --- 4. SCROLLBAR PERSONALIZADO --- */
+::-webkit-scrollbar {
+  width: 8px;  
+  height: 8px; 
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border); 
+  border-radius: 10px;       
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-sec); 
+}
+
+/* --- 5. OPTIMIZACIONES ESPECÍFICAS PARA MÓVILES --- */
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none; 
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+input, textarea, select {
+    -webkit-appearance: none;
+  appearance: none;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* --- 6. CLASES RESPONSIVAS GLOBALES --- */
+.hide-on-mobile { display: block; }
+.show-on-mobile { display: none; }
+
+/* Breakpoint para Tablets y Móviles (Menos de 768px) */
+@media (max-width: 768px) {
+  .hide-on-mobile { display: none !important; }
+  .show-on-mobile { display: block !important; }
+  
+  body { font-size: 14px; }
+  
+  /* Hacemos la barra de scroll más fina en pantallas táctiles */
+  ::-webkit-scrollbar { width: 4px; height: 4px; } 
+}

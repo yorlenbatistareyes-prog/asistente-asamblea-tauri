@@ -1,16 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  // Agregué 'Trash2' para los iconos de borrar
-  import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2 } from 'lucide-svelte';
-  import { open } from '@tauri-apps/plugin-dialog';
+  import { Users, Hash, Map, Plus, Save, Upload, Search, Trash2, X  } from 'lucide-svelte';
+  import { open, confirm } from '@tauri-apps/plugin-dialog';
+  import Panel from '$lib/components/ui/Panel.svelte';
+  import { DB } from '$lib/services/db';
 
   // --- VARIABLES ---
+  let asambleaId = 0; 
+  let asambleaIdentificador = "";
+  
   let nombre = "";
   let circuito = "";
   let numero = "";
   
-  // Tipado básico para evitar errores
   interface Congregacion {
     id: number;
     nombre: string;
@@ -18,16 +21,28 @@
     numero_congregacion?: string;
   }
 
+  let mostrarModal = false;
   let lista: Congregacion[] = [];
   let terminoBusqueda = "";
 
-  onMount(() => { cargar(); });
+  onMount(() => { 
+    const datosGuardados = localStorage.getItem('asambleaActiva');
+    if (datosGuardados) {
+        const asamblea = JSON.parse(datosGuardados);
+        asambleaId = asamblea.id;
+        asambleaIdentificador = asamblea.identificador || "Sin ID";
+        cargar(); 
+    } else {
+        alert("⚠️ No hay asamblea seleccionada. Vuelve al inicio.");
+    }
+  });
 
   async function cargar() {
     try {
-      lista = await invoke('obtener_congregaciones');
+      lista = await invoke('obtener_congregaciones', { asambleaId });
     } catch (e) {
       console.error(e);
+      alert("Error al cargar lista: " + e);
     }
   }
 
@@ -48,7 +63,11 @@
   async function guardar() {
     if (!nombre) return alert("Escribe el nombre");
     try {
-      await invoke('crear_congregacion', { nombre, circuito, numero });
+      // 🔥 USAMOS EL EMBUDO
+      await DB.crearCongregacion({ 
+        asambleaId, nombre, circuito, numero 
+      });
+      
       nombre = ""; circuito = ""; numero = "";
       cargar();
     } catch (e) { alert("Error: " + e); }
@@ -60,85 +79,92 @@
       const archivo = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
       
       if (archivo) {
-        const mensaje = await invoke('importar_congregaciones_csv', { rutaArchivo: archivo });
-        alert(mensaje);
+        // 🔥 USAMOS EL EMBUDO
+        const mensaje = await DB.importarCongregacionesCsv({ 
+            asambleaId, rutaArchivo: archivo 
+        });
+        alert(mensaje as string);
         cargar(); 
       }
     } catch (e) { alert("Error: " + e); }
   }
 
-  // --- ELIMINAR UNA CONGREGACIÓN ---
+// --- ELIMINAR ---
   async function eliminar(id: number, nombreCong: string) {
-    if(!confirm(`¿Seguro que quieres eliminar "${nombreCong}"?`)) return;
+    const estaSeguro = await confirm(`¿Seguro que quieres eliminar "${nombreCong}"?`, {
+        title: 'Confirmar Eliminación',
+        kind: 'warning'
+    });
+
+    if (!estaSeguro) return;
 
     try {
-      await invoke('eliminar_congregacion', { id });
-      cargar(); // Recargamos la lista
+      // 🔥 USAMOS EL EMBUDO
+      await DB.eliminarCongregacion({ id });
+      cargar(); 
     } catch (e) {
-      alert("No se pudo eliminar. \n\nPosible causa: Esta congregación tiene personas asignadas. Borra primero a las personas.");
+      alert("No se pudo eliminar. \n\nPosible causa: Esta congregación tiene personas asignadas.");
     }
   }
 
-  // --- LIMPIAR TODA LA LISTA ---
+ // --- LIMPIAR TODO ---
   async function limpiarTodo() {
-    if(!confirm("⚠️ ¡PELIGRO! \n\nSe borrarán TODAS las congregaciones de la base de datos.\n¿Estás realmente seguro?")) return;
+    const estaSeguro = await confirm(
+        "⚠️ ¡PELIGRO! \n\nSe borrarán las congregaciones de ESTA asamblea.\n¿Estás seguro?", 
+        {
+            title: 'Peligro: Limpiar Congregaciones',
+            kind: 'warning'
+        }
+    );
+    
+    if (!estaSeguro) return;
     
     try {
-      await invoke('limpiar_congregaciones');
+      // 🔥 USAMOS EL EMBUDO
+      await DB.limpiarCongregaciones({ asambleaId });
       cargar();
     } catch (e) {
       alert("Error al limpiar: " + e);
     }
   }
+
+  function resetFormulario() {
+  nombre = "";
+  circuito = "";
+  numero = "";
+}
+
+async function guardarYcerrar() {
+  await guardar();  // guardar ya existe y al final recarga la lista
+  mostrarModal = false;
+}
 </script>
 
 <div class="contenedor-cong">
   
-  <div class="toolbar">
+  <Panel padding="15px" clasesExtra="toolbar">
     <div class="busqueda">
-      <Search size={18} color="#64748b"/>
-      <input type="text" bind:value={terminoBusqueda} placeholder="Buscar..." />
+      <Search size={18} strokeWidth={2} />
+      <input type="text" bind:value={terminoBusqueda} placeholder="Buscar congregación (nombre, número, circuito)" />
     </div>
-    
-    <button class="btn-danger" on:click={limpiarTodo} title="Borrar todas las congregaciones">
-        <Trash2 size={16}/> Limpiar Lista
+
+    <button class="btn-primary" on:click={() => mostrarModal = true} title="Añadir nueva congregación">
+       <Plus size={16}/> Añadir Congregación
     </button>
 
     <button class="btn-importar" on:click={importarCongregaciones}>
       <Upload size={16}/> Importar CSV
     </button>
-  </div>
 
-  <div class="card-form">
-    <h3><Plus size={18}/> Registrar Manualmente</h3>
-    <div class="grid">
-      <div class="campo">
-        <label>Nombre</label>
-        <input type="text" bind:value={nombre} placeholder="Ej: Reparto Eléctrico" />
-      </div>
-      <div class="campo">
-        <label>Circuito</label>
-        <div class="icon-input">
-          <Map size={14} class="ico"/>
-          <input type="text" bind:value={circuito} placeholder="Ej: CA-15" />
-        </div>
-      </div>
-      <div class="campo">
-        <label>Número</label>
-        <div class="icon-input">
-          <Hash size={14} class="ico"/>
-          <input type="text" bind:value={numero} placeholder="Ej: 12345" />
-        </div>
-      </div>
-    </div>
-    <div class="footer-form">
-        <button on:click={guardar}><Save size={16}/> Guardar</button>
-    </div>
-  </div>
+    <button class="btn-danger" on:click={limpiarTodo} title="Borrar lista de esta asamblea">
+        <Trash2 size={16}/> Limpiar Lista
+    </button>
 
-  <div class="lista">
+ </Panel>
+
+  <Panel padding="0" clasesExtra="lista-panel">
     <div class="header-lista">
-        <h4>Congregaciones ({listaFiltrada.length})</h4>
+        <h4>Congregaciones (Asamblea {asambleaIdentificador}) - Total: {listaFiltrada.length}</h4>
     </div>
     
     <div class="tabla-header">
@@ -162,71 +188,636 @@
           </div>
         </div>
       {:else}
-        <div class="vacio">No hay resultados.</div>
+        <div class="vacio">No hay congregaciones añadidas</div>
+        <small>Puede añadirlas con el botón "Nueva Congregación" 
+          o importando un archivo CSV.</small>
       {/each}
     </div>
+ </Panel>
+
+  {#if mostrarModal}
+  <div class="modal-backdrop" on:click|self={() => { mostrarModal = false; resetFormulario(); }}>
+    <div class="modal">
+      <div class="modal-header">
+        <h3><Plus size={18}/> Nueva Congregación</h3>
+        <button class="btn-close" on:click={() => { mostrarModal = false; resetFormulario(); }}>
+          <X size={18}/>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="grid">
+          <div class="campo">
+            <label>Nombre</label>
+            <input type="text" bind:value={nombre} placeholder="Ej: Reparto Eléctrico" />
+          </div>
+          <div class="campo">
+            <label>Circuito</label>
+            <div class="icon-input">
+              <Map size={14} class="ico"/>
+              <input type="text" bind:value={circuito} placeholder="Ej: CA-15" />
+            </div>
+          </div>
+          <div class="campo">
+            <label>Número</label>
+            <div class="icon-input">
+              <Hash size={14} class="ico"/>
+              <input type="text" bind:value={numero} placeholder="Ej: 12345" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" on:click={() => { mostrarModal = false; resetFormulario(); }}>Cancelar</button>
+          <button class="btn-save" on:click={guardarYcerrar}>Guardar</button>
+        </div>
+      </div>
+    </div>
   </div>
+{/if}
 </div>
 
 <style>
-  .contenedor-cong { display: flex; flex-direction: column; gap: 15px; height: 100%; }
-  
-  .toolbar { display: flex; gap: 10px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; align-items: center; }
-  .busqueda { display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; flex: 1; }
-  .busqueda input { border: none; background: transparent; outline: none; width: 100%; font-size: 14px; }
-  
-  .btn-importar { background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
-  .btn-importar:hover { background: #059669; }
+/* ===== ESTILOS MEJORADOS PARA CONGREGACIONES ===== */
 
-  /* Nuevo estilo para el botón de peligro */
-  .btn-danger { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; font-size: 13px; }
-  .btn-danger:hover { background: #fecaca; }
+/* CONTENEDOR PRINCIPAL */
+.contenedor-cong { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 15px; 
+  height: 100%; 
+}
 
-  .card-form { background: white; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; }
-  .card-form h3 { margin: 0 0 10px 0; font-size: 14px; color: #0078d4; display: flex; gap: 5px; align-items: center; }
-  
-  .grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
-  
-  input { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
-  label { font-size: 11px; font-weight: bold; color: #64748b; display: block; margin-bottom: 4px; }
-  
-  .footer-form { display: flex; justify-content: flex-end; }
-  button { background: #0078d4; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; display: flex; gap: 5px; align-items: center; font-weight: 500; }
-  button:hover { background: #0064b1; }
+/* ===== TOOLBAR MEJORADO ===== */
+:global(.toolbar) { 
+  display: flex; 
+  gap: 10px; 
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px; /* Separación con la lista */
+}
 
-  .icon-input { position: relative; }
-  .icon-input input { padding-left: 28px; }
-  .icon-input :global(.ico) { position: absolute; left: 8px; top: 10px; color: #94a3b8; }
+/* BARRA DE BÚSQUEDA - Más ancha y fina con lupa */
+.busqueda { 
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-body);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  flex: 1;
+  min-width: 300px;
+  height: 32px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
 
-  .lista { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: white; border-radius: 8px; border: 1px solid #e2e8f0; }
-  .header-lista { padding: 10px; border-bottom: 1px solid #e2e8f0; }
-  .lista h4 { margin: 0; color: #334155; font-size: 13px; }
+.busqueda:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
 
-  /* Ajusté el grid para añadir la columna de acción al final */
-  .tabla-header { display: grid; grid-template-columns: 2fr 1fr 1fr 60px; padding: 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; }
-  
-  .tabla-scroll { flex: 1; overflow-y: auto; }
+.busqueda :global(svg) {
+  color: var(--text-secondary) !important;
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0;
+  opacity: 1;
+  display: block;
+}
 
-  /* Ajusté el grid de la fila también */
-  .fila { display: grid; grid-template-columns: 2fr 1fr 1fr 60px; padding: 10px; border-bottom: 1px solid #f1f5f9; align-items: center; font-size: 13px; }
-  
-  .nombre { display: flex; gap: 8px; align-items: center; font-weight: 500; color: #1e293b; }
-  .tag { background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 4px; font-size: 11px; display: inline-block; width: fit-content; border: 1px solid #bae6fd; }
-  .num { color: #64748b; font-family: monospace; font-weight: 600; }
-  .vacio { padding: 40px; text-align: center; color: #94a3b8; font-style: italic; }
+.busqueda:focus-within :global(svg) {
+  color: var(--primary) !important;
+}
 
-  /* Estilos para el botón de borrar en la fila */
-  .acciones { display: flex; justify-content: center; }
-  .btn-icon-delete { 
-    background: transparent; 
-    color: #94a3b8; 
-    border: none; 
-    padding: 5px; 
-    cursor: pointer; 
-    border-radius: 4px;
+.busqueda input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 13px;
+  color: var(--text-main);
+  height: 100%;
+}
+
+.busqueda input::placeholder {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* BOTONES */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-weight: 500;
+  font-size: 13px;
+  height: 36px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-importar { 
+  background: #10b981; 
+  color: white; 
+  border: none; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 5px; 
+  align-items: center; 
+  font-weight: 500; 
+  font-size: 13px;
+  height: 36px;
+  transition: all 0.2s ease;
+}
+
+.btn-importar:hover { 
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.btn-danger { 
+  background: #fee2e2; 
+  color: #ef4444; 
+  border: 1px solid #fecaca; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 5px; 
+  align-items: center; 
+  font-weight: 500; 
+  font-size: 13px;
+  height: 36px;
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover { 
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+/* ===== LISTA DE CONGREGACIONES - MÁS DEFINIDA Y ELEVADA ===== */
+/* ===== LISTA DE CONGREGACIONES ===== */
+:global(.lista-panel) { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; /* Esto mantiene las esquinas redondeadas */
+}
+
+.header-lista { 
+  padding: 15px; 
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-body); /* Un gris sutil para diferenciar el encabezado */
+}
+
+.lista h4 { 
+  margin: 0; 
+  color: var(--text-main); 
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tabla-header { 
+  display: grid; 
+  grid-template-columns: 2fr 1fr 1fr 80px; 
+  padding: 12px 15px; 
+  background: var(--bg-body); 
+  border-bottom: 2px solid var(--border); 
+  font-size: 11px; 
+  font-weight: 700; 
+  color: var(--text-secondary); 
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tabla-scroll { 
+  flex: 1; 
+  overflow-y: auto;
+  background: var(--bg-card);
+}
+
+/* ===== FILAS/TARJETAS MEJORADAS ===== */
+.fila { 
+  display: grid; 
+  grid-template-columns: 2fr 1fr 1fr 80px; 
+  padding: 14px 15px; 
+  border-bottom: 1px solid var(--border); /* Usar variable global */
+  align-items: center; 
+  font-size: 13px; 
+  background: var(--bg-card); /* Usar variable para modo oscuro */
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.fila:hover {
+  background: var(--hover-bg); /* Variable global de hover */
+  transform: translateX(2px);
+}
+
+.fila:hover::before {
+  opacity: 1;
+}
+
+/* Nombre con mejor estilo */
+.nombre { 
+  display: flex; 
+  gap: 8px; 
+  align-items: center; 
+  font-weight: 600; 
+  color: var(--text-main);
+}
+
+.nombre :global(svg) {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+/* Tag de circuito mejorado */
+.tag { 
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(14, 165, 233, 0.08));
+  color: #0284c7;
+  padding: 4px 10px; 
+  border-radius: 6px; 
+  font-size: 11px; 
+  font-weight: 600;
+  display: inline-block; 
+  width: fit-content; 
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.1);
+}
+
+/* Número mejorado */
+.num { 
+  color: var(--text-secondary); 
+  font-family: 'Courier New', monospace; 
+  font-weight: 700;
+  font-size: 12px;
+  background: var(--bg-body);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+
+/* Estado vacío */
+.vacio {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.empty-icon {
+  opacity: 0.3;
+  margin-bottom: 10px;
+}
+
+.vacio small {
+  font-size: 12px;
+  opacity: 0.7;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* Acciones */
+.acciones { 
+  display: flex; 
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-icon-delete { 
+  background: transparent; 
+  color: var(--text-secondary); 
+  border: none; 
+  padding: 6px; 
+  cursor: pointer; 
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-delete:hover { 
+  background: #fee2e2; 
+  color: #ef4444;
+  transform: scale(1.1);
+}
+
+/* ===== MODAL ===== */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  width: 480px;
+  max-width: 90vw;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  .btn-icon-delete:hover { 
-    background: #fee2e2; 
-    color: #ef4444; 
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.btn-close:hover {
+  background: var(--hover-bg);
+  color: var(--text-main);
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Grid del formulario */
+.grid { 
+  display: grid; 
+  grid-template-columns: 1fr; 
+  gap: 15px; 
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label { 
+  font-size: 12px; 
+  font-weight: 600; 
+  color: var(--text-secondary); 
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input { 
+  width: 100%; 
+  padding: 10px 12px; 
+  border: 1px solid var(--border); 
+  border-radius: 6px; 
+  box-sizing: border-box; 
+  font-size: 14px; 
+  background: var(--input-bg); 
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+
+input:focus { 
+  border-color: var(--primary); 
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.icon-input { 
+  position: relative; 
+}
+
+.icon-input input { 
+  padding-left: 34px; 
+}
+
+.icon-input :global(.ico) { 
+  position: absolute; 
+  left: 10px; 
+  top: 12px; 
+  color: var(--text-secondary);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: var(--hover-bg);
+  border-color: var(--text-secondary);
+}
+
+.btn-save { 
+  background: var(--primary); 
+  color: white; 
+  border: none; 
+  padding: 10px 20px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  display: flex; 
+  gap: 6px; 
+  align-items: center; 
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-save:hover { 
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* ===== SCROLLBAR PERSONALIZADO ===== */
+.tabla-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tabla-scroll::-webkit-scrollbar-track {
+  background: var(--bg-body);
+  border-radius: 4px;
+}
+
+.tabla-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.tabla-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* =========================================================
+   DISEÑO RESPONSIVO (CONGREGACIONES: WINDOWS + ANDROID)
+   ========================================================= */
+
+@media (max-width: 768px) {
+    /* 1. TOOLBAR: BOTONES Y BUSCADOR APILADOS */
+    :global(.toolbar) {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px !important;
+        gap: 12px;
+    }
+    
+    .busqueda {
+        min-width: 0 !important; /* Matamos los 300px fijos que rompen el móvil */
+        width: 100%;
+        height: 48px; /* Altura ideal para el pulgar */
+    }
+    
+    .btn-primary, .btn-importar, .btn-danger {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+
+    /* 2. ADIÓS A LA TABLA, HOLA TARJETAS */
+    .tabla-header {
+        display: none; /* Ocultamos las cabeceras porque ya no será una tabla */
+    }
+    
+    .header-lista h4 {
+        font-size: 13px; /* Título un poco más pequeño */
+    }
+
+    /* 3. TRANSFORMAMOS LA FILA EN UNA TARJETA */
+    .fila {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 15px;
+        gap: 10px;
+        position: relative; /* Para poder posicionar el botón de borrar */
+    }
+    
+    .nombre {
+        font-size: 15px;
+        padding-right: 40px; /* Dejamos espacio para que el texto no choque con el bote de basura */
+        margin-bottom: 5px;
+    }
+    
+    /* El botón de borrar se va a la esquina superior derecha de la tarjeta */
+    .acciones {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+    }
+    
+    .btn-icon-delete {
+        min-width: 44px;
+        min-height: 44px; /* Botón grande y fácil de tocar */
+        background: var(--bg-body); /* Le damos un fondo sutil para que resalte más en móvil */
+        border: 1px solid var(--border);
+    }
+
+    /* 4. MODAL ADAPTADO AL TELÉFONO */
+    .modal {
+        width: 95vw !important;
+        padding: 15px;
+    }
+    
+    input, .icon-input input {
+        height: 48px; /* Inputs más altos */
+        font-size: 15px;
+    }
+    
+    .icon-input :global(.ico) {
+        top: 16px; /* Centramos el iconito de la lupa/mapa al nuevo alto del input */
+    }
+    
+    .modal-footer {
+        flex-direction: column-reverse; /* Guardar arriba, Cancelar abajo */
+        margin-top: 20px;
+        gap: 10px;
+    }
+    
+    .btn-save, .btn-cancel {
+        width: 100%;
+        height: 48px;
+        justify-content: center;
+    }
+}
 </style>

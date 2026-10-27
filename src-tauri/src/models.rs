@@ -5,34 +5,33 @@ use serde::{Deserialize, Serialize};
 // ==========================================
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Local { 
-    pub id: i32, 
-    pub nombre: String, 
-    pub direccion: Option<String>, 
-    pub capacidad: Option<i32> 
+pub struct Local {
+    pub id: i32,
+    pub nombre: String,
+    pub direccion: Option<String>,
+    pub ciudad: Option<String>,
+    pub estado: Option<String>,
+    pub capacidad: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Congregacion { 
-    pub id: i32, 
-    pub nombre: String, 
-    pub circuito: Option<String>, 
-    pub numero_congregacion: Option<String> 
+pub struct Congregacion {
+    pub id: i32,
+    pub nombre: String,
+    pub circuito: Option<String>,
+    pub numero_congregacion: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Persona { 
-    pub id: i32, 
-    pub nombre_completo: String, 
-    pub genero: String, 
-    pub privilegios: Option<String>, 
-    pub id_congregacion: Option<i32>, 
-    pub telefono: Option<String>, 
+pub struct Persona {
+    pub id: i32,
+    pub nombre_completo: String,
+    pub genero: String,
+    pub privilegios: Option<String>,
+    pub id_congregacion: Option<i32>,
+    pub telefono: Option<String>,
     pub email: Option<String>,
-    
-    // Este campo es opcional. Lo usamos cuando traemos la lista con el nombre de la congregación.
-    // En las inserciones simples, puede ser None.
-    pub nombre_congregacion: Option<String>, 
+    pub nombre_congregacion: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,8 +40,28 @@ pub struct Asamblea {
     pub tema: String,
     pub fecha: String,
     pub local_id: Option<i32>,
-    pub presidente_id: Option<i32>,
-    // Campos opcionales para la UI
+    pub identificador: Option<String>,
+    // --- Campos del comité ---
+    pub coordinador_id: Option<i32>,
+    pub coordinador_aux_id: Option<i32>,
+    pub prog_super_id: Option<i32>,
+    pub prog_aux_id: Option<i32>,
+    pub aloj_super_id: Option<i32>,
+    pub aloj_aux_id: Option<i32>,
+    pub audio_video_super_id: Option<i32>,
+    pub video_super_id: Option<i32>,
+    pub audio_super_id: Option<i32>,
+    pub plataforma_super_id: Option<i32>,
+    pub bautismo_super_id: Option<i32>,
+    pub bautismo_aux_id: Option<i32>,
+    // --- Otros campos existentes ---
+    pub ensayo_lugar: String,
+    pub ensayo_fecha: String,
+    pub ensayo_hora: String,
+    pub ensayo_notas: String,
+    pub recorridos_info: String,
+    pub instrucciones_esp: String,
+    pub jw_stream_studio: bool,
     pub nombre_local: Option<String>,
 }
 
@@ -59,25 +78,40 @@ pub struct PartePrograma {
     pub tema: String,
     pub tipo: Option<String>,
     pub duracion: Option<i32>,
-    
-    // Datos del Orador
     pub orador_id: Option<i32>,
     pub nombre_orador: Option<String>,
     pub congregacion_orador: Option<String>,
+    pub circuito_orador: Option<String>,
     pub email_orador: Option<String>,
     pub telefono_orador: Option<String>,
-    
-    // Estados
     pub es_video: bool,
     pub estado: Option<String>,
-    pub esta_presente: bool, 
+    pub esta_presente: bool,
+    pub numero_bosquejo: Option<String>,
+    pub ensayo_terminado: bool,
+    // ✅ NUEVOS CAMPOS PARA LOS FILTROS
+    pub fuente: Option<String>,
+    pub es_betelita: bool,
+    pub es_interprete: bool,
+    pub es_visitante: bool,
+    pub requiere_ensayo: bool,
+    pub fecha_ensayo: Option<String>,
+    pub hora_ensayo: Option<String>,
+    pub lugar_ensayo: Option<String>,
+    pub notas_ensayo: Option<String>,
+
+    pub check_viernes: bool,
+    pub check_dia: bool,
+    pub check_30m: bool,
+
+    pub notas_orador: Option<String>,
+    pub color_destacado: Option<String>, // ← NUEVO
 }
 
 // ==========================================
 // 3. ESTRUCTURAS DE OFICINA
 // ==========================================
 
-// Usada para devolver datos al frontend (DTO)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AsignacionEspecialDTO {
     pub id: i32,
@@ -85,14 +119,39 @@ pub struct AsignacionEspecialDTO {
     pub persona_id: i32,
     pub nombre_completo: String,
     pub nombre_congregacion: Option<String>,
+    pub telefono: Option<String>,
+    pub email: Option<String>,
+    pub estado: Option<String>,
+    pub esta_presente: bool,
+    pub ensayo_terminado: bool,
+    pub responsabilidades: Option<String>,
+    pub disponibilidad: Option<String>,
 }
 
-// Usada para compatibilidad con código antiguo si existe
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AsignacionEspecial { 
-    pub id: i32, 
-    pub dia: String, 
-    pub tipo_asignacion: String, 
-    pub persona_id: Option<i32>, 
-    pub nombre_persona: Option<String> 
+pub struct AsignacionEspecial {
+    pub id: i32,
+    pub dia: String,
+    pub tipo_asignacion: String,
+    pub persona_id: Option<i32>,
+    pub nombre_persona: Option<String>,
+}
+
+// ==========================================
+// 4. ESTRUCTURAS DE CONFIGURACIÓN GLOBAL
+// ==========================================
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConfiguracionGeneral {
+    pub nombre: Option<String>,
+    pub segundo_nombre: Option<String>,
+    pub apellido: Option<String>,
+    pub sufijo: Option<String>,
+    pub email: Option<String>,
+    pub email_jwpub: Option<String>,
+    pub movil: Option<String>,
+    pub identificador: Option<String>,
+    pub fecha_creacion: Option<String>,
+    pub tema: Option<String>,
+    pub idioma: Option<String>,
 }

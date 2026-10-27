@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-leerArchivo"
+description = "Enables the leerArchivo command without any pre-configured scope."
+commands.allow = ["leerArchivo"]
+
+[[permission]]
+identifier = "deny-leerArchivo"
+description = "Denies the leerArchivo command without any pre-configured scope."
+commands.deny = ["leerArchivo"]
