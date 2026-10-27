@@ -483,9 +483,22 @@ function cerrarMonitorFlotante() {
               </div>
           </Panel>
           
-          <Panel padding="15px" clasesExtra="stat-card">
+                         <Panel padding="15px" clasesExtra="stat-card">
               <div class="icon-wrapper purple">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="2" x2="9" y2="22"></line><line x1="15" y1="2" x2="15" y2="22"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+                  <!-- Ícono sólido de 3 personas (estilo Timothy) -->
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <!-- Persona izquierda (detrás) -->
+                    <circle cx="6" cy="9" r="3" opacity="0.6"/>
+                    <path d="M1 20v-1.5A4.5 4.5 0 0 1 5.5 14h1A4.5 4.5 0 0 1 11 18.5V20H1z" opacity="0.6"/>
+                    
+                    <!-- Persona derecha (detrás) -->
+                    <circle cx="18" cy="9" r="3" opacity="0.6"/>
+                    <path d="M13 20v-1.5A4.5 4.5 0 0 1 17.5 14h1a4.5 4.5 0 0 1 4.5 4.5V20h-10z" opacity="0.6"/>
+                    
+                    <!-- Persona central (adelante y sólida) -->
+                    <circle cx="12" cy="8" r="3.5"/>
+                    <path d="M6 21v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2H6z"/>
+                  </svg>
               </div>
               <div class="stat-info">
                   <span class="label">Congregaciones</span>
