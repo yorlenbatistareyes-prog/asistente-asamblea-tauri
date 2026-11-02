@@ -101,24 +101,42 @@
         </div>
     </Panel>
 
-    <!-- Método 2: Carpeta Compartida (Nube Privada) -->
+    <!-- Método 2: Archivo compartido -->
     <Panel padding="25px" clasesExtra="method-panel panel-blue">
         <div class="method-header">
             <div class="icon-box blue"><FolderSync size={20} /></div>
-            <h4>2. Carpeta Compartida (Drive / OneDrive)</h4>
+            <h4>2. Archivo compartido (Google Drive / OneDrive)</h4>
         </div>
         <div class="method-body">
-            <p>En la sección <strong>'Datos'</strong> puede vincular una carpeta raíz de servicios en la nube para compartir y sincronizar su información entre dispositivos manteniendo el 100% de la privacidad en su propia nube.</p>
-            
-            <p><strong>Para vincular y configurar la carpeta, siga estos pasos:</strong></p>
+            <p>RAssembly sincroniza mediante <strong>un archivo <code>.rassembly</code></strong> guardado en una ubicación compartida de Google Drive, OneDrive u otro proveedor compatible. El proveedor mantiene el archivo disponible en los dispositivos; RAssembly no inicia sesión en Google ni usa la API de Drive.</p>
+
+            <p><strong>Configurar el primer dispositivo:</strong></p>
             <ol class="method-steps">
-                <li>Diríjase a la sección <strong>'Datos'</strong> dentro del menú de <strong>Configuración</strong>.</li>
-                <li>Localice el apartado de <strong>Carpeta de Sincronización</strong> y pulse el botón para seleccionar el directorio.</li>
-                <li>Elija en el explorador de archivos la carpeta raíz de su servicio (por ejemplo, Google Drive o OneDrive). Todos los auxiliares deben apuntar a esta misma carpeta compartida.</li>
-                <li>Una vez seleccionada, el estado cambiará a <strong>'Vinculado'</strong>.</li>
+                <li>Instale o configure Google Drive/OneDrive y asegúrese de que la carpeta compartida esté disponible en el dispositivo. En Android, conceda acceso al archivo desde el selector del sistema.</li>
+                <li>En <strong>Configuración &gt; Datos</strong>, busque <strong>Sincronización por archivo</strong> y pulse <strong>Crear archivo</strong>. Guárdelo en la ubicación compartida. También puede usar <strong>Seleccionar existente</strong> si el archivo ya fue creado.</li>
+                <li>RAssembly guarda la primera instantánea cifrada como versión <strong>1</strong> y muestra un código de vinculación. Pulse <strong>Copiar código</strong> y guárdelo en un lugar seguro.</li>
             </ol>
 
-            <p>Una vez configurada, cualquier cambio en la aplicación se empaquetará, se cifrará de forma segura (AES-256) mediante una 'Llave Invisible' en segundo plano tras unos segundos de inactividad, y se guardará como un archivo <code>.rassembly</code>. También dispone de botones para <strong>'Restaurar Manual'</strong> y <strong>'Sincronizar Ahora'</strong>.</p>
+            <p><strong>Vincular cada dispositivo adicional:</strong></p>
+            <ol class="method-steps">
+                <li>Compruebe que el archivo compartido ya esté disponible y actualizado en ese dispositivo.</li>
+                <li>En <strong>Configuración &gt; Datos &gt; Sincronización por archivo</strong>, pulse <strong>Seleccionar existente</strong> y elija el mismo archivo <code>.rassembly</code>.</li>
+                <li>Introduzca el código recibido y pulse <strong>Vincular este archivo</strong>. El código permite comprobar la identidad del archivo y descifrarlo; no es un código de un solo uso.</li>
+                <li>Si la app indica un conflicto o que el dispositivo está atrasado, pulse <strong>Restaurar versión compartida</strong> antes de hacer cambios. Esto carga en este dispositivo la versión actual del archivo y registra su checkpoint. No modifica el archivo compartido.</li>
+            </ol>
+
+            <p><strong>¿Qué hace el código de vinculación?</strong> Es una credencial que contiene una identidad compacta del archivo y una clave criptográfica aleatoria de 256 bits, codificadas en un texto que empieza por <code>RASM1:</code>. El botón permite copiarlo para transferirlo; los espacios solo facilitan su lectura y no cambian el código. Compártalo únicamente con dispositivos autorizados mediante un canal privado. Quien tenga el código y acceso al archivo puede leer y modificar sus datos. No lo publique ni lo envíe en un chat o correo que no sea confiable.</p>
+
+            <p><strong>Cómo se sincronizan los cambios:</strong> después de una modificación local, RAssembly espera unos segundos y compara los datos con el archivo compartido. Si no hay diferencias, no escribe ni aumenta la versión. Si hay cambios y el dispositivo está al día, guarda una nueva versión cifrada. La sincronización automática <strong>no descarga silenciosamente</strong> una versión ajena: ante un conflicto, detiene la subida y permite elegir qué hacer.</p>
+            <ul class="method-list">
+                <li><strong>Restaurar versión compartida:</strong> reemplaza los datos locales de este dispositivo y actualiza su checkpoint; no sube ni cambia el archivo. Use esta opción para ponerse al día.</li>
+                <li><strong>Confirmar sobrescritura:</strong> publica los datos locales como una versión nueva del archivo. Úsela solo después de comprobar que no descarta cambios que desea conservar.</li>
+                <li><strong>Sincronizar ahora:</strong> comprueba el estado y publica los cambios locales si corresponde. Si la base local no cambió, el archivo conserva su versión.</li>
+            </ul>
+
+            <p><strong>Protección y límites:</strong> el contenido se cifra con AES-256-GCM y se autentican también la identidad y la versión; el proveedor de nube almacena el archivo cifrado, no la clave de vinculación. La clave se protege localmente con DPAPI en Windows y Android Keystore en Android. Si pierde el código y no queda ningún dispositivo vinculado que conserve la clave, no será posible vincular uno nuevo: guarde el código de forma segura. Si dos dispositivos escriben exactamente al mismo tiempo, Google Drive/OneDrive no ofrecen una operación atómica que permita impedir esa carrera; revise cualquier conflicto antes de volver a sincronizar.</p>
+
+            <p>La app solo accede al archivo elegido y necesita permiso de lectura/escritura del proveedor. Si el proveedor aún no terminó de sincronizarlo, el permiso fue revocado o no permite escribir, espere o vuelva a seleccionarlo. Los archivos del formato anterior no se convierten automáticamente: conserve una copia de respaldo antes de cambiar de flujo.</p>
         </div>
     </Panel>
 
