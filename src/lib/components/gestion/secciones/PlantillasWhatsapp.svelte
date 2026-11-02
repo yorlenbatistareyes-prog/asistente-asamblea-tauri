@@ -9,6 +9,7 @@
     cargarPlantillasWhatsApp,
     guardarPlantillaWhatsApp 
   } from '$lib/utils/plantillasWhatsApp';
+  import { sanitizarHtml } from '$lib/utils/sanitizarHtml';
   
   // --- TIP TAP ---
   import Panel from '$lib/components/ui/Panel.svelte';
@@ -206,7 +207,11 @@
               <div class="preview-group">
                 <label>Vista previa del mensaje</label>
                 <div class="preview-textarea">
-                  {@html plantilla.body || '<span style="color: var(--text-secondary); font-style: italic;">(Sin contenido...)</span>'}
+                  {#if plantilla.body}
+                    {@html sanitizarHtml(plantilla.body)}
+                  {:else}
+                    <span style="color: var(--text-secondary); font-style: italic;">(Sin contenido...)</span>
+                  {/if}
                 </div>
               </div>
               <div class="template-actions">

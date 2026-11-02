@@ -10,25 +10,12 @@
 <tr>
 <td>
 
-`sincronizacion-nativo:allow-elegirCarpeta`
+`sincronizacion-nativo:allow-createSyncFile`
 
 </td>
 <td>
 
-Enables the elegirCarpeta command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`sincronizacion-nativo:deny-elegirCarpeta`
-
-</td>
-<td>
-
-Denies the elegirCarpeta command without any pre-configured scope.
+Enables the createSyncFile command without any pre-configured scope.
 
 </td>
 </tr>
@@ -36,25 +23,12 @@ Denies the elegirCarpeta command without any pre-configured scope.
 <tr>
 <td>
 
-`sincronizacion-nativo:allow-escribirArchivo`
+`sincronizacion-nativo:deny-createSyncFile`
 
 </td>
 <td>
 
-Enables the escribirArchivo command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`sincronizacion-nativo:deny-escribirArchivo`
-
-</td>
-<td>
-
-Denies the escribirArchivo command without any pre-configured scope.
+Denies the createSyncFile command without any pre-configured scope.
 
 </td>
 </tr>
@@ -62,25 +36,12 @@ Denies the escribirArchivo command without any pre-configured scope.
 <tr>
 <td>
 
-`sincronizacion-nativo:allow-leerArchivo`
+`sincronizacion-nativo:allow-getSyncKey`
 
 </td>
 <td>
 
-Enables the leerArchivo command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`sincronizacion-nativo:deny-leerArchivo`
-
-</td>
-<td>
-
-Denies the leerArchivo command without any pre-configured scope.
+Enables the getSyncKey command without any pre-configured scope.
 
 </td>
 </tr>
@@ -88,12 +49,12 @@ Denies the leerArchivo command without any pre-configured scope.
 <tr>
 <td>
 
-`sincronizacion-nativo:allow-validarCarpeta`
+`sincronizacion-nativo:deny-getSyncKey`
 
 </td>
 <td>
 
-Enables the validarCarpeta command without any pre-configured scope.
+Denies the getSyncKey command without any pre-configured scope.
 
 </td>
 </tr>
@@ -101,12 +62,103 @@ Enables the validarCarpeta command without any pre-configured scope.
 <tr>
 <td>
 
-`sincronizacion-nativo:deny-validarCarpeta`
+`sincronizacion-nativo:allow-pickSyncFile`
 
 </td>
 <td>
 
-Denies the validarCarpeta command without any pre-configured scope.
+Enables the pickSyncFile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-pickSyncFile`
+
+</td>
+<td>
+
+Denies the pickSyncFile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:allow-readSyncFile`
+
+</td>
+<td>
+
+Enables the readSyncFile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-readSyncFile`
+
+</td>
+<td>
+
+Denies the readSyncFile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:allow-saveSyncKey`
+
+</td>
+<td>
+
+Enables the saveSyncKey command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-saveSyncKey`
+
+</td>
+<td>
+
+Denies the saveSyncKey command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:allow-writeSyncFile`
+
+</td>
+<td>
+
+Enables the writeSyncFile command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sincronizacion-nativo:deny-writeSyncFile`
+
+</td>
+<td>
+
+Denies the writeSyncFile command without any pre-configured scope.
 
 </td>
 </tr>

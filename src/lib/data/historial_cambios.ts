@@ -22,6 +22,16 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
+    version: "1.0.32",
+    fecha: "02 de Noviembre, 2026",
+    mensaje: "¡Hemos mejorado la sincronización!",
+    cambios: [
+      { tipo: "🛠️", texto: "Hemos modificado la función de sincronización automática mediante Google Drive / One Drive. Ahora usamos un archivo de sincronización. Para saber como vincular los dispoisitivos, vean la sección de ayuda. También hemos reforzado la seguridad de los datos." },
+      
+    ]
+  },
+
+{
     version: "1.0.11",
     fecha: "28 de Septiembre, 2026",
     mensaje: "¡Hemos mejorado la sincronización!",

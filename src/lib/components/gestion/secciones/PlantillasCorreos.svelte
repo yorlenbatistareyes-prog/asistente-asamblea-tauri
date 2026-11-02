@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   // --- STORE DE DATOS Y UTILIDADES PARA EMAIL ---
   import { emailTemplates, marcadoresEmail, cargarPlantillasEmail, guardarPlantillaEmail, type PlantillaEmail as Plantilla } from '$lib/utils/plantillasEmail';
+  import { sanitizarHtml } from '$lib/utils/sanitizarHtml';
 
   // --- TIPTAP ---
   import Panel from '$lib/components/ui/Panel.svelte';
@@ -245,7 +246,11 @@
                             <div class="preview-group">
                                 <label>Cuerpo</label>
                                 <div class="preview-textarea">
-                                    {@html plantilla.body || '<span style="color:var(--text-secondary); font-style:italic;">(Sin contenido...)</span>'}
+                                    {#if plantilla.body}
+                                        {@html sanitizarHtml(plantilla.body)}
+                                    {:else}
+                                        <span style="color:var(--text-secondary); font-style:italic;">(Sin contenido...)</span>
+                                    {/if}
                                 </div>
                             </div>
                             <div class="template-actions">

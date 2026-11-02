@@ -11,9 +11,9 @@
 const DEFAULT_CONFIG = {
   usarEncabezado: true,
   usarPiePagina: true,
-  titulo: 'YORLEN BATISTA REYES. CIRCUITO, HG-06',
-  contacto: 'Carretera a Mayarí, Km 5 ½. San Rafael. Holguín.\nTeléfonos: 54891111; 59401476.\nEmail: batistareyyorlen7@jwpub.org',
-  piePagina: '© 2026 Presidente de Asamblea Regional. Información confidencial.',
+  titulo: 'Presidencia de Asamblea Regional',
+  contacto: '',
+  piePagina: 'Información confidencial.',
   
   // NUEVOS VALORES DE TAMAÑO
   tamanoTitulo: 24,    // Valor por defecto para el título
@@ -226,7 +226,7 @@ const DEFAULT_CONFIG = {
               {config.titulo}
             </h1>
             <p class="p-contacto" style="color: {config.colorTexto}; opacity: 0.85;">
-              {@html config.contacto.replace(/\n/g, '<br>')}
+              {config.contacto}
             </p>
             <div class="linea-separadora" style="background-color: {config.colorLinea};"></div>
           </div>
@@ -386,7 +386,7 @@ const DEFAULT_CONFIG = {
 
   .membrete-preview { text-align: center; margin-bottom: 15px; }
   .p-titulo { margin: 0 0 4px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; }
-  .p-contacto { margin: 0 auto 6px auto; font-size: 7px; line-height: 1.4; width: 90%; text-align: center; }
+  .p-contacto { margin: 0 auto 6px auto; font-size: 7px; line-height: 1.4; width: 90%; text-align: center; white-space: pre-line; }
   .linea-separadora { height: 1.5px; margin: 0 auto; width: 100%; opacity: 0.8; }
 
   .contenido-ficticio { flex: 1; padding: 15px 0; opacity: 0.1; }

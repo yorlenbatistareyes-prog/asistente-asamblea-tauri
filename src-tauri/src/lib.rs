@@ -2,6 +2,7 @@
 
 pub mod database;
 pub mod encriptar;
+pub mod folder_sync;
 pub mod models;
 pub mod sync_cmds;
 
@@ -66,7 +67,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_sincronizacion_nativo::init())
-
         // --- AQUÍ ESTÁ EL CAMBIO: LÓGICA DE INICIO ---
         .setup(|app| {
             let app_handle = app.handle();
@@ -252,6 +252,20 @@ pub fn run() {
             commands::programa::guardar_nota_directa,
             sync_cmds::exportar_db_encriptada_global, // 👈 NUEVO
             sync_cmds::importar_db_encriptada_global, // 👈 NUEVO
+            folder_sync::nuevo_codigo_sync,
+            folder_sync::guardar_codigo_sync,
+            folder_sync::obtener_codigo_sync,
+            folder_sync::guardar_archivo_sync,
+            folder_sync::obtener_archivo_sync,
+            folder_sync::leer_archivo_sync,
+            folder_sync::escribir_archivo_sync,
+            folder_sync::inspeccionar_archivo_sync,
+            folder_sync::exportar_snapshot_sync,
+            folder_sync::preparar_snapshot_si_cambio_sync,
+            folder_sync::autenticar_codigo_sync,
+            folder_sync::importar_snapshot_sync,
+            folder_sync::obtener_checkpoint_sync,
+            folder_sync::guardar_checkpoint_sync,
             encriptar::generar_llave_invisible,
             encriptar::encriptar_maletin,
             encriptar::desencriptar_maletin,

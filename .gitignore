@@ -17,3 +17,14 @@ src-tauri/gen/
 **/.gradle/
 **/build/
 **/.tauri/
+
+# Bases de datos y archivos cifrados de sincronización contienen datos personales
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.rassembly
+
+# Informes locales del runtime Java
+src-tauri/hs_err_pid*.log

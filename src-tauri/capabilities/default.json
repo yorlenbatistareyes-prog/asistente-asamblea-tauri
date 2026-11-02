@@ -7,10 +7,12 @@
   ],
   "permissions": [
     "core:default",
-    "sincronizacion-nativo:allow-elegirCarpeta",
-    "sincronizacion-nativo:allow-escribirArchivo",
-    "sincronizacion-nativo:allow-leerArchivo",
-    "sincronizacion-nativo:allow-validarCarpeta",
+    "sincronizacion-nativo:allow-pickSyncFile",
+    "sincronizacion-nativo:allow-createSyncFile",
+    "sincronizacion-nativo:allow-readSyncFile",
+    "sincronizacion-nativo:allow-writeSyncFile",
+    "sincronizacion-nativo:allow-saveSyncKey",
+    "sincronizacion-nativo:allow-getSyncKey",
     "shell:default",
     "opener:default",
     "opener:allow-open-path",
@@ -28,26 +30,13 @@
         }
       ]
     },
-    "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-read-file",
     "fs:allow-write-file",
-    "fs:allow-mkdir",
-    "fs:allow-exists",
-    "fs:allow-stat",
-    "fs:allow-remove",
-    "fs:allow-read-dir",
-    "fs:allow-copy-file",
     "dialog:default",
     "dialog:allow-open",
     "dialog:allow-save",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        "**"
-      ]
-    },
     "process:default",
     "store:default",
     "core:window:allow-create",
