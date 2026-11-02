@@ -3,15 +3,11 @@ import { SyncService } from '$lib/services/syncService';
 import { DbSyncHelper } from '$lib/services/dbSyncHelper';
 import { sesionApp } from './authStore'; 
 import { invoke } from '@tauri-apps/api/core';
-<<<<<<< HEAD
-import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
-import { obtenerOCrearLlave } from '$lib/utils/seguridad';
-import { relaunch } from '@tauri-apps/plugin-process';
-=======
 import { FolderSync, SyncConflictError, SyncLinkRequiredError } from '$lib/services/folderSync';
->>>>>>> main
 
 export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'vinculacion' | 'error';
+
+import { relaunch } from '@tauri-apps/plugin-process';
 
 // 🔒 CANDADO ANTI-ECO: Evita que la sync reaccione a sus propios guardados
 export let guardandoMetadatosInternos = false;

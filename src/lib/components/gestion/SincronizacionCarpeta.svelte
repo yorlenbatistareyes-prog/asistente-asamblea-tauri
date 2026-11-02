@@ -216,122 +216,6 @@
   }
 
   async function desvincular() {
-<<<<<<< HEAD
-    if (confirm("¿Desvincular esta carpeta? La app dejará de sincronizar aquí.")) {
-      rutaCarpeta = null;
-      await DB.guardarRutaSync(null);
-    }
-  }
-  
-  // 🔄 FUNCIÓN DEFINITIVA DE SINCRONIZACIÓN GLOBAL ENCRIPTADA
-  async function sincronizarAhora() {
-    if (!rutaCarpeta) return;
-    let candadoActivo = false;
-    try {
-      guardando = true;
-      
-      // 1. ENCENDEMOS EL ESTADO VISUAL ARRIBA AL EMPEZAR
-      syncStatus.set({ estado: 'sincronizando', mensaje: 'Guardando manual...', nubeDispositivo: '', nubeFecha: '' });
-
-      // 🔥 PAUSA ARTIFICIAL DE 1 SEGUNDO PARA QUE SE PUEDA LEER EL MENSAJE
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const llave = await obtenerOCrearLlave();
-
-      const paqueteCifrado = await invoke<string>('exportar_db_binaria_encriptada', {
-        llaveBase64: llave
-      });
-
-      setCandadoSincronizacion(true);
-      candadoActivo = true;
-      await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
-      
-      // 🔥 ESTO FALTABA: Leer la fecha recién guardada para matar el eco
-      try {
-          const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
-          if (metadatos) {
-              await DbSyncHelper.actualizarFechaSincronizacion(metadatos.toISOString());
-          }
-      } catch (e) {
-          console.error("Fallo al actualizar fecha tras escribir:", e);
-      }
-      
-      // 🔥 QUITAMOS EL CANDADO DESPUÉS DE 2 SEGUNDOS
-      setTimeout(() => {
-          setCandadoSincronizacion(false);
-      }, 2000);
-      candadoActivo = false;
-
-      console.log("📦 Archivo cifrado guardado correctamente.");
-      
-      // 🔥 2. CAMBIAMOS EL ESTADO A ÉXITO EN LA BARRA SUPERIOR
-      syncStatus.set({ estado: 'al_dia', mensaje: '¡Carpeta sincronizada!', nubeDispositivo: '', nubeFecha: '' });
-
-      // 🔥 3. OCULTAMOS EL MENSAJE TRAS 3 SEGUNDOS
-      setTimeout(() => {
-          syncStatus.set({ estado: 'inactivo', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
-      }, 3000);
-
-    } catch (error) {
-      console.error("Error al sincronizar y guardar:", error);
-      if (candadoActivo) setCandadoSincronizacion(false);
-      const detalle = error instanceof Error ? error.message : String(error);
-      
-      syncStatus.set({ estado: 'error', mensaje: `Error al guardar: ${detalle}`, nubeDispositivo: '', nubeFecha: '' });
-      setTimeout(() => {
-          syncStatus.set({ estado: 'inactivo', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
-      }, 4000);
-    } finally {
-      guardando = false;
-    }
-  }
-
-  async function importarSincronizacion() {
-    if (!rutaCarpeta) return;
-    if (!confirm("⚠️ ¿Restaurar datos desde la nube? Esto sobrescribirá la base de datos actual con la versión más reciente del equipo principal.")) return;
-    
-    try {
-      guardando = true;
-      const paqueteCifrado = await PuenteAlmacenamiento.leerArchivo(rutaCarpeta);
-      const llave = await obtenerOCrearLlave();
-
-      if (paqueteCifrado.startsWith('RASSEMBLY2:')) {
-        await invoke('importar_db_binaria_encriptada', {
-          paqueteBase64: paqueteCifrado,
-          llaveBase64: llave
-        });
-      } else {
-        await invoke('importar_db_encriptada_global', {
-          paqueteBase64: paqueteCifrado,
-          llaveBase64: llave
-        });
-      }
-
-      try {
-          const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
-          if (metadatos) {
-              const fechaNube = metadatos.toISOString();
-              await DbSyncHelper.actualizarFechaSincronizacion(fechaNube);
-          }
-      } catch (e) {
-          console.error("Fallo al actualizar fecha tras importar:", e);
-      }
-
-      alert("✅ Datos restaurados. La aplicación se reiniciará para aplicar los cambios.");
-      document.body.style.cursor = 'wait';
-
-      // La restauración binaria se instala al arrancar, sin emitir un evento de guardado.
-      await relaunch();
-      
-    } catch (error) {
-      console.error("Error al importar la sincronización:", error);
-      alert(`Hubo un error al leer o restaurar el archivo de sincronización: ${error}`);
-    } finally {
-      guardando = false;
-    }
-}
-
-=======
     if (!confirm('¿Dejar de usar este archivo en este dispositivo? El archivo compartido no se eliminará.')) return;
     try {
       await invoke('guardar_archivo_sync', { archivo: null });
@@ -369,7 +253,6 @@
     mensaje = text || 'No se pudo completar la operación de sincronización.';
     syncStatus.set({ estado: 'error', mensaje: 'Error en archivo compartido', nubeDispositivo: '', nubeFecha: '' });
   }
->>>>>>> main
 </script>
 
 <Panel padding="20px" clasesExtra="cloud-panel sync-folder-panel">
