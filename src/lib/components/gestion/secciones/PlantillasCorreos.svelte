@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   // --- STORE DE DATOS Y UTILIDADES PARA EMAIL ---
   import { emailTemplates, marcadoresEmail, cargarPlantillasEmail, guardarPlantillaEmail, type PlantillaEmail as Plantilla } from '$lib/utils/plantillasEmail';
+  import { sanitizarHtml } from '$lib/utils/sanitizarHtml';
 
   import { save } from '@tauri-apps/plugin-dialog';
   import { writeTextFile } from '@tauri-apps/plugin-fs';

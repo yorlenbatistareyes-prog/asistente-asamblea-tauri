@@ -22,45 +22,11 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
-    version: "1.0.31'",
-    fecha: "15 de octubre, 2026",
+    version: "1.0.32",
+    fecha: "02 de Noviembre, 2026",
+    mensaje: "¡Hemos mejorado la sincronización!",
     cambios: [
-      { tipo: "🚀", texto: "Mejoras en respaldos manuales, y en contactos de personas y oradores" },   
-    ]
-  },
-
-{
-    version: "1.0.30'",
-    fecha: "14 de octubre, 2026",
-    cambios: [
-      { tipo: "🚀", texto: "Mejoras en el programa de los discursos" },   
-    ]
-  },
-
-{
-    version: "1.0.28'",
-    fecha: "12 de octubre, 2026",
-    cambios: [
-      { tipo: "🚀", texto: "Mejoras en las opciones de correo, WhatsApp, y cartas, la lógica de las plantillas se ha mejorado" },   
-    ]
-  },
-
-{
-    version: "1.0.25'",
-    fecha: "12 de octubre, 2026",
-    cambios: [
-      { tipo: "🛠️", texto: "Se corrigieron errores en el registro de personas. Ahora si añades una lista nueva de personas, no se duplican los registros si ya existía uno" },
-      { tipo: "🛠️", texto: "Ahora los modales y calendarios para seleccionar fechas se visualizan mejor en pantallas móviles" },
-      { tipo: "🛠️", texto: "Se corrigió un error que impedía la restauración de datos en dispositivos android" },
-      { tipo: "🛠️", texto: "Ahora el monitor en tiempo real se puede mover a cualquier parte de la pantalla en dispositivos android, y permite desplazarse en cualquier pagina sin obstaculizar la visibilidad" },
-    ]
-  },
-
-{
-    version: "1.0.24'",
-    fecha: "11 de octubre, 2026",
-    cambios: [
-      { tipo: "🛠️", texto: "corregido varios errores que impedían funcionar bien la aplicación. También mejoras visaules de botones y modales" },
+      { tipo: "🛠️", texto: "Hemos modificado la función de sincronización automática mediante Google Drive / One Drive. Ahora usamos un archivo de sincronización. Para saber como vincular los dispoisitivos, vean la sección de ayuda. También hemos reforzado la seguridad de los datos." },
       
     ]
   },

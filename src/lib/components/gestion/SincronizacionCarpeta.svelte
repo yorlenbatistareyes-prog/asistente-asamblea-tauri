@@ -1,44 +1,222 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
-  import { relaunch } from '@tauri-apps/plugin-process';
-  import { FolderSync, CheckCircle, AlertCircle, Info } from 'lucide-svelte';
-  import Panel from '$lib/components/ui/Panel.svelte'; 
-  import { DB } from '$lib/services/db';
+  import { FolderSync, CheckCircle, AlertCircle, Info, Copy, Check } from 'lucide-svelte';
+  import Panel from '$lib/components/ui/Panel.svelte';
   import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
-  import { obtenerOCrearLlave } from '$lib/utils/seguridad';
-  import { DbSyncHelper } from '$lib/services/dbSyncHelper';
-  import { syncStatus, setCandadoSincronizacion } from '$lib/stores/autoSyncStore';
+  import {
+    FolderSync as FolderSyncService,
+    SyncConflictError,
+    SyncLinkRequiredError,
+    type SyncFileInfo
+  } from '$lib/services/folderSync';
+  import {
+    guardandoMetadatosInternos,
+    setCandadoSincronizacion,
+    syncStatus
+  } from '$lib/stores/autoSyncStore';
 
-  let rutaCarpeta: string | null = null;
+  let rutaArchivo: string | null = null;
   let guardando = false;
+  let estadoArchivo: 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'vinculacion' | 'error' = 'inactivo';
+  let mensaje = '';
+  let infoArchivo: SyncFileInfo | null = null;
+  let codigoVinculacion = '';
+  let codigoNuevo = '';
+  let codigoCopiado = false;
+  let errorCopia = '';
+  let versionLocal = 0;
+
+  function normalizarCodigoVinculacion(valor: string) {
+    return valor.replace(/[\s-]+/g, '').trim();
+  }
+
+  function formatearCodigoVinculacion(valor: string) {
+    const limpio = normalizarCodigoVinculacion(valor);
+    return limpio.match(/.{1,8}/g)?.join(' ') || limpio;
+  }
+
+  async function copiarCodigo() {
+    try {
+      await navigator.clipboard.writeText(normalizarCodigoVinculacion(codigoNuevo));
+      codigoCopiado = true;
+      errorCopia = '';
+    } catch (error) {
+      codigoCopiado = false;
+      errorCopia = error instanceof Error
+        ? `No se pudo copiar el código: ${error.message}`
+        : 'No se pudo copiar el código. Selecciónalo y cópialo manualmente.';
+    }
+  }
 
   onMount(async () => {
     try {
-      rutaCarpeta = await invoke('obtener_ruta_sync');
-    } catch (e) {
-      console.log("Aún no hay ruta configurada.");
+      rutaArchivo = await invoke<string | null>('obtener_archivo_sync');
+      if (rutaArchivo) await revisarArchivo();
+    } catch (error) {
+      mostrarError(error);
     }
   });
 
-  async function seleccionarCarpeta() {
+  async function guardarRuta(path: string) {
+    await invoke('guardar_archivo_sync', { archivo: path });
+    rutaArchivo = path;
+    codigoNuevo = '';
+    codigoVinculacion = '';
+    await revisarArchivo();
+  }
+
+  async function seleccionarArchivo() {
     guardando = true;
     try {
-      const seleccion = await PuenteAlmacenamiento.seleccionarCarpeta();
+      const path = await PuenteAlmacenamiento.seleccionarArchivo();
+      if (path) await guardarRuta(path);
+    } catch (error) {
+      mostrarError(error);
+    } finally {
+      guardando = false;
+    }
+  }
 
-      if (seleccion) {
-        rutaCarpeta = seleccion;
-        await DB.guardarRutaSync(rutaCarpeta);
+  async function crearArchivo() {
+    guardando = true;
+    try {
+      const path = await PuenteAlmacenamiento.crearArchivo();
+      if (!path) return;
+      await invoke('guardar_archivo_sync', { archivo: path });
+      rutaArchivo = path;
+      const created = await FolderSyncService.create(path);
+      infoArchivo = created.info;
+      codigoNuevo = created.pairingCode;
+      codigoCopiado = false;
+      errorCopia = '';
+      versionLocal = created.info.version;
+      estadoArchivo = 'al_dia';
+      mensaje = 'Archivo creado y primera versión cifrada guardada (v1). Transfiere el código por un canal seguro.';
+    } catch (error) {
+      mostrarError(error);
+    } finally {
+      guardando = false;
+    }
+  }
+
+  async function revisarArchivo() {
+    if (!rutaArchivo) return;
+    estadoArchivo = 'esperando';
+    mensaje = 'Comprobando archivo y vínculo...';
+    try {
+      infoArchivo = await FolderSyncService.inspect(rutaArchivo);
+      const local = await invoke<{ version: number; digest: string }>('obtener_checkpoint_sync', {
+        fileId: infoArchivo.file_id
+      });
+      versionLocal = local.version;
+      if (versionLocal !== infoArchivo.version || local.digest !== infoArchivo.digest) {
+        mostrarError(new SyncConflictError(
+          infoArchivo.version,
+          versionLocal,
+          versionLocal === infoArchivo.version && local.digest !== infoArchivo.digest
+        ));
+      } else {
+        estadoArchivo = 'al_dia';
+        mensaje = `Archivo vinculado y actualizado (v${infoArchivo.version}).`;
       }
-    } catch (e) {
-      console.error(e);
-      alert(`No se pudo abrir el selector de carpetas: ${e}`);
+    } catch (error) {
+      if (error instanceof SyncLinkRequiredError) {
+        infoArchivo = error.fileInfo;
+        const local = await invoke<{ version: number; digest: string }>('obtener_checkpoint_sync', {
+          fileId: error.fileInfo.file_id
+        });
+        versionLocal = local.version;
+        estadoArchivo = 'vinculacion';
+        mensaje = error.message;
+      } else {
+        mostrarError(error);
+      }
+    }
+  }
+
+  async function vincularArchivo() {
+    const codigoNormalizado = normalizarCodigoVinculacion(codigoVinculacion);
+    if (!rutaArchivo || !codigoNormalizado) return;
+    guardando = true;
+    try {
+      infoArchivo = await FolderSyncService.link(rutaArchivo, codigoNormalizado);
+      codigoVinculacion = '';
+      await revisarArchivo();
+    } catch (error) {
+      mostrarError(error);
+    } finally {
+      guardando = false;
+    }
+  }
+
+  async function sincronizarAhora() {
+    if (!rutaArchivo) return;
+    guardando = true;
+    estadoArchivo = 'sincronizando';
+    syncStatus.set({ estado: 'sincronizando', mensaje: 'Sincronizando archivo compartido...', nubeDispositivo: '', nubeFecha: '' });
+    try {
+      const resultado = await FolderSyncService.sync(rutaArchivo);
+      infoArchivo = resultado;
+      versionLocal = infoArchivo.version;
+      estadoArchivo = 'al_dia';
+      mensaje = resultado.changed
+        ? `Sincronización completada (v${infoArchivo.version}).`
+        : `No hay cambios locales. El archivo compartido permanece en v${infoArchivo.version}.`;
+      codigoNuevo = '';
+      syncStatus.set({ estado: 'al_dia', mensaje: 'Archivo sincronizado', nubeDispositivo: '', nubeFecha: '' });
+    } catch (error) {
+      mostrarError(error);
+    } finally {
+      guardando = false;
+    }
+  }
+
+  async function restaurarArchivo() {
+    if (!rutaArchivo) return;
+    if (!confirm('¿Restaurar la base de datos desde el archivo compartido? Se reemplazarán los datos locales.')) return;
+    guardando = true;
+    const candadoYaActivo = guardandoMetadatosInternos;
+    try {
+      setCandadoSincronizacion(true);
+      try {
+        infoArchivo = await FolderSyncService.restore(rutaArchivo);
+      } finally {
+        setCandadoSincronizacion(candadoYaActivo);
+      }
+      versionLocal = infoArchivo.version;
+      alert(`Restauración completada desde la versión ${infoArchivo.version}.`);
+      window.location.reload();
+    } catch (error) {
+      mostrarError(error);
+    } finally {
+      guardando = false;
+    }
+  }
+
+  async function sobrescribirArchivo() {
+    if (!rutaArchivo) return;
+    if (!confirm('El archivo compartido será reemplazado por una nueva versión de la base local. ¿Confirmas la sobrescritura?')) return;
+    guardando = true;
+    estadoArchivo = 'sincronizando';
+    try {
+      const resultado = await FolderSyncService.sync(rutaArchivo, true);
+      infoArchivo = resultado;
+      versionLocal = infoArchivo.version;
+      estadoArchivo = 'al_dia';
+      mensaje = resultado.changed
+        ? `Sobrescritura confirmada. Archivo actualizado a v${infoArchivo.version}.`
+        : `No había cambios locales; el archivo compartido permanece en v${infoArchivo.version}.`;
+      syncStatus.set({ estado: 'al_dia', mensaje: 'Archivo sobrescrito con confirmación', nubeDispositivo: '', nubeFecha: '' });
+    } catch (error) {
+      mostrarError(error);
     } finally {
       guardando = false;
     }
   }
 
   async function desvincular() {
+<<<<<<< HEAD
     if (confirm("¿Desvincular esta carpeta? La app dejará de sincronizar aquí.")) {
       rutaCarpeta = null;
       await DB.guardarRutaSync(null);
@@ -153,191 +331,286 @@
     }
 }
 
+=======
+    if (!confirm('¿Dejar de usar este archivo en este dispositivo? El archivo compartido no se eliminará.')) return;
+    try {
+      await invoke('guardar_archivo_sync', { archivo: null });
+      rutaArchivo = null;
+      infoArchivo = null;
+      codigoNuevo = '';
+      codigoVinculacion = '';
+      estadoArchivo = 'inactivo';
+      mensaje = '';
+    } catch (error) {
+      mostrarError(error);
+    }
+  }
+
+  function mostrarError(error: unknown) {
+    if (error instanceof SyncConflictError) {
+      estadoArchivo = 'conflicto';
+      mensaje = `${error.message} Restaura la versión compartida o confirma una sobrescritura.`;
+      syncStatus.set({
+        estado: 'conflicto',
+        mensaje: error.message,
+        nubeDispositivo: 'Archivo compartido',
+        nubeFecha: ''
+      });
+      return;
+    }
+    if (error instanceof SyncLinkRequiredError) {
+      infoArchivo = error.fileInfo;
+      estadoArchivo = 'vinculacion';
+      mensaje = error.message;
+      return;
+    }
+    const text = error instanceof Error ? error.message : String(error);
+    estadoArchivo = 'error';
+    mensaje = text || 'No se pudo completar la operación de sincronización.';
+    syncStatus.set({ estado: 'error', mensaje: 'Error en archivo compartido', nubeDispositivo: '', nubeFecha: '' });
+  }
+>>>>>>> main
 </script>
 
 <Panel padding="20px" clasesExtra="cloud-panel sync-folder-panel">
-    <div class="cloud-header">
-        <div class="data-icon-wrapper purple"><FolderSync size={24} /></div>
-        <div class="data-content">
-            <div class="title-with-badge">
-                <h3>Carpeta de Sincronización</h3>
-                {#if rutaCarpeta}
-                    <span class="badge connected"><CheckCircle size={12}/> Vinculado</span>
-                {:else}
-                    <span class="badge disconnected"><AlertCircle size={12}/> Sin vincular</span>
-                {/if}
-            </div>
-            <p>Directorio raíz para compartir asambleas con el equipo.</p>
-        </div>
+  <div class="cloud-header">
+    <div class="data-icon-wrapper purple"><FolderSync size={24} /></div>
+    <div class="data-content">
+      <div class="title-with-badge">
+        <h3>Sincronización por archivo</h3>
+        {#if estadoArchivo === 'al_dia'}
+          <span class="badge connected"><CheckCircle size={12} /> Vinculado</span>
+        {:else if rutaArchivo}
+          <span class="badge disconnected"><AlertCircle size={12} /> {estadoArchivo === 'vinculacion' ? 'Vinculación requerida' : estadoArchivo}</span>
+        {:else}
+          <span class="badge disconnected"><AlertCircle size={12} /> Sin archivo</span>
+        {/if}
+      </div>
+      <p>Usa un archivo compartido por Google Drive o OneDrive. El archivo y el código deben vincularse en cada dispositivo.</p>
+    </div>
+  </div>
+
+  <div class="cloud-component-wrapper">
+    <div class="folder-input-group">
+      <div class="folder-path" class:vacio={!rutaArchivo}>
+        <span class="path-text">{rutaArchivo || 'Ningún archivo seleccionado...'}</span>
+      </div>
+      <button class="btn-data-action primary btn-sync" on:click={seleccionarArchivo} disabled={guardando}>
+        Seleccionar existente
+      </button>
+      <button class="btn-data-action primary btn-sync" on:click={crearArchivo} disabled={guardando}>
+        Crear archivo
+      </button>
+      {#if rutaArchivo}
+        <button class="btn-data-action danger-outline btn-sync" on:click={desvincular} disabled={guardando}>
+          Desvincular
+        </button>
+      {/if}
     </div>
 
-    <div class="cloud-component-wrapper">
-        <div class="folder-input-group">
-            <div class="folder-path" class:vacio={!rutaCarpeta}>
-                <span class="path-text">{rutaCarpeta || 'Ninguna carpeta seleccionada...'}</span>
-            </div>
-            
-            {#if !rutaCarpeta}
-                <button class="btn-data-action primary btn-sync" on:click={seleccionarCarpeta} disabled={guardando}>
-                    {guardando ? 'Guardando...' : 'Elegir Carpeta'}
-                </button>
+    <div class="aviso">
+      <Info size={14} /> La identidad, versión y contenido se autentican junto con el cifrado. No se sobrescribe una versión diferente sin confirmación.
+    </div>
+
+    {#if mensaje}
+      <p class="sync-message state-{estadoArchivo}" role="status">{mensaje}</p>
+    {/if}
+
+    {#if estadoArchivo === 'vinculacion'}
+      <div class="pairing">
+        <label for="pairing-code">Código de seguridad transferido desde el dispositivo vinculado</label>
+        <input
+          id="pairing-code"
+          value={codigoVinculacion}
+          on:input={(event) => (codigoVinculacion = normalizarCodigoVinculacion(event.currentTarget.value))}
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="RASM1:..."
+        />
+        <button class="btn-sync-moderno btn-sync-primario" on:click={vincularArchivo} disabled={guardando || !normalizarCodigoVinculacion(codigoVinculacion)}>
+          Vincular este archivo
+        </button>
+      </div>
+    {/if}
+
+    {#if codigoNuevo}
+      <div class="pairing">
+        <strong>Código de vinculación (guárdalo y compártelo fuera de la aplicación)</strong>
+        <div class="pairing-code-card">
+          <textarea readonly rows="3" on:focus={(event) => event.currentTarget.select()}>{formatearCodigoVinculacion(codigoNuevo)}</textarea>
+          <button
+            type="button"
+            class="btn-sync-moderno btn-copy-code"
+            on:click={copiarCodigo}
+            aria-label={codigoCopiado ? 'Código copiado' : 'Copiar código de vinculación'}
+          >
+            {#if codigoCopiado}
+              <Check size={16} /> Copiado
             {:else}
-                <button class="btn-data-action danger-outline btn-sync" on:click={desvincular}>
-                    Desvincular
-                </button>
+              <Copy size={16} /> Copiar código
             {/if}
+          </button>
         </div>
-        
-        <div class="aviso">
-            <Info size={14}/> Esta carpeta servirá como puente seguro (Drive/OneDrive) entre tus dispositivos.
-        </div>
+        {#if errorCopia}
+          <span class="copy-error" role="status">{errorCopia}</span>
+        {:else if codigoCopiado}
+          <span class="copy-success" role="status">Código copiado al portapapeles.</span>
+        {/if}
+      </div>
+    {/if}
 
-        <div class="acciones-sync">
-
-             <button class="btn-sync-moderno btn-sync-primario" on:click={sincronizarAhora} disabled={!rutaCarpeta || guardando}>
-                 {guardando ? 'Sincronizando...' : '🔄 Sincronizar Ahora'}
-             </button>
-
-             <button class="btn-sync-moderno btn-sync-outline" on:click={importarSincronizacion} disabled={!rutaCarpeta || guardando}>
-                 📥 Restaurar Manual
-             </button>
-             
-        </div>
-
-    </div>
+    {#if rutaArchivo && estadoArchivo !== 'vinculacion'}
+      <div class="acciones-sync">
+        <button class="btn-sync-moderno btn-sync-primario" on:click={sincronizarAhora} disabled={guardando || estadoArchivo === 'conflicto'}>
+          {guardando ? 'Sincronizando...' : 'Sincronizar ahora'}
+        </button>
+        <button class="btn-sync-moderno btn-sync-outline" on:click={revisarArchivo} disabled={guardando}>
+          Comprobar archivo
+        </button>
+        {#if estadoArchivo === 'conflicto'}
+          <button class="btn-sync-moderno btn-sync-outline" on:click={restaurarArchivo} disabled={guardando}>
+            Restaurar versión compartida
+          </button>
+          <button class="btn-sync-moderno btn-sync-danger" on:click={sobrescribirArchivo} disabled={guardando}>
+            Confirmar sobrescritura
+          </button>
+        {/if}
+      </div>
+    {/if}
+  </div>
 </Panel>
 
 <style>
-  /* Nota: Las clases .cloud-panel, .cloud-header, .data-icon-wrapper, .purple, 
-    .data-content y .btn-data-action las hereda globalmente desde Datos.svelte.
-    Aquí solo ponemos los estilos específicos de este componente. 
-  */
-
-  /* PON ESTO (Con :global y !important para forzarlo) */
   :global(.sync-folder-panel) {
-      margin-bottom: 20px !important;
-      max-width: 800px !important;
-      width: 100% !important;
+    margin-bottom: 20px !important;
+    max-width: 800px !important;
+    width: 100% !important;
   }
 
-  .title-with-badge {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-  }
-
-  .badge { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-  .connected { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
-  .disconnected { background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
-
-  .folder-input-group { 
-      display: flex; 
-      gap: 15px; 
-      margin-bottom: 12px; 
-      align-items: center;
-  }
-  
-  .folder-path { 
-      flex: 1; 
-      display: flex; 
-      align-items: center; 
-      padding: 12px 15px; 
-      background: var(--input-bg, #f8fafc); 
-      border: 1px solid var(--border-color, #e2e8f0); 
-      border-radius: 8px; 
-      font-family: monospace; 
-      font-size: 13px; 
-      overflow: hidden; 
+  .title-with-badge { display: flex; align-items: center; gap: 12px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .connected { background: rgba(16, 185, 129, 0.12); color: #0f9f75; border: 1px solid rgba(16, 185, 129, 0.22); }
+  .disconnected { background: rgba(148, 163, 184, 0.12); color: #54657d; border: 1px solid rgba(148, 163, 184, 0.2); }
+  .folder-input-group { display: flex; gap: 10px; margin: 16px 0 12px; align-items: center; flex-wrap: wrap; }
+  .folder-path {
+    flex: 1; min-width: 240px;
+    display: flex; align-items: center;
+    padding: 12px 14px;
+    background: rgba(148, 163, 184, 0.04);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 13px;
+    min-height: 46px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
   }
   .path-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-main); }
   .folder-path.vacio .path-text { color: var(--text-muted, #94a3b8); }
-
-  /* Adaptación de los botones al estilo de Datos.svelte */
-  .btn-sync { padding: 12px 24px; white-space: nowrap; }
-  
-  .danger-outline { 
-      background: transparent; 
-      color: #ef4444; 
-      border: 1px solid #fecaca; 
+  .btn-sync {
+    padding: 11px 16px; white-space: nowrap;
+    border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.3);
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    color: #3730a3;
+    font-weight: 700; transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.08);
   }
-  .danger-outline:hover { 
-      background: #fee2e2; 
-      transform: translateY(-1px);
+  .btn-sync:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 16px rgba(79, 70, 229, 0.16);
   }
-
-  .aviso { 
-      display: flex; 
-      gap: 8px; 
-      align-items: center; 
-      font-size: 12.5px; 
-      color: var(--text-secondary, #64748b); 
-      background: rgba(100, 116, 139, 0.05);
-      padding: 10px 15px;
-      border-radius: 6px;
+  .danger-outline {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+    color: #be123c;
+    border-color: rgba(244, 63, 94, 0.22);
   }
-
-  /* Contenedor de los botones */
-  .acciones-sync {
-      margin-top: 20px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      align-items: center;
+  .aviso {
+    display: flex; gap: 8px; align-items: center;
+    font-size: 12.5px; color: var(--text-secondary, #64748b);
+    background: rgba(59, 130, 246, 0.04);
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(59, 130, 246, 0.1);
   }
-
-  /* Estilo base para los botones modernos de sincronización */
+  .sync-message { margin: 12px 0; font-size: 13px; color: var(--text-main); }
+  .state-error { color: #dc2626; }
+  .state-conflicto { color: #b45309; }
+  .pairing {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+  }
+  .pairing label,
+  .pairing strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .pairing input, .pairing textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(255, 255, 255, 0.42);
+    color: var(--text-main);
+    border-radius: 10px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.04);
+  }
+  .pairing textarea { resize: vertical; min-height: 72px; }
+  .pairing-code-card {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid rgba(99, 102, 241, 0.16);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(238, 242, 255, 0.55), rgba(250, 245, 255, 0.72));
+  }
+  .pairing-code-card textarea {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .btn-copy-code {
+    align-self: center;
+    flex: 0 0 auto;
+    background: linear-gradient(135deg, #0f9f8f 0%, #0e7490 100%);
+    color: #fff;
+    box-shadow: 0 7px 15px rgba(14, 116, 144, 0.2);
+  }
+  .btn-copy-code:hover { box-shadow: 0 9px 18px rgba(14, 116, 144, 0.28); }
+  .copy-success { color: #0f9f75; font-size: 12px; }
+  .copy-error { color: #dc2626; font-size: 12px; }
+  .acciones-sync { margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; align-items: center; flex-wrap: wrap; }
   .btn-sync-moderno {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: 1px solid transparent;
-      outline: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 11px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; border: 1px solid transparent; transition: all 0.2s ease;
   }
-
-  .btn-sync-moderno:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none !important;
-  }
-
-  /* Botón Primario (Sincronizar Ahora) - Estilo sólido elegante */
+  .btn-sync-moderno:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-sync-moderno:disabled { opacity: 0.6; cursor: not-allowed; }
   .btn-sync-primario {
-      background: #4f46e5; /* O el color primario de tu paleta (ej. var(--primary, #4f46e5)) */
-      color: #ffffff;
-      box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+    background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+    color: #fff;
+    box-shadow: 0 10px 18px rgba(79, 70, 229, 0.22);
   }
-
-  .btn-sync-primario:hover:not(:disabled) {
-      background: #4338ca;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
-  }
-
-  /* Botón de Contorno (Restaurar Manual) - Limpio y sutil */
   .btn-sync-outline {
-      background: transparent;
-      color: #475569;
-      border-color: #cbd5e1;
+    background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+    color: #4338ca;
+    border-color: rgba(99, 102, 241, 0.2);
+    box-shadow: 0 5px 12px rgba(79, 70, 229, 0.08);
   }
-
-  .btn-sync-outline:hover:not(:disabled) {
-      background: #f1f5f9;
-      color: #0f172a;
-      border-color: #94a3b8;
-      transform: translateY(-1px);
+  .btn-sync-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: #fff;
+    box-shadow: 0 8px 16px rgba(185, 28, 28, 0.2);
   }
-
-  /* Responsive específico para este bloque */
-  @media (max-width: 600px) {
-      .title-with-badge { flex-direction: column; align-items: center; gap: 5px; }
-      .folder-input-group { flex-direction: column; gap: 10px; }
-      .folder-path { width: 100%; box-sizing: border-box; }
-      .btn-sync { width: 100%; }
+  @media (max-width: 560px) {
+    .pairing-code-card { flex-direction: column; }
+    .btn-copy-code { width: 100%; }
   }
 </style>

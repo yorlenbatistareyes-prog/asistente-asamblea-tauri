@@ -295,28 +295,28 @@
       "type": "string",
       "oneOf": [
         {
-          "description": "Enables the elegirCarpeta command without any pre-configured scope.",
+          "description": "Enables the createSyncFile command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-elegirCarpeta",
-          "markdownDescription": "Enables the elegirCarpeta command without any pre-configured scope."
+          "const": "allow-createSyncFile",
+          "markdownDescription": "Enables the createSyncFile command without any pre-configured scope."
         },
         {
-          "description": "Denies the elegirCarpeta command without any pre-configured scope.",
+          "description": "Denies the createSyncFile command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-elegirCarpeta",
-          "markdownDescription": "Denies the elegirCarpeta command without any pre-configured scope."
+          "const": "deny-createSyncFile",
+          "markdownDescription": "Denies the createSyncFile command without any pre-configured scope."
         },
         {
-          "description": "Enables the escribirArchivo command without any pre-configured scope.",
+          "description": "Enables the getSyncKey command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-escribirArchivo",
-          "markdownDescription": "Enables the escribirArchivo command without any pre-configured scope."
+          "const": "allow-getSyncKey",
+          "markdownDescription": "Enables the getSyncKey command without any pre-configured scope."
         },
         {
-          "description": "Denies the escribirArchivo command without any pre-configured scope.",
+          "description": "Denies the getSyncKey command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-escribirArchivo",
-          "markdownDescription": "Denies the escribirArchivo command without any pre-configured scope."
+          "const": "deny-getSyncKey",
+          "markdownDescription": "Denies the getSyncKey command without any pre-configured scope."
         },
         {
           "description": "Enables the guardarContenidoBase64 command without any pre-configured scope.",
@@ -329,18 +329,6 @@
           "type": "string",
           "const": "deny-guardarContenidoBase64",
           "markdownDescription": "Denies the guardarContenidoBase64 command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the leerArchivo command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-leerArchivo",
-          "markdownDescription": "Enables the leerArchivo command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the leerArchivo command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-leerArchivo",
-          "markdownDescription": "Denies the leerArchivo command without any pre-configured scope."
         },
         {
           "description": "Enables the leerContenidoBase64 command without any pre-configured scope.",
@@ -367,16 +355,52 @@
           "markdownDescription": "Denies the obtenerNombreArchivo command without any pre-configured scope."
         },
         {
-          "description": "Enables the validarCarpeta command without any pre-configured scope.",
+          "description": "Enables the pickSyncFile command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-validarCarpeta",
-          "markdownDescription": "Enables the validarCarpeta command without any pre-configured scope."
+          "const": "allow-pickSyncFile",
+          "markdownDescription": "Enables the pickSyncFile command without any pre-configured scope."
         },
         {
-          "description": "Denies the validarCarpeta command without any pre-configured scope.",
+          "description": "Denies the pickSyncFile command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-validarCarpeta",
-          "markdownDescription": "Denies the validarCarpeta command without any pre-configured scope."
+          "const": "deny-pickSyncFile",
+          "markdownDescription": "Denies the pickSyncFile command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the readSyncFile command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-readSyncFile",
+          "markdownDescription": "Enables the readSyncFile command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the readSyncFile command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-readSyncFile",
+          "markdownDescription": "Denies the readSyncFile command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the saveSyncKey command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-saveSyncKey",
+          "markdownDescription": "Enables the saveSyncKey command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the saveSyncKey command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-saveSyncKey",
+          "markdownDescription": "Denies the saveSyncKey command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the writeSyncFile command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-writeSyncFile",
+          "markdownDescription": "Enables the writeSyncFile command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the writeSyncFile command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-writeSyncFile",
+          "markdownDescription": "Denies the writeSyncFile command without any pre-configured scope."
         }
       ]
     }

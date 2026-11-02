@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-createSyncFile"
+description = "Enables the createSyncFile command without any pre-configured scope."
+commands.allow = ["createSyncFile"]
+
+[[permission]]
+identifier = "deny-createSyncFile"
+description = "Denies the createSyncFile command without any pre-configured scope."
+commands.deny = ["createSyncFile"]

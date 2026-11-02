@@ -29,7 +29,8 @@
     iniciarRadarCarpeta, // 🔥 NUEVO
     detenerRadarCarpeta, // 🔥 NUEVO
     descargarDatos,
-    resetearEstadoSincronizacion 
+    sobrescribirArchivoCompartido,
+    resetearEstadoSincronizacion
 } from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
@@ -178,6 +179,15 @@
       }
   }
 
+  async function resolverSobrescrituraArchivo() {
+      if (!confirm('El archivo compartido contiene otra versión. ¿Confirmas reemplazarla con los datos locales?')) return;
+      try {
+          await sobrescribirArchivoCompartido();
+      } catch (e) {
+          alert("No se pudo sobrescribir el archivo compartido: " + e);
+      }
+  }
+
   // 🔥 NUEVA FUNCIÓN PARA CERRAR EL MODAL
   function ignorarConflicto() {
       resetearEstadoSincronizacion();
@@ -248,6 +258,10 @@
                             <CheckCircle size={16} /> <span class="badge-text">Al día</span>
                         {:else if $syncStatus.estado === 'error'}
                             <CloudOff size={16} /> <span class="badge-text">Error</span>
+                        {:else if $syncStatus.estado === 'conflicto'}
+                            <AlertTriangle size={16} /> <span class="badge-text">Conflicto</span>
+                        {:else if $syncStatus.estado === 'vinculacion'}
+                            <AlertTriangle size={16} /> <span class="badge-text">Vinculación</span>
                         {/if}
 
                     </div>
@@ -297,20 +311,33 @@
                 </div>
                 
                 <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
-                    <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
-                    <p>¿Deseas descargar y aplicar estos cambios ahora mismo?</p>
+                    {#if $syncStatus.nubeDispositivo === 'Archivo compartido'}
+                        <p>{$syncStatus.mensaje}</p>
+                        <p>No se realizará ninguna subida automática hasta que resuelvas este conflicto.</p>
+                        <p><strong>Restaurar</strong> actualiza solo este dispositivo y no modifica el archivo compartido. Los demás dispositivos podrán descargar esta misma versión.</p>
+                    {:else}
+                        <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
+                        <p>¿Deseas descargar y aplicar estos cambios ahora mismo?</p>
+                    {/if}
                 </div>
 
-                <!-- 🔥 Nuevos botones con opción de ignorar -->
                 <div style="display: flex; gap: 10px; margin-top: 5px;">
-                    <button on:click={ignorarConflicto} style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-sec); font-weight: bold; cursor: pointer;">
-                        Ignorar por ahora
-                    </button>
-
-                <!-- Botón directo de descarga en lugar de navegar -->
-                <button class="btn-blue" on:click={resolverConflictoDirecto}>
-                    <DownloadCloud size={18} /> Descargar cambios ahora
-                </button>
+                    {#if $syncStatus.nubeDispositivo === 'Archivo compartido'}
+                        <button class="btn-blue" on:click={resolverConflictoDirecto}>
+                            <DownloadCloud size={18} /> Restaurar versión compartida
+                        </button>
+                        <button class="btn-blue" on:click={resolverSobrescrituraArchivo}>
+                            <Upload size={18} /> Confirmar sobrescritura
+                        </button>
+                    {:else}
+                        <button on:click={ignorarConflicto} style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-sec); font-weight: bold; cursor: pointer;">
+                            Ignorar por ahora
+                        </button>
+                        <button class="btn-blue" on:click={resolverConflictoDirecto}>
+                            <DownloadCloud size={18} /> Descargar cambios ahora
+                        </button>
+                    {/if}
+                </div>
             </Panel>
           </div>
         {/if}

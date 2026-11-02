@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-pickSyncFile"
+description = "Enables the pickSyncFile command without any pre-configured scope."
+commands.allow = ["pickSyncFile"]
+
+[[permission]]
+identifier = "deny-pickSyncFile"
+description = "Denies the pickSyncFile command without any pre-configured scope."
+commands.deny = ["pickSyncFile"]

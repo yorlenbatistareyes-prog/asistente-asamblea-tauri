@@ -11,6 +11,7 @@
     cargarPlantillasWhatsApp,
     guardarPlantillaWhatsApp 
   } from '$lib/utils/plantillasWhatsApp';
+  import { sanitizarHtml } from '$lib/utils/sanitizarHtml';
   
   // --- TIP TAP ---
   import Panel from '$lib/components/ui/Panel.svelte';

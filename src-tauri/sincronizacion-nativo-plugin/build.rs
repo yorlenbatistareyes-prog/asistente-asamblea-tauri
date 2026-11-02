@@ -1,12 +1,11 @@
 ﻿fn main() {
     tauri_plugin::Builder::new(&[
-        "elegirCarpeta",
-        "escribirArchivo",
-        "leerArchivo",
-        "validarCarpeta",
-        "guardarContenidoBase64",
-        "leerContenidoBase64",
-        "obtenerNombreArchivo",
+        "pickSyncFile",
+        "createSyncFile",
+        "readSyncFile",
+        "writeSyncFile",
+        "saveSyncKey",
+        "getSyncKey",
     ])
         .android_path("android")
         .try_build()

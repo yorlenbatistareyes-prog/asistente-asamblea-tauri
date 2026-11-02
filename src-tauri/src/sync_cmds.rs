@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection, MappedRows, Result, Row};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -153,25 +153,25 @@ pub struct BackupData {
 
 #[tauri::command]
 pub fn obtener_last_sync_local(db_state: State<DbState>) -> Result<Option<String>, String> {
-    let conn = db_state.conn.lock().unwrap();
-    let _ = conn.execute(
-        "ALTER TABLE configuracion ADD COLUMN last_synced_at TEXT",
-        [],
-    );
+    let conn = db_state
+        .conn
+        .lock()
+        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
     let mut stmt = conn
         .prepare("SELECT last_synced_at FROM configuracion WHERE id = 1")
         .map_err(|e| e.to_string())?;
-    let fecha: Option<String> = stmt.query_row([], |row| row.get(0)).unwrap_or(None);
+    let fecha: Option<String> = stmt
+        .query_row([], |row| row.get(0))
+        .map_err(|e| format!("No se pudo leer la versión de sincronización local: {e}"))?;
     Ok(fecha)
 }
 
 #[tauri::command]
 pub fn actualizar_last_sync_local(fecha: String, db_state: State<DbState>) -> Result<(), String> {
-    let conn = db_state.conn.lock().unwrap();
-    let _ = conn.execute(
-        "ALTER TABLE configuracion ADD COLUMN last_synced_at TEXT",
-        [],
-    );
+    let conn = db_state
+        .conn
+        .lock()
+        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
     conn.execute(
         "UPDATE configuracion SET last_synced_at = ?1 WHERE id = 1",
         params![fecha],
@@ -186,21 +186,39 @@ pub fn actualizar_last_sync_local(fecha: String, db_state: State<DbState>) -> Re
 
 #[tauri::command]
 pub fn exportar_db_json(db_state: State<DbState>) -> Result<String, String> {
-    let conn = db_state.conn.lock().unwrap();
+    let mut conn = db_state
+        .conn
+        .lock()
+        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
+    let tx = conn.transaction().map_err(|_| {
+        "No se pudo iniciar una lectura consistente de la base de datos.".to_string()
+    })?;
+    let backup = construir_backup(&tx)?;
+    let serialized = serde_json::to_string(&backup)
+        .map_err(|_| "No se pudo serializar la instantánea.".to_string())?;
+    tx.commit()
+        .map_err(|_| "No se pudo finalizar la lectura de la base de datos.".to_string())?;
+    Ok(serialized)
+}
 
+pub(crate) fn preparar_backup(conn: &Connection) -> Result<String, String> {
+    let backup = construir_backup(conn)?;
+    serde_json::to_string(&backup).map_err(|_| "No se pudo serializar la instantánea.".to_string())
+}
+
+fn construir_backup(conn: &Connection) -> Result<BackupData, String> {
     let backup = BackupData {
-        asambleas: extraer_asambleas(&conn)?,
-        locales: extraer_locales(&conn)?,
-        congregaciones: extraer_congregaciones(&conn)?,
-        personas: extraer_personas(&conn)?,
-        programa: extraer_programa(&conn)?,
-        asignaciones: extraer_asignaciones(&conn)?,
-        plantillas_cartas: extraer_plantillas_cartas(&conn)?,
-        plantillas_email: extraer_plantillas_email(&conn)?,
-        configuracion: extraer_configuracion(&conn)?,
+        asambleas: extraer_asambleas(conn)?,
+        locales: extraer_locales(conn)?,
+        congregaciones: extraer_congregaciones(conn)?,
+        personas: extraer_personas(conn)?,
+        programa: extraer_programa(conn)?,
+        asignaciones: extraer_asignaciones(conn)?,
+        plantillas_cartas: extraer_plantillas_cartas(conn)?,
+        plantillas_email: extraer_plantillas_email(conn)?,
+        configuracion: extraer_configuracion(conn)?,
     };
-
-    serde_json::to_string(&backup).map_err(|e| format!("Error serializando: {}", e))
+    Ok(backup)
 }
 
 // ==========================================
@@ -209,14 +227,24 @@ pub fn exportar_db_json(db_state: State<DbState>) -> Result<String, String> {
 
 #[tauri::command]
 pub fn importar_db_json(json_data: String, db_state: State<DbState>) -> Result<(), String> {
-    let mut conn = db_state.conn.lock().unwrap();
+    let mut conn = db_state
+        .conn
+        .lock()
+        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
+    let tx = conn
+        .transaction()
+        .map_err(|_| "No se pudo iniciar la restauración de la base de datos.".to_string())?;
+    importar_backup_en_transaccion(&tx, &json_data)?;
+    tx.commit()
+        .map_err(|_| "No se pudo finalizar la restauración de la base de datos.".to_string())
+}
+
+pub(crate) fn importar_backup_en_transaccion(
+    tx: &rusqlite::Transaction<'_>,
+    json_data: &str,
+) -> Result<(), String> {
     let backup: BackupData = serde_json::from_str(&json_data)
         .map_err(|e| format!("Error deserializando JSON: {}", e))?;
-
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-
-    tx.execute("PRAGMA foreign_keys = OFF;", [])
-        .map_err(|e| e.to_string())?;
 
     // Vaciamos TODO
     tx.execute("DELETE FROM asignaciones_especiales", [])
@@ -282,10 +310,6 @@ pub fn importar_db_json(json_data: String, db_state: State<DbState>) -> Result<(
         tx.execute("INSERT INTO asignaciones_especiales (id, asamblea_id, dia, fecha, tipo_asignacion, persona_id, estado, esta_presente, ensayo_terminado) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)", params![asig.id, asig.asamblea_id, asig.dia, asig.fecha, asig.tipo_asignacion, asig.persona_id, asig.estado, asig.esta_presente, asig.ensayo_terminado]).map_err(|e| e.to_string())?;
     }
 
-    tx.execute("PRAGMA foreign_keys = ON;", [])
-        .map_err(|e| e.to_string())?;
-    tx.commit().map_err(|e| e.to_string())?;
-
     Ok(())
 }
 
@@ -293,11 +317,7 @@ pub fn importar_db_json(json_data: String, db_state: State<DbState>) -> Result<(
 // 5. HELPERS PARA EXTRAER DATOS
 // ==========================================
 fn extraer_configuracion(conn: &Connection) -> Result<Vec<ConfiguracionSync>, String> {
-    let _ = conn.execute(
-        "ALTER TABLE configuracion ADD COLUMN last_synced_at TEXT",
-        [],
-    ); // Seguro
-    let mut stmt = conn.prepare("SELECT id, nombre, segundo_nombre, apellido, sufijo, email, email_jwpub, movil, identificador, fecha_creacion, tema, idioma, last_synced_at FROM configuracion").unwrap();
+    let mut stmt = conn.prepare("SELECT id, nombre, segundo_nombre, apellido, sufijo, email, email_jwpub, movil, identificador, fecha_creacion, tema, idioma, last_synced_at FROM configuracion").map_err(|e| format!("No se pudo leer la configuración para sincronizar: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(ConfiguracionSync {
@@ -316,14 +336,14 @@ fn extraer_configuracion(conn: &Connection) -> Result<Vec<ConfiguracionSync>, St
                 last_synced_at: row.get(12)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudo recorrer la configuración para sincronizar: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_plantillas_cartas(conn: &Connection) -> Result<Vec<PlantillaCartaSync>, String> {
     let mut stmt = conn
         .prepare("SELECT id, contenido_html FROM plantillas_cartas")
-        .unwrap();
+        .map_err(|e| format!("No se pudieron leer las plantillas de cartas: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(PlantillaCartaSync {
@@ -331,14 +351,14 @@ fn extraer_plantillas_cartas(conn: &Connection) -> Result<Vec<PlantillaCartaSync
                 contenido_html: row.get(1)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer las plantillas de cartas: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_plantillas_email(conn: &Connection) -> Result<Vec<PlantillaEmailSync>, String> {
     let mut stmt = conn
         .prepare("SELECT id, asunto, cuerpo FROM plantillas_email")
-        .unwrap();
+        .map_err(|e| format!("No se pudieron leer las plantillas de correo: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(PlantillaEmailSync {
@@ -347,12 +367,14 @@ fn extraer_plantillas_email(conn: &Connection) -> Result<Vec<PlantillaEmailSync>
                 cuerpo: row.get(2)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer las plantillas de correo: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_asambleas(conn: &Connection) -> Result<Vec<AsambleaSync>, String> {
-    let mut stmt = conn.prepare("SELECT * FROM asambleas").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM asambleas")
+        .map_err(|e| format!("No se pudieron leer las asambleas: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(AsambleaSync {
@@ -382,12 +404,14 @@ fn extraer_asambleas(conn: &Connection) -> Result<Vec<AsambleaSync>, String> {
                 bautismo_aux_id: row.get(23)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer las asambleas: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_locales(conn: &Connection) -> Result<Vec<LocalSync>, String> {
-    let mut stmt = conn.prepare("SELECT * FROM locales").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM locales")
+        .map_err(|e| format!("No se pudieron leer los locales: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(LocalSync {
@@ -399,12 +423,14 @@ fn extraer_locales(conn: &Connection) -> Result<Vec<LocalSync>, String> {
                 capacidad: row.get(5)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer los locales: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_congregaciones(conn: &Connection) -> Result<Vec<CongregacionSync>, String> {
-    let mut stmt = conn.prepare("SELECT * FROM congregaciones").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM congregaciones")
+        .map_err(|e| format!("No se pudieron leer las congregaciones: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(CongregacionSync {
@@ -415,12 +441,14 @@ fn extraer_congregaciones(conn: &Connection) -> Result<Vec<CongregacionSync>, St
                 numero_congregacion: row.get(4)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer las congregaciones: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_personas(conn: &Connection) -> Result<Vec<PersonaSync>, String> {
-    let mut stmt = conn.prepare("SELECT * FROM personas").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM personas")
+        .map_err(|e| format!("No se pudieron leer las personas: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(PersonaSync {
@@ -435,12 +463,14 @@ fn extraer_personas(conn: &Connection) -> Result<Vec<PersonaSync>, String> {
                 email: row.get(8)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer las personas: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_programa(conn: &Connection) -> Result<Vec<ProgramaSync>, String> {
-    let mut stmt = conn.prepare("SELECT * FROM programa").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM programa")
+        .map_err(|e| format!("No se pudo leer el programa: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(ProgramaSync {
@@ -464,14 +494,14 @@ fn extraer_programa(conn: &Connection) -> Result<Vec<ProgramaSync>, String> {
                 es_visitante: row.get(17)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudo recorrer el programa: {e}"))?;
+    collect_rows(map_iter)
 }
 
 fn extraer_asignaciones(conn: &Connection) -> Result<Vec<AsignacionSync>, String> {
     let mut stmt = conn
         .prepare("SELECT * FROM asignaciones_especiales")
-        .unwrap();
+        .map_err(|e| format!("No se pudieron leer las asignaciones: {e}"))?;
     let map_iter = stmt
         .query_map([], |row| {
             Ok(AsignacionSync {
@@ -486,8 +516,16 @@ fn extraer_asignaciones(conn: &Connection) -> Result<Vec<AsignacionSync>, String
                 ensayo_terminado: row.get(8)?,
             })
         })
-        .unwrap();
-    Ok(map_iter.filter_map(Result::ok).collect())
+        .map_err(|e| format!("No se pudieron recorrer las asignaciones: {e}"))?;
+    collect_rows(map_iter)
+}
+
+fn collect_rows<T, F>(rows: MappedRows<'_, F>) -> Result<Vec<T>, String>
+where
+    F: FnMut(&Row<'_>) -> rusqlite::Result<T>,
+{
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("No se pudo completar una lectura consistente para sincronizar: {e}"))
 }
 
 // ==========================================

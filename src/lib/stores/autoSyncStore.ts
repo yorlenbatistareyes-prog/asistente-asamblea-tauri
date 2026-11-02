@@ -3,11 +3,15 @@ import { SyncService } from '$lib/services/syncService';
 import { DbSyncHelper } from '$lib/services/dbSyncHelper';
 import { sesionApp } from './authStore'; 
 import { invoke } from '@tauri-apps/api/core';
+<<<<<<< HEAD
 import { PuenteAlmacenamiento } from '$lib/services/puenteAlmacenamiento';
 import { obtenerOCrearLlave } from '$lib/utils/seguridad';
 import { relaunch } from '@tauri-apps/plugin-process';
+=======
+import { FolderSync, SyncConflictError, SyncLinkRequiredError } from '$lib/services/folderSync';
+>>>>>>> main
 
-export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'error';
+export type SyncState = 'inactivo' | 'esperando' | 'sincronizando' | 'al_dia' | 'conflicto' | 'vinculacion' | 'error';
 
 // 🔒 CANDADO ANTI-ECO: Evita que la sync reaccione a sus propios guardados
 export let guardandoMetadatosInternos = false;
@@ -159,38 +163,17 @@ async function ejecutarSincronizacionCarpetaLocal() {
     let candadoActivo = false;
 
     try {
-        const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
-        if (!rutaCarpeta) return; 
+        const archivo = await invoke<string | null>('obtener_archivo_sync');
+        if (!archivo) return;
 
-        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Sincronizando carpeta...' }));
-
-        const llave = await obtenerOCrearLlave();
-        const paqueteCifrado = await invoke<string>('exportar_db_binaria_encriptada', {
-            llaveBase64: llave
-        });
-
-        setCandadoSincronizacion(true);
-        candadoActivo = true;
-        await PuenteAlmacenamiento.escribirArchivo(rutaCarpeta, paqueteCifrado);
-
-        // 🔥 NUEVO: Matar el "eco" en el guardado automático
-        try {
-            const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
-            if (metadatos) {
-                await DbSyncHelper.actualizarFechaSincronizacion(metadatos.toISOString());
-            }
-        } catch (e) {
-            console.error("Fallo al actualizar fecha tras auto-sync:", e);
-        }
-
-        setTimeout(() => {
-            setCandadoSincronizacion(false);
-        }, 2000);
-        candadoActivo = false;
+        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Sincronizando archivo compartido...' }));
+        const info = await FolderSync.sync(archivo);
 
         syncStatus.set({
             estado: 'al_dia',
-            mensaje: '¡Carpeta sincronizada!',
+            mensaje: info.changed
+                ? `Archivo sincronizado (v${info.version})`
+                : `Sin cambios locales; archivo compartido en v${info.version}`,
             nubeDispositivo: '',
             nubeFecha: ''
         });
@@ -200,13 +183,31 @@ async function ejecutarSincronizacionCarpetaLocal() {
         }, 3000);
 
     } catch (error) {
-        console.error("❌ [CarpetaSync] Error al sincronizar en la carpeta local:", error);
-        if (candadoActivo) setCandadoSincronizacion(false);
-        const detalle = error instanceof Error ? error.message : String(error);
-        syncStatus.update(s => ({ 
-            ...s, 
-            estado: 'error', 
-            mensaje: `Error en carpeta local: ${detalle}`
+        actualizarEstadoErrorCarpeta(error);
+    }
+}
+
+function actualizarEstadoErrorCarpeta(error: unknown) {
+    if (error instanceof SyncConflictError) {
+        syncStatus.set({
+            estado: 'conflicto',
+            mensaje: `Conflicto: archivo v${error.remoteVersion}, dispositivo v${error.localVersion}.`,
+            nubeDispositivo: 'Archivo compartido',
+            nubeFecha: ''
+        });
+        detenerRadarCarpeta();
+    } else if (error instanceof SyncLinkRequiredError) {
+        syncStatus.set({
+            estado: 'vinculacion',
+            mensaje: error.message,
+            nubeDispositivo: '',
+            nubeFecha: ''
+        });
+    } else {
+        syncStatus.update(s => ({
+            ...s,
+            estado: 'error',
+            mensaje: 'No se pudo sincronizar el archivo. Comprueba el formato y los permisos.'
         }));
     }
 }
@@ -225,33 +226,36 @@ let radarCarpetaInterval: ReturnType<typeof setInterval> | null = null;
 export function iniciarRadarCarpeta() {
     if (radarCarpetaInterval) return;
 
-    radarCarpetaInterval = setInterval(async () => {
+    const comprobarArchivoCompartido = async () => {
         try {
-            const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
-            if (!rutaCarpeta) return;
-
-            const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
-            if (!metadatos) return;
-
-            const tiempoCarpeta = metadatos.getTime();
-            const fechaLocalStr = await DbSyncHelper.obtenerFechaUltimaSincronizacion();
-            const tiempoLocal = fechaLocalStr ? new Date(fechaLocalStr).getTime() : 0;
-
-            if (tiempoCarpeta > (tiempoLocal + 2000)) {
-                if (guardandoMetadatosInternos) return;
-
+            const archivo = await invoke<string | null>('obtener_archivo_sync');
+            if (!archivo || guardandoMetadatosInternos) return;
+            const info = await FolderSync.inspect(archivo);
+            const local = await invoke<{ version: number; digest: string }>('obtener_checkpoint_sync', {
+                fileId: info.file_id
+            });
+            if (info.version !== local.version || (local.digest !== '' && local.digest !== info.digest)) {
+                actualizarEstadoErrorCarpeta(new SyncConflictError(
+                    info.version,
+                    local.version,
+                    info.version === local.version && local.digest !== info.digest
+                ));
+            } else if (get(syncStatus).estado === 'vinculacion' || get(syncStatus).estado === 'conflicto') {
                 syncStatus.set({
-                    estado: 'conflicto',
-                    mensaje: 'Hay datos nuevos en la carpeta compartida.',
-                    nubeDispositivo: 'Carpeta en la nube',
-                    nubeFecha: new Date(tiempoCarpeta).toISOString()
+                    estado: 'al_dia',
+                    mensaje: `Archivo compartido actualizado (v${info.version}).`,
+                    nubeDispositivo: '',
+                    nubeFecha: ''
                 });
-
-                detenerRadarCarpeta();
             }
-        } catch (e) {
-            // Silencio total en producción
+        } catch (error) {
+            actualizarEstadoErrorCarpeta(error);
         }
+    };
+
+    void comprobarArchivoCompartido();
+    radarCarpetaInterval = setInterval(() => {
+        void comprobarArchivoCompartido();
     }, 15000);
 }
 
@@ -313,34 +317,15 @@ export async function descargarDatos() {
         const esAndroid = /android/i.test(navigator.userAgent);
         let esPaqueteBinario = false;
 
-        // 👉 ¿EL CONFLICTO VINO DE LA CARPETA?
-        if (estadoActual.nubeDispositivo === 'Carpeta en la nube') {
-            const rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
-            if (!rutaCarpeta) throw new Error("No hay carpeta configurada.");
-            
-            const paqueteCifrado = await PuenteAlmacenamiento.leerArchivo(rutaCarpeta);
-            const llave = await obtenerOCrearLlave();
-
-            esPaqueteBinario = paqueteCifrado.startsWith('RASSEMBLY2:');
-            if (esPaqueteBinario) {
-                await invoke('importar_db_binaria_encriptada', {
-                    paqueteBase64: paqueteCifrado,
-                    llaveBase64: llave
-                });
-
-                if (esAndroid) {
-                    await invoke('aplicar_restauracion_binaria_pendiente');
-                }
-            } else {
-                await invoke('importar_db_encriptada_global', {
-                    paqueteBase64: paqueteCifrado,
-                    llaveBase64: llave
-                });
-            }
-
-            const metadatos = await PuenteAlmacenamiento.obtenerUltimaModificacion(rutaCarpeta);
-            if (metadatos) {
-                await DbSyncHelper.actualizarFechaSincronizacion(metadatos.toISOString());
+        if (estadoActual.nubeDispositivo === 'Archivo compartido') {
+            const archivo = await invoke<string | null>('obtener_archivo_sync');
+            if (!archivo) throw new Error('No hay un archivo de sincronización configurado.');
+            const candadoYaActivo = guardandoMetadatosInternos;
+            setCandadoSincronizacion(true);
+            try {
+                await FolderSync.restore(archivo);
+            } finally {
+                setCandadoSincronizacion(candadoYaActivo);
             }
 
         // 👉 ¿EL CONFLICTO VINO DEL SERVIDOR WEB?
@@ -352,7 +337,7 @@ export async function descargarDatos() {
                 await DbSyncHelper.actualizarFechaSincronizacion(respaldoNube.last_synced_at);
             }
         }
-        
+
         syncStatus.set({ estado: 'al_dia', mensaje: '¡Datos actualizados!', nubeDispositivo: '', nubeFecha: '' });
         
         document.body.style.cursor = 'wait';
@@ -372,6 +357,24 @@ export async function descargarDatos() {
     }
 }
 
+export async function sobrescribirArchivoCompartido() {
+    const archivo = await invoke<string | null>('obtener_archivo_sync');
+    if (!archivo) throw new Error('No hay un archivo de sincronización configurado.');
+    try {
+        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Guardando sobrescritura confirmada...' }));
+        const info = await FolderSync.sync(archivo, true);
+        syncStatus.set({
+            estado: 'al_dia',
+            mensaje: `Sobrescritura confirmada (v${info.version}).`,
+            nubeDispositivo: '',
+            nubeFecha: ''
+        });
+    } catch (error) {
+        actualizarEstadoErrorCarpeta(error);
+        throw error;
+    }
+}
+
 // 📡 EL AURICULAR: Escuchamos el grito del embudo (db.ts) de forma controlada
 if (typeof window !== 'undefined') {
     let filtroAntiBucle: ReturnType<typeof setTimeout>;
@@ -386,7 +389,7 @@ if (typeof window !== 'undefined') {
         filtroAntiBucle = setTimeout(async () => {
             let rutaCarpeta: string | null = null;
             try {
-                rutaCarpeta = await invoke<string | null>('obtener_ruta_sync');
+                rutaCarpeta = await invoke<string | null>('obtener_archivo_sync');
             } catch (e) {
                 rutaCarpeta = null;
             }
