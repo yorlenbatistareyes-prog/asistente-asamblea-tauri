@@ -4,7 +4,7 @@
   import { 
     CircleHelp, ChevronUp, ChevronDown, 
     Monitor, FastForward, Rewind, RotateCcw, Clock,
-    Search, Info, Database, Cloud, FolderSync, Save
+    Search, Info, Database, FolderSync, Save
   } from 'lucide-svelte';
   
   let ayudaItems = guiaUsuario.map((item, id) => ({ ...item, isOpen: false, id }));
@@ -77,35 +77,11 @@
         <h2>Métodos de Respaldo y Sincronización</h2>
     </div>
 
-    <!-- Método 1: Servidor Web -->
-    <Panel padding="25px" clasesExtra="method-panel panel-purple">
-        <div class="method-header">
-            <div class="icon-box purple"><Cloud size={20} /></div>
-            <h4>1. Sincronización Automática (Servidor Web)</h4>
-        </div>
-        <div class="method-body">
-            <p>Este método permite una sincronización instantánea mediante un servidor web administrado. Es ideal para un flujo colaborativo rápido entre múltiples dispositivos en tiempo real.</p>
-            
-            <p><strong>Para activar y configurar este método, siga estos pasos:</strong></p>
-            <ol class="method-steps">
-                <li>Diríjase a la sección <strong>'Datos'</strong> dentro del menú de <strong>Configuración</strong>.</li>
-                <li>Localice el apartado de <strong>Sincronización por Servidor</strong>.</li>
-                <li>Active la opción de sincronización e introduzca la dirección de su servidor o las credenciales necesarias (según la configuración de su equipo).</li>
-                <li>Una vez establecida la comunicación, el indicador de estado cambiará a <strong>'Vinculado'</strong>.</li>
-            </ol>
-
-            <ul class="method-list">
-                <li><strong>Funcionamiento:</strong> Al realizar cualquier cambio en la aplicación, RAssembly se comunica automáticamente con el servidor para actualizar la base de datos de los demás auxiliares al instante.</li>
-                <li><strong>Nota de privacidad:</strong> En este método, los datos transitan por un servidor externo (aunque de forma segura).</li>
-            </ul>
-        </div>
-    </Panel>
-
-    <!-- Método 2: Archivo compartido -->
+    <!-- Archivo compartido -->
     <Panel padding="25px" clasesExtra="method-panel panel-blue">
         <div class="method-header">
             <div class="icon-box blue"><FolderSync size={20} /></div>
-            <h4>2. Archivo compartido (Google Drive / OneDrive)</h4>
+            <h4>1. Archivo compartido (Google Drive / OneDrive)</h4>
         </div>
         <div class="method-body">
             <p>RAssembly sincroniza mediante <strong>un archivo <code>.rassembly</code></strong> guardado en una ubicación compartida de Google Drive, OneDrive u otro proveedor compatible. El proveedor mantiene el archivo disponible en los dispositivos; RAssembly no inicia sesión en Google ni usa la API de Drive.</p>
@@ -140,11 +116,11 @@
         </div>
     </Panel>
 
-    <!-- Método 3: Respaldo Manual Local -->
+    <!-- Respaldo Manual Local -->
     <Panel padding="25px" clasesExtra="method-panel panel-green">
         <div class="method-header">
             <div class="icon-box dark-green"><Save size={20} /></div>
-            <h4>3. Respaldo Manual Local (.rassembly)</h4>
+            <h4>2. Respaldo Manual Local (.rassembly)</h4>
         </div>
         <div class="method-body">
             <p>En la sección <strong>'Datos'</strong> encontrará las herramientas tradicionales para proteger su información de forma totalmente desconectada (offline).</p>

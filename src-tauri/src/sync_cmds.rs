@@ -1,9 +1,5 @@
 use rusqlite::{params, Connection, MappedRows, Result, Row};
 use serde::{Deserialize, Serialize};
-use tauri::State;
-
-// Asegúrate de que esta ruta apunte correctamente a donde definiste DbState
-use crate::database::DbState;
 
 // ==========================================
 // 1. ESTRUCTURAS DE DATOS COMPLETAS (EL CLON EXACTO)
@@ -148,58 +144,8 @@ pub struct BackupData {
 }
 
 // ==========================================
-// 2. COMANDOS DE CONTROL DE FECHA (OPTIMISTA)
+// EXPORTAR E IMPORTAR EL ARCHIVO COMPARTIDO
 // ==========================================
-
-#[tauri::command]
-pub fn obtener_last_sync_local(db_state: State<DbState>) -> Result<Option<String>, String> {
-    let conn = db_state
-        .conn
-        .lock()
-        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
-    let mut stmt = conn
-        .prepare("SELECT last_synced_at FROM configuracion WHERE id = 1")
-        .map_err(|e| e.to_string())?;
-    let fecha: Option<String> = stmt
-        .query_row([], |row| row.get(0))
-        .map_err(|e| format!("No se pudo leer la versión de sincronización local: {e}"))?;
-    Ok(fecha)
-}
-
-#[tauri::command]
-pub fn actualizar_last_sync_local(fecha: String, db_state: State<DbState>) -> Result<(), String> {
-    let conn = db_state
-        .conn
-        .lock()
-        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
-    conn.execute(
-        "UPDATE configuracion SET last_synced_at = ?1 WHERE id = 1",
-        params![fecha],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-// ==========================================
-// 3. EXPORTAR A LA NUBE (RUST -> JS)
-// ==========================================
-
-#[tauri::command]
-pub fn exportar_db_json(db_state: State<DbState>) -> Result<String, String> {
-    let mut conn = db_state
-        .conn
-        .lock()
-        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
-    let tx = conn.transaction().map_err(|_| {
-        "No se pudo iniciar una lectura consistente de la base de datos.".to_string()
-    })?;
-    let backup = construir_backup(&tx)?;
-    let serialized = serde_json::to_string(&backup)
-        .map_err(|_| "No se pudo serializar la instantánea.".to_string())?;
-    tx.commit()
-        .map_err(|_| "No se pudo finalizar la lectura de la base de datos.".to_string())?;
-    Ok(serialized)
-}
 
 pub(crate) fn preparar_backup(conn: &Connection) -> Result<String, String> {
     let backup = construir_backup(conn)?;
@@ -219,24 +165,6 @@ fn construir_backup(conn: &Connection) -> Result<BackupData, String> {
         configuracion: extraer_configuracion(conn)?,
     };
     Ok(backup)
-}
-
-// ==========================================
-// 4. IMPORTAR DE LA NUBE (JS -> RUST)
-// ==========================================
-
-#[tauri::command]
-pub fn importar_db_json(json_data: String, db_state: State<DbState>) -> Result<(), String> {
-    let mut conn = db_state
-        .conn
-        .lock()
-        .map_err(|_| "No se pudo acceder a la base de datos local.".to_string())?;
-    let tx = conn
-        .transaction()
-        .map_err(|_| "No se pudo iniciar la restauración de la base de datos.".to_string())?;
-    importar_backup_en_transaccion(&tx, &json_data)?;
-    tx.commit()
-        .map_err(|_| "No se pudo finalizar la restauración de la base de datos.".to_string())
 }
 
 pub(crate) fn importar_backup_en_transaccion(
@@ -526,37 +454,4 @@ where
 {
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("No se pudo completar una lectura consistente para sincronizar: {e}"))
-}
-
-// ==========================================
-// 6. COMANDOS DE SINCRONIZACIÓN GLOBAL ENCRIPTADA (Invisible Key)
-// ==========================================
-
-#[tauri::command]
-pub fn exportar_db_encriptada_global(
-    llave_base64: String,
-    db_state: State<DbState>,
-) -> Result<String, String> {
-    // 1. Extrae toda la base de datos a JSON usando tu función global
-    let json_datos = exportar_db_json(db_state)?;
-
-    // 2. Encripta el paquete completo con el motor AES-256 invisible
-    let paquete_cifrado = crate::encriptar::encriptar_maletin(json_datos, llave_base64)?;
-
-    Ok(paquete_cifrado)
-}
-
-#[tauri::command]
-pub fn importar_db_encriptada_global(
-    paquete_base64: String,
-    llave_base64: String,
-    db_state: State<DbState>,
-) -> Result<(), String> {
-    // 1. Desencripta el paquete recibido de la carpeta compartida
-    let json_datos = crate::encriptar::desencriptar_maletin(paquete_base64, llave_base64)?;
-
-    // 2. Restaura toda la estructura en la base de datos local
-    importar_db_json(json_datos, db_state)?;
-
-    Ok(())
 }

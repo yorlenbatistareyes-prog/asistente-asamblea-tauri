@@ -2,10 +2,9 @@
     import { invoke } from '@tauri-apps/api/core';
     import { save, open, confirm, message } from '@tauri-apps/plugin-dialog';
     import { relaunch } from '@tauri-apps/plugin-process';
-    import { Upload, Download, Trash2, Cloud, Info, Check } from 'lucide-svelte';
+    import { Upload, Download, Trash2, Info, Check } from 'lucide-svelte';
     import Panel from '$lib/components/ui/Panel.svelte';
 
-    import Sincronizacion from '$lib/components/Sincronizacion.svelte';
     import { lastDeviceName } from '$lib/stores/autoSyncStore';
     
     let respaldando = false;
@@ -192,25 +191,7 @@
 <div class="data-management-container">
 
     <div class="section-divider">
-        <span class="divider-text">Sincronización Automática en la Nube</span>
-    </div>
-
-    <Panel padding="20px" clasesExtra="cloud-panel">
-        <div class="cloud-header">
-            <div class="data-icon-wrapper purple"><Cloud size={24} /></div>
-            <div class="data-content">
-                <h3>Cuenta de Sincronización</h3>
-                <p>Mantén tus asambleas seguras y actualizadas en la nube.</p>
-            </div>
-        </div>
-        
-        <div class="cloud-component-wrapper">
-            <Sincronizacion />
-        </div>
-    </Panel>
-
-    <div class="section-divider mt-4">
-        <span class="divider-text">Respaldos Locales (Solo este dispositivo)</span>
+        <span class="divider-text">Respaldo manual de datos</span>
     </div>
 
     <Panel padding="20px" clasesExtra="data-card-override">

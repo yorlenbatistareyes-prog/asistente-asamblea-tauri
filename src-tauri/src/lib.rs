@@ -325,15 +325,7 @@ pub fn run() {
             commands::datos::exportar_asamblea_encriptada,
             commands::datos::importar_asamblea_encriptada,
             llamar_telefono,
-            // NUBE: COMANDOS DE SINCRONIZACIÓN
-            // ==========================================
-            sync_cmds::obtener_last_sync_local,
-            sync_cmds::actualizar_last_sync_local,
-            sync_cmds::exportar_db_json,
-            sync_cmds::importar_db_json,
             commands::programa::guardar_nota_directa,
-            sync_cmds::exportar_db_encriptada_global, // 👈 NUEVO
-            sync_cmds::importar_db_encriptada_global, // 👈 NUEVO
             folder_sync::nuevo_codigo_sync,
             folder_sync::guardar_codigo_sync,
             folder_sync::obtener_codigo_sync,
@@ -348,9 +340,6 @@ pub fn run() {
             folder_sync::importar_snapshot_sync,
             folder_sync::obtener_checkpoint_sync,
             folder_sync::guardar_checkpoint_sync,
-            encriptar::generar_llave_invisible,
-            encriptar::encriptar_maletin,
-            encriptar::desencriptar_maletin,
             // 👇 NUEVOS COMANDOS BINARIOS 👇
             encriptar::exportar_db_binaria_encriptada,
             encriptar::importar_db_binaria_encriptada,

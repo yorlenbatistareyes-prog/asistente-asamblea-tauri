@@ -1,7 +1,4 @@
 import { writable, get } from 'svelte/store';
-import { SyncService } from '$lib/services/syncService';
-import { DbSyncHelper } from '$lib/services/dbSyncHelper';
-import { sesionApp } from './authStore'; 
 import { invoke } from '@tauri-apps/api/core';
 import { FolderSync, SyncConflictError, SyncLinkRequiredError } from '$lib/services/folderSync';
 
@@ -42,33 +39,10 @@ function generarNombreUnico() {
 
 export const lastDeviceName = writable(generarNombreUnico());
 
-// ⏱️ Dos temporizadores independientes para que no interfieran entre sí
-let debounceServidorTimer: ReturnType<typeof setTimeout>;
 let debounceCarpetaTimer: ReturnType<typeof setTimeout>;
 
 /**
- * Disparador exclusivo para el Servidor Web (Requiere Sesión)
- */
-function dispararSincronizacionServidor() {
-    const sesion = get(sesionApp);
-    
-    // Si no hay sesión, ignoramos el servidor en silencio sin afectar la carpeta local
-    if (!sesion.isLoggedIn) {
-        return;
-    }
-
-    console.log("⏳ [SyncServer] Iniciando temporizador del servidor (5s)...");
-    syncStatus.update(s => ({ ...s, estado: 'esperando', mensaje: 'Cambio detectado, esperando...' }));
-    
-    if (debounceServidorTimer) clearTimeout(debounceServidorTimer);
-
-    debounceServidorTimer = setTimeout(async () => {
-        await ejecutarProcesoDeSincronizacion();
-    }, 5000); 
-}
-
-/**
- * Disparador exclusivo para la Carpeta Compartida (Independiente del servidor)
+ * Programa la sincronización del archivo compartido tras los cambios locales.
  */
 function dispararSincronizacionCarpeta() {
     if (debounceCarpetaTimer) clearTimeout(debounceCarpetaTimer);
@@ -82,82 +56,9 @@ function dispararSincronizacionCarpeta() {
 }
 
 /**
- * Núcleo con Control Optimista y Mensajería Detallada (Servidor Web)
- */
-async function ejecutarProcesoDeSincronizacion() {
-    syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Sincronizando...' }));
-    
-    try {
-        // 1. EL RADAR (Chequeo de concurrencia)
-        const fechaLocalStr = await DbSyncHelper.obtenerFechaUltimaSincronizacion();
-        const estadoNube = await SyncService.chequearEstadoNube();
-        const miDispositivo = get(lastDeviceName); 
-
-        if (estadoNube && estadoNube.last_synced_at) {
-            const tiempoLocal = fechaLocalStr ? new Date(fechaLocalStr).getTime() : 0;
-            const tiempoNube = new Date(estadoNube.last_synced_at).getTime();
-
-            // 🔥 REGLA DE ORO: Solo es conflicto si la nube es más nueva Y el dispositivo es DISTINTO
-            if (tiempoNube > tiempoLocal && estadoNube.last_device !== miDispositivo) {
-                console.warn("⚠️ CONFLICTO REAL DETECTADO (Otro dispositivo)");
-                syncStatus.set({
-                    estado: 'conflicto',
-                    mensaje: 'Hay datos más nuevos en la nube.',
-                    nubeDispositivo: estadoNube.last_device || 'Otro dispositivo',
-                    nubeFecha: estadoNube.last_synced_at
-                });
-                return; 
-            }
-        }
-
-        // 2. EMPAQUETADO (Rust entra en acción)
-        const backupJson = await DbSyncHelper.prepararRespaldoLocal();
-
-        // 3. SUBIDA (JS envía al servidor)
-        const nuevaFechaISO = new Date().toISOString();
-        const dispositivo = get(lastDeviceName);
-
-        await SyncService.subirRespaldo(backupJson, nuevaFechaISO, dispositivo);
-
-        // 👇 🔒 ACTIVAMOS EL CANDADO ANTES DE GUARDAR
-        setCandadoSincronizacion(true);
-
-        // 4. ÉXITO (Guardamos marca en SQLite local vía Rust)
-        await DbSyncHelper.actualizarFechaSincronizacion(nuevaFechaISO);
-
-        // 👇 🔓 APAGAMOS EL CANDADO (Damos 2 segundos para que el evento pase ignorado)
-        setTimeout(() => {
-            setCandadoSincronizacion(false);
-        }, 2000);
-
-        syncStatus.set({
-            estado: 'al_dia',
-            mensaje: '¡Sincronizado!',
-            nubeDispositivo: '',
-            nubeFecha: ''
-        });
-
-        // Ocultar mensaje de éxito tras 3 segundos
-        setTimeout(() => {
-            syncStatus.update(s => ({ ...s, estado: 'inactivo', mensaje: '' }));
-        }, 3000);
-
-    } catch (e) {
-        console.error("❌ Error en sync:", e);
-        syncStatus.update(s => ({ 
-            ...s, 
-            estado: 'error', 
-            mensaje: 'Error de conexión' 
-        }));
-    }
-}
-
-/**
  * 📁 Respaldo automático cifrado en la carpeta local de Google Drive / OneDrive
  */
 async function ejecutarSincronizacionCarpetaLocal() {
-    let candadoActivo = false;
-
     try {
         const archivo = await invoke<string | null>('obtener_archivo_sync');
         if (!archivo) return;
@@ -208,14 +109,9 @@ function actualizarEstadoErrorCarpeta(error: unknown) {
     }
 }
 
-export function resetearEstadoSincronizacion() {
-    syncStatus.set({ estado: 'al_dia', mensaje: '', nubeDispositivo: '', nubeFecha: '' });
-}
-
 // ==========================================
-// RADARES (VIGILANCIA EN SEGUNDO PLANO)
+// RADAR DE ARCHIVO COMPARTIDO
 // ==========================================
-let radarTimer: ReturnType<typeof setInterval> | null = null;
 let radarCarpetaInterval: ReturnType<typeof setInterval> | null = null;
 
 // --- RADAR DE CARPETA LIMPIO PARA PRODUCCIÓN ---
@@ -262,76 +158,20 @@ export function detenerRadarCarpeta() {
     }
 }
 
-// --- RADAR DE SERVIDOR WEB ---
-export function iniciarRadarNube() {
-    const sesion = get(sesionApp);
-    if (!sesion.isLoggedIn || radarTimer) return;
-
-    radarTimer = setInterval(async () => {
-        try {
-            const estadoNube = await SyncService.chequearEstadoNube();
-            const miDispositivo = get(lastDeviceName);
-
-            if (estadoNube && estadoNube.last_synced_at) {
-                const fechaLocalStr = await DbSyncHelper.obtenerFechaUltimaSincronizacion();
-                const tiempoLocal = fechaLocalStr ? new Date(fechaLocalStr).getTime() : 0;
-                const tiempoNube = new Date(estadoNube.last_synced_at).getTime();
-
-                if (tiempoNube > tiempoLocal) {
-                    if (estadoNube.last_device !== miDispositivo) {
-                        syncStatus.set({
-                            estado: 'conflicto',
-                            mensaje: 'Hay datos nuevos en la nube.',
-                            nubeDispositivo: estadoNube.last_device || 'Otro dispositivo',
-                            nubeFecha: estadoNube.last_synced_at
-                        });
-                        detenerRadarNube(); // Detenemos radar web también ante conflicto
-                    } else {
-                        await DbSyncHelper.actualizarFechaSincronizacion(estadoNube.last_synced_at);
-                    }
-                }
-            }
-        } catch (e) {
-            // Silencio
-        }
-    }, 30000); 
-}
-
-export function detenerRadarNube() {
-    if (radarTimer) {
-        clearInterval(radarTimer);
-        radarTimer = null;
-    }
-}
-
-// 🔥 NUEVO: FUNCIÓN INTELIGENTE PARA DESCARGAR DATOS
+// Restore the current shared-file version on this device.
 export async function descargarDatos() {
     try {
-        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Descargando...' }));
+        syncStatus.update(s => ({ ...s, estado: 'sincronizando', mensaje: 'Restaurando archivo compartido...' }));
         
-        const estadoActual = get(syncStatus);
         const esAndroid = /android/i.test(navigator.userAgent);
-        let esPaqueteBinario = false;
-
-        if (estadoActual.nubeDispositivo === 'Archivo compartido') {
-            const archivo = await invoke<string | null>('obtener_archivo_sync');
-            if (!archivo) throw new Error('No hay un archivo de sincronización configurado.');
-            const candadoYaActivo = guardandoMetadatosInternos;
-            setCandadoSincronizacion(true);
-            try {
-                await FolderSync.restore(archivo);
-            } finally {
-                setCandadoSincronizacion(candadoYaActivo);
-            }
-
-        // 👉 ¿EL CONFLICTO VINO DEL SERVIDOR WEB?
-        } else {
-            const respaldoNube = await SyncService.descargarRespaldo(); 
-            await DbSyncHelper.aplicarRespaldoNube(respaldoNube.backup_data); 
-            
-            if (respaldoNube.last_synced_at) {
-                await DbSyncHelper.actualizarFechaSincronizacion(respaldoNube.last_synced_at);
-            }
+        const archivo = await invoke<string | null>('obtener_archivo_sync');
+        if (!archivo) throw new Error('No hay un archivo de sincronización configurado.');
+        const candadoYaActivo = guardandoMetadatosInternos;
+        setCandadoSincronizacion(true);
+        try {
+            await FolderSync.restore(archivo);
+        } finally {
+            setCandadoSincronizacion(candadoYaActivo);
         }
 
         syncStatus.set({ estado: 'al_dia', mensaje: '¡Datos actualizados!', nubeDispositivo: '', nubeFecha: '' });
@@ -348,8 +188,8 @@ export async function descargarDatos() {
 
     } catch (e) {
         console.error("Error al descargar los datos:", e);
-        alert("Fallo al descargar. Revisa tu conexión a internet o el acceso a la carpeta de sincronización.");
-        syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al descargar' }));
+        alert("Fallo al restaurar. Revisa el acceso al archivo compartido.");
+        syncStatus.update(s => ({ ...s, estado: 'error', mensaje: 'Error al restaurar' }));
     }
 }
 
@@ -390,17 +230,12 @@ if (typeof window !== 'undefined') {
                 rutaCarpeta = null;
             }
 
-            const sesion = get(sesionApp);
-            const sesionActiva = !!sesion?.isLoggedIn;
-
-            if (!rutaCarpeta && !sesionActiva) {
+            if (!rutaCarpeta) {
                 return;
             }
             
             syncStatus.set({ estado: 'esperando', mensaje: 'Cambio detectado, esperando...', nubeDispositivo: '', nubeFecha: '' });
-            
-            if (sesionActiva) dispararSincronizacionServidor();
-            if (rutaCarpeta) dispararSincronizacionCarpeta();
+            dispararSincronizacionCarpeta();
             
         }, 1000); 
     });

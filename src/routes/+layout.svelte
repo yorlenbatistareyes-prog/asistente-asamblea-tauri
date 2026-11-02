@@ -19,18 +19,12 @@
   import NotasVersionModal from '$lib/components/ui/NotasVersionModal.svelte';
   import { historialCambios } from '$lib/data/historial_cambios';
 
-  // 2. Importa las herramientas de sincronización
-  import { sesionApp, inicializarSesion } from '$lib/stores/authStore';
-  
   import { 
     syncStatus, 
-    iniciarRadarNube, 
-    detenerRadarNube,
     iniciarRadarCarpeta, // 🔥 NUEVO
     detenerRadarCarpeta, // 🔥 NUEVO
     descargarDatos,
     sobrescribirArchivoCompartido,
-    resetearEstadoSincronizacion
 } from '$lib/stores/autoSyncStore';
 
   let versionApp = "";
@@ -66,7 +60,6 @@
       }
 
       const inicializarApp = async () => {
-          await inicializarSesion();
           await cargarDatosGlobales();
           cargarTemaGuardado();
           
@@ -91,10 +84,6 @@
 
       inicializarApp();
 
-      // Encendemos el radar de la nube
-      iniciarRadarNube();
-
-      // 🔥 NUEVO: Encendemos el radar de la carpeta compartida
       iniciarRadarCarpeta();
 
       // 👇 NUEVO: Encendemos el radar de actualizaciones (espera 3s al abrir)
@@ -102,10 +91,8 @@
       // Y luego busca cada 2 horas (7200000 ms)
       const intervaloActualizaciones = setInterval(chequearActualizacionesGlobal, 7200000);
 
-      // Apagamos ambos radares si el usuario cierra la app
       return () => {
-          detenerRadarNube();
-          detenerRadarCarpeta(); // 🔥 NUEVO
+          detenerRadarCarpeta();
           clearInterval(intervaloActualizaciones);
       };
   });
@@ -186,14 +173,6 @@
       } catch (e) {
           alert("No se pudo sobrescribir el archivo compartido: " + e);
       }
-  }
-
-  // 🔥 NUEVA FUNCIÓN PARA CERRAR EL MODAL
-  function ignorarConflicto() {
-      resetearEstadoSincronizacion();
-      // Nota: Al ignorar, el radar se queda en pausa en esta sesión 
-      // para no volver a molestarte a los 15 segundos. 
-      // Te volverá a avisar solo si cierras y vuelves a abrir la app.
   }
 
   function iniciarArrastreMonitor(event: PointerEvent) {
@@ -307,36 +286,22 @@
           <div class="modal-backdrop">
             <Panel padding="25px" clasesExtra="modal-salones">
                 <div class="modal-top">
-                    <h3 style="color: var(--accent-danger);"><AlertTriangle size={24}/> ¡Atención: Cambios en la Nube!</h3>
+                    <h3 style="color: var(--accent-danger);"><AlertTriangle size={24}/> Conflicto en archivo compartido</h3>
                 </div>
                 
                 <div style="padding: 15px 0; color: var(--text-main); font-size: 14px; line-height: 1.5;">
-                    {#if $syncStatus.nubeDispositivo === 'Archivo compartido'}
-                        <p>{$syncStatus.mensaje}</p>
-                        <p>No se realizará ninguna subida automática hasta que resuelvas este conflicto.</p>
-                        <p><strong>Restaurar</strong> actualiza solo este dispositivo y no modifica el archivo compartido. Los demás dispositivos podrán descargar esta misma versión.</p>
-                    {:else}
-                        <p>El dispositivo <strong>{$syncStatus.nubeDispositivo}</strong> acaba de guardar nuevos datos en la nube.</p>
-                        <p>¿Deseas descargar y aplicar estos cambios ahora mismo?</p>
-                    {/if}
+                    <p>{$syncStatus.mensaje}</p>
+                    <p>No se realizará ninguna subida automática hasta que resuelvas este conflicto.</p>
+                    <p><strong>Restaurar</strong> actualiza solo este dispositivo y no modifica el archivo compartido. Los demás dispositivos podrán descargar esta misma versión.</p>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 5px;">
-                    {#if $syncStatus.nubeDispositivo === 'Archivo compartido'}
-                        <button class="btn-blue" on:click={resolverConflictoDirecto}>
-                            <DownloadCloud size={18} /> Restaurar versión compartida
-                        </button>
-                        <button class="btn-blue" on:click={resolverSobrescrituraArchivo}>
-                            <Upload size={18} /> Confirmar sobrescritura
-                        </button>
-                    {:else}
-                        <button on:click={ignorarConflicto} style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-sec); font-weight: bold; cursor: pointer;">
-                            Ignorar por ahora
-                        </button>
-                        <button class="btn-blue" on:click={resolverConflictoDirecto}>
-                            <DownloadCloud size={18} /> Descargar cambios ahora
-                        </button>
-                    {/if}
+                    <button class="btn-blue" on:click={resolverConflictoDirecto}>
+                        <DownloadCloud size={18} /> Restaurar versión compartida
+                    </button>
+                    <button class="btn-blue" on:click={resolverSobrescrituraArchivo}>
+                        <Upload size={18} /> Confirmar sobrescritura
+                    </button>
                 </div>
             </Panel>
           </div>

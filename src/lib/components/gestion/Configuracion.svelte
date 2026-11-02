@@ -188,16 +188,12 @@
                         </div>
                         <div class="info-card-body">
                             <div class="item-metodo">
-                                <span class="badge-nube">☁️ Sincronización Automática</span>
-                                <p><strong>Ventaja:</strong> Comodidad total y flujo instantáneo entre dispositivos. <strong>Nota:</strong> Los datos pasan por un servidor externo administrado por colaboradores.</p>
-                            </div>
-                            <div class="item-metodo">
                                 <span class="badge-drive">📁 Google Drive / OneDrive</span>
-                                <p><strong>Ventaja:</strong> Privacidad y control absoluto en tu propia nube personal.</p>
+                                <p><strong>Sincronización por archivo:</strong> comparte un archivo cifrado usando Google Drive, OneDrive u otro proveedor compatible.</p>
                             </div>
                             <div class="item-metodo">
                                 <span class="badge-manual">💾 Respaldo Local (Manual)</span>
-                                <p><strong>Ventaja:</strong> Privacidad del 100% y funcionamiento totalmente offline.</p>
+                                <p><strong>Respaldo manual:</strong> exporta o restaura una copia desde un archivo en este dispositivo.</p>
                             </div>
                         </div>
                     </div>
