@@ -77,12 +77,27 @@ export const gruposMarcadoresPlantilla: GrupoMarcadoresPlantilla[] = [
   }
 ];
 
+function formatearFechaEnsayo(fechaISO: string | undefined): string {
+  if (!fechaISO) return '';
+  const match = fechaISO.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const fechaObj = new Date(match[1] + '-' + match[2] + '-' + match[3] + 'T12:00:00');
+    return fechaObj.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  }
+  return fechaISO;
+}
+
 function generarInfoEnsayos(contexto: ContextoDocumento): string {
   if (!contexto.ensayo_fecha || contexto.ensayo_fecha === 'No requiere ensayo previo' || contexto.ensayo_fecha === '---') {
     return 'No requiere ensayo previo para esta asignación.';
   }
 
-  let info = `Fecha: ${contexto.ensayo_fecha} a las ${contexto.ensayo_hora}. Lugar: ${contexto.ensayo_lugar || 'Por definir'}.`;
+  const fechaBonita = formatearFechaEnsayo(contexto.ensayo_fecha);
+  let info = `Fecha: ${fechaBonita} a las ${contexto.ensayo_hora}. Lugar: ${contexto.ensayo_lugar || 'Por definir'}.`;
   if (contexto.ensayo_direccion) info += ` Dirección: ${contexto.ensayo_direccion}.`;
   if (contexto.ensayo_notas) info += ` Notas: ${contexto.ensayo_notas}`;
   return info;
@@ -90,9 +105,9 @@ function generarInfoEnsayos(contexto: ContextoDocumento): string {
 
 function construirLugarEnsayo(contexto: ContextoDocumento): string {
   if (!contexto.ensayo_fecha || contexto.ensayo_fecha === 'No requiere ensayo previo' || contexto.ensayo_fecha === '---') {
-    return 'No aplica';
+    return '___';
   }
-  if (!contexto.ensayo_lugar) return 'Por definir';
+  if (!contexto.ensayo_lugar) return '___';
   return contexto.ensayo_direccion
     ? `${contexto.ensayo_lugar}\n${contexto.ensayo_direccion}`
     : contexto.ensayo_lugar;
@@ -135,11 +150,24 @@ const reemplazos: Record<string, (contexto: ContextoDocumento) => string> = {
   '[[Tema del Evento]]': (ctx) => ctx.tema_evento,
   '[[Información completa de los ensayos]]': generarInfoEnsayos,
   '[[Lugar de los ensayos]]': construirLugarEnsayo,
-  '[[Fecha y hora del ensayo]]': (ctx) =>
-    ctx.ensayo_fecha && ctx.ensayo_fecha !== 'No requiere ensayo previo' && ctx.ensayo_fecha !== '---'
-      ? `${ctx.ensayo_fecha} a las ${ctx.ensayo_hora}`
-      : 'No aplica',
-  '[[Fecha de ensayos]]': (ctx) => ctx.ensayo_fecha,
+    '[[Fecha y hora del ensayo]]': (ctx) => {
+    if (!ctx.ensayo_fecha || ctx.ensayo_fecha === '---' || ctx.ensayo_fecha === 'No requiere ensayo previo') {
+      return '___';
+    }
+    
+    const fechaBonita = formatearFechaEnsayo(ctx.ensayo_fecha);
+    const horaValida = ctx.ensayo_hora && ctx.ensayo_hora !== '--:--';
+    
+    return horaValida 
+      ? `${fechaBonita} a las ${ctx.ensayo_hora}` 
+      : fechaBonita;
+  },
+    '[[Fecha de ensayos]]': (ctx) => {
+    if (!ctx.ensayo_fecha || ctx.ensayo_fecha === '---' || ctx.ensayo_fecha === 'No requiere ensayo previo') {
+      return '___';
+    }
+    return formatearFechaEnsayo(ctx.ensayo_fecha);
+  },
   '[[Hora de ensayos]]': (ctx) => ctx.ensayo_hora,
   '[[Notas para los ensayos]]': (ctx) => ctx.ensayo_notas,
   '[[Información de orientaciones]]': (ctx) => ctx.orientaciones || 'No hay orientaciones específicas.',
