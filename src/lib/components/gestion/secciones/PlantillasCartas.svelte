@@ -289,7 +289,17 @@
     const paragraph = editor.getAttributes('paragraph');
     currentIndent = paragraph.indentLevel || 0;
     isFirstLineIndented = paragraph.firstLine || false;
-    currentParagraphSpacing = paragraph.marginTop ? paragraph.marginTop.replace('pt', '') : '0';
+        // Sincronizar el selector de espaciado con el margen real del párrafo
+    if (paragraph.marginTop) {
+      // Limpiamos el "pt" y cualquier espacio en blanco que pueda tener
+      currentParagraphSpacing = paragraph.marginTop.replace('pt', '').trim();
+    } else if (paragraph.style && paragraph.style.includes('margin-top')) {
+      // Si por alguna razón está en el estilo general, lo extraemos de ahí
+      const match = paragraph.style.match(/margin-top:\s*([\d.]+)pt/);
+      currentParagraphSpacing = match ? match[1] : '0';
+    } else {
+      currentParagraphSpacing = '0';
+    }
   }
 
   // --- ACTIONS UI ---

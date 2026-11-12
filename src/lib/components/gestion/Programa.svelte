@@ -624,25 +624,26 @@ async function cargarColoresSeriesBD() {
     'default': 'oradores'         
   };
 
-  async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
+   async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
     if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila.");
     try {
       const contexto = await generarContexto(objeto, asambleaId, esPartePrograma);
       let plantillaId = '';
-      if (esPartePrograma) {
-        plantillaId = MAPA_PLANTILLAS['programa'];
+
+      // Evaluamos el rol para TODOS los casos (sean parte del programa o no)
+      const rol = (objeto.rol_key || objeto.tipo_asignacion || objeto.tipo || '').toLowerCase();
+      
+      if (rol.includes('presidente')) {
+        plantillaId = 'presidentes'; 
+      } else if (rol.includes('oracion') || rol.includes('oración')) {
+        plantillaId = 'oraciones';
+      } else if (rol.includes('plataforma') || rol.includes('personal')) {
+        plantillaId = 'oradores'; // O la plantilla que uses para ellos
       } else {
-        const rol = (objeto.rol_key || objeto.tipo_asignacion || '').toLowerCase();
-        if (rol.includes('presidente')) {
-          plantillaId = MAPA_PLANTILLAS['presidente']; 
-        } else if (rol.includes('oracion') || rol.includes('oración')) {
-          plantillaId = MAPA_PLANTILLAS['oracion'];
-        } else if (rol.includes('plataforma')) {
-          plantillaId = MAPA_PLANTILLAS['plataforma'];
-        } else {
-          plantillaId = MAPA_PLANTILLAS['default'];
-        }
+        // Si no es presidente ni oración, usamos la de oradores (discursos)
+        plantillaId = 'oradores';
       }
+
       console.log(`🖨️ Rol: "${contexto.tipo_asignacion}" -> Buscando plantilla ID: "${plantillaId}"`);
       const existe = await invoke('obtener_plantilla', { id: plantillaId });
       if (!existe) {

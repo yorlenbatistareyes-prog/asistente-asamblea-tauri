@@ -22,6 +22,16 @@ export const historialCambios = [
 // 👇 AQUÍ PONES LA NUEVA QUE ACABAS DE TERMINAR 👇
 
 {
+    version: "1.0.33",
+    fecha: "12 de Noviembre, 2026",
+    mensaje: "¡Hemos mejorado la generación de cartas PDF!",
+    cambios: [
+      { tipo: "🛠️", texto: "Hemos mejorado la generación de documentos pdf y el editor de las plantillas de cartas." },
+      
+    ]
+  },
+
+{
     version: "1.0.32",
     fecha: "02 de Noviembre, 2026",
     mensaje: "¡Hemos mejorado la sincronización!",

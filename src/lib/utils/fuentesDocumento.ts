@@ -58,10 +58,20 @@ export function normalizarFuenteDocumento(fuente: string | null | undefined): st
 
 export function normalizarFuentesHtmlParaPdf(html: string): string {
   const documento = new DOMParser().parseFromString(html, 'text/html');
-  for (const bloque of [...documento.body.querySelectorAll('p, div')].reverse()) {
+      for (const bloque of [...documento.body.querySelectorAll('p, div')].reverse()) {
     const texto = bloque.textContent?.replace(/[\s\u200B\uFEFF]/g, '');
+    // Verificamos si el párrafo tiene un margen configurado
+    const tieneMargen = bloque.getAttribute('style')?.includes('margin');
+    
     if (!texto && !bloque.querySelector('img, hr, table, svg')) {
-      bloque.remove();
+      if (tieneMargen) {
+        // Si está vacío pero tiene margen, le inyectamos un espacio invisible 
+        // para obligar a pdfMake a respetar la altura del párrafo.
+        bloque.innerHTML = '&nbsp;';
+      } else {
+        // Si no tiene margen, lo borramos
+        bloque.remove();
+      }
     }
   }
 
