@@ -2,18 +2,10 @@
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
-// Importaciones de pdfMake
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import { pdf } from './pdfMakeConfigurado';
+import { normalizarFuentesHtmlParaPdf } from './fuentesDocumento';
 import htmlToPdfmake from 'html-to-pdfmake';
 import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
-
-// Inyección Estricta de Fuentes para pdfMake
-interface CustomPdfFonts { pdfMake?: { vfs: Record<string, string> }; vfs?: Record<string, string>; }
-interface CustomPdfMake { vfs: Record<string, string>; createPdf: typeof pdfMake.createPdf; }
-const fonts = pdfFonts as unknown as CustomPdfFonts;
-const pdf = pdfMake as unknown as CustomPdfMake;
-pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
 
 /**
  * Convierte código HTML a estructura nativa de pdfMake
@@ -22,7 +14,9 @@ export function convertirHtmlAPdf(htmlContent: string): Content[] {
     if (!htmlContent || htmlContent.trim() === '') return [];
     
     // Limpieza básica (mantiene los estilos)
-    let htmlLimpio = htmlContent.replace(/&nbsp;/gi, ' ').replace(/<p>\s*<\/p>/g, '');
+    const htmlLimpio = normalizarFuentesHtmlParaPdf(
+        htmlContent.replace(/&nbsp;/gi, ' ').replace(/<p>\s*<\/p>/g, '')
+    );
     
     return htmlToPdfmake(htmlLimpio, {
         defaultStyles: {

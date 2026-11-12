@@ -4,30 +4,10 @@ import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
 import { reemplazarMarcadoresPlantilla } from './marcadoresPlantillas';
 
-// 1. IMPORTACIONES DE PDFMAKE (Estándar ES6 puro para Svelte/Vite)
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import { pdf } from './pdfMakeConfigurado';
+import { normalizarFuentesHtmlParaPdf } from './fuentesDocumento';
 import htmlToPdfmake from 'html-to-pdfmake';
 import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
-
-// 2. INYECCIÓN DE FUENTES (TypeScript Estricto Puro)
-// Creamos interfaces formales para declarar las propiedades que le faltan a @types/pdfmake
-interface CustomPdfFonts {
-    pdfMake?: { vfs: Record<string, string> };
-    vfs?: Record<string, string>;
-}
-
-interface CustomPdfMake {
-    vfs: Record<string, string>;
-    createPdf: typeof pdfMake.createPdf;
-}
-
-// Convertimos los módulos importados a nuestras interfaces seguras
-const fonts = pdfFonts as unknown as CustomPdfFonts;
-const pdf = pdfMake as unknown as CustomPdfMake;
-
-// Ahora TypeScript reconoce 'vfs' perfectamente
-pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
 
 // CONFIGURACIÓN DE TIPOS
 interface MembreteConfig {
@@ -97,6 +77,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
         // 3. REEMPLAZO DE MARCADORES
         htmlContent = reemplazarMarcadoresPlantilla(htmlContent, datos, true);
+        htmlContent = normalizarFuentesHtmlParaPdf(htmlContent);
 
         // LIMPIEZA HTML BÁSICA PARA PDFMAKE
         // Dejamos los estilos intactos para que conserve el centrado y los colores del editor

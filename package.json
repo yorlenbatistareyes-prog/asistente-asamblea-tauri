@@ -1,6 +1,6 @@
 {
   "name": "rassembly",
-  "version": "1.0.31",
+  "version": "1.0.32",
   "description": "Aplicación para gestionar Asambleas Regionales",
   "type": "module",
   "scripts": {

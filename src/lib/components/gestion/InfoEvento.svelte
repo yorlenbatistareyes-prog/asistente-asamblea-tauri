@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { FUENTES_DOCUMENTO } from '$lib/utils/fuentesDocumento';
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { setResumen, addNota, setNotas, totalAsistencia, totalBautismos, congregacionesReportadas, totalCongregaciones, notasRapidas } from '$lib/stores/gestion';
@@ -894,9 +895,9 @@ async function guardarPresidente() {
                 <div class="group inputs">
                   <select class="native-select font-family" on:change={(e) => cambiarFuente(editorNotas, e)} title="Fuente">
                     <option value="" selected>Fuente</option>
-                    <option value="serif">Serif</option>
-                    <option value="monospace">Monospace</option>
-                    <option value="cursive">Cursive</option>
+                    {#each FUENTES_DOCUMENTO as fuente}
+                      <option value={fuente}>{fuente}</option>
+                    {/each}
                   </select>
                   <select class="native-select font-size" on:change={(e) => cambiarTamano(editorNotas, e)} title="Tamaño">
                     <option value="" disabled selected>Tm.</option>
@@ -979,9 +980,9 @@ async function guardarPresidente() {
                 <div class="group inputs">
                   <select class="native-select font-family" on:change={(e) => cambiarFuente(editorOrientaciones, e)} title="Fuente">
                     <option value="" selected>Fuente</option>
-                    <option value="serif">Serif</option>
-                    <option value="monospace">Monospace</option>
-                    <option value="cursive">Cursive</option>
+                    {#each FUENTES_DOCUMENTO as fuente}
+                      <option value={fuente}>{fuente}</option>
+                    {/each}
                   </select>
                   <select class="native-select font-size" on:change={(e) => cambiarTamano(editorOrientaciones, e)} title="Tamaño">
                     <option value="" disabled selected>Tm.</option>

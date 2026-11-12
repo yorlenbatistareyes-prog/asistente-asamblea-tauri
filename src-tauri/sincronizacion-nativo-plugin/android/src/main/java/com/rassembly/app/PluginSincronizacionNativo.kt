@@ -3,12 +3,8 @@ package com.rassembly.app
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-<<<<<<< HEAD
-import android.provider.OpenableColumns
-=======
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
->>>>>>> main
 import android.util.Base64
 import androidx.activity.result.ActivityResult
 import org.json.JSONException
@@ -295,6 +291,13 @@ class PluginSincronizacionNativo(private val activity: Activity) : Plugin(activi
         ) { "El código de vinculación no tiene una clave válida." }
         return Pair(fileId, key)
     }
+
+    private fun validateEnvelope(content: String, pairingCode: String): Pair<String, Long> {
+        val (fileId, key) = parsePairingCode(pairingCode)
+        val envelope = JSONObject(content)
+        val version = envelope.getLong("version")
+        require(envelope.getString("file_id") == fileId) { "El ID del archivo no coincide con el código de vinculación." }
+
         val nonceText = envelope.getString("nonce")
         val ciphertextText = envelope.getString("ciphertext")
         val nonce = Base64.decode(nonceText, Base64.DEFAULT)

@@ -6,6 +6,7 @@
   import { DB } from '$lib/services/db';
   import { cartasStore } from '$lib/stores/cartas'; 
   import { gruposMarcadoresPlantilla } from '$lib/utils/marcadoresPlantillas';
+  import { FUENTES_DOCUMENTO } from '$lib/utils/fuentesDocumento';
   
   import { save } from '@tauri-apps/plugin-dialog';
   import { writeTextFile } from '@tauri-apps/plugin-fs';
@@ -599,7 +600,9 @@
                         <div class="group-col full-h">
                             <div class="controls-row">
                                 <select class="font-select" on:change={cambiarFuente} bind:value={currentFont} title="Fuente">
-                                    <option value="Arial">Arial</option><option value="Calibri">Calibri</option><option value="Times New Roman">Times New Roman</option><option value="Verdana">Verdana</option><option value="Georgia">Georgia</option>
+                                    {#each FUENTES_DOCUMENTO as fuente}
+                                        <option value={fuente}>{fuente}</option>
+                                    {/each}
                                 </select>
                                 <select class="size-select" on:change={cambiarTamano} bind:value={currentSize} title="Tamaño">
                                     <option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="24">24</option><option value="30">30</option>

@@ -1,24 +1,8 @@
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
-// 1. IMPORTACIONES DE PDFMAKE (Nativo y limpio)
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import { pdf } from './pdfMakeConfigurado';
 import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces';
-
-// 2. INYECCIÓN DE FUENTES (TypeScript Estricto Puro)
-interface CustomPdfFonts {
-    pdfMake?: { vfs: Record<string, string> };
-    vfs?: Record<string, string>;
-}
-interface CustomPdfMake {
-    vfs: Record<string, string>;
-    createPdf: typeof pdfMake.createPdf;
-}
-
-const fonts = pdfFonts as unknown as CustomPdfFonts;
-const pdf = pdfMake as unknown as CustomPdfMake;
-pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
 
 // --- HELPERS ---
 const check = (valor: boolean) => valor ? 'SÍ' : '-';

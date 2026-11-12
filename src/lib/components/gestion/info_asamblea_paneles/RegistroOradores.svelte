@@ -19,19 +19,11 @@
   import { writeFile } from '@tauri-apps/plugin-fs';
 
   // 1. PDFMAKE (Plano)
-  import pdfMake from 'pdfmake/build/pdfmake';
-  import pdfFonts from 'pdfmake/build/vfs_fonts';
+  import { pdf } from '$lib/utils/pdfMakeConfigurado';
   import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 
   // 2. PDF-LIB (Rellenable)
   import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-
-  // --- CONFIGURACIÓN ESTRICTA DE FUENTES PARA PDFMAKE ---
-  interface CustomPdfFonts { pdfMake?: { vfs: Record<string, string> }; vfs?: Record<string, string>; }
-  interface CustomPdfMake { vfs: Record<string, string>; createPdf: typeof pdfMake.createPdf; }
-  const fonts = pdfFonts as unknown as CustomPdfFonts;
-  const pdf = pdfMake as unknown as CustomPdfMake;
-  pdf.vfs = fonts.pdfMake ? fonts.pdfMake.vfs : (fonts.vfs || {});
 
   let asambleaActiva: any = null;
   let partes: any[] = [];
