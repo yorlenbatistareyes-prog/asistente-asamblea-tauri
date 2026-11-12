@@ -637,7 +637,7 @@ async function cargarColoresSeriesBD() {
       
       if (rol.includes('presidente')) {
         plantillaId = 'presidentes'; 
-      } else if (rol.includes('oracion') || rol.includes('oración')) {
+        } else if (rol.includes('oracion') || rol.includes('oración') || rol.includes('canción') || rol.includes('cancion')) {
         plantillaId = 'oraciones';
       } else if (rol.includes('plataforma') || rol.includes('personal')) {
         plantillaId = 'oradores'; // O la plantilla que uses para ellos

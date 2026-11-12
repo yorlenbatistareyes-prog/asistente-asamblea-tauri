@@ -20,7 +20,7 @@ export function generarNombreArchivoCarta(
   let prefijo = 'Carta Orador';
   if (rol.includes('presidente') || rol.includes('presidencia')) {
     prefijo = 'Carta Presidente';
-  } else if (rol.includes('oracion') || rol.includes('oración')) {
+  } else if (rol.includes('oracion') || rol.includes('oración') || rol.includes('cancion') || rol.includes('canción')) {
     prefijo = 'Carta Oración';
   }
 
