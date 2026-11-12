@@ -40,9 +40,12 @@ export const gruposMarcadoresPlantilla: GrupoMarcadoresPlantilla[] = [
       { code: '[[Número de Bosquejo]]', label: 'Número de bosquejo' },
       { code: '[[Enlace(s) del Bosquejo]]', label: 'Enlace del bosquejo', desc: 'Si está disponible' },
       { code: '[[Tipo de asignación]]', label: 'Tipo de asignación' },
-      { code: '[[Notas]]', label: 'Notas de la asignación' }
+      { code: '[[Notas]]', label: 'Notas de la asignación' },
+
+      { code: '[[Sesión presidente]]', label: 'Sesión (Mañana/Tarde)', desc: 'Para presidentes de sesión' } 
     ]
   },
+
   {
     category: 'Lugar y evento',
     items: [
@@ -134,6 +137,7 @@ const reemplazos: Record<string, (contexto: ContextoDocumento) => string> = {
   '[[Bosquejo]]': (ctx) => ctx.num_bosquejo,
 
   '[[Tipo de asignación]]': (ctx) => ctx.tipo_asignacion,
+  '[[Sesión presidente]]': (ctx) => ctx.sesion,
   '[[Enlace(s) del Bosquejo]]': (ctx) => ctx.enlace_bosquejo,
   '[[Notas]]': (ctx) => ctx.nota_asignacion,
   '[[Nombre del lugar]]': (ctx) => ctx.lugar_nombre,

@@ -627,7 +627,9 @@ async function cargarColoresSeriesBD() {
    async function procesarImpresion(objeto: any, esPartePrograma: boolean) {
     if (!objeto || !asambleaId) return alert("⚠️ Seleccione una fila.");
     try {
-      const contexto = await generarContexto(objeto, asambleaId, esPartePrograma);
+            // Aseguramos que el objeto lleve el día de la tarjeta
+      const objetoSeguro = { ...objeto, dia: objeto.dia || diaSeleccionado };
+      const contexto = await generarContexto(objetoSeguro, asambleaId, esPartePrograma);
       let plantillaId = '';
 
       // Evaluamos el rol para TODOS los casos (sean parte del programa o no)

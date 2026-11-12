@@ -58,6 +58,7 @@ export interface ContextoDocumento {
 
     tema_asignacion: string;
     tipo_asignacion: string;
+    sesion: string;
     num_bosquejo: string;
     duracion: string;
     enlace_bosquejo: string;
@@ -217,6 +218,9 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
         // --- ASIGNACIÓN ---
         tema_asignacion: temaFinal,
         tipo_asignacion: tipoAsignacionFinal,
+
+        sesion: `${objeto.dia || ''} ${objeto.sesion || ''}`.trim(),
+        
         num_bosquejo: objeto.numero_bosquejo || objeto.bosquejo || '', 
         duracion: objeto.duracion ? String(objeto.duracion) : '',
         enlace_bosquejo: objeto.enlace_bosquejo || objeto.url_bosquejo || objeto.enlace_bosquejo_url || '',
