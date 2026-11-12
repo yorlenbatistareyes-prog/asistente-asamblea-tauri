@@ -4,8 +4,10 @@ import { writeFile } from '@tauri-apps/plugin-fs';
 import type { ContextoDocumento } from './contexto_impresion';
 import { reemplazarMarcadoresPlantilla } from './marcadoresPlantillas';
 
-import { pdf } from './pdfMakeConfigurado';
+import { crearPdf } from './pdfMakeConfigurado';
 import { normalizarFuentesHtmlParaPdf } from './fuentesDocumento';
+import { generarNombreArchivoCarta } from './nombreArchivoCarta';
+import { leerMargenesPlantilla } from './margenesPlantilla';
 import htmlToPdfmake from 'html-to-pdfmake';
 import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 
@@ -26,11 +28,11 @@ interface MembreteConfig {
 }
 
 const DEFAULT_MEMBRETE: MembreteConfig = {
-    usarEncabezado: false,
-    usarPiePagina: false,
-    titulo: '',
+    usarEncabezado: true,
+    usarPiePagina: true,
+    titulo: 'Presidencia de Asamblea Regional',
     contacto: '',
-    piePagina: '',
+    piePagina: 'Información confidencial.',
     colorLinea: '#000000',
     colorTexto: '#000000',
     colorLineaPie: '#cccccc',
@@ -43,10 +45,11 @@ const DEFAULT_MEMBRETE: MembreteConfig = {
 export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: string): Promise<void> {
     try {
         // 1. CARGAR CONFIGURACIÓN
-        let configMembrete: MembreteConfig = DEFAULT_MEMBRETE;
-        const configGuardada = localStorage.getItem('config_membrete');
+        let configMembrete: MembreteConfig = { ...DEFAULT_MEMBRETE };
+        const configGuardada = await invoke<string | null>('obtener_config_membrete');
         if (configGuardada) {
-            configMembrete = { ...DEFAULT_MEMBRETE, ...JSON.parse(configGuardada) };
+            const configParseada = JSON.parse(configGuardada) as Partial<MembreteConfig>;
+            configMembrete = { ...DEFAULT_MEMBRETE, ...configParseada };
         }
 
         const sizeTitulo = configMembrete.tamanoTitulo || 24;
@@ -75,6 +78,19 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             return;
         }
 
+        const plantillaConMargenes = leerMargenesPlantilla(htmlContent);
+        htmlContent = plantillaConMargenes.contenido;
+        const margenesPagina = {
+            superior: plantillaConMargenes.margenes.superior * 72 / 2.54,
+            derecho: plantillaConMargenes.margenes.derecho * 72 / 2.54,
+            inferior: plantillaConMargenes.margenes.inferior * 72 / 2.54,
+            izquierdo: plantillaConMargenes.margenes.izquierdo * 72 / 2.54
+        };
+        const anchoContenido = 595.28 - margenesPagina.izquierdo - margenesPagina.derecho;
+        if (anchoContenido <= 0) {
+            throw new Error('Los márgenes izquierdo y derecho no dejan espacio para el contenido de la carta.');
+        }
+
         // 3. REEMPLAZO DE MARCADORES
         htmlContent = reemplazarMarcadoresPlantilla(htmlContent, datos, true);
         htmlContent = normalizarFuentesHtmlParaPdf(htmlContent);
@@ -86,6 +102,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
 
         // 4. CONVERSIÓN DE HTML A ESTRUCTURA NATIVA
         const htmlConvertido = htmlToPdfmake(htmlContent, {
+            removeExtraBlanks: true,
             defaultStyles: {
                 p: { margin: [0, 0, 0, 10], alignment: 'justify' }
             }
@@ -97,7 +114,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         // --- Dibujar Membrete ---
         if (configMembrete.usarEncabezado) {
             contenidoDocumento.push({
-                text: configMembrete.titulo.toUpperCase(),
+                text: configMembrete.titulo,
                 fontSize: sizeTitulo,
                 bold: true,
                 alignment: 'center',
@@ -113,7 +130,7 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
             });
             
             contenidoDocumento.push({
-                canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: configMembrete.colorLinea }],
+                canvas: [{ type: 'line', x1: 0, y1: 0, x2: anchoContenido, y2: 0, lineWidth: 1, lineColor: configMembrete.colorLinea }],
                 margin: [0, 0, 0, 20] 
             });
         }
@@ -125,18 +142,23 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         const docDefinition: TDocumentDefinitions = {
             content: contenidoDocumento,
             pageSize: 'A4',
-            pageMargins: [40, 40, 40, configMembrete.usarPiePagina ? 60 : 40], // Izq, Arriba, Der, Abajo
+            pageMargins: [
+                margenesPagina.izquierdo,
+                margenesPagina.superior,
+                margenesPagina.derecho,
+                Math.max(margenesPagina.inferior, configMembrete.usarPiePagina ? 60 : 0)
+            ],
             defaultStyle: {
-                font: 'Roboto', 
+                font: 'Liberation Sans',
                 fontSize: 11,
                 lineHeight: 1.2
             },
             footer: function(currentPage: number, pageCount: number): Content | null {
                 if (!configMembrete.usarPiePagina || currentPage !== pageCount) return null;
                 return {
-                    margin: [40, 10, 40, 0],
+                    margin: [margenesPagina.izquierdo, 10, margenesPagina.derecho, 0],
                     stack: [
-                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.5, lineColor: configMembrete.colorLineaPie }], margin: [0, 0, 0, 5] },
+                        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: anchoContenido, y2: 0, lineWidth: 0.5, lineColor: configMembrete.colorLineaPie }], margin: [0, 0, 0, 5] },
                         { text: configMembrete.piePagina, alignment: 'center', fontSize: sizePie, color: configMembrete.colorTextoPie }
                     ]
                 };
@@ -144,17 +166,14 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         };
 
         // 6. GENERAR Y GUARDAR A TRAVÉS DE TAURI
-        // Usamos nuestro objeto 'pdf' estrictamente tipado
-        const pdfDocGenerator = pdf.createPdf(docDefinition);
+        const pdfDocGenerator = await crearPdf(docDefinition);
         
         const blob = await pdfDocGenerator.getBlob();
         const arrayBuffer = await blob.arrayBuffer();
         const binary = new Uint8Array(arrayBuffer);
-        const safeName = (datos.nombre_completo || 'Documento').replace(/[^a-z0-9]/gi, '_');
-
         try {
             const path = await save({
-                defaultPath: `Carta_${safeName}.pdf`,
+                defaultPath: generarNombreArchivoCarta(datos, idPlantilla),
                 filters: [{ name: 'PDF', extensions: ['pdf'] }]
             });
             

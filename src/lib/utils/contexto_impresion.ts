@@ -45,6 +45,9 @@ function formatearFechaEvento(fechaISO: string | undefined): string {
 
 // INTERFAZ MAESTRA
 export interface ContextoDocumento {
+    id_asamblea: string;
+    identificador_asamblea: string;
+    fecha_asamblea: string;
     saludo: string;
     nombre_pila: string;
     segundo_nombre: string;
@@ -198,6 +201,10 @@ export async function generarContexto(objeto: any, asambleaId: number, esPartePr
     }
 
     return {
+        id_asamblea: String(infoAsamblea.id || asambleaId),
+        identificador_asamblea: infoAsamblea.identificador || '',
+        fecha_asamblea: infoAsamblea.fecha || '',
+
         // --- PERSONAL ---
         saludo: sexoPersona === 'F' ? 'hermana' : 'hermano',
         nombre_pila: nombrePila,

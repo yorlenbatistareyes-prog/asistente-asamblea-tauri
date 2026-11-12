@@ -6,7 +6,7 @@
   // --- IMPORTACIONES PARA PDF ---
   import { save } from '@tauri-apps/plugin-dialog';
   import { writeFile } from '@tauri-apps/plugin-fs';
-  import { pdf } from '$lib/utils/pdfMakeConfigurado';
+  import { crearPdf } from '$lib/utils/pdfMakeConfigurado';
   import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 
 
@@ -244,7 +244,7 @@ async function generarPDFPrograma() {
           (docDefinition.content as Content[]).push({ text: 'No hay datos del programa para mostrar en este filtro.', margin: [0, 20, 0, 0], italics: true, color: 'gray' });
       }
 
-      const pdfDocGenerator = pdf.createPdf(docDefinition);
+      const pdfDocGenerator = await crearPdf(docDefinition);
       const blob = await pdfDocGenerator.getBlob();
       const arrayBuffer = await blob.arrayBuffer();
       const binary = new Uint8Array(arrayBuffer);

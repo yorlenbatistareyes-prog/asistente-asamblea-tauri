@@ -1,57 +1,84 @@
 export const FUENTES_DOCUMENTO = [
-  'Arial',
-  'Arial Black',
-  'Arial Narrow',
-  'Aptos',
-  'Aptos Display',
-  'Book Antiqua',
-  'Calibri',
-  'Calibri Light',
-  'Cambria',
-  'Cambria Math',
-  'Candara',
-  'Comic Sans MS',
-  'Consolas',
-  'Constantia',
-  'Corbel',
-  'Courier New',
-  'Franklin Gothic Medium',
-  'Garamond',
-  'Georgia',
-  'Impact',
-  'Lucida Console',
-  'Palatino Linotype',
-  'Segoe UI',
-  'Tahoma',
-  'Times New Roman',
-  'Trebuchet MS',
-  'Verdana'
+  { value: 'Liberation Sans', label: 'Liberation Sans', equivalencia: 'Compatible con Arial' },
+  { value: 'Carlito', label: 'Carlito', equivalencia: 'Compatible con Calibri' },
+  { value: 'Caladea', label: 'Caladea', equivalencia: 'Compatible con Cambria' },
+  { value: 'Liberation Serif', label: 'Liberation Serif', equivalencia: 'Compatible con Times New Roman' },
+  { value: 'Liberation Mono', label: 'Liberation Mono', equivalencia: 'Compatible con Courier New' },
+  { value: 'Lato', label: 'Lato', equivalencia: 'Fuente de código abierto' }
 ] as const;
 
-const FUENTES_PDF = [
-  ...FUENTES_DOCUMENTO,
-  'Roboto',
-  'Serif',
-  'Sans-Serif',
-  'Monospace',
-  'Cursive'
-] as const;
+export const ALIAS_FUENTES_PDF: Readonly<Record<string, string>> = {
+  Arial: 'Liberation Sans',
+  'Arial Black': 'Liberation Sans',
+  'Arial Narrow': 'Liberation Sans',
+  Aptos: 'Carlito',
+  'Aptos Display': 'Carlito',
+  'Book Antiqua': 'Caladea',
+  Calibri: 'Carlito',
+  'Calibri Light': 'Carlito',
+  Cambria: 'Caladea',
+  'Cambria Math': 'Caladea',
+  Candara: 'Carlito',
+  'Comic Sans MS': 'Liberation Sans',
+  Consolas: 'Liberation Mono',
+  Constantia: 'Caladea',
+  Corbel: 'Carlito',
+  'Courier New': 'Liberation Mono',
+  'Franklin Gothic Medium': 'Liberation Sans',
+  Garamond: 'Liberation Serif',
+  Georgia: 'Caladea',
+  Impact: 'Liberation Sans',
+  'Lucida Console': 'Liberation Mono',
+  'Palatino Linotype': 'Caladea',
+  'Segoe UI': 'Liberation Sans',
+  Tahoma: 'Liberation Sans',
+  'Times New Roman': 'Liberation Serif',
+  'Trebuchet MS': 'Carlito',
+  Verdana: 'Carlito',
+  'Liberation Sans': 'Liberation Sans',
+  Carlito: 'Carlito',
+  Caladea: 'Caladea',
+  'Liberation Serif': 'Liberation Serif',
+  'Liberation Mono': 'Liberation Mono',
+  Lato: 'Lato',
+  Serif: 'Liberation Serif',
+  'Sans-Serif': 'Liberation Sans',
+  Monospace: 'Liberation Mono',
+  Cursive: 'Carlito'
+};
 
-const fuentesPdfPorNombre = new Map(FUENTES_PDF.map(fuente => [fuente.toLowerCase(), fuente]));
+const fuentesPdfPorNombre = new Map(
+  Object.entries(ALIAS_FUENTES_PDF).map(([nombre, fuente]) => [nombre.toLowerCase(), fuente])
+);
+
+export function normalizarFuenteDocumento(fuente: string | null | undefined): string {
+  if (!fuente) return 'Liberation Sans';
+  return fuentesPdfPorNombre.get(fuente.trim().toLowerCase()) || 'Liberation Sans';
+}
 
 export function normalizarFuentesHtmlParaPdf(html: string): string {
-  return html.replace(/\bstyle=(["'])(.*?)\1/gi, (_atributo, comilla: string, estilos: string) => {
-    const estilosNormalizados = estilos.replace(/font-family\s*:\s*([^;]*)/gi, (_declaracion, valor: string) => {
-      const nombre = valor
-        .replace(/&quot;|&#34;|&#x22;/gi, '"')
-        .replace(/&apos;|&#39;/gi, "'")
-        .split(',')[0]
-        .replace(/["']/g, '')
-        .trim();
-      const fuente = fuentesPdfPorNombre.get(nombre.toLowerCase()) || 'Roboto';
-      return `font-family: '${fuente}'`;
-    });
+  const documento = new DOMParser().parseFromString(html, 'text/html');
+  for (const bloque of [...documento.body.querySelectorAll('p, div')].reverse()) {
+    const texto = bloque.textContent?.replace(/[\s\u200B\uFEFF]/g, '');
+    if (!texto && !bloque.querySelector('img, hr, table, svg')) {
+      bloque.remove();
+    }
+  }
 
-    return `style=${comilla}${estilosNormalizados}${comilla}`;
-  });
+  return documento.body.innerHTML
+    .replace(/(<br\b[^>]*>)(?:\s*<br\b[^>]*>)+/gi, '$1')
+    .replace(/\bstyle=(["'])(.*?)\1/gi, (_atributo, comilla: string, estilos: string) => {
+      const estilosNormalizados = estilos.replace(/font-family\s*:\s*([^;]*)/gi, (_declaracion, valor: string) => {
+        const nombre = valor
+          .replace(/&quot;|&#34;|&#x22;/gi, '"')
+          .replace(/&apos;|&#39;/gi, "'")
+          .split(',')[0]
+          .replace(/["']/g, '')
+          .trim();
+
+        return `font-family: '${normalizarFuenteDocumento(nombre)}'`;
+      });
+
+      return `style=${comilla}${estilosNormalizados}${comilla}`;
+    });
 }

@@ -1,7 +1,7 @@
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
-import { pdf } from './pdfMakeConfigurado';
+import { crearPdf } from './pdfMakeConfigurado';
 import type { TDocumentDefinitions, Content, TableCell } from 'pdfmake/interfaces';
 
 // --- HELPERS ---
@@ -217,7 +217,7 @@ export async function exportarProgramaPDF(partes: any[], tituloDia: string, colo
             serieTitle: { fontSize: 9, bold: true, margin: [0, 4, 0, 2], italics: true },
             diaPill: { fontSize: 10, bold: true, color: '#3b82f6', margin: [0, 5, 0, 5] }
         },
-        defaultStyle: { font: 'Roboto' }
+        defaultStyle: { font: 'Liberation Sans' }
     };
 
     await generarYGuardarPDF(docDefinition, `Programa_${tituloDia.replace(/ /g, '_')}`);
@@ -335,7 +335,7 @@ export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo
             tdLabel: { bold: true, fontSize: 10, color: '#4b5563', margin: [0, 8, 0, 8] },
             tdValue: { fontSize: 10, color: '#1f2937', margin: [0, 8, 0, 8], alignment: 'center' }
         },
-        defaultStyle: { font: 'Roboto' }
+        defaultStyle: { font: 'Liberation Sans' }
     };
 
     generarYGuardarPDF(docDefinition, `Horario_Oficina`);
@@ -344,7 +344,7 @@ export async function exportarOficinaPDF(datosDias: any, personal: any[], titulo
 // --- FUNCIÓN REUTILIZABLE PARA GUARDAR EL PDF ---
 async function generarYGuardarPDF(docDefinition: TDocumentDefinitions, nombreBase: string) {
     try {
-        const pdfDocGenerator = pdf.createPdf(docDefinition);
+        const pdfDocGenerator = await crearPdf(docDefinition);
         const blob = await pdfDocGenerator.getBlob();
         const arrayBuffer = await blob.arrayBuffer();
         const binary = new Uint8Array(arrayBuffer);

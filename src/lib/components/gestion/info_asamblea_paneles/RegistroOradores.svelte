@@ -19,7 +19,7 @@
   import { writeFile } from '@tauri-apps/plugin-fs';
 
   // 1. PDFMAKE (Plano)
-  import { pdf } from '$lib/utils/pdfMakeConfigurado';
+  import { crearPdf } from '$lib/utils/pdfMakeConfigurado';
   import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
 
   // 2. PDF-LIB (Rellenable)
@@ -568,7 +568,7 @@ async function generarPDFPlano() {
       });
 
       // Generación y guardado usando Tauri Dialog
-      const pdfDocGenerator = pdf.createPdf(docDefinition);
+      const pdfDocGenerator = await crearPdf(docDefinition);
       const blob = await pdfDocGenerator.getBlob();
       const arrayBuffer = await blob.arrayBuffer();
       const binary = new Uint8Array(arrayBuffer);

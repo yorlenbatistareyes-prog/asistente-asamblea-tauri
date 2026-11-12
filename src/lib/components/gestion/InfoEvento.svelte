@@ -91,8 +91,10 @@
     },
     addCommands() {
       return {
-        setLineHeight: (lineHeight: string) => ({ commands }) => {
-           return this.options.types.every((type: string) => commands.updateAttributes(type, { lineHeight }));
+        setLineHeight: (lineHeight: string) => ({ commands, state }) => {
+          const type = state.selection.$from.parent.type.name;
+          if (!this.options.types.includes(type)) return false;
+          return commands.updateAttributes(type, { lineHeight });
         },
       };
     },
@@ -896,7 +898,7 @@ async function guardarPresidente() {
                   <select class="native-select font-family" on:change={(e) => cambiarFuente(editorNotas, e)} title="Fuente">
                     <option value="" selected>Fuente</option>
                     {#each FUENTES_DOCUMENTO as fuente}
-                      <option value={fuente}>{fuente}</option>
+                      <option value={fuente.value} title={fuente.equivalencia}>{fuente.label}</option>
                     {/each}
                   </select>
                   <select class="native-select font-size" on:change={(e) => cambiarTamano(editorNotas, e)} title="Tamaño">
@@ -981,7 +983,7 @@ async function guardarPresidente() {
                   <select class="native-select font-family" on:change={(e) => cambiarFuente(editorOrientaciones, e)} title="Fuente">
                     <option value="" selected>Fuente</option>
                     {#each FUENTES_DOCUMENTO as fuente}
-                      <option value={fuente}>{fuente}</option>
+                      <option value={fuente.value} title={fuente.equivalencia}>{fuente.label}</option>
                     {/each}
                   </select>
                   <select class="native-select font-size" on:change={(e) => cambiarTamano(editorOrientaciones, e)} title="Tamaño">
@@ -1283,7 +1285,7 @@ input:disabled { background: var(--bg-body); color: var(--text-sec); cursor: not
 
 .native-select { height: 32px; border: 1px solid var(--border); border-radius: 4px; padding: 0 8px; font-size: 13px; color: var(--text-main); outline: none; cursor: pointer; background: var(--bg-card); transition: 0.15s; }
 .native-select:hover, .native-select:focus { border-color: var(--primary); }
-.font-family { width: 95px; } .font-size { width: 55px; } .line-height { width: 48px; }
+.font-family { width: 130px; } .font-size { width: 55px; } .line-height { width: 48px; }
 
 .color-wrapper { position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border: 1px solid transparent; transition: 0.15s ease; color: var(--text-sec); }
 .color-wrapper:hover { background-color: var(--border); color: var(--text-main); }

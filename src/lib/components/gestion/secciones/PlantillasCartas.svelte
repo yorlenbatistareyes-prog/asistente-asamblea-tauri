@@ -6,7 +6,12 @@
   import { DB } from '$lib/services/db';
   import { cartasStore } from '$lib/stores/cartas'; 
   import { gruposMarcadoresPlantilla } from '$lib/utils/marcadoresPlantillas';
-  import { FUENTES_DOCUMENTO } from '$lib/utils/fuentesDocumento';
+  import { FUENTES_DOCUMENTO, normalizarFuenteDocumento } from '$lib/utils/fuentesDocumento';
+  import {
+    guardarMargenesEnPlantilla,
+    leerMargenesPlantilla,
+    MARGENES_PLANTILLA_POR_DEFECTO
+  } from '$lib/utils/margenesPlantilla';
   
   import { save } from '@tauri-apps/plugin-dialog';
   import { writeTextFile } from '@tauri-apps/plugin-fs';
@@ -61,7 +66,7 @@
   let saveStatus: 'saved' | 'saving' | 'unsaved' = 'saved';
 
   // Variables UI Editor
-  let currentFont = 'Arial';
+  let currentFont = 'Liberation Sans';
   let currentSize = '11';
   let currentColor = '#000000';
   let currentLineHeight = '1.5';
@@ -75,6 +80,7 @@
   let textAlignJustify = false;
   let isBulletList = false;
   let isOrderedList = false;
+  let isFirstLineIndented = false;
   let currentIndent = 0;
   
   // Estado Popups
@@ -84,10 +90,10 @@
   let markerPickerPos = { top: 0, left: 0 };
 
   // Márgenes
-  let marginTop = 2.54;
-  let marginBottom = 2.54;
-  let marginLeft = 2.54;
-  let marginRight = 2.54;
+  let marginTop = MARGENES_PLANTILLA_POR_DEFECTO.superior;
+  let marginBottom = MARGENES_PLANTILLA_POR_DEFECTO.inferior;
+  let marginLeft = MARGENES_PLANTILLA_POR_DEFECTO.izquierdo;
+  let marginRight = MARGENES_PLANTILLA_POR_DEFECTO.derecho;
 
   let markerGroups = gruposMarcadoresPlantilla.map((group, index) => ({
     title: group.category,
@@ -157,8 +163,10 @@
     },
     addCommands() {
       return {
-        setLineHeight: (lineHeight: string) => ({ commands }: any) => {
-           return this.options.types.every((type: string) => commands.updateAttributes(type, { lineHeight }));
+        setLineHeight: (lineHeight: string) => ({ commands, state }: any) => {
+          const type = state.selection.$from.parent.type.name;
+          if (!this.options.types.includes(type)) return false;
+          return commands.updateAttributes(type, { lineHeight });
         },
       };
     },
@@ -206,11 +214,24 @@
           const storeData = $cartasStore.find(c => c.id === tipoActivo);
           contenidoCargado = storeData ? storeData.html : `<p>Escriba aquí el contenido para ${tipoActivo}...</p>`;
       }
+      const plantilla = leerMargenesPlantilla(contenidoCargado);
+      contenidoCargado = plantilla.contenido;
+      marginTop = plantilla.margenes.superior;
+      marginRight = plantilla.margenes.derecho;
+      marginBottom = plantilla.margenes.inferior;
+      marginLeft = plantilla.margenes.izquierdo;
       if (editor) editor.commands.setContent(contenidoCargado);
     } catch (e) {
       console.error(e);
       const storeData = $cartasStore.find(c => c.id === tipoActivo);
-      if(editor && storeData) editor.commands.setContent(storeData.html);
+      if (storeData) {
+        const plantilla = leerMargenesPlantilla(storeData.html);
+        marginTop = plantilla.margenes.superior;
+        marginRight = plantilla.margenes.derecho;
+        marginBottom = plantilla.margenes.inferior;
+        marginLeft = plantilla.margenes.izquierdo;
+        if (editor) editor.commands.setContent(plantilla.contenido);
+      }
       else if (editor) editor.commands.setContent(`<p>Plantilla nueva para ${tipoActivo}</p>`);
     }
   }
@@ -221,7 +242,12 @@
     if (silencioso) saveStatus = 'saving';
 
     try {
-      const htmlFinal = editor.getHTML();
+      const htmlFinal = guardarMargenesEnPlantilla(editor.getHTML(), {
+        superior: Number(marginTop),
+        derecho: Number(marginRight),
+        inferior: Number(marginBottom),
+        izquierdo: Number(marginLeft)
+      });
       await DB.guardarPlantillaCarta(tipoActivo, htmlFinal);
       
       cartasStore.update(cartas => {
@@ -301,7 +327,7 @@
   function updateToolbar() {
     if (!editor) return;
     const textStyle = editor.getAttributes('textStyle');
-    currentFont = textStyle.fontFamily || 'Arial';
+    currentFont = normalizarFuenteDocumento(textStyle.fontFamily);
     currentSize = textStyle.fontSize || '11';
     currentColor = textStyle.color || '#000000';
     currentLineHeight = getLineHeightFromEditor();
@@ -315,7 +341,9 @@
     textAlignJustify = editor.isActive({ textAlign: 'justify' });
     isBulletList = editor.isActive('bulletList');
     isOrderedList = editor.isActive('orderedList');
-    currentIndent = editor.getAttributes('paragraph').indentLevel || 0;
+    const paragraph = editor.getAttributes('paragraph');
+    currentIndent = paragraph.indentLevel || 0;
+    isFirstLineIndented = paragraph.firstLine || false;
   }
 
   // --- ACTIONS UI ---
@@ -601,7 +629,7 @@
                             <div class="controls-row">
                                 <select class="font-select" on:change={cambiarFuente} bind:value={currentFont} title="Fuente">
                                     {#each FUENTES_DOCUMENTO as fuente}
-                                        <option value={fuente}>{fuente}</option>
+                                        <option value={fuente.value} title={fuente.equivalencia}>{fuente.label}</option>
                                     {/each}
                                 </select>
                                 <select class="size-select" on:change={cambiarTamano} bind:value={currentSize} title="Tamaño">
@@ -646,19 +674,20 @@
                                 <button class="ribbon-btn small" class:active={isOrderedList} on:click={() => editor.chain().focus().toggleOrderedList().run()} title="Numeración"><ListOrdered size={18}/></button>
                                 <div class="divider-v"></div>
                                 <div class="group-row centered">
-                                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().liftListItem('listItem').run()} title="Disminuir nivel" disabled={!editor?.isActive('bulletList') && !editor?.isActive('orderedList')}><IndentDecrease size={18}/></button>
-                                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().sinkListItem('listItem').run()} title="Aumentar nivel" disabled={!editor?.isActive('bulletList') && !editor?.isActive('orderedList')}><IndentIncrease size={18}/></button>
+                                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().liftListItem('listItem').run()} title="Disminuir nivel de lista" disabled={!editor?.isActive('bulletList') && !editor?.isActive('orderedList')}><IndentDecrease size={18}/></button>
+                                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().sinkListItem('listItem').run()} title="Aumentar nivel de lista" disabled={!editor?.isActive('bulletList') && !editor?.isActive('orderedList')}><IndentIncrease size={18}/></button>
                                 </div>
                                 <div class="divider-v"></div>
                                 <div class="group-row centered">
-                                    <button class="ribbon-btn small" on:click={() => (editor.chain().focus()).decreaseIndent().run()} title="Disminuir margen"><ChevronsLeft size={18}/></button>
-                                    <button class="ribbon-btn small" on:click={() => (editor.chain().focus()).increaseIndent().run()} title="Aumentar margen"><ChevronsRight size={18}/></button>
+                                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().decreaseIndent().run()} title="Disminuir sangría del párrafo"><ChevronsLeft size={18}/></button>
+                                    <button class="ribbon-btn small" on:click={() => editor.chain().focus().increaseIndent().run()} title="Aumentar sangría del párrafo"><ChevronsRight size={18}/></button>
                                 </div>
                                 <div class="divider-v"></div>
                                 <div class="group-row centered">
                                   <button class="ribbon-btn small" 
-                                       on:click={() => (editor.chain().focus() as any).toggleFirstLine().run()} 
-                                       title="Sangría 1ra línea">
+                                       class:active={isFirstLineIndented}
+                                       on:click={() => editor.chain().focus().toggleFirstLineIndent().run()}
+                                       title="Alternar sangría de primera línea">
                                        <ArrowRightToLine size={18}/>
                                   </button>
                                 </div>
@@ -669,7 +698,7 @@
                                 <button class="ribbon-btn small" class:active={textAlignRight} on:click={() => editor.chain().focus().setTextAlign('right').run()} title="Derecha"><AlignRight size={18}/></button>
                                 <button class="ribbon-btn small" class:active={textAlignJustify} on:click={() => editor.chain().focus().setTextAlign('justify').run()} title="Justificar"><AlignJustify size={18}/></button>
                                 <div class="divider-v"></div>
-                                <div class="line-height-wrapper" title="Interlineado">
+                                <div class="line-height-wrapper" title="Interlineado: 1.0 sencillo, 1.5 amplio, 2.0 doble">
                                     <ArrowUpDown size={14} class="icon-lh"/>
                                     <select class="line-height-select" on:change={cambiarInterlineado} bind:value={currentLineHeight}>
                                         <option value="1.0">1.0</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
@@ -683,16 +712,17 @@
 
                     <div class="ribbon-group">
                         <div class="group-col full-h margins-group">
+                            <span class="margins-help" title="El margen superior controla el espacio antes del membrete; los laterales controlan el ancho del contenido.">Medidas en centímetros</span>
                             <div class="margin-row">
-                                <div class="margin-input" title="Margen Superior"><ArrowUpFromLine size={12} /><input type="number" step="0.1" bind:value={marginTop} /></div>
-                                <div class="margin-input" title="Margen Inferior"><ArrowDownToLine size={12} /><input type="number" step="0.1" bind:value={marginBottom} /></div>
+                                <label class="margin-input" title="Margen superior: espacio antes del membrete"><ArrowUpFromLine size={12} /><input type="number" min="0" step="0.1" aria-label="Margen superior de página en centímetros" bind:value={marginTop} on:change={triggerAutosave} /><span>cm</span></label>
+                                <label class="margin-input" title="Margen inferior de página"><ArrowDownToLine size={12} /><input type="number" min="0" step="0.1" aria-label="Margen inferior de página en centímetros" bind:value={marginBottom} on:change={triggerAutosave} /><span>cm</span></label>
                             </div>
                             <div class="margin-row">
-                                <div class="margin-input" title="Margen Izquierdo"><ArrowLeftFromLine size={12} /><input type="number" step="0.1" bind:value={marginLeft} /></div>
-                                <div class="margin-input" title="Margen Derecho"><ArrowRightToLine size={12} /><input type="number" step="0.1" bind:value={marginRight} /></div>
+                                <label class="margin-input" title="Margen izquierdo de página"><ArrowLeftFromLine size={12} /><input type="number" min="0" step="0.1" aria-label="Margen izquierdo de página en centímetros" bind:value={marginLeft} on:change={triggerAutosave} /><span>cm</span></label>
+                                <label class="margin-input" title="Margen derecho de página"><ArrowRightToLine size={12} /><input type="number" min="0" step="0.1" aria-label="Margen derecho de página en centímetros" bind:value={marginRight} on:change={triggerAutosave} /><span>cm</span></label>
                             </div>
                         </div>
-                        <div class="group-label">Márgenes</div>
+                        <div class="group-label">Márgenes de página (cm)</div>
                     </div>
                     <div class="separator"></div>
                     
@@ -1320,6 +1350,12 @@ select:hover {
 .margins-group {
   gap: 4px !important;
 }
+.margins-help {
+  color: var(--text-sec);
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
 .margin-row {
   display: flex;
   gap: 6px;
@@ -1342,7 +1378,7 @@ select:hover {
   color: var(--primary);
 }
 .margin-input input[type="number"] {
-  width: 35px;
+  width: 42px;
   border: none;
   background: transparent;
   outline: none;
@@ -1350,6 +1386,10 @@ select:hover {
   color: var(--text-main);
   padding: 0;
   margin: 0;
+}
+.margin-input span {
+  font-size: 9px;
+  color: var(--text-sec);
 }
 
 /* Marker Dropdown */

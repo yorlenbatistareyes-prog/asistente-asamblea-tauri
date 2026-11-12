@@ -2,7 +2,7 @@
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 
-import { pdf } from './pdfMakeConfigurado';
+import { crearPdf } from './pdfMakeConfigurado';
 import { normalizarFuentesHtmlParaPdf } from './fuentesDocumento';
 import htmlToPdfmake from 'html-to-pdfmake';
 import type { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
@@ -19,6 +19,7 @@ export function convertirHtmlAPdf(htmlContent: string): Content[] {
     );
     
     return htmlToPdfmake(htmlLimpio, {
+        removeExtraBlanks: true,
         defaultStyles: {
             p: { margin: [0, 0, 0, 10], alignment: 'justify' }
         }
@@ -48,7 +49,7 @@ export function formatearFechaGlobal(fechaRaw: string): string {
  */
 export async function generarYGuardarPdfMake(docDefinition: TDocumentDefinitions, nombreArchivo: string): Promise<void> {
     try {
-        const pdfDocGenerator = pdf.createPdf(docDefinition);
+        const pdfDocGenerator = await crearPdf(docDefinition);
         const blob = await pdfDocGenerator.getBlob();
         const arrayBuffer = await blob.arrayBuffer();
         const binary = new Uint8Array(arrayBuffer);

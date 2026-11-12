@@ -304,7 +304,7 @@ export function generarPlantillaPresidenteDia(
         pageMargins: [120, 80, 120, 100], 
         content: contenidoDoc,
         defaultStyle: { 
-            font: 'Roboto',
+            font: 'Liberation Sans',
             color: '#111827'
         },
         styles: {
