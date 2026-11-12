@@ -142,11 +142,11 @@ export async function generarCartaPDF(datos: ContextoDocumento, idPlantilla: str
         const docDefinition: TDocumentDefinitions = {
             content: contenidoDocumento,
             pageSize: 'A4',
-            pageMargins: [
+                pageMargins: [
                 margenesPagina.izquierdo,
                 margenesPagina.superior,
                 margenesPagina.derecho,
-                Math.max(margenesPagina.inferior, configMembrete.usarPiePagina ? 60 : 0)
+                margenesPagina.inferior // Usamos el margen exacto de la plantilla
             ],
             defaultStyle: {
                 font: 'Liberation Sans',
