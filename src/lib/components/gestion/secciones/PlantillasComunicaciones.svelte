@@ -19,6 +19,7 @@
   const dispatch = createEventDispatcher();
   let canalActivo: 'correo' | 'whatsapp' | 'cartas' = 'correo';
   let mostrarExcepciones = false;
+  let editorAbierto = false;
 
   const canales = [
     { id: 'correo', title: 'Plantillas de correo', icon: Mail },
@@ -27,6 +28,7 @@
   ] as const;
 
   function reenviarCambioModo(event: CustomEvent<boolean>) {
+    editorAbierto = event.detail;
     dispatch('cambioModo', event.detail);
   }
 
@@ -114,7 +116,7 @@
   }
 </script>
 
-<div class="comunicaciones-page">
+<div class="comunicaciones-page" class:editor-focused={editorAbierto}>
 <header class="comunicaciones-heading">
     <div class="heading-text">
       <h2>Comunicaciones</h2>
@@ -203,6 +205,29 @@
     flex-direction: column;
     gap: 18px;
     padding-bottom: 24px;
+  }
+
+  .comunicaciones-page.editor-focused {
+    height: 100%;
+    min-height: 0;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  .comunicaciones-page.editor-focused > .comunicaciones-heading,
+  .comunicaciones-page.editor-focused > .channel-tabs,
+  .comunicaciones-page.editor-focused .section-heading {
+    display: none;
+  }
+  .comunicaciones-page.editor-focused .template-section {
+    flex: 1;
+    min-height: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+  .comunicaciones-page.editor-focused :global(.word-layout) {
+    height: 100%;
+    min-height: 0;
   }
 
   .comunicaciones-heading h2 {

@@ -563,7 +563,7 @@
     </div>
 
 {:else}
-    <div class="word-layout">
+    <div class="word-layout focus-mode">
         
         <aside class="sidebar">
             <div class="sidebar-top">
@@ -587,6 +587,10 @@
             
             <div class="app-header">
                 <div class="left-section">
+                    <button class="editor-back-btn" on:click={cerrarEditor} title="Volver a las plantillas">
+                        <ArrowLeft size={18} />
+                        <span>Volver</span>
+                    </button>
                     <FileText size={24} class="header-icon"/>
                     <div class="doc-info">
                         <span class="doc-title">EDITANDO: {tipoActivo.toUpperCase()}</span>
@@ -901,6 +905,10 @@
   color: var(--text-main);
   width: 100%;
 }
+.word-layout.focus-mode {
+  height: 100%;
+  min-height: 0;
+}
 
 /* Sidebar */
 .sidebar {
@@ -980,6 +988,13 @@
   height: 100vh;
   overflow: hidden;
 }
+.word-layout.focus-mode > .sidebar {
+  display: none;
+}
+.word-layout.focus-mode > .editor-main {
+  height: 100%;
+  min-height: 0;
+}
 
 /* Header */
 .app-header {
@@ -996,6 +1011,23 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.editor-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: transparent;
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.editor-back-btn:hover {
+  background: rgba(0, 0, 0, 0.15);
 }
 .doc-info {
   display: flex;
@@ -1485,6 +1517,7 @@ select:hover {
 /* Workspace (fondo estilo escritorio) */
 .workspace {
   flex: 1;
+  min-height: 0;
   background: #5f6368 !important;
   position: relative;
   overflow: hidden;

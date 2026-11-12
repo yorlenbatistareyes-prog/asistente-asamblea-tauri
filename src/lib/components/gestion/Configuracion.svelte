@@ -139,7 +139,7 @@
   });
 </script>
 
-<div class="config-layout">
+<div class="config-layout" class:editor-focused={editorAbierto && configSeccion === 'comunicaciones'}>
     <header class="config-top-header">
         <div class="config-top-title-area">
             <button class="btn-back-config" on:click={cerrar}><ArrowLeft size={18}/> Volver</button>
@@ -252,6 +252,23 @@
   background: var(--bg-body); 
   color: var(--text-main); 
   font-family: var(--font-main); 
+}
+
+.config-layout.editor-focused {
+  height: 100%;
+  min-height: 0;
+}
+.config-layout.editor-focused > .config-top-header {
+  display: none;
+}
+.config-layout.editor-focused > .config-content,
+.config-layout.editor-focused .config-scroll-area {
+  min-height: 0;
+}
+.config-layout.editor-focused .config-scroll-area {
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
 }
 
 /* === CABECERA SUPERIOR === */
