@@ -17,7 +17,13 @@
   import { writeTextFile } from '@tauri-apps/plugin-fs';
 
   // --- TIPTAP ---
-  import { Editor, Extension } from '@tiptap/core';
+  import { Editor } from '@tiptap/core';
+  import {
+    crearExtensionInterlineado,
+    crearExtensionTamanioFuente,
+    OPCIONES_INTERLINEADO,
+    type InterlineadoDocumento
+  } from '$lib/extensions/formatoTextoDocumento';
   import StarterKit from '@tiptap/starter-kit';
   import Underline from '@tiptap/extension-underline';
   import TextAlign from '@tiptap/extension-text-align';
@@ -70,6 +76,7 @@
   let currentSize = '11';
   let currentColor = '#000000';
   let currentLineHeight = '1.5';
+  let currentParagraphSpacing = '10';
   let isBold = false;
   let isItalic = false;
   let isUnderline = false;
@@ -109,69 +116,6 @@
   const standardColors = ['#000000', '#FFFFFF', '#EEECE1', '#1F497D', '#4F81BD', '#C0504D', '#9BBB59', '#8064A2', '#4BACC6', '#F79646'];
 
   // --- EXTENSIONES TIPTAP CUSTOM ---
-  const FontSize = Extension.create({
-    name: 'fontSize',
-    addOptions() { return { types: ['textStyle'] }; },
-    addGlobalAttributes() {
-      return [{
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: (element: any) => element.style.fontSize.replace('px', ''),
-            renderHTML: (attributes: any) => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}px` };
-            },
-          },
-        },
-      }];
-    },
-    addCommands() {
-      return {
-        setFontSize: (fontSize: string) => ({ chain }: any) => chain().setMark('textStyle', { fontSize }).run(),
-        unsetFontSize: () => ({ chain }: any) => chain().setMark('textStyle', { fontSize: null }).run(),
-      };
-    },
-  });
-
-  const LineHeight = Extension.create({
-    name: 'lineHeight',
-    addOptions() { return { types: ['paragraph', 'heading'] }; },
-    addGlobalAttributes() {
-      return [{
-        types: this.options.types,
-        attributes: {
-          lineHeight: {
-            default: null,
-            parseHTML: (element: any) => {
-              const styleAttr = element.getAttribute('style') || '';
-              const lineHeightMatch = styleAttr.match(/line-height\s*:\s*([^;]+)/i);
-              if (lineHeightMatch && lineHeightMatch[1]) return lineHeightMatch[1].trim();
-              const computedStyle = window.getComputedStyle(element);
-              const computedLH = computedStyle.lineHeight;
-              if (computedLH && computedLH !== 'normal') return computedLH;
-              return null;
-            },
-            renderHTML: (attributes: any) => {
-              if (!attributes.lineHeight) return {};
-              return { style: `line-height: ${attributes.lineHeight}` };
-            },
-          },
-        },
-      }];
-    },
-    addCommands() {
-      return {
-        setLineHeight: (lineHeight: string) => ({ commands, state }: any) => {
-          const type = state.selection.$from.parent.type.name;
-          if (!this.options.types.includes(type)) return false;
-          return commands.updateAttributes(type, { lineHeight });
-        },
-      };
-    },
-  });
-
   // --- FUNCIONES DE NAVEGACIÓN ---
   
   async function abrirEditor(tipo: string) {
@@ -281,7 +225,8 @@
     editor = new Editor({
       element: element,
       extensions: [
-        StarterKit, Underline, Subscript, Superscript, TextStyle, Color, FontFamily, FontSize, LineHeight,
+        StarterKit, Underline, Subscript, Superscript, TextStyle, Color, FontFamily,
+        crearExtensionTamanioFuente(), crearExtensionInterlineado(),
         Link.configure({ openOnClick: false }),
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Placeholder.configure({ placeholder: '' }),
@@ -344,6 +289,7 @@
     const paragraph = editor.getAttributes('paragraph');
     currentIndent = paragraph.indentLevel || 0;
     isFirstLineIndented = paragraph.firstLine || false;
+    currentParagraphSpacing = paragraph.marginTop ? paragraph.marginTop.replace('pt', '') : '0';
   }
 
   // --- ACTIONS UI ---
@@ -378,7 +324,29 @@
 
   function cambiarFuente(e: Event) { editor.chain().focus().setFontFamily((e.target as HTMLSelectElement).value).run(); }
   function cambiarTamano(e: Event) { editor.chain().focus().setFontSize((e.target as HTMLSelectElement).value).run(); }
-  function cambiarInterlineado(e: Event) { editor.chain().focus().setLineHeight((e.target as HTMLSelectElement).value).run(); }
+  function cambiarInterlineado(e: Event) {
+    editor.chain().focus().setLineHeight((e.target as HTMLSelectElement).value as InterlineadoDocumento).run();
+  }
+
+    function cambiarEspaciadoParrafo(e: Event) {
+    const valor = (e.target as HTMLSelectElement).value;
+    currentParagraphSpacing = valor;
+    
+    // Usamos un comando de Tiptap que recorre TODOS los párrafos seleccionados
+    editor.chain().focus().command(({ tr, state }) => {
+      const { from, to } = state.selection;
+      state.doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+          tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            marginTop: `${valor}pt`,
+            marginBottom: `${valor}pt`
+          });
+        }
+      });
+      return true;
+    }).run();
+  }
   
   function selectColor(color: string) {
     editor.chain().setColor(color).run();
@@ -705,9 +673,24 @@
                                 <div class="line-height-wrapper" title="Interlineado: 1.0 sencillo, 1.5 amplio, 2.0 doble">
                                     <ArrowUpDown size={14} class="icon-lh"/>
                                     <select class="line-height-select" on:change={cambiarInterlineado} bind:value={currentLineHeight}>
-                                        <option value="1.0">1.0</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
+                                        {#each OPCIONES_INTERLINEADO as interlineado}
+                                            <option value={interlineado}>{interlineado}</option>
+                                        {/each}
                                     </select>
                                 </div>
+
+                                <div class="line-height-wrapper" title="Espacio entre párrafos (en puntos)">
+                                    <span style="font-size: 11px; margin-right: 4px; color: var(--text-sec); font-weight: 600;">Párrafo:</span>
+                                    <select class="line-height-select" on:change={cambiarEspaciadoParrafo} bind:value={currentParagraphSpacing} style="width: 45px;">
+                                        <option value="0">0</option>
+                                        <option value="5">5</option>
+                                        <option value="10">10</option>
+                                        <option value="15">15</option>
+                                        <option value="20">20</option>
+                                        <option value="30">30</option>
+                                    </select>
+                                </div>
+
                             </div>
                         </div>
                         <div class="group-label">Párrafo</div>
@@ -1590,6 +1573,13 @@ select:hover {
   margin-bottom: 0em;
   margin-top: 0;
 }
+.ProseMirror p[style*="margin-top"] {
+  margin-top: revert !important;
+}
+.ProseMirror p[style*="margin-bottom"] {
+  margin-bottom: revert !important;
+}
+
 .ProseMirror ul,
 .ProseMirror ol {
   padding-left: 1.5em;

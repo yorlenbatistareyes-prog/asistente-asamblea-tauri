@@ -9,7 +9,13 @@
   import { confirm } from '@tauri-apps/plugin-dialog';
 
   // --- TIPTAP Y EXTENSIONES ---
-  import { Editor, Extension } from '@tiptap/core';
+  import { Editor } from '@tiptap/core';
+  import {
+    crearExtensionInterlineado,
+    crearExtensionTamanioFuente,
+    OPCIONES_INTERLINEADO,
+    type InterlineadoDocumento
+  } from '$lib/extensions/formatoTextoDocumento';
   import StarterKit from '@tiptap/starter-kit';
   import Underline from '@tiptap/extension-underline';
   import TextAlign from '@tiptap/extension-text-align';
@@ -43,62 +49,6 @@
     MonitorPlay, FileText, Palette, Link as LinkIcon, ListTodo,
     ListOrdered, Minus, IndentDecrease, IndentIncrease, Edit, Pencil, 
     Map, Flag, FileSpreadsheet, ChevronDown, User, Search, Trash2, Mail, Phone } from 'lucide-svelte';
-
-  // --- EXTENSIONES PERSONALIZADAS (TIPTAP) ---
-  const FontSize = Extension.create({
-    name: 'fontSize',
-    addOptions() { return { types: ['textStyle'] }; },
-    addGlobalAttributes() {
-      return [{
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: element => element.style.fontSize.replace('px', ''),
-            renderHTML: attributes => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}px` };
-            },
-          },
-        },
-      }];
-    },
-    addCommands() {
-      return {
-        setFontSize: (fontSize) => ({ chain }) => chain().setMark('textStyle', { fontSize }).run(),
-        unsetFontSize: () => ({ chain }) => chain().setMark('textStyle', { fontSize: null }).run(),
-      };
-    },
-  });
-
-  const LineHeight = Extension.create({
-    name: 'lineHeight',
-    addOptions() { return { types: ['paragraph', 'heading'] }; },
-    addGlobalAttributes() {
-      return [{
-        types: this.options.types,
-        attributes: {
-          lineHeight: {
-            default: null,
-            parseHTML: element => element.style.lineHeight,
-            renderHTML: attributes => {
-              if (!attributes.lineHeight) return {};
-              return { style: `line-height: ${attributes.lineHeight}` };
-            },
-          },
-        },
-      }];
-    },
-    addCommands() {
-      return {
-        setLineHeight: (lineHeight: string) => ({ commands, state }) => {
-          const type = state.selection.$from.parent.type.name;
-          if (!this.options.types.includes(type)) return false;
-          return commands.updateAttributes(type, { lineHeight });
-        },
-      };
-    },
-  });
 
   // --- VARIABLES DE EVENTO (GENERALES) ---
   let asambleaId: number | null = null;
@@ -436,8 +386,7 @@ async function guardarPresidente() {
   function cambiarInterlineado(editor: Editor, event: Event) {
     const target = event.target as HTMLSelectElement;
     if (target.value) {
-      // @ts-ignore
-      editor.chain().focus().setLineHeight(target.value).run();
+      editor.chain().focus().setLineHeight(target.value as InterlineadoDocumento).run();
     }
   }
 
@@ -590,7 +539,8 @@ async function guardarPresidente() {
 
   function initEditors() {
     const extensionesComunes = [
-      StarterKit, Underline, TextStyle, Color, FontFamily, FontSize, LineHeight,
+      StarterKit, Underline, TextStyle, Color, FontFamily,
+      crearExtensionTamanioFuente(), crearExtensionInterlineado(),
       TaskList, TaskItem.configure({ nested: true }),
       Link.configure({ openOnClick: false }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -925,7 +875,9 @@ async function guardarPresidente() {
                 <div class="group">
                   <select class="native-select line-height" on:change={(e) => cambiarInterlineado(editorNotas, e)} title="Interlineado">
                     <option value="" disabled selected>↕</option>
-                    <option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
+                    {#each OPCIONES_INTERLINEADO as interlineado}
+                      <option value={interlineado}>{interlineado}</option>
+                    {/each}
                   </select>
                   <button on:click={() => ejecutar(editorNotas, c => c.toggleBulletList())} class:active={editorNotas.isActive('bulletList')} data-tooltip="Puntos"><List size={14}/></button>
                   <button on:click={() => ejecutar(editorNotas, c => c.toggleOrderedList())} class:active={editorNotas.isActive('orderedList')} data-tooltip="Números"><ListOrdered size={14}/></button>
@@ -1010,7 +962,9 @@ async function guardarPresidente() {
                 <div class="group">
                   <select class="native-select line-height" on:change={(e) => cambiarInterlineado(editorOrientaciones, e)} title="Interlineado">
                     <option value="" disabled selected>↕</option>
-                    <option value="1.0">1.0</option><option value="1.5">1.5</option><option value="2.0">2.0</option>
+                    {#each OPCIONES_INTERLINEADO as interlineado}
+                      <option value={interlineado}>{interlineado}</option>
+                    {/each}
                   </select>
                   <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleBulletList())} class:active={editorOrientaciones.isActive('bulletList')} data-tooltip="Puntos"><List size={14}/></button>
                   <button on:click={() => ejecutar(editorOrientaciones, c => c.toggleOrderedList())} class:active={editorOrientaciones.isActive('orderedList')} data-tooltip="Números"><ListOrdered size={14}/></button>

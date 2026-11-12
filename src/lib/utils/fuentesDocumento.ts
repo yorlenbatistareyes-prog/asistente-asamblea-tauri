@@ -66,19 +66,26 @@ export function normalizarFuentesHtmlParaPdf(html: string): string {
   }
 
   return documento.body.innerHTML
-    .replace(/(<br\b[^>]*>)(?:\s*<br\b[^>]*>)+/gi, '$1')
-    .replace(/\bstyle=(["'])(.*?)\1/gi, (_atributo, comilla: string, estilos: string) => {
-      const estilosNormalizados = estilos.replace(/font-family\s*:\s*([^;]*)/gi, (_declaracion, valor: string) => {
-        const nombre = valor
-          .replace(/&quot;|&#34;|&#x22;/gi, '"')
-          .replace(/&apos;|&#39;/gi, "'")
-          .split(',')[0]
-          .replace(/["']/g, '')
-          .trim();
-
-        return `font-family: '${normalizarFuenteDocumento(nombre)}'`;
-      });
-
-      return `style=${comilla}${estilosNormalizados}${comilla}`;
+  .replace(/(<br\b[^>]*>)(?:\s*<br\b[^>]*>)+/gi, '$1')
+  .replace(/\bstyle=(["'])(.*?)\1/gi, (_atributo, comilla: string, estilos: string) => {
+    // 1. Normalizar fuentes
+    const estilosConFuentes = estilos.replace(/font-family\s*:\s*([^;]*)/gi, (_declaracion, valor: string) => {
+      const nombre = valor
+        .replace(/&quot;|&#34;|&#x22;/gi, '"')
+        .replace(/&apos;|&#39;/gi, "'")
+        .split(',')[0]
+        .replace(/["']/g, '')
+        .trim();
+      return `font-family: '${normalizarFuenteDocumento(nombre)}'`;
     });
+
+    // 2. Eliminar márgenes verticales heredados de Word (no horizontales)
+    const estilosSinMargenesVerticales = estilosConFuentes
+      .replace(/(?:^|;)\s*margin-(?:top|bottom)\s*:[^;]*;?/gi, (match) => match.startsWith(';') ? ';' : '')
+      .replace(/^\s*;+\s*/, '')
+      .replace(/\s*;+\s*$/, '')
+      .trim();
+
+    return `style=${comilla}${estilosSinMargenesVerticales}${comilla}`;
+  });
 }
